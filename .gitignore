@@ -1,0 +1,31 @@
+# dependencies
+node_modules/
+
+# Next.js / build output
+.next/
+out/
+build/
+*.tsbuildinfo
+next-env.d.ts
+
+# secrets: every .env file except the template
+.env
+.env.*
+!.env.example
+
+# tests & logs
+coverage/
+logs/
+*.log
+npm-debug.log*
+
+# local data
+storage/
+*.db
+*.sqlite
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
