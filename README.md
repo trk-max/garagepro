@@ -59,6 +59,19 @@ Montants stockés en millimes (entiers) : aucune erreur d'arrondi.
 
 Côté équipe : `Rendez-vous` (liste du jour en direct, affectation, **Réceptionner** = crée l'OR + code de suivi), `Atelier (mobile)` (grandes touches pour changer d'étape + appareil photo), carte « Suivi client » sur chaque OR, réglages horaires / capacité / prestations dans `Paramètres`.
 
+## Assistant auto (guide + IA gratuites)
+
+Page publique `/assistant` (lien dans l'en-tête et sur l'accueil), en français et en arabe.
+
+1. **Guide à choix (sans IA, toujours disponible)** : le client clique sur son problème (voyant, bruit, freins, moteur, surchauffe, clim, pneus, fuite, entretien) → 1 à 3 questions → causes probables, ce qu'il peut vérifier sans danger, urgence, et bouton **Choisir un créneau** vers la bonne prestation du garage (RDV pré-rempli). Les cas dangereux affichent aussi Appeler / WhatsApp. Contenu : `src/lib/guided-diagnosis.ts`.
+2. **IA** : « Autre problème », « Ce n'est pas ça ? Demander à l'IA » ou une question écrite → l'IA reçoit les choix déjà faits et répond. Si une visite est utile, elle propose la prestation adaptée.
+
+**Plusieurs IA gratuites, avec relais automatique** : Gemini → Groq → Cerebras → Mistral → OpenRouter → serveur perso (Ollama). Chaque fournisseur peut avoir plusieurs clés (`GROQ_API_KEY="cle1,cle2"`). Une clé absente est ignorée ; une clé épuisée (429), refusée (401/403), en panne ou trop lente → clé suivante, puis fournisseur suivant. Une clé en échec est mise en pause (1 à 10 min) pour répondre plus vite ensuite. Le fournisseur utilisé apparaît dans le terminal : `[assistant] answered by groq`.
+
+Activation : renseignez au moins une clé dans `.env` (voir `.env.example`), puis redémarrez `npm run dev`. Sans aucune clé, seul le guide est proposé (avec Appeler / WhatsApp pour « Autre problème »).
+
+Garde-fous : l'IA ne peut **rien écrire** dans la base ; ses propositions sont vérifiées (prestation existante, urgence valide, texte nettoyé) ; 30 messages/heure par visiteur et 800/jour pour le site ; consignes de sécurité (arrêt du véhicule en cas de danger) ; réponses affichées en texte brut. Les offres gratuites peuvent utiliser les conversations pour améliorer leurs modèles : le portail demande de ne pas partager d'informations personnelles.
+
 ## E-mails (Resend)
 
 1. Créez un compte sur https://resend.com → **API Keys** → **Create API Key**.
@@ -108,7 +121,7 @@ Ouvrir http://localhost:3000 — comptes de démo (mot de passe `password123`) :
 
 | Commande | Rôle |
 |---|---|
-| `npm test` | 46 tests (argent, TVA, créneaux, permissions, stock, limite de connexion) |
+| `npm test` | 82 tests (argent, TVA, créneaux, permissions, stock, limite de connexion, guide et assistant IA) |
 | `npm run test:watch` | relance les tests à chaque sauvegarde |
 | `npm run check` | TypeScript + tests (à lancer avant chaque commit) |
 | `npm run build` | build de production |

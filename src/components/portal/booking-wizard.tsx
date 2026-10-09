@@ -45,7 +45,18 @@ function monthGrid(ym: string): (string | null)[] {
   return cells;
 }
 
-export function BookingWizard({ services, initialServiceId, garagePhone }: { services: WizardService[]; initialServiceId?: string; garagePhone: string | null }) {
+export function BookingWizard({
+  services,
+  initialServiceId,
+  initialNotes,
+  garagePhone,
+}: {
+  services: WizardService[];
+  initialServiceId?: string;
+  /** Pre-filled "notes" field, e.g. the symptom summary written by the AI assistant. */
+  initialNotes?: string;
+  garagePhone: string | null;
+}) {
   const { t, lang } = useI18n();
   const b = t.booking;
   const router = useRouter();
@@ -56,7 +67,7 @@ export function BookingWizard({ services, initialServiceId, garagePhone }: { ser
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
   const [month, setMonth] = useState("");
-  const [details, setDetails] = useState<Details>(EMPTY);
+  const [details, setDetails] = useState<Details>({ ...EMPTY, notes: initialNotes ?? "" });
   const [pending, startTransition] = useTransition();
 
   const service = services.find((s) => s.id === serviceId);

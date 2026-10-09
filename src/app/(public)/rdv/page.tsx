@@ -4,10 +4,10 @@ import { getI18n } from "@/lib/i18n/server";
 import { listBookableServices } from "@/server/booking";
 import { getSettings } from "@/server/settings";
 
-type PageProps = { searchParams: Promise<{ service?: string }> };
+type PageProps = { searchParams: Promise<{ service?: string; notes?: string }> };
 
 export default async function BookingPage({ searchParams }: PageProps) {
-  const [{ service }, { t }, settings, services] = await Promise.all([searchParams, getI18n(), getSettings(), listBookableServices()]);
+  const [{ service, notes }, { t }, settings, services] = await Promise.all([searchParams, getI18n(), getSettings(), listBookableServices()]);
   const phone = settings.phone?.replace(/\s/g, "") ?? null;
 
   return (
@@ -25,6 +25,7 @@ export default async function BookingPage({ searchParams }: PageProps) {
       ) : (
         <BookingWizard
           initialServiceId={service}
+          initialNotes={typeof notes === "string" ? notes.slice(0, 500) : undefined}
           garagePhone={phone}
           services={services.map((s) => ({
             id: s.id,

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, CalendarCheck, Clock, Gauge, MessageCircle, Phone } from "lucide-react";
+import { ArrowRight, Bot, CalendarCheck, Clock, Gauge, MessageCircle, Phone } from "lucide-react";
 import { fmt } from "@/lib/format";
 import { getI18n } from "@/lib/i18n/server";
 import { getSettings } from "@/server/settings";
@@ -39,6 +39,19 @@ export default async function PortalHome() {
           <span className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-orange-700">
             {t.portal.bookCta} <ArrowRight className="size-4 transition group-hover:translate-x-0.5 rtl:rotate-180" aria-hidden />
           </span>
+        </Link>
+        <Link
+          href="/assistant"
+          className="group flex items-center gap-4 rounded-2xl bg-white p-6 shadow-lg ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:shadow-xl sm:col-span-2"
+        >
+          <span className="grid size-12 shrink-0 place-items-center rounded-xl bg-navy text-orange-400">
+            <Bot className="size-6" aria-hidden />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-lg font-semibold">{t.assistant.homeCta}</span>
+            <span className="mt-1 block text-sm text-slate-500">{t.assistant.homeCtaHint}</span>
+          </span>
+          <ArrowRight className="size-5 shrink-0 text-slate-500 transition group-hover:translate-x-0.5 rtl:rotate-180" aria-hidden />
         </Link>
       </div>
 

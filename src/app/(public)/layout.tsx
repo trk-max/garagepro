@@ -25,6 +25,9 @@ export default async function PublicLayout({ children }: { children: ReactNode }
             </span>
           </Link>
           <nav className="ms-auto hidden items-center gap-1 text-sm sm:flex">
+            <Link href="/assistant" className="inline-flex min-h-11 items-center rounded-md px-3 text-slate-200 hover:bg-white/10 hover:text-white">
+              {t.assistant.navCta}
+            </Link>
             <Link href="/suivi" className="inline-flex min-h-11 items-center rounded-md px-3 text-slate-200 hover:bg-white/10 hover:text-white">
               {t.portal.trackCta}
             </Link>
