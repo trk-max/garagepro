@@ -1,7 +1,7 @@
 import type { Lang } from "@/lib/format";
 
 /**
- * "L'atelier" page copy (FR / AR). Kept apart from the UI dictionaries so the
+ * "L'atelier" page copy (FR / AR / EN). Kept apart from the UI dictionaries so the
  * garage can rewrite its own marketing text in one place without touching code.
  * Every promise written here (free wash, cabin sanitization, 7-day follow-up…)
  * is a commitment to customers: keep only what the workshop really does.
@@ -380,6 +380,166 @@ const ar: AboutContent = {
   homeBandText: "خمس مراحل، بالصور والفيديو، دون أي مفاجأة في الفاتورة.",
 };
 
+const en: AboutContent = {
+  metaTitle: "The workshop",
+  kicker: "Mechanical workshop · Service protocol",
+  heroTitle: "Car repair, treated as engineering.",
+  heroAccent: "Protected. Documented. Exact.",
+  heroText:
+    "Your car is an investment. Every job follows a precise protocol: cabin protection, photo and video proof, manufacturer values, final inspection and a showroom-condition handover.",
+  enter: "Enter the workshop",
+  book: "Book an appointment",
+  summaryTitle: "Service configuration",
+  summary: [
+    { k: "Protocol", v: "5 checked steps" },
+    { k: "Transparency", v: "Photo + video" },
+    { k: "Quote approval", v: "Remote" },
+    { k: "Tracking", v: "Real time" },
+    { k: "Finish", v: "Free wash" },
+    { k: "After-service", v: "7-day follow-up" },
+  ],
+  manifestoLabel: "Philosophy",
+  manifestoTitle: "Not just a repair. Complete care.",
+  manifestoText: [
+    "An ordinary garage fixes a fault. We look after a vehicle, from the moment you hand us the keys to the moment you take them back.",
+    "Every step is protected, filmed, explained and approved by you. Nothing is done behind your back. Nothing is charged without your consent.",
+  ],
+  modulesLabel: "Service modules",
+  modulesTitle: "Included with every job.",
+  modulesText: "Four modules on top of the protocol, at no extra cost.",
+  modules: [
+    {
+      code: "Module A",
+      icon: "live",
+      title: "Live repair tracking",
+      text: "Follow your vehicle step by step: check-in, diagnosis, quote, repair, inspection, wash, ready. The tracking link arrives by WhatsApp, SMS or email; you sign in with your plate and a 4-digit code.",
+      specs: [
+        { k: "Updates", v: "Real time" },
+        { k: "Channels", v: "WhatsApp · SMS · email" },
+        { k: "Access", v: "Plate + code" },
+      ],
+      cta: { label: "Track my repair", href: "/suivi" },
+    },
+    {
+      code: "Module B",
+      icon: "spec",
+      title: "Precision specification report",
+      text: "A technical sheet handed over with your vehicle: tightening torques applied to manufacturer values, fluid standards and quantities, and measurements taken before and after the job.",
+      specs: [
+        { k: "Torques", v: "Manufacturer values (N·m)" },
+        { k: "Fluids", v: "Standard · quantity" },
+        { k: "Measurements", v: "Before / after" },
+      ],
+    },
+    {
+      code: "Module C",
+      icon: "air",
+      title: "Zero-trace cabin sanitisation",
+      text: "Before handover, a free ultrasonic-mist or ozone treatment of the cabin: bacteria and odours neutralised, then full ventilation. You get back a clean, healthy interior with no trace left.",
+      specs: [
+        { k: "Method", v: "Ultrasonic / ozone" },
+        { k: "When", v: "Before handover" },
+        { k: "Price", v: "Free" },
+      ],
+    },
+    {
+      code: "Module D",
+      icon: "shield",
+      title: "7-day performance assurance",
+      text: "After the job, we contact you to make sure everything works perfectly. At the slightest doubt, your vehicle goes back to inspection as a priority.",
+      specs: [
+        { k: "Contact", v: "Day 1 and day 7" },
+        { k: "Channel", v: "Call or WhatsApp" },
+        { k: "Re-inspection", v: "Priority" },
+      ],
+    },
+  ],
+  protocolLabel: "Service protocol",
+  protocolTitle: "Five steps. An engineering checklist.",
+  protocolHead: { step: "Step", ops: "Operations", deliverable: "Deliverable", status: "Check" },
+  verified: "Verified",
+  steps: [
+    {
+      code: "01 / Intensive intake",
+      title: "Absolute protection & cleanliness",
+      text: "Everything is fitted in front of you, before the engine is even started. The cabin leaves exactly as it came in.",
+      ops: ["Seat and steering-wheel covers", "Floor protection", "Wing covers"],
+      deliverable: "Protected cabin",
+    },
+    {
+      code: "02 / Video walkaround",
+      title: "Filmed vehicle walkaround",
+      text: "Before any work: bodywork, wheels and mileage are filmed. A clear record, shared with you.",
+      ops: ["Full walkaround filmed", "Mileage recorded", "Sent to your phone"],
+      deliverable: "Check-in video",
+    },
+    {
+      code: "03 / Digital diagnostic scan",
+      title: "No surprise on the price",
+      text: "You see what we see. No extra work starts without your approval, given from your phone.",
+      ops: ["ECU scan", "Photos and videos of the parts", "Quote approved remotely"],
+      deliverable: "Approved quote",
+    },
+    {
+      code: "04 / Work to specification",
+      title: "Done right, first time",
+      text: "Torques, fluids and part references to manufacturer data. An exact job that doesn't come back.",
+      ops: ["Manufacturer torques", "Original or equivalent parts", "Fluids to standard"],
+      deliverable: "Specification report",
+    },
+    {
+      code: "05 / Final inspection & finish",
+      title: "Showroom-condition handover",
+      text: "Road test, quality check, free wash and vacuum, cabin sanitisation. Then a clear explanation of what was done.",
+      ops: ["Road test and quality check", "Wash and vacuum", "Explained handover"],
+      deliverable: "Vehicle ready",
+    },
+  ],
+  compareLabel: "Comparison sheet",
+  compareTitle: "Standard versus protocol.",
+  compareHead: { topic: "Criterion", standard: "Standard garage", ours: "Our protocol", benefit: "What you gain" },
+  rows: [
+    { topic: "Cabin", standard: "Seats and wheel unprotected, grease marks.", ours: "Covers and mats fitted in front of you before starting.", benefit: "An untouched interior, every time." },
+    { topic: "Check-in", standard: "No record on arrival.", ours: "Video of a full walkaround.", benefit: "Everything documented, no dispute possible." },
+    { topic: "Diagnosis", standard: "“This needs replacing”, with no proof.", ours: "Photos and videos of the parts sent to your phone.", benefit: "You decide with full knowledge." },
+    { topic: "Price", standard: "A bill higher than expected.", ours: "No work without your approval.", benefit: "The approved price is the price you pay." },
+    { topic: "Workmanship", standard: "Guesswork and comebacks.", ours: "Manufacturer values and a specification report.", benefit: "Less downtime, more peace of mind." },
+    { topic: "Tracking", standard: "You have to call to know where the car is.", ours: "Real-time online tracking with plate and code.", benefit: "You know everything without picking up the phone." },
+    { topic: "Handover", standard: "Car returned as is, sometimes dirtier.", ours: "Free wash, vacuum and sanitisation.", benefit: "The pleasure of a spotless car." },
+    { topic: "After-service", standard: "No news once you've paid.", ours: "Follow-up call on day 1 and day 7.", benefit: "A problem is handled before it becomes a breakdown." },
+  ],
+  servicesLabel: "Services",
+  servicesTitle: "Book online.",
+  servicesText: "Indicative durations and prices. You always approve the final price before work starts.",
+  configure: "Configure",
+  minutes: "min",
+  catalogLabel: "Technical catalogue",
+  catalogTitle: "Everything we do.",
+  catalogText: "A job not on the list? Book an appointment and describe what you need: we will prepare a quote.",
+  catalog: [
+    { code: "SYS 01", title: "Engine", items: ["Oil and filters", "Timing belt and water pump", "Injection and ignition", "Cooling", "Turbo and intake"] },
+    { code: "SYS 02", title: "Transmission", items: ["Clutch and flywheel", "Automatic gearbox oil change", "CV joints and boots", "Axles and differentials"] },
+    { code: "SYS 03", title: "Chassis", items: ["Brakes (discs, pads, fluid)", "Suspension and shock absorbers", "Wheel alignment", "Tyres and balancing", "Steering"] },
+    { code: "SYS 04", title: "Electronics", items: ["ECU diagnostics", "Battery, alternator, starter", "Lighting and wiring", "Sensors and warning lights"] },
+    { code: "SYS 05", title: "Comfort", items: ["Air conditioning (recharge, leak test)", "Cabin filter", "Cabin sanitisation", "Windows and central locking"] },
+    { code: "SYS 06", title: "Preparation", items: ["Pre-roadworthiness check", "Pre-trip service", "Pre-purchase inspection", "Service to manufacturer schedule"] },
+  ],
+  catalogCta: "Request a quote",
+  configLabel: "Configurator",
+  configTitle: "Configure your appointment.",
+  configSteps: [
+    { code: "01", title: "Service", text: "Choose the job." },
+    { code: "02", title: "Slot", text: "Choose the day and time." },
+    { code: "03", title: "Confirmation", text: "Get your reference." },
+  ],
+  configCta: "Configure my appointment",
+  orCall: "Or call us",
+  whatsapp: "WhatsApp",
+  navLink: "The workshop",
+  homeBandTitle: "The workshop protocol",
+  homeBandText: "Five steps, with photos and videos, and no surprise on the bill.",
+};
+
 export function aboutContent(lang: Lang): AboutContent {
-  return lang === "ar" ? ar : fr;
+  return { fr, ar, en }[lang];
 }

@@ -1,6 +1,7 @@
-export type Lang = "fr" | "ar";
+export type Lang = "fr" | "ar" | "en";
+export const LANGS: Lang[] = ["fr", "ar", "en"];
 
-const LOCALE: Record<Lang, string> = { fr: "fr-TN", ar: "ar-TN" };
+const LOCALE: Record<Lang, string> = { fr: "fr-TN", ar: "ar-TN", en: "en-GB" };
 
 /** Amounts are stored in millimes (1 DT = 1000 millimes). */
 export function formatMoney(millimes: number, lang: Lang): string {

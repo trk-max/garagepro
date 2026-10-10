@@ -35,8 +35,8 @@ const done = (redirectTo?: string): Result => {
 
 // ── Language ─────────────────────────────────────────────────────────────────
 
-export async function setLangAction(lang: "fr" | "ar"): Promise<void> {
-  (await cookies()).set(LANG_COOKIE, lang === "ar" ? "ar" : "fr", { path: "/", maxAge: 60 * 60 * 24 * 365, sameSite: "lax" });
+export async function setLangAction(lang: "fr" | "ar" | "en"): Promise<void> {
+  (await cookies()).set(LANG_COOKIE, lang === "ar" || lang === "en" ? lang : "fr", { path: "/", maxAge: 60 * 60 * 24 * 365, sameSite: "lax" });
   revalidatePath("/", "layout");
 }
 

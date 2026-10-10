@@ -1,7 +1,7 @@
 import "server-only";
 import type { AppointmentStatus, Setting } from "@prisma/client";
 import { availability, freeSlots, parseOpeningHours, utcToZoned, zonedToUtc, addDays, type BookingRules } from "@/lib/booking";
-import { fmt, formatMoney, normalizePlate } from "@/lib/format";
+import { fmt, formatMoney, normalizePlate, type Lang } from "@/lib/format";
 import { createReference } from "@/lib/id";
 import { AppError, isUniqueViolation } from "@/lib/http";
 import type { Dictionary } from "@/lib/i18n/fr";
@@ -140,7 +140,7 @@ export async function createAppointment(input: BookingInput) {
 
 export async function sendBookingConfirmation(
   appointmentId: string,
-  ctx: { t: Dictionary; lang: "fr" | "ar"; baseUrl: string },
+  ctx: { t: Dictionary; lang: Lang; baseUrl: string },
 ): Promise<Channel[]> {
   const [appt, settings] = await Promise.all([
     prisma.appointment.findUniqueOrThrow({ where: { id: appointmentId }, include: { service: true } }),
@@ -301,6 +301,6 @@ export async function upsertService(
   else await prisma.bookableService.create({ data: values });
 }
 
-export function priceLabel(priceFrom: number | null, t: Dictionary, lang: "fr" | "ar") {
+export function priceLabel(priceFrom: number | null, t: Dictionary, lang: Lang) {
   return priceFrom == null ? t.booking.onQuote : fmt(t.booking.priceFrom, { price: formatMoney(priceFrom, lang) });
 }
