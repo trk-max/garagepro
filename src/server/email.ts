@@ -48,9 +48,10 @@ function smtp(): Transporter {
     secure: port === 465,
     // Gmail shows app passwords as "abcd efgh ijkl mnop": spaces are removed.
     auth: { user: process.env.SMTP_USER, pass: (process.env.SMTP_PASS ?? "").replace(/\s+/g, "") },
-    connectionTimeout: 15_000,
-    greetingTimeout: 15_000,
-    socketTimeout: 20_000,
+    // Short timeouts: a wrong host/port fails in ~8 s instead of keeping the button spinning.
+    connectionTimeout: 8_000,
+    greetingTimeout: 8_000,
+    socketTimeout: 12_000,
   });
   return smtpClient;
 }
@@ -78,7 +79,13 @@ async function viaResend(message: EmailMessage): Promise<EmailResult> {
     ...(process.env.RESEND_REPLY_TO ? { replyTo: process.env.RESEND_REPLY_TO } : {}),
     ...(message.attachment ? { attachments: [{ filename: message.attachment.filename, content: Buffer.from(message.attachment.content) }] } : {}),
   });
-  if (error || !data) return { ok: false, error: `Resend : ${error?.message ?? "erreur inconnue"}` };
+  if (error || !data) {
+    const raw = error?.message ?? "erreur inconnue";
+    const hint = /domain|verify|testing emails|own email/i.test(raw)
+      ? "domaine non vérifié : sans domaine, Resend n'envoie qu'à votre propre adresse. Utilisez Gmail (SMTP_USER + SMTP_PASS)"
+      : raw;
+    return { ok: false, error: `Resend : ${hint}` };
+  }
   return { ok: true, id: data.id };
 }
 
@@ -125,7 +132,9 @@ export async function sendEmail(message: EmailMessage): Promise<EmailResult> {
       errors.push(r.error);
     } catch (error) {
       const raw = error instanceof Error ? error.message : String(error);
-      const hint = SMTP_HINTS.find(([re]) => re.test(raw))?.[1];
+      const hint = /resend/i.test(process.env.SMTP_HOST ?? "")
+        ? "SMTP_HOST pointe vers Resend (même blocage de domaine) : supprimez la ligne SMTP_HOST du .env pour utiliser Gmail"
+        : SMTP_HINTS.find(([re]) => re.test(raw))?.[1];
       errors.push(`SMTP : ${hint ?? raw.split("\n")[0]}`);
     }
   }
@@ -136,7 +145,7 @@ export async function sendEmail(message: EmailMessage): Promise<EmailResult> {
 /** Minimal, mail-client-safe HTML (inline styles, no external assets). */
 function renderHtml({ text, brand, subject }: EmailMessage): string {
   const body = escapeHtml(text)
-    .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" style="color:#ea580c">$1</a>')
+    .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" style="color:#e10600">$1</a>')
     .replace(/\n/g, "<br>");
   const rtl = /[؀-ۿ]/.test(text);
   return `<!doctype html>
@@ -146,8 +155,8 @@ function renderHtml({ text, brand, subject }: EmailMessage): string {
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="padding:24px 12px">
     <tr><td align="center">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:12px;overflow:hidden">
-        <tr><td style="background:#0b1f3a;color:#ffffff;padding:18px 24px;font-size:18px;font-weight:bold">
-          <span style="display:inline-block;background:#f97316;border-radius:6px;padding:2px 8px;margin-${rtl ? "left" : "right"}:8px">${escapeHtml((brand ?? "G").trim().charAt(0).toUpperCase() || "G")}</span>${escapeHtml(brand ?? "")}
+        <tr><td style="background:#0b0c10;color:#ffffff;padding:18px 24px;font-size:18px;font-weight:bold">
+          <span style="display:inline-block;background:#e10600;border-radius:6px;padding:2px 8px;margin-${rtl ? "left" : "right"}:8px">${escapeHtml((brand ?? "G").trim().charAt(0).toUpperCase() || "G")}</span>${escapeHtml(brand ?? "")}
         </td></tr>
         <tr><td style="padding:24px;font-size:15px;line-height:1.6">${body}</td></tr>
         <tr><td style="padding:14px 24px;background:#f8fafc;color:#64748b;font-size:12px">${escapeHtml(brand ?? "")}</td></tr>

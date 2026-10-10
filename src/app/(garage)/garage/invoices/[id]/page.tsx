@@ -88,7 +88,7 @@ export default async function InvoicePage({ params }: PageProps) {
             </div>
             <div className="flex justify-between">
               <dt className="text-muted-foreground">{t.reminders.dueDate}</dt>
-              <dd className={late ? "font-medium text-red-600" : ""}>
+              <dd className={late ? "font-medium text-red-700 dark:text-red-400" : ""}>
                 {formatDate(dueDate, lang)}
                 {late && ` · ${fmt(t.reminders.daysLate, { days: daysLate(invoice) })}`}
               </dd>

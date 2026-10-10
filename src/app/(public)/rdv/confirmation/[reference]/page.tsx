@@ -33,7 +33,7 @@ export default async function BookingConfirmationPage({ params, searchParams }: 
 
   return (
     <div className="mx-auto max-w-lg px-4 py-8">
-      <div className="overflow-hidden rounded-2xl bg-white shadow-lg ring-1 ring-slate-200">
+      <div className="overflow-hidden rounded-lg bg-card shadow-sm ring-1 ring-border">
         <div className={active ? "bg-emerald-600 p-6 text-white" : "bg-slate-700 p-6 text-white"}>
           {active ? <CheckCircle2 className="size-10" aria-hidden /> : <XCircle className="size-10" aria-hidden />}
           <h1 className="mt-3 text-xl font-bold">{active ? b.confirmedTitle : b.statuses[appt.status]}</h1>
@@ -44,28 +44,28 @@ export default async function BookingConfirmationPage({ params, searchParams }: 
 
         <dl className="space-y-3 p-6 text-sm">
           <div className="flex items-start gap-3">
-            <Clock className="mt-0.5 size-4 text-slate-500" aria-hidden />
+            <Clock className="mt-0.5 size-4 text-muted-foreground" aria-hidden />
             <div>
               <dt className="sr-only">{b.when}</dt>
               <dd className="font-medium capitalize">{formatDay(start.date, lang)}</dd>
-              <dd className="text-slate-500" dir="ltr">
+              <dd className="text-muted-foreground" dir="ltr">
                 {start.time} – {end.time}
               </dd>
             </div>
           </div>
           <div className="flex items-center justify-between gap-3">
-            <dt className="text-slate-500">{b.service}</dt>
+            <dt className="text-muted-foreground">{b.service}</dt>
             <dd className="font-medium">{serviceName}</dd>
           </div>
           <div className="flex items-center justify-between gap-3">
-            <dt className="text-slate-500">{b.plate}</dt>
+            <dt className="text-muted-foreground">{b.plate}</dt>
             <dd>
               <PlateChip plate={appt.plate} />
             </dd>
           </div>
           {settings.address && (
             <div className="flex items-start gap-3">
-              <MapPin className="mt-0.5 size-4 text-slate-500" aria-hidden />
+              <MapPin className="mt-0.5 size-4 text-muted-foreground" aria-hidden />
               <dd>
                 {settings.garageName} — {settings.address}
               </dd>
@@ -76,7 +76,7 @@ export default async function BookingConfirmationPage({ params, searchParams }: 
         {active && (
           <div className="space-y-3 border-t p-6">
             {query.new && (
-              <p className="rounded-lg bg-slate-50 p-3 text-sm text-slate-600">
+              <p className="rounded-lg bg-muted p-3 text-sm text-muted-foreground">
                 {sentChannels.length ? fmt(b.confirmationSent, { channels: sentChannels.join(", ") }) : b.keepPage}
               </p>
             )}
@@ -97,7 +97,7 @@ export default async function BookingConfirmationPage({ params, searchParams }: 
             {canCancelOnline(appt) ? (
               <ActionButton
                 variant="ghost"
-                className="w-full text-red-600 hover:bg-red-50 hover:text-red-700"
+                className="w-full text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/15 hover:text-red-700"
                 confirm={b.cancelConfirm}
                 successMessage={b.cancelled}
                 action={cancelBookingAction.bind(null, appt.reference, token)}
@@ -105,14 +105,14 @@ export default async function BookingConfirmationPage({ params, searchParams }: 
                 {b.cancel}
               </ActionButton>
             ) : (
-              <p className="text-center text-xs text-slate-500">{b.cancelTooLate}</p>
+              <p className="text-center text-xs text-muted-foreground">{b.cancelTooLate}</p>
             )}
           </div>
         )}
       </div>
 
       <p className="mt-6 text-center text-sm">
-        <Link href="/rdv" className="font-medium text-orange-700 hover:underline">
+        <Link href="/rdv" className="font-medium text-brand-700 dark:text-brand-400 hover:underline">
           {b.newBooking}
         </Link>
       </p>

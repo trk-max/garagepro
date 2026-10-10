@@ -22,10 +22,10 @@ import { listMechanics } from "@/server/work-orders";
 type PageProps = { searchParams: Promise<{ date?: string }> };
 
 const STATUS_CLASS: Record<AppointmentStatus, string> = {
-  CONFIRMED: "border-orange-500/30 bg-orange-500/10 text-orange-700",
-  CHECKED_IN: "border-emerald-500/30 bg-emerald-500/10 text-emerald-700",
-  CANCELLED: "border-zinc-400/30 bg-zinc-500/10 text-zinc-500 line-through",
-  NO_SHOW: "border-red-500/30 bg-red-500/10 text-red-700",
+  CONFIRMED: "border-orange-500/30 bg-orange-500/10 text-orange-700 dark:text-orange-400",
+  CHECKED_IN: "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
+  CANCELLED: "border-zinc-400/30 bg-zinc-500/10 text-zinc-500 dark:text-zinc-400 line-through",
+  NO_SHOW: "border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-400",
 };
 
 export default async function AppointmentsPage({ searchParams }: PageProps) {

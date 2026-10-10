@@ -31,6 +31,7 @@ echo   Telephone / PC   : les adresses http://192.168... affichees au point 7
 echo   Pour arreter     : Ctrl + C dans cette fenetre
 echo  ===============================================
 echo.
-start "" /b cmd /c "ping -n 10 127.0.0.1 >nul & start http://localhost:3000"
-call npm run dev:lan
+rem Mode production : beaucoup plus rapide que le mode developpement.
+rem (pour modifier le code avec rechargement automatique : npm run dev)
+call npm run serve
 pause

@@ -11,12 +11,13 @@ vi.mock("@/lib/prisma", () => {
     count: async ({ where }: { where: { role: string; isActive: boolean; id: { not: string } } }) =>
       [...users.values()].filter((u) => u.role === where.role && u.isActive === where.isActive && u.id !== where.id.not).length,
     update: async ({ where, data }: { where: { id: string }; data: Partial<U> }) => Object.assign(users.get(where.id)!, data),
+    delete: async ({ where }: { where: { id: string } }) => users.delete(where.id),
   };
   const tx = { user, $queryRaw: async () => [] };
   return { prisma: { user, $transaction: async (fn: (t: typeof tx) => unknown) => fn(tx) } };
 });
 
-const { setStaffActive, setStaffPassword, setStaffRole } = await import("@/server/admin");
+const { deleteStaff, setStaffActive, setStaffPassword, setStaffRole } = await import("@/server/admin");
 
 beforeEach(() => {
   users.clear();
@@ -70,5 +71,29 @@ describe("new password", () => {
     expect(staffPasswordSchema.safeParse({ password: "Garage2026!", confirm: "Garage2026!" }).success).toBe(true);
     expect(staffPasswordSchema.safeParse({ password: "short", confirm: "short" }).success).toBe(false);
     expect(staffPasswordSchema.safeParse({ password: "Garage2026!", confirm: "Garage2027!" }).success).toBe(false);
+  });
+});
+
+describe("delete", () => {
+  it("an admin deletes a mechanic", async () => {
+    await deleteStaff("boss", "karim");
+    expect(users.has("karim")).toBe(false);
+  });
+  it("an admin cannot delete themselves", async () => {
+    await expect(deleteStaff("boss", "boss")).rejects.toMatchObject({ code: "ownDelete" });
+    expect(users.has("boss")).toBe(true);
+  });
+  it("the last active admin cannot be deleted", async () => {
+    users.set("other", { id: "other", role: "ADMIN", isActive: false, passwordHash: "" });
+    await expect(deleteStaff("other", "boss")).rejects.toMatchObject({ code: "lastAdmin" });
+    expect(users.has("boss")).toBe(true);
+  });
+  it("another admin can be deleted when one remains", async () => {
+    users.set("other", { id: "other", role: "ADMIN", isActive: true, passwordHash: "" });
+    await deleteStaff("boss", "other");
+    expect(users.has("other")).toBe(false);
+  });
+  it("unknown user", async () => {
+    await expect(deleteStaff("boss", "ghost")).rejects.toMatchObject({ code: "notFound" });
   });
 });

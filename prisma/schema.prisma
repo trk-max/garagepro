@@ -237,6 +237,7 @@ model WorkOrder {
   @@index([status, updatedAt(sort: Desc)])
   @@index([mechanicId, status])
   @@index([vehicleId, createdAt(sort: Desc)])
+  @@index([customerId, createdAt(sort: Desc)])
 }
 
 model WorkOrderLine {
@@ -321,6 +322,7 @@ model StockMovement {
   actor     User?         @relation(fields: [actorId], references: [id], onDelete: SetNull)
 
   @@index([partId, createdAt(sort: Desc)])
+  @@index([workOrderId])
 }
 
 // ── Forfaits (ex. vidange, freinage) ─────────────────────────────────────────
@@ -379,6 +381,7 @@ model Invoice {
 
   @@index([issuedAt(sort: Desc)])
   @@index([status, dueDate])
+  @@index([customerId])
 }
 
 /// Relance client pour retard de paiement (historique).
@@ -534,6 +537,7 @@ model GoodsReceipt {
   movements     StockMovement[]
 
   @@index([receivedAt(sort: Desc)])
+  @@index([supplierId])
 }
 
 model GoodsReceiptLine {
@@ -545,6 +549,7 @@ model GoodsReceiptLine {
 
   receipt GoodsReceipt @relation(fields: [receiptId], references: [id], onDelete: Cascade)
   part    Part         @relation(fields: [partId], references: [id], onDelete: Restrict)
+  @@index([receiptId])
 }
 
 /// Facture reçue d'un fournisseur (suivi des dettes).
@@ -583,6 +588,7 @@ model SupplierPayment {
 
   supplierInvoice SupplierInvoice @relation(fields: [supplierInvoiceId], references: [id], onDelete: Cascade)
   actor           User?           @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  @@index([supplierInvoiceId])
 }
 
 // ── Portail client ───────────────────────────────────────────────────────────
@@ -670,4 +676,5 @@ model Appointment {
 
   @@index([startAt, status])
   @@index([plate])
+  @@index([customerId])
 }

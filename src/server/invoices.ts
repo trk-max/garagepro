@@ -172,6 +172,20 @@ export async function listInvoices(f: InvoiceFilters) {
   });
 }
 
+/**
+ * Number of late customer invoices, counted by the database (no rows loaded).
+ * Same rule as isOverdue(): unpaid and due date (or issue date) before today.
+ */
+export async function countOverdue(now = new Date()): Promise<number> {
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return prisma.invoice.count({
+    where: {
+      status: { in: ["ISSUED", "PARTIAL"] },
+      OR: [{ dueDate: { lt: today } }, { dueDate: null, issuedAt: { lt: today } }],
+    },
+  });
+}
+
 export async function overdueSummary() {
   const open = await prisma.invoice.findMany({
     where: { status: { in: ["ISSUED", "PARTIAL"] } },

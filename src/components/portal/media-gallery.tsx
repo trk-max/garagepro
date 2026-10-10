@@ -18,7 +18,7 @@ export function MediaGallery({ items, emptyLabel }: { items: GalleryItem[]; empt
     else dialog.current?.close();
   }, [open]);
 
-  if (items.length === 0) return <p className="text-sm text-slate-500">{emptyLabel}</p>;
+  if (items.length === 0) return <p className="text-sm text-muted-foreground">{emptyLabel}</p>;
 
   return (
     <>
@@ -28,15 +28,15 @@ export function MediaGallery({ items, emptyLabel }: { items: GalleryItem[]; empt
             <button
               type="button"
               onClick={() => setOpen(item)}
-              className="group relative block aspect-square w-full overflow-hidden rounded-xl bg-slate-200 focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:outline-none"
+              className="group relative block aspect-square w-full overflow-hidden rounded-md bg-muted focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:outline-none"
             >
               {item.kind === "PHOTO" ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={`/api/media/${item.id}`} alt={item.caption ?? ""} loading="lazy" className="size-full object-cover transition group-hover:scale-105" />
+                <img src={`/api/media/${item.id}`} alt={item.caption ?? ""} loading="lazy" decoding="async" className="size-full object-cover transition group-hover:scale-105" />
               ) : (
                 <>
                   <video src={`/api/media/${item.id}#t=0.5`} preload="metadata" muted playsInline className="size-full object-cover" />
-                  <PlayCircle className="absolute inset-0 m-auto size-12 text-white drop-shadow-lg" aria-hidden />
+                  <PlayCircle className="absolute inset-0 m-auto size-12 text-white drop-shadow-sm" aria-hidden />
                 </>
               )}
               {item.caption && (
@@ -53,7 +53,7 @@ export function MediaGallery({ items, emptyLabel }: { items: GalleryItem[]; empt
         ref={dialog}
         onClose={() => setOpen(null)}
         onClick={(e) => e.target === dialog.current && setOpen(null)}
-        className="m-auto max-h-[92dvh] w-[min(96vw,900px)] rounded-2xl bg-black p-0 text-white backdrop:bg-black/80"
+        className="m-auto max-h-[92dvh] w-[min(96vw,900px)] rounded-lg bg-black p-0 text-white backdrop:bg-black/80"
       >
         {open && (
           <figure>

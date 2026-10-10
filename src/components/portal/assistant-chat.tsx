@@ -28,10 +28,10 @@ const WRAP = "h-auto min-h-11 whitespace-normal py-2 text-center";
 const MAX_HISTORY = 20;
 
 const URGENCY_STYLE: Record<Urgency, string> = {
-  low: "bg-emerald-50 text-emerald-800 ring-emerald-200",
-  medium: "bg-amber-50 text-amber-900 ring-amber-200",
-  high: "bg-orange-50 text-orange-900 ring-orange-300",
-  danger: "bg-red-50 text-red-800 ring-red-300",
+  low: "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-800 dark:text-emerald-400 ring-emerald-200 dark:ring-emerald-500/30",
+  medium: "bg-amber-50 dark:bg-amber-500/10 text-amber-900 dark:text-amber-300 ring-amber-200 dark:ring-amber-500/30",
+  high: "bg-orange-50 dark:bg-orange-500/10 text-orange-900 dark:text-orange-300 ring-orange-300 dark:ring-orange-500/30",
+  danger: "bg-red-50 dark:bg-red-500/10 text-red-800 dark:text-red-300 ring-red-300 dark:ring-red-500/30",
 };
 
 export function AssistantChat({
@@ -124,7 +124,7 @@ export function AssistantChat({
   }
 
   return (
-    <div className="flex min-h-[70dvh] flex-col overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200">
+    <div className="flex min-h-[70dvh] flex-col overflow-hidden rounded-lg bg-card shadow-sm ring-1 ring-border">
       <div className="flex-1 space-y-4 overflow-y-auto p-4 sm:p-6" aria-live="polite" aria-busy={pending}>
         <Bubble mine={false} label={a.bot}>
           {aiEnabled ? a.guideIntro : a.guideIntroNoAi}
@@ -195,19 +195,19 @@ export function AssistantChat({
         })}
 
         {pending && (
-          <p className="flex items-center gap-2 ps-11 text-sm text-slate-600">
+          <p className="flex items-center gap-2 ps-11 text-sm text-muted-foreground">
             <Loader2 className="size-4 animate-spin" aria-hidden /> {a.thinking}
           </p>
         )}
 
         {error && (
-          <div role="alert" className="ms-11 rounded-xl bg-red-50 p-3 text-sm text-red-800 ring-1 ring-red-200">
+          <div role="alert" className="ms-11 rounded-md bg-red-50 dark:bg-red-500/10 p-3 text-sm text-red-800 dark:text-red-300 ring-1 ring-red-200 dark:ring-red-500/30">
             {error}
             <ContactButtons phone={phone} whatsapp={whatsapp} />
             <button
               type="button"
               onClick={restart}
-              className="mt-2 inline-flex min-h-11 items-center gap-1.5 rounded-md px-2 text-sm font-medium text-red-900 underline-offset-2 hover:underline"
+              className="mt-2 inline-flex min-h-11 items-center gap-1.5 rounded-md px-2 text-sm font-medium text-red-900 dark:text-red-300 underline-offset-2 hover:underline"
             >
               <RotateCcw className="size-4" aria-hidden /> {a.useGuide}
             </button>
@@ -216,7 +216,7 @@ export function AssistantChat({
         <div ref={endRef} />
       </div>
 
-      <div className="border-t bg-slate-50 p-3 sm:p-4">
+      <div className="border-t bg-muted p-3 sm:p-4">
         {aiEnabled && (
           <form
             onSubmit={(e) => {
@@ -242,9 +242,9 @@ export function AssistantChat({
                 rows={2}
                 maxLength={MAX_CHARS}
                 placeholder={a.placeholder}
-                className="min-h-11 flex-1 resize-none rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-base outline-none focus-visible:border-orange-400 focus-visible:ring-[3px] focus-visible:ring-orange-400/40"
+                className="min-h-11 flex-1 resize-none rounded-md border border-border bg-card px-3 py-2.5 text-base outline-none focus-visible:border-brand-400 focus-visible:ring-[3px] focus-visible:ring-brand-400/40"
               />
-              <Button type="submit" disabled={pending || !draft.trim()} className="h-11 bg-orange-500 px-4 hover:bg-orange-600" aria-label={a.send}>
+              <Button type="submit" disabled={pending || !draft.trim()} className="h-11 bg-brand-500 px-4 hover:bg-brand-600" aria-label={a.send}>
                 {pending ? <Loader2 className="animate-spin" aria-hidden /> : <Send className="rtl:-scale-x-100" aria-hidden />}
                 <span className="max-sm:sr-only">{a.send}</span>
               </Button>
@@ -252,9 +252,9 @@ export function AssistantChat({
           </form>
         )}
         <div className={cn("flex items-start gap-3", aiEnabled && "mt-2")}>
-          <p className="flex-1 text-xs text-slate-600">{a.disclaimer}</p>
+          <p className="flex-1 text-xs text-muted-foreground">{a.disclaimer}</p>
           {items.length > 1 && (
-            <button type="button" onClick={restart} className="inline-flex min-h-11 shrink-0 items-center gap-1 rounded-md px-2 text-xs font-medium text-slate-700 hover:bg-slate-200">
+            <button type="button" onClick={restart} className="inline-flex min-h-11 shrink-0 items-center gap-1 rounded-md px-2 text-xs font-medium text-foreground hover:bg-accent">
               <RotateCcw className="size-3.5" aria-hidden /> {a.restart}
             </button>
           )}
@@ -270,8 +270,10 @@ function Chip({ children, onClick, highlight }: { children: ReactNode; onClick: 
       type="button"
       onClick={onClick}
       className={cn(
-        "min-h-11 rounded-full px-4 text-start text-sm ring-1 transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-orange-400/60",
-        highlight ? "bg-white text-slate-700 ring-slate-300 hover:bg-slate-100" : "bg-orange-50 font-medium text-orange-900 ring-orange-200 hover:bg-orange-100",
+        "min-h-11 rounded-md px-4 text-start text-sm transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-brand-500/50",
+        highlight
+          ? "border border-dashed border-muted-foreground/50 bg-transparent text-muted-foreground hover:bg-accent"
+          : "bg-card font-medium text-foreground ring-1 ring-border hover:text-brand-700 hover:ring-brand-500",
       )}
     >
       {children}
@@ -282,10 +284,10 @@ function Chip({ children, onClick, highlight }: { children: ReactNode; onClick: 
 function Bubble({ mine, label, ai, children }: { mine: boolean; label: string; ai?: boolean; children: ReactNode }) {
   return (
     <div className={cn("flex items-start gap-3", mine && "flex-row-reverse")}>
-      <span className={cn("grid size-8 shrink-0 place-items-center rounded-full text-white", mine ? "bg-navy" : "bg-orange-500")} aria-hidden>
+      <span className={cn("grid size-8 shrink-0 place-items-center rounded-full text-white", mine ? "bg-foreground text-background" : "bg-brand-500")} aria-hidden>
         {mine ? <User className="size-4" /> : ai ? <Sparkles className="size-4" /> : <Bot className="size-4" />}
       </span>
-      <div className={cn("max-w-[85%] rounded-2xl px-4 py-3 text-[15px] leading-relaxed", mine ? "bg-navy text-white" : "bg-slate-100 text-slate-900")}>
+      <div className={cn("max-w-[85%] rounded-lg px-4 py-3 text-[15px] leading-relaxed", mine ? "bg-foreground text-background" : "bg-muted text-foreground")}>
         <span className="sr-only">{label} : </span>
         {/* Plain text only: React escapes it, the model cannot inject HTML. */}
         <p className="whitespace-pre-wrap break-words">{children}</p>
@@ -322,13 +324,13 @@ function ResultCard(props: {
   const serviceName = service ? (lang === "ar" && service.nameAr ? service.nameAr : service.name) : "";
 
   return (
-    <div className={cn("ms-11 max-w-[85%] space-y-3 rounded-2xl bg-white p-4 shadow-sm ring-1", result.urgency === "danger" ? "ring-red-300" : "ring-slate-200")}>
+    <div className={cn("ms-11 max-w-[85%] space-y-3 rounded-lg bg-card p-4 shadow-sm ring-1", result.urgency === "danger" ? "ring-red-300 dark:ring-red-500/30" : "ring-border")}>
       <div className="flex flex-wrap items-center gap-2">
         <h3 className="font-semibold">{tr(result.title, lang)}</h3>
         <UrgencyBadge urgency={result.urgency} />
       </div>
       <div>
-        <p className="text-sm font-medium text-slate-700">{a.causes}</p>
+        <p className="text-sm font-medium text-foreground">{a.causes}</p>
         <ul className="mt-1 list-disc space-y-0.5 ps-5 text-sm">
           {result.causes.map((c) => (
             <li key={c.fr}>{tr(c, lang)}</li>
@@ -336,7 +338,7 @@ function ResultCard(props: {
         </ul>
       </div>
       <div>
-        <p className="text-sm font-medium text-slate-700">{a.checks}</p>
+        <p className="text-sm font-medium text-foreground">{a.checks}</p>
         <ul className="mt-1 space-y-1 text-sm">
           {result.checks.map((c) => (
             <li key={c.fr} className="flex gap-2">
@@ -347,9 +349,9 @@ function ResultCard(props: {
       </div>
 
       {result.service === "none" ? (
-        <p className="text-sm text-emerald-700">{a.noService}</p>
+        <p className="text-sm text-emerald-700 dark:text-emerald-400">{a.noService}</p>
       ) : service ? (
-        <Button asChild className={WRAP + " w-full bg-orange-500 hover:bg-orange-600"}>
+        <Button asChild className={WRAP + " w-full bg-brand-500 hover:bg-brand-600"}>
           <Link href={bookingHref(service.id, `${tr(result.title, lang)} — ${props.summary}`)}>
             <CalendarCheck aria-hidden /> {a.bookingCta} : {serviceName}
           </Link>
@@ -376,16 +378,16 @@ function BookingCard({ booking }: { booking: Booking }) {
   const { t } = useI18n();
   const a = t.assistant;
   return (
-    <div className="ms-11 max-w-[85%] rounded-2xl bg-white p-4 shadow-sm ring-1 ring-orange-200">
+    <div className="ms-11 max-w-[85%] rounded-lg bg-card p-4 shadow-sm ring-1 ring-brand-200">
       <p className="flex items-center gap-2 text-sm font-semibold">
-        <CalendarCheck className="size-4 text-orange-600" aria-hidden /> {a.bookingTitle}
+        <CalendarCheck className="size-4 text-brand-600" aria-hidden /> {a.bookingTitle}
       </p>
       <p className="mt-1 font-medium">{booking.serviceName}</p>
       <div className="mt-2">
         <UrgencyBadge urgency={booking.urgency} />
       </div>
-      {booking.summary && <p className="mt-2 text-sm text-slate-600">{booking.summary}</p>}
-      <Button asChild className={WRAP + " mt-3 w-full bg-orange-500 hover:bg-orange-600"}>
+      {booking.summary && <p className="mt-2 text-sm text-muted-foreground">{booking.summary}</p>}
+      <Button asChild className={WRAP + " mt-3 w-full bg-brand-500 hover:bg-brand-600"}>
         <Link href={bookingHref(booking.serviceId, booking.summary)}>{a.bookingCta}</Link>
       </Button>
     </div>

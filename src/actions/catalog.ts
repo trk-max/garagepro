@@ -20,7 +20,7 @@ import {
   stockMovementSchema,
   vehicleSchema,
 } from "@/lib/validators";
-import { addPackageLine, archivePackage, createPackage, createStaff, removePackageLine, setStaffActive, setStaffPassword, setStaffRole } from "@/server/admin";
+import { addPackageLine, archivePackage, createPackage, createStaff, deleteStaff, removePackageLine, setStaffActive, setStaffPassword, setStaffRole } from "@/server/admin";
 import { addVehicle, createCustomer, updateCustomer } from "@/server/customers";
 import { recordPayment } from "@/server/invoices";
 import { createPart, moveStock, updatePart } from "@/server/parts";
@@ -246,6 +246,16 @@ export async function setStaffActiveAction(userId: string, active: boolean): Pro
     const admin = await requirePermission("manageSettings");
     if (admin.id === userId && !active) throw new AppError("forbidden", {}, 403);
     await setStaffActive(id.parse(userId), active);
+    return done();
+  } catch (error) {
+    return toActionError(error);
+  }
+}
+
+export async function deleteStaffAction(userId: string): Promise<Result> {
+  try {
+    const admin = await requirePermission("manageSettings");
+    await deleteStaff(admin.id, id.parse(userId));
     return done();
   } catch (error) {
     return toActionError(error);

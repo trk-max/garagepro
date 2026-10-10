@@ -52,7 +52,7 @@ export default async function PurchaseOrderPage({ params }: PageProps) {
         </header>
 
         {po.status === "PENDING_APPROVAL" && !canApprove && (
-          <p className="rounded-md border border-amber-500/30 bg-amber-500/10 px-4 py-2 text-sm text-amber-800 dark:text-amber-300">{t.purchase.pendingInfo}</p>
+          <p className="rounded-md border border-amber-500/30 bg-amber-500/10 px-4 py-2 text-sm text-amber-700 dark:text-amber-300">{t.purchase.pendingInfo}</p>
         )}
         {po.status === "REJECTED" && po.rejectionReason && (
           <p className="rounded-md border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm text-red-700 dark:text-red-300">
@@ -101,7 +101,7 @@ export default async function PurchaseOrderPage({ params }: PageProps) {
                   <Td className="text-end tabular-nums">
                     {formatQty(l.quantityX100, lang)} {l.part.unit}
                   </Td>
-                  <Td className={`text-end tabular-nums ${l.receivedX100 >= l.quantityX100 ? "text-emerald-600" : l.receivedX100 > 0 ? "text-orange-600" : "text-muted-foreground"}`}>
+                  <Td className={`text-end tabular-nums ${l.receivedX100 >= l.quantityX100 ? "text-emerald-700 dark:text-emerald-400" : l.receivedX100 > 0 ? "text-orange-700 dark:text-orange-400" : "text-muted-foreground"}`}>
                     {formatQty(l.receivedX100, lang)}
                   </Td>
                   <Td className="text-end tabular-nums text-muted-foreground">{formatQty(l.part.stockX100, lang)}</Td>

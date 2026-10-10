@@ -246,7 +246,13 @@ for (const { c, r } of results) {
   if (usable.length) {
     aiOk++;
     ok(`${name} : clé valide · modèles utilisables : ${usable.join(", ")}`);
-  } else fail(`${name} : clé valide mais aucun modèle configuré n'existe`, `choisissez parmi : ${[...available].slice(0, 6).join(", ")}`, false);
+  } else {
+    // OpenRouter lists hundreds of paid models: only suggest the free ones (":free").
+    const all = [...available];
+    const free = /openrouter/i.test(c.base) ? all.filter((m) => m.endsWith(":free")) : all;
+    const tip = free.length ? `choisissez parmi : ${free.slice(0, 6).join(", ")}` : "aucun modèle gratuit disponible avec cette clé : supprimez-la du .env";
+    fail(`${name} : clé valide mais aucun modèle configuré n'existe`, tip, false);
+  }
   if (missing.length && usable.length) warn(`${c.label} : modèle(s) introuvable(s), ignoré(s) automatiquement : ${missing.join(", ")}`);
 }
 if (checks.length) (aiOk ? ok : warn)(`${aiOk} clé(s) IA prête(s) sur ${checks.length}`);

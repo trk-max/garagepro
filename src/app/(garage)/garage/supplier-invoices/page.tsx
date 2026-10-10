@@ -89,7 +89,7 @@ export default async function SupplierInvoicesPage({ searchParams }: PageProps) 
                     </Td>
                     <Td>{inv.supplier.name}</Td>
                     <Td className="text-muted-foreground">{formatDate(inv.issuedAt, lang)}</Td>
-                    <Td className={late ? "font-medium text-red-600" : "text-muted-foreground"}>{inv.dueDate ? formatDate(inv.dueDate, lang) : t.common.none}</Td>
+                    <Td className={late ? "font-medium text-red-700 dark:text-red-400" : "text-muted-foreground"}>{inv.dueDate ? formatDate(inv.dueDate, lang) : t.common.none}</Td>
                     <Td className="text-end tabular-nums" dir="ltr">{formatMoney(inv.totalTtc, lang)}</Td>
                     <Td className="text-end tabular-nums" dir="ltr">{formatMoney(inv.totalTtc - inv.paidAmount, lang)}</Td>
                     <Td>

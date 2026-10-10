@@ -5,6 +5,7 @@ import {
   archivePackageAction,
   createPackageAction,
   createStaffAction,
+  deleteStaffAction,
   removePackageLineAction,
   setStaffActiveAction,
   setStaffPasswordAction,
@@ -16,7 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle, Field, NativeSelect, PageHeader, Textarea } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { formatMoney, formatQty } from "@/lib/format";
+import { fmt, formatMoney, formatQty } from "@/lib/format";
 import { getI18n } from "@/lib/i18n/server";
 import { requirePageAccess } from "@/lib/session";
 import { listPackages, listStaff } from "@/server/admin";
@@ -130,6 +131,21 @@ export default async function SettingsPage() {
                       </Button>
                       <p className="text-xs text-muted-foreground">{t.settings.passwordHint}</p>
                     </ActionForm>
+                    {u.id !== me.id && (
+                      <div className="flex flex-wrap items-center gap-2 border-t pt-3 sm:col-span-2">
+                        <p className="flex-1 text-xs text-muted-foreground">{t.settings.deleteStaffHint}</p>
+                        <ActionButton
+                          size="sm"
+                          variant="destructive"
+                          action={deleteStaffAction.bind(null, u.id)}
+                          confirm={fmt(t.settings.deleteStaffConfirm, { name: u.name })}
+                          successMessage={t.settings.staffDeleted}
+                        >
+                          <Trash2 aria-hidden />
+                          {t.settings.deleteStaff}
+                        </ActionButton>
+                      </div>
+                    )}
                   </div>
                 </details>
               </li>

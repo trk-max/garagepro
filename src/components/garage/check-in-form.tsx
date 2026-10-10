@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Priority } from "@prisma/client";
 import { createWorkOrderAction } from "@/actions/work-orders";
 import { ActionForm } from "@/components/action-form";
@@ -10,22 +10,23 @@ import { Input } from "@/components/ui/input";
 import { displayPlate } from "@/lib/format";
 import { useI18n } from "@/lib/i18n/client";
 import type { CustomerOption } from "@/server/customers";
+import { CustomerPicker } from "@/components/garage/customer-picker";
 import { FuelType } from "@prisma/client";
 
 type Props = {
-  customers: CustomerOption[];
+  /** Pre-selected customer (form opened from a customer page). */
+  initialCustomer: CustomerOption | null;
   mechanics: { id: string; name: string }[];
-  preset?: { customerId?: string; vehicleId?: string };
+  preset?: { vehicleId?: string };
 };
 
 const NEW = "__new";
 
-export function CheckInForm({ customers, mechanics, preset }: Props) {
+export function CheckInForm({ initialCustomer, mechanics, preset }: Props) {
   const { t } = useI18n();
-  const [customerId, setCustomerId] = useState(preset?.customerId ?? NEW);
-  const [vehicleId, setVehicleId] = useState(preset?.vehicleId ?? NEW);
-
-  const customer = useMemo(() => customers.find((c) => c.id === customerId), [customers, customerId]);
+  const [customer, setCustomer] = useState<CustomerOption | null>(initialCustomer);
+  const [vehicleId, setVehicleId] = useState(initialCustomer && preset?.vehicleId ? preset.vehicleId : NEW);
+  const customerId = customer?.id ?? NEW;
   const vehicles = customer?.vehicles ?? [];
   const vehicle = vehicles.find((v) => v.id === vehicleId);
 
@@ -33,23 +34,17 @@ export function CheckInForm({ customers, mechanics, preset }: Props) {
     <ActionForm action={createWorkOrderAction} reset={false} silent className="grid gap-4 lg:grid-cols-2">
       <Card>
         <CardTitle>{t.workOrders.customer}</CardTitle>
-        <Field label={t.workOrders.selectCustomer}>
-          <NativeSelect
-            name="customerId"
-            value={customerId === NEW ? "" : customerId}
-            onChange={(e) => {
-              setCustomerId(e.target.value || NEW);
+        <div className="flex flex-col gap-1.5 text-sm">
+          <span className="font-medium">{t.workOrders.selectCustomer}</span>
+          <input type="hidden" name="customerId" value={customer?.id ?? ""} />
+          <CustomerPicker
+            value={customer}
+            onChange={(c) => {
+              setCustomer(c);
               setVehicleId(NEW);
             }}
-          >
-            <option value="">{t.workOrders.orNewCustomer}</option>
-            {customers.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name} · {c.phone}
-              </option>
-            ))}
-          </NativeSelect>
-        </Field>
+          />
+        </div>
 
         {customerId === NEW && (
           <div className="mt-3 grid gap-3 sm:grid-cols-2">

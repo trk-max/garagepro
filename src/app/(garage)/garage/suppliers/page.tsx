@@ -54,7 +54,7 @@ export default async function SuppliersPage({ searchParams }: PageProps) {
                     </Link>
                   </Td>
                   <Td className="text-end tabular-nums" dir="ltr">
-                    <Link href={`/garage/supplier-invoices?supplier=${s.id}&filter=unpaid`} className={s.balance ? "font-medium text-amber-700 hover:underline" : "text-muted-foreground"}>
+                    <Link href={`/garage/supplier-invoices?supplier=${s.id}&filter=unpaid`} className={s.balance ? "font-medium text-amber-700 dark:text-amber-400 hover:underline" : "text-muted-foreground"}>
                       {formatMoney(s.balance, lang)}
                     </Link>
                   </Td>

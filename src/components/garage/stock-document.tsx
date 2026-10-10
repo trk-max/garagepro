@@ -26,7 +26,7 @@ export function StockDocument({
 }) {
   const total = lines.reduce((s, l) => s + Math.round((l.quantityX100 * l.unitCost) / 100), 0);
   return (
-    <article className="mx-auto max-w-[210mm] bg-white p-10 text-sm text-zinc-900 shadow-sm print:max-w-none print:p-0 print:shadow-none">
+    <article className="paper mx-auto max-w-[210mm] bg-white p-10 text-sm text-zinc-900 shadow-sm print:max-w-none print:p-0 print:shadow-none">
       <header className="flex flex-wrap items-start justify-between gap-6 border-b pb-6">
         <div>
           <h2 className="text-xl font-bold">{garage.garageName}</h2>

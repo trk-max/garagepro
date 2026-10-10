@@ -83,7 +83,7 @@ export default async function WorkOrdersPage({ searchParams }: PageProps) {
             {orders.map((wo) => (
               <tr key={wo.id} className="hover:bg-accent/30">
                 <Td>
-                  <Link href={`/garage/work-orders/${wo.id}`} className="font-mono text-xs font-medium hover:underline">
+                  <Link href={`/garage/work-orders/${wo.id}`} className="whitespace-nowrap font-mono text-xs font-medium hover:underline">
                     {woNumber(wo.number)}
                   </Link>
                 </Td>

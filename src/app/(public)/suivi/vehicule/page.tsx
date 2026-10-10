@@ -40,7 +40,7 @@ export default async function TrackerPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-4 px-4 py-6">
       {/* ── Vehicle header ── */}
-      <section className="rounded-2xl bg-navy p-5 text-white shadow-lg">
+      <section className="rounded-lg bg-navy p-5 text-white shadow-sm ring-1 ring-white/10">
         <div className="flex items-start gap-3">
           <div className="min-w-0 flex-1">
             <p className="text-xs uppercase tracking-wide text-slate-300">{woNumber(view.number)}</p>
@@ -63,20 +63,20 @@ export default async function TrackerPage() {
         </div>
 
         <dl className="mt-5 grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
-          <div className="rounded-xl bg-white/5 p-3">
+          <div className="rounded-md bg-white/5 p-3">
             <dt className="flex items-center gap-1.5 text-xs text-slate-300">
               <UserRound className="size-3.5" aria-hidden /> {t.portal.technician}
             </dt>
             <dd className="mt-1 font-medium">{view.mechanicName ?? t.portal.notAssigned}</dd>
           </div>
-          <div className="rounded-xl bg-white/5 p-3">
+          <div className="rounded-md bg-white/5 p-3">
             <dt className="flex items-center gap-1.5 text-xs text-slate-300">
               <CalendarClock className="size-3.5" aria-hidden /> {t.portal.eta}
             </dt>
             <dd className="mt-1 font-medium">{view.promisedAt ? formatDateTime(view.promisedAt, lang) : t.portal.etaUnknown}</dd>
           </div>
           {view.mileageIn != null && (
-            <div className="col-span-2 rounded-xl bg-white/5 p-3 sm:col-span-1">
+            <div className="col-span-2 rounded-md bg-white/5 p-3 sm:col-span-1">
               <dt className="flex items-center gap-1.5 text-xs text-slate-300">
                 <Gauge className="size-3.5" aria-hidden /> {t.customers.mileage}
               </dt>
@@ -88,12 +88,12 @@ export default async function TrackerPage() {
 
       {/* ── Banners ── */}
       {ready && (
-        <p className="flex items-center gap-3 rounded-2xl bg-emerald-500 p-4 font-medium text-white shadow-sm">
+        <p className="flex items-center gap-3 rounded-lg bg-emerald-500 p-4 font-medium text-white shadow-sm">
           <CheckCircle2 className="size-6 shrink-0" aria-hidden /> {t.portal.readyBanner}
         </p>
       )}
       {delivered && (
-        <p className="flex items-center gap-3 rounded-2xl bg-slate-800 p-4 font-medium text-white">
+        <p className="flex items-center gap-3 rounded-lg bg-slate-800 p-4 font-medium text-white">
           <PartyPopper className="size-6 shrink-0" aria-hidden /> {t.portal.delivered}
         </p>
       )}
@@ -102,27 +102,27 @@ export default async function TrackerPage() {
 
       {/* ── Quote to approve ── */}
       {view.quote && (
-        <section className="rounded-2xl bg-white p-5 shadow-sm ring-2 ring-orange-400">
-          <h2 className="font-semibold text-orange-700">{t.portal.quoteTitle}</h2>
-          <p className="mt-1 text-sm text-slate-600">{t.portal.quoteIntro}</p>
+        <section className="rounded-lg bg-card p-5 shadow-sm ring-2 ring-brand-400">
+          <h2 className="font-semibold text-brand-700 dark:text-brand-400">{t.portal.quoteTitle}</h2>
+          <p className="mt-1 text-sm text-muted-foreground">{t.portal.quoteIntro}</p>
           <ul className="mt-4 divide-y text-sm">
             {view.quote.lines.map((l, i) => (
               <li key={i} className="flex items-start justify-between gap-3 py-2">
                 <span>
                   {l.description}
-                  <span className="ms-1 text-xs text-slate-500">× {formatQty(l.quantityX100, lang)}</span>
+                  <span className="ms-1 text-xs text-muted-foreground">× {formatQty(l.quantityX100, lang)}</span>
                 </span>
                 <span className="shrink-0 tabular-nums" dir="ltr">{formatMoney(l.totalHt, lang)}</span>
               </li>
             ))}
           </ul>
           <dl className="mt-2 space-y-1 border-t pt-3 text-sm">
-            <div className="flex justify-between text-slate-500">
+            <div className="flex justify-between text-muted-foreground">
               <dt>{t.invoices.totalHt}</dt>
               <dd dir="ltr">{formatMoney(view.quote.totals.totalHt, lang)}</dd>
             </div>
             {view.quote.totals.taxByRate.map((r) => (
-              <div key={r.rateBp} className="flex justify-between text-slate-500">
+              <div key={r.rateBp} className="flex justify-between text-muted-foreground">
                 <dt>{fmt(t.invoices.vat, { rate: r.rateBp / 100 })}</dt>
                 <dd dir="ltr">{formatMoney(r.tax, lang)}</dd>
               </div>
@@ -154,27 +154,27 @@ export default async function TrackerPage() {
 
       {/* ── Invoice ── */}
       {view.invoice && (
-        <section className="flex items-center gap-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
-          <FileText className="size-5 text-slate-500" aria-hidden />
+        <section className="flex items-center gap-3 rounded-lg bg-card p-4 shadow-sm ring-1 ring-border">
+          <FileText className="size-5 text-muted-foreground" aria-hidden />
           <div className="flex-1 text-sm">
             <p className="font-medium">
               {t.portal.invoiceTitle} {view.invoice.number}
             </p>
-            <p className="text-slate-500" dir="ltr">
+            <p className="text-muted-foreground" dir="ltr">
               {formatMoney(view.invoice.totalTtc, lang)}
             </p>
           </div>
           {view.invoice.totalTtc > view.invoice.paidAmount && (
             <div className="text-end text-sm">
-              <p className="text-slate-500">{t.portal.amountDue}</p>
-              <p className="font-semibold text-orange-700" dir="ltr">{formatMoney(view.invoice.totalTtc - view.invoice.paidAmount, lang)}</p>
+              <p className="text-muted-foreground">{t.portal.amountDue}</p>
+              <p className="font-semibold text-brand-700 dark:text-brand-400" dir="ltr">{formatMoney(view.invoice.totalTtc - view.invoice.paidAmount, lang)}</p>
             </div>
           )}
         </section>
       )}
 
       {/* ── Photos & videos ── */}
-      <section className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+      <section className="rounded-lg bg-card p-5 shadow-sm ring-1 ring-border">
         <h2 className="mb-3 font-semibold">{t.portal.gallery}</h2>
         <MediaGallery
           emptyLabel={t.portal.galleryEmpty}
@@ -183,7 +183,7 @@ export default async function TrackerPage() {
       </section>
 
       {/* ── Contact ── */}
-      <section className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+      <section className="rounded-lg bg-card p-5 shadow-sm ring-1 ring-border">
         <h2 className="font-semibold">{t.portal.contactTitle}</h2>
         {phone && (
           <div className="mt-3 grid grid-cols-2 gap-2">
@@ -202,7 +202,7 @@ export default async function TrackerPage() {
           </div>
         )}
         <ActionForm action={customerMessageAction} successMessage={t.portal.messageSent} className="mt-3 space-y-2">
-          <Textarea name="body" required maxLength={1000} rows={3} placeholder={t.portal.messagePlaceholder} className="bg-white" />
+          <Textarea name="body" required maxLength={1000} rows={3} placeholder={t.portal.messagePlaceholder} className="bg-card" />
           <Button type="submit" variant="outline" className="w-full">
             {t.portal.send}
           </Button>
@@ -210,15 +210,15 @@ export default async function TrackerPage() {
       </section>
 
       {/* ── History ── */}
-      <section className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+      <section className="rounded-lg bg-card p-5 shadow-sm ring-1 ring-border">
         <h2 className="mb-3 font-semibold">{t.portal.history}</h2>
-        <ol className="space-y-3 border-s-2 border-slate-100 ps-4">
+        <ol className="space-y-3 border-s-2 border-border ps-4">
           {view.events.map((e) => (
             <li key={e.id} className="relative text-sm">
-              <span className="absolute -start-[21px] top-1.5 size-2.5 rounded-full bg-orange-400 ring-4 ring-white" aria-hidden />
+              <span className="absolute -start-[21px] top-1.5 size-2.5 rounded-full bg-brand-400 ring-4 ring-white" aria-hidden />
               <p className="font-medium">{eventLabel(e, t)}</p>
-              {e.body && <p className="mt-0.5 whitespace-pre-line text-slate-600">{e.body}</p>}
-              <time className="text-xs text-slate-500">{formatDateTime(e.createdAt, lang)}</time>
+              {e.body && <p className="mt-0.5 whitespace-pre-line text-muted-foreground">{e.body}</p>}
+              <time className="text-xs text-muted-foreground">{formatDateTime(e.createdAt, lang)}</time>
             </li>
           ))}
         </ol>

@@ -117,13 +117,32 @@ Le fichier `.env` (secrets) n'est **jamais** sur GitHub : recopiez-le depuis vot
 ### Nouvelle base vide (première installation)
 `setup.cmd` crée les tables. Pour ajouter les données de départ (paramètres, prestations, comptes de démo `admin@garage.tn` … mot de passe `password123`) : `npm run db:seed`. Créez ensuite votre propre compte admin et **désactivez les comptes de démo**.
 
+## Performance
+
+| Mesure | Avant | Après |
+|---|---|---|
+| Lancement quotidien | `npm run dev` : compile chaque page au 1er clic (~10 s) | `start.cmd` → **mode production** (`npm run serve`) : ~20–70 ms par page, recompile seulement si le code a changé |
+| Requêtes du menu à chaque clic | 7 (dont 2 qui chargeaient toutes les factures impayées) | 3 petits `COUNT` |
+| Paramètres du garage | écriture (`upsert`) 2–3 fois par page | 1 lecture par page (cache de requête) |
+| Retour visuel au clic | aucun (attente du serveur) | squelette immédiat (`loading.tsx`) |
+| Nouvel OR | jusqu'à 1 000 clients + véhicules envoyés au navigateur | recherche serveur (12 résultats, 250 ms d'attente, requêtes obsolètes annulées) |
+| Photos | re-téléchargées toutes les heures | gardées 1 jour par le navigateur (`private, immutable`), chargement différé |
+| Index base | clés étrangères non indexées | 7 index ajoutés (`prisma/migrations/1_perf_indexes`) |
+
+Appliquer les index (sans rien effacer) : `npx prisma migrate deploy` — `setup.cmd` le fait aussi.
+
+## Design
+
+Application équipe : cockpit sombre « carbone » (`#0B0C10` / `#12141C`), un seul accent **Guard Red** `#E10600` pour les actions principales et les alertes, police Inter auto-hébergée, angles nets (2–6 px), titres de section techniques en majuscules espacées, indicateurs façon télémétrie. Portail client : surfaces claires (lisibles au soleil sur téléphone), en-tête carbone, accent rouge. Documents imprimés (factures, devis, bons) : toujours sur papier blanc. Jetons de couleur dans `src/app/globals.css`.
+
 ## Tests et vérifications
 
 | Commande | Rôle |
 |---|---|
 | `npm test` | 97 tests (argent, TVA, créneaux, permissions, stock, connexion, équipe, e-mails, guide et assistant IA) |
 | `npm run test:watch` | relance les tests à chaque sauvegarde |
-| `npm run check` | TypeScript + tests (à lancer avant chaque commit) |
+| `npm run lint` | ESLint (règles Next.js) |
+| `npm run check` | TypeScript + ESLint + tests (à lancer avant chaque commit) |
 | `npm run build` | build de production |
 
 Les tests sont dans `tests/` et n'utilisent **pas** la base de données (aucun risque pour vos données).
@@ -141,7 +160,7 @@ Les tests sont dans `tests/` et n'utilisent **pas** la base de données (aucun r
 | Erreur technique : page « Réessayer », jamais de détail technique affiché | `error.tsx`, `global-error.tsx` |
 | Données de démo (`password123`) refusées si `NODE_ENV=production` | `prisma/seed.ts` |
 
-**Risques acceptés (documentés)** — `npm audit` signale encore 3 alertes « high » (0 critique) dans `deepmerge-ts`, utilisé uniquement par l'outil en ligne de commande Prisma (jamais par l'application en marche). Elles disparaîtront avec une future version de Prisma. **Ne lancez pas `npm audit fix --force`** : il installe des versions incompatibles.
+**Risques acceptés (documentés)** — `npm audit` signale des alertes « high » (0 critique) dans `deepmerge-ts` (outil en ligne de commande Prisma) et `braces` (outil ESLint) : ces paquets servent uniquement au développement, jamais à l'application en marche. Elles disparaîtront avec une future version de Prisma. **Ne lancez pas `npm audit fix --force`** : il installe des versions incompatibles.
 
 ## Git (historique et retour arrière)
 
@@ -179,3 +198,12 @@ src/lib/i18n/fr.ts · ar.ts  traductions
 src/lib/format.ts           monnaie TND, quantités, totaux TVA
 tests/                      tests automatiques (Vitest)
 ```
+
+## V3 — Thème, page « L'atelier », équipe
+
+- **Clair / sombre** : bouton soleil/lune (barre latérale, menu mobile, en-tête du portail). Choix mémorisé par appareil (cookie `theme`, sombre par défaut). Les factures imprimées restent toujours claires.
+- **Page `/a-propos` (« L'atelier »)** : vitrine premium (protocole en 5 étapes, tableau comparatif, prestations, configurateur de RDV). Textes FR/AR dans `src/lib/about-content.ts`. Photo de fond optionnelle : déposez `public/hero.jpg`.
+- **Équipe** : Paramètres → Équipe → Gérer → **Supprimer** (pas soi-même, jamais le dernier admin actif ; l'historique est conservé).
+- **Déconnexion** → retour sur `/login`.
+- **E-mail** : l'erreur réelle s'affiche (mot de passe Gmail refusé, client sans e-mail…). Pour Gmail : `SMTP_USER` + `SMTP_PASS` (mot de passe d'application) et **pas** de `SMTP_HOST`.
+- **Anciennes photos** (envoyées avant Supabase) : relues depuis le dossier local `storage/` si absentes du bucket.

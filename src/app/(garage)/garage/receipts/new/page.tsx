@@ -34,7 +34,7 @@ export default async function NewReceiptPage({ searchParams }: PageProps) {
       <PageHeader title={t.receipts.new} />
 
       {po && !receivable && (
-        <p className="mb-4 rounded-md border border-amber-500/30 bg-amber-500/10 px-4 py-2 text-sm text-amber-800 dark:text-amber-300">
+        <p className="mb-4 rounded-md border border-amber-500/30 bg-amber-500/10 px-4 py-2 text-sm text-amber-700 dark:text-amber-300">
           {t.errors.poNotApproved}{" "}
           <Link href={`/garage/purchase-orders/${po.id}`} className="font-mono underline">
             {po.number}

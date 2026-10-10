@@ -2,21 +2,23 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { MapPin, Phone, Wrench } from "lucide-react";
 import { LangSwitch } from "@/components/garage/lang-switch";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { aboutContent } from "@/lib/about-content";
 import { getI18n } from "@/lib/i18n/server";
 import { getSettings } from "@/server/settings";
 
 export const dynamic = "force-dynamic";
 
-/** Customer portal shell: dark-blue header, light content, garage contact footer. */
+/** Customer portal shell: carbon header, light or dark content (visitor's choice), contact footer. */
 export default async function PublicLayout({ children }: { children: ReactNode }) {
-  const [{ t }, settings] = await Promise.all([getI18n(), getSettings()]);
+  const [{ t, lang }, settings] = await Promise.all([getI18n(), getSettings()]);
 
   return (
-    <div className="flex min-h-dvh flex-col bg-slate-100 text-slate-900">
-      <header className="bg-navy text-white">
+    <div className="flex min-h-dvh flex-col bg-muted text-foreground dark:bg-background">
+      <header className="border-b border-white/10 bg-navy text-white">
         <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-3">
           <Link href="/" className="flex min-w-0 items-center gap-2.5">
-            <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-orange-500 text-white">
+            <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-brand-500 text-white">
               <Wrench className="size-5" aria-hidden />
             </span>
             <span className="min-w-0">
@@ -25,25 +27,31 @@ export default async function PublicLayout({ children }: { children: ReactNode }
             </span>
           </Link>
           <nav className="ms-auto hidden items-center gap-1 text-sm sm:flex">
+            <Link href="/a-propos" className="inline-flex min-h-11 items-center rounded-md px-3 text-slate-200 hover:bg-white/10 hover:text-white">
+              {aboutContent(lang).navLink}
+            </Link>
             <Link href="/assistant" className="inline-flex min-h-11 items-center rounded-md px-3 text-slate-200 hover:bg-white/10 hover:text-white">
               {t.assistant.navCta}
             </Link>
             <Link href="/suivi" className="inline-flex min-h-11 items-center rounded-md px-3 text-slate-200 hover:bg-white/10 hover:text-white">
               {t.portal.trackCta}
             </Link>
-            <Link href="/rdv" className="inline-flex min-h-11 items-center rounded-md bg-orange-500 px-3 font-medium text-white hover:bg-orange-600">
+            <Link href="/rdv" className="inline-flex min-h-11 items-center rounded-md bg-brand-500 px-3 font-medium text-white hover:bg-brand-600">
               {t.portal.bookCta}
             </Link>
           </nav>
-          <div className="ms-auto rounded-md bg-white sm:ms-2">
-            <LangSwitch />
+          <div className="ms-auto flex items-center gap-1 sm:ms-2">
+            <ThemeToggle className="text-slate-300 hover:bg-white/10 hover:text-white" />
+            <div className="rounded-md bg-card text-foreground">
+              <LangSwitch />
+            </div>
           </div>
         </div>
       </header>
 
       <main className="flex-1">{children}</main>
 
-      <footer className="bg-anthracite text-slate-300">
+      <footer className="border-t border-white/10 bg-anthracite text-slate-300">
         <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-5 text-sm">
           <span className="font-medium text-white">{settings.garageName}</span>
           {settings.address && (

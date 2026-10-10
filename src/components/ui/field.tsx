@@ -23,17 +23,17 @@ export function Textarea({ className, ...props }: React.ComponentProps<"textarea
 }
 
 export function Card({ className, ...props }: React.ComponentProps<"section">) {
-  return <section className={cn("rounded-lg border bg-card p-4 shadow-xs", className)} {...props} />;
+  return <section className={cn("rounded-lg border bg-card p-4 sm:p-5", className)} {...props} />;
 }
 
 export function CardTitle({ className, ...props }: React.ComponentProps<"h2">) {
-  return <h2 className={cn("mb-3 text-sm font-semibold", className)} {...props} />;
+  return <h2 className={cn("label-tech mb-4", className)} {...props} />;
 }
 
 export function PageHeader({ title, children }: { title: string; children?: React.ReactNode }) {
   return (
-    <header className="mb-6 flex flex-wrap items-center gap-3">
-      <h1 className="text-xl font-semibold">{title}</h1>
+    <header className="mb-6 flex flex-wrap items-center gap-3 border-b pb-4">
+      <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
       <div className="ms-auto flex flex-wrap items-center gap-2">{children}</div>
     </header>
   );
@@ -41,16 +41,16 @@ export function PageHeader({ title, children }: { title: string; children?: Reac
 
 export function Table({ className, ...props }: React.ComponentProps<"table">) {
   return (
-    <div className="overflow-x-auto rounded-lg border">
-      <table className={cn("w-full text-sm", className)} {...props} />
+    <div className="overflow-x-auto rounded-lg border bg-card">
+      <table className={cn("w-full text-sm [&_tbody_tr]:transition-colors [&_tbody_tr:hover]:bg-accent/50", className)} {...props} />
     </div>
   );
 }
 
 export function Th({ className, ...props }: React.ComponentProps<"th">) {
-  return <th className={cn("border-b bg-muted/50 px-3 py-2 text-start text-xs font-medium text-muted-foreground", className)} {...props} />;
+  return <th className={cn("label-tech border-b bg-muted/40 px-3 py-2.5 text-start", className)} {...props} />;
 }
 
 export function Td({ className, ...props }: React.ComponentProps<"td">) {
-  return <td className={cn("border-b px-3 py-2 align-middle", className)} {...props} />;
+  return <td className={cn("border-b px-3 py-2.5 align-middle", className)} {...props} />;
 }

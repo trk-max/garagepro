@@ -4,8 +4,8 @@ import { MobileNav, Sidebar } from "@/components/garage/sidebar";
 import { can } from "@/lib/permissions";
 import { getStaff } from "@/lib/session";
 import { countUpcomingToday } from "@/server/booking";
-import { overdueSummary } from "@/server/invoices";
-import { purchasingSummary } from "@/server/purchasing";
+import { countOverdue } from "@/server/invoices";
+import { prisma } from "@/lib/prisma";
 import { getSettings } from "@/server/settings";
 
 export const dynamic = "force-dynamic";
@@ -14,18 +14,19 @@ export default async function GarageLayout({ children }: { children: ReactNode }
   const staff = await getStaff();
   if (!staff) redirect("/login");
 
-  const [settings, overdue, purchasing, appointmentsToday] = await Promise.all([
+  // Menu counters: 3 small COUNT queries in parallel (no rows loaded).
+  const [settings, overdue, pendingApprovals, appointmentsToday] = await Promise.all([
     getSettings(),
-    can(staff.role, "viewClientInvoices") ? overdueSummary() : null,
-    can(staff.role, "requestPurchase") ? purchasingSummary() : null,
+    can(staff.role, "viewClientInvoices") ? countOverdue() : 0,
+    staff.role === "ADMIN" ? prisma.purchaseOrder.count({ where: { status: "PENDING_APPROVAL" } }) : 0,
     can(staff.role, "viewAppointments") ? countUpcomingToday() : 0,
   ]);
 
   // Counters in the menu: today's remaining bookings, late customer invoices, orders waiting for the admin.
   const badges = {
     appointments: appointmentsToday || undefined,
-    clientInvoices: overdue?.count,
-    purchaseOrders: staff.role === "ADMIN" ? purchasing?.pendingApprovals : undefined,
+    clientInvoices: overdue || undefined,
+    purchaseOrders: pendingApprovals || undefined,
   };
   const user = { name: staff.name, role: staff.role };
 

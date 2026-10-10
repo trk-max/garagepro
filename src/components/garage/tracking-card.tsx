@@ -27,9 +27,9 @@ export function TrackingCard({
   if (wa.length === 8) wa = `216${wa}`;
 
   return (
-    <section className="rounded-lg border border-orange-500/30 bg-orange-500/5 p-4">
+    <section className="rounded-lg border border-brand-500/30 bg-brand-500/5 p-4">
       <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold">
-        <KeyRound className="size-4 text-orange-600" aria-hidden /> {t.tracking.title}
+        <KeyRound className="size-4 text-brand-400" aria-hidden /> {t.tracking.title}
       </h2>
       {pin ? (
         <>
@@ -48,7 +48,7 @@ export function TrackingCard({
             title={t.tracking.link}
             dir="ltr"
           >
-            {copied ? <Check className="size-3.5 shrink-0 text-emerald-600" /> : <Copy className="size-3.5 shrink-0" />}
+            {copied ? <Check className="size-3.5 shrink-0 text-emerald-700 dark:text-emerald-400" /> : <Copy className="size-3.5 shrink-0" />}
             <span className="truncate">{link}</span>
           </button>
           <div className="mt-3 grid gap-2">

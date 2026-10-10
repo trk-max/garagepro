@@ -17,7 +17,7 @@ import {
 } from "@/server/booking";
 import { removeMedia, setMediaVisibility } from "@/server/media";
 import { notifyVehicleReady } from "@/server/customer-notifications";
-import { notifyCustomer } from "@/server/notify";
+import { notifyCustomerDetailed } from "@/server/notify";
 import { sendEmail } from "@/server/email";
 import { recordReminder } from "@/server/invoices";
 import { getSettings } from "@/server/settings";
@@ -77,8 +77,11 @@ export async function sendTrackingAction(workOrderId: string): Promise<Result> {
       url: `${baseUrl}/suivi?plate=${wo.vehicle.plate}`,
       pin: wo.trackingPin,
     });
-    const sent = await notifyCustomer(wo.customer, { subject: `${t.tracking.title} – ${settings.garageName}`, text, brand: settings.garageName });
-    return sent.length ? { ok: true, data: {} } : { ok: false, error: t.tracking.noChannel };
+    const { sent, errors } = await notifyCustomerDetailed(wo.customer, { subject: `${t.tracking.title} – ${settings.garageName}`, text, brand: settings.garageName });
+    if (sent.length) return { ok: true, data: {} };
+    // Show the real reason (wrong Gmail password, no e-mail on file…); the generic
+    // "nothing configured" text only when nothing is configured at all.
+    return { ok: false, error: errors.length ? `${errors.join(" · ")} — ${t.tracking.useWhatsapp}` : t.tracking.noChannel };
   } catch (error) {
     return toActionError(error);
   }

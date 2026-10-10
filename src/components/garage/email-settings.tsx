@@ -20,7 +20,7 @@ export function EmailSettings({ t, defaultTo }: { t: Dictionary; defaultTo: stri
         <Mail className="size-4" aria-hidden /> {e.title}
         <span
           className={`ms-auto inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${
-            ok ? "bg-emerald-500/10 text-emerald-700" : "bg-zinc-500/10 text-zinc-600"
+            ok ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400" : "bg-zinc-500/10 text-muted-foreground"
           }`}
         >
           {ok ? <CheckCircle2 className="size-3.5" aria-hidden /> : <XCircle className="size-3.5" aria-hidden />}
@@ -34,7 +34,7 @@ export function EmailSettings({ t, defaultTo }: { t: Dictionary; defaultTo: stri
             <span className="text-muted-foreground">{e.sender} : </span>
             <span className="font-mono text-xs" dir="ltr">{sender}</span>
           </p>
-          {sandbox && <p className="mt-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-300">{e.sandboxHint}</p>}
+          {sandbox && <p className="mt-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">{e.sandboxHint}</p>}
           <ActionForm action={sendTestEmailAction} reset={false} successMessage={e.sent} className="mt-4 flex flex-wrap items-end gap-2">
             <label className="flex min-w-60 flex-1 flex-col gap-1.5 text-sm">
               <span className="font-medium">{e.testTo}</span>

@@ -20,7 +20,7 @@ export function ErrorView({ error, reset, homeHref }: { error: Error & { digest?
 
   return (
     <div role="alert" className="mx-auto flex max-w-md flex-col items-center gap-4 px-4 py-16 text-center">
-      <span className="grid size-12 place-items-center rounded-full bg-red-100 text-red-700">
+      <span className="grid size-12 place-items-center rounded-full bg-red-100 text-red-700 dark:text-red-400">
         <AlertTriangle className="size-6" aria-hidden />
       </span>
       <h1 className="text-lg font-semibold">{t.errors.pageTitle}</h1>

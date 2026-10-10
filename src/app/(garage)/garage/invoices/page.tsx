@@ -75,8 +75,8 @@ export default async function InvoicesPage({ searchParams }: PageProps) {
                   <Td className="text-end tabular-nums" dir="ltr">{formatMoney(inv.totalTtc, lang)}</Td>
                   <Td className="text-end tabular-nums" dir="ltr">{formatMoney(inv.totalTtc - inv.paidAmount, lang)}</Td>
                   <Td className="text-xs">
-                    <div className={late ? "font-medium text-red-600" : "text-muted-foreground"}>{formatDate(inv.dueDate ?? inv.issuedAt, lang)}</div>
-                    {late && <div className="text-red-600">{fmt(t.reminders.daysLate, { days: daysLate(inv) })}</div>}
+                    <div className={late ? "font-medium text-red-700 dark:text-red-400" : "text-muted-foreground"}>{formatDate(inv.dueDate ?? inv.issuedAt, lang)}</div>
+                    {late && <div className="text-red-700 dark:text-red-400">{fmt(t.reminders.daysLate, { days: daysLate(inv) })}</div>}
                     {inv.reminders[0] && (
                       <div className="flex items-center gap-1 text-muted-foreground">
                         <BellRing className="size-3" aria-hidden /> {formatDate(inv.reminders[0].sentAt, lang)}

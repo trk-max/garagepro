@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import { signOutAction } from "@/actions/auth";
+import { ThemeToggle } from "@/components/theme-toggle";
 import {
   Boxes,
   CalendarDays,
@@ -81,7 +83,7 @@ export function Sidebar({
   const { t } = useI18n();
 
   return (
-    <aside className="hidden h-dvh flex-col border-e bg-muted/30 lg:flex print:hidden">
+    <aside className="hidden h-dvh flex-col border-e bg-card lg:flex print:hidden">
       <div className="flex items-center gap-2 px-4 py-4">
         <span className="grid size-9 place-items-center rounded-lg bg-primary text-primary-foreground">
           <Wrench className="size-5" aria-hidden />
@@ -95,7 +97,10 @@ export function Sidebar({
       <NavLinks role={user.role} badges={badges} className="flex-1 overflow-y-auto px-2" />
 
       <div className="space-y-3 border-t p-4">
-        <LangSwitch />
+        <div className="flex items-center justify-between gap-2">
+          <LangSwitch />
+          <ThemeToggle />
+        </div>
         <UserRow user={user} />
       </div>
     </aside>
@@ -110,9 +115,11 @@ function UserRow({ user }: { user: { name: string; role: Role } }) {
         <p className="truncate text-sm font-medium">{user.name}</p>
         <p className="text-xs text-muted-foreground">{t.roles[user.role]}</p>
       </div>
-      <Link href="/api/auth/signout" className="rounded-md p-2 text-muted-foreground hover:bg-accent" aria-label={t.common.signOut}>
-        <LogOut className="size-4 rtl:rotate-180" />
-      </Link>
+      <form action={signOutAction}>
+        <button type="submit" className="rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-foreground" aria-label={t.common.signOut} title={t.common.signOut}>
+          <LogOut className="size-4 rtl:rotate-180" />
+        </button>
+      </form>
     </div>
   );
 }
@@ -128,7 +135,7 @@ function NavLinks({ role, badges, className, onNavigate }: { role: Role; badges:
           return (
             <div key={gi} className="space-y-0.5">
               {group.title && (
-                <p className="px-3 pb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t.nav[group.title]}</p>
+                <p className="label-tech px-3 pb-1.5">{t.nav[group.title]}</p>
               )}
               {items.map(({ key, href, icon: Icon }) => {
                 const active = href === "/garage" ? pathname === href : pathname.startsWith(href);
@@ -140,8 +147,10 @@ function NavLinks({ role, badges, className, onNavigate }: { role: Role; badges:
                     onClick={onNavigate}
                     aria-current={active ? "page" : undefined}
                     className={cn(
-                      "flex min-h-10 items-center gap-2.5 rounded-md px-3 py-2 text-sm transition-colors pointer-coarse:min-h-11",
-                      active ? "bg-accent font-medium text-accent-foreground" : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
+                      "relative flex min-h-10 items-center gap-2.5 rounded-md px-3 py-2 text-sm transition-colors pointer-coarse:min-h-11",
+                      active
+                        ? "bg-accent font-medium text-accent-foreground before:absolute before:inset-y-2 before:start-0 before:w-0.5 before:rounded-full before:bg-primary"
+                        : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
                     )}
                   >
                     <Icon className="size-4 shrink-0" aria-hidden />
@@ -191,7 +200,10 @@ export function MobileNav({
       {open && (
         <div className="max-h-[80dvh] space-y-3 overflow-y-auto border-t bg-background p-3 shadow-lg">
           <NavLinks role={user.role} badges={badges} onNavigate={() => setOpen(false)} />
-          <LangSwitch />
+          <div className="flex items-center justify-between gap-2">
+            <LangSwitch />
+            <ThemeToggle withLabel />
+          </div>
           <UserRow user={user} />
         </div>
       )}

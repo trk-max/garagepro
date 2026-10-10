@@ -14,10 +14,10 @@ export default async function BookingPage({ searchParams }: PageProps) {
     <div className="mx-auto max-w-4xl px-4 py-8">
       <h1 className="mb-6 text-2xl font-bold">{t.booking.title}</h1>
       {!settings.bookingEnabled || services.length === 0 ? (
-        <p className="flex items-center gap-3 rounded-2xl bg-white p-6 text-sm ring-1 ring-slate-200">
-          <CalendarX className="size-6 text-slate-500" aria-hidden /> {t.booking.closed}
+        <p className="flex items-center gap-3 rounded-lg bg-card p-6 text-sm ring-1 ring-border">
+          <CalendarX className="size-6 text-muted-foreground" aria-hidden /> {t.booking.closed}
           {phone && (
-            <a href={`tel:${phone}`} className="ms-auto font-medium text-orange-700" dir="ltr">
+            <a href={`tel:${phone}`} className="ms-auto font-medium text-brand-700 dark:text-brand-400" dir="ltr">
               {settings.phone}
             </a>
           )}

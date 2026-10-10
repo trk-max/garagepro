@@ -51,8 +51,8 @@ export async function deleteObject(key: string): Promise<void> {
       headers: { Authorization: `Bearer ${sb.key}`, apikey: sb.key, "Content-Type": "application/json" },
       body: JSON.stringify({ prefixes: [key] }),
     });
-    return;
   }
+  // Also removes an older local copy (uploads made before Supabase was set up).
   await rm(localPath(key), { force: true });
 }
 
@@ -64,7 +64,10 @@ export async function readObject(key: string, contentType: string, range: string
   const baseHeaders = {
     "Content-Type": contentType,
     "Accept-Ranges": "bytes",
-    "Cache-Control": "private, max-age=3600",
+    // A stored file never changes (unique key, no overwrite): the browser may keep it
+    // for a day instead of downloading the same photo again on every visit.
+    // "private" = never kept by a shared cache (photos are not public).
+    "Cache-Control": "private, max-age=86400, immutable",
     "X-Content-Type-Options": "nosniff",
     "Content-Disposition": "inline",
   };
@@ -74,13 +77,16 @@ export async function readObject(key: string, contentType: string, range: string
     const upstream = await fetch(`${sb.url}/storage/v1/object/authenticated/${sb.bucket}/${key}`, {
       headers: { Authorization: `Bearer ${sb.key}`, apikey: sb.key, ...(range ? { Range: range } : {}) },
     });
-    if (!upstream.ok && upstream.status !== 206) return new Response("Not found", { status: 404 });
-    const h = new Headers(baseHeaders);
-    for (const name of ["Content-Length", "Content-Range"]) {
-      const v = upstream.headers.get(name);
-      if (v) h.set(name, v);
+    if (upstream.ok || upstream.status === 206) {
+      const h = new Headers(baseHeaders);
+      for (const name of ["Content-Length", "Content-Range"]) {
+        const v = upstream.headers.get(name);
+        if (v) h.set(name, v);
+      }
+      return new Response(upstream.body, { status: upstream.status, headers: h });
     }
-    return new Response(upstream.body, { status: upstream.status, headers: h });
+    // Not in the bucket: files uploaded before Supabase was configured are
+    // still in ./storage on this machine — serve them from there.
   }
 
   const file = localPath(key);

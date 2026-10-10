@@ -131,7 +131,7 @@ export function BookingWizard({
   const field = (key: keyof Details, labelText: string, props: React.ComponentProps<typeof Input> = {}) => (
     <label className="block space-y-1.5 text-sm">
       <span className="font-medium">{labelText}</span>
-      <Input value={details[key]} onChange={(e) => setDetails((d) => ({ ...d, [key]: e.target.value }))} className="h-11 bg-white" {...props} />
+      <Input value={details[key]} onChange={(e) => setDetails((d) => ({ ...d, [key]: e.target.value }))} className="h-11 bg-card" {...props} />
     </label>
   );
 
@@ -141,8 +141,8 @@ export function BookingWizard({
       <ol className="grid grid-cols-4 gap-2" aria-label={b.title}>
         {STEPS.map((key, i) => (
           <li key={key} className="space-y-1.5">
-            <span className={cn("block h-1.5 rounded-full", i < step ? "bg-emerald-500" : i === step ? "bg-orange-500" : "bg-slate-200")} />
-            <span className={cn("block truncate text-xs", i === step ? "font-semibold text-slate-900" : "text-slate-500")}>
+            <span className={cn("block h-1.5 rounded-full", i < step ? "bg-emerald-500" : i === step ? "bg-brand-500" : "bg-muted")} />
+            <span className={cn("block truncate text-xs", i === step ? "font-semibold text-foreground" : "text-muted-foreground")}>
               {i + 1}. {b.steps[key]}
             </span>
           </li>
@@ -165,17 +165,17 @@ export function BookingWizard({
                   setStep(1);
                 }}
                 className={cn(
-                  "rounded-2xl bg-white p-4 text-start shadow-sm ring-1 transition hover:ring-orange-400 focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:outline-none",
-                  serviceId === s.id ? "ring-2 ring-orange-500" : "ring-slate-200",
+                  "rounded-lg bg-card p-4 text-start shadow-sm ring-1 transition hover:ring-brand-400 focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:outline-none",
+                  serviceId === s.id ? "ring-2 ring-brand-500" : "ring-border",
                 )}
               >
                 <p className="font-semibold">{label(s)}</p>
-                {desc(s) && <p className="mt-1 text-sm text-slate-500">{desc(s)}</p>}
+                {desc(s) && <p className="mt-1 text-sm text-muted-foreground">{desc(s)}</p>}
                 <p className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-                  <span className="inline-flex items-center gap-1 text-slate-600">
+                  <span className="inline-flex items-center gap-1 text-muted-foreground">
                     <Clock className="size-4" aria-hidden /> {b.duration} : {duration(s.durationMin)}
                   </span>
-                  <span className="font-medium text-orange-700" dir="ltr">{price(s)}</span>
+                  <span className="font-medium text-brand-700 dark:text-brand-400" dir="ltr">{price(s)}</span>
                 </p>
               </button>
             ))}
@@ -186,16 +186,16 @@ export function BookingWizard({
       {/* ── 2. Date & time ── */}
       {step === 1 && service && (
         <section className="space-y-4">
-          <p className="text-sm text-slate-600">
-            <span className="font-medium text-slate-900">{label(service)}</span> · {duration(service.durationMin)}
+          <p className="text-sm text-muted-foreground">
+            <span className="font-medium text-foreground">{label(service)}</span> · {duration(service.durationMin)}
           </p>
 
           {loading || days === null ? (
-            <p className="flex items-center gap-2 rounded-2xl bg-white p-6 text-sm text-slate-500 ring-1 ring-slate-200">
+            <p className="flex items-center gap-2 rounded-lg bg-card p-6 text-sm text-muted-foreground ring-1 ring-border">
               <Loader2 className="size-4 animate-spin" aria-hidden /> {b.loading}
             </p>
           ) : days.length === 0 ? (
-            <div className="rounded-2xl bg-white p-6 text-sm ring-1 ring-slate-200">
+            <div className="rounded-lg bg-card p-6 text-sm ring-1 ring-border">
               <p>{b.noSlots}</p>
               {garagePhone && (
                 <Button asChild className="mt-3 bg-anthracite">
@@ -207,17 +207,17 @@ export function BookingWizard({
             </div>
           ) : (
             <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-              <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+              <div className="rounded-lg bg-card p-4 shadow-sm ring-1 ring-border">
                 <div className="mb-3 flex items-center justify-between">
-                  <button type="button" onClick={() => setMonth((m) => addMonths(m, -1))} disabled={month <= firstMonth} className="grid size-11 place-items-center rounded-md hover:bg-slate-100 disabled:opacity-30 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-orange-400/60" aria-label={b.prevMonth}>
+                  <button type="button" onClick={() => setMonth((m) => addMonths(m, -1))} disabled={month <= firstMonth} className="grid size-11 place-items-center rounded-md hover:bg-accent disabled:opacity-30 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-brand-400/60" aria-label={b.prevMonth}>
                     <ChevronLeft className="size-5 rtl:rotate-180" aria-hidden />
                   </button>
                   <h3 className="font-semibold capitalize">{formatDay(`${month}-01`, lang, { month: "long", year: "numeric" })}</h3>
-                  <button type="button" onClick={() => setMonth((m) => addMonths(m, 1))} disabled={month >= lastMonth} className="grid size-11 place-items-center rounded-md hover:bg-slate-100 disabled:opacity-30 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-orange-400/60" aria-label={b.nextMonth}>
+                  <button type="button" onClick={() => setMonth((m) => addMonths(m, 1))} disabled={month >= lastMonth} className="grid size-11 place-items-center rounded-md hover:bg-accent disabled:opacity-30 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-brand-400/60" aria-label={b.nextMonth}>
                     <ChevronRight className="size-5 rtl:rotate-180" aria-hidden />
                   </button>
                 </div>
-                <div className="grid grid-cols-7 gap-1 text-center text-xs font-medium text-slate-500">
+                <div className="grid grid-cols-7 gap-1 text-center text-xs font-medium text-muted-foreground">
                   {["2026-10-05", "2026-10-06", "2026-10-07", "2026-10-08", "2026-10-09", "2026-10-10", "2026-10-11"].map((d) => (
                     <span key={d}>{formatDay(d, lang, { weekday: "narrow" })}</span>
                   ))}
@@ -239,10 +239,10 @@ export function BookingWizard({
                         aria-pressed={selected}
                         aria-label={formatDay(d, lang)}
                         className={cn(
-                          "aspect-square min-h-10 rounded-lg text-sm tabular-nums transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-orange-400/60",
-                          !free && "cursor-not-allowed text-slate-400 line-through decoration-slate-300",
-                          free && !selected && "bg-emerald-50 font-medium text-emerald-800 hover:bg-emerald-100",
-                          selected && "bg-orange-500 font-semibold text-white shadow",
+                          "aspect-square min-h-10 rounded-lg text-sm tabular-nums transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-brand-400/60",
+                          !free && "cursor-not-allowed text-muted-foreground line-through decoration-border",
+                          free && !selected && "bg-emerald-50 dark:bg-emerald-500/10 font-medium text-emerald-800 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-500/15",
+                          selected && "bg-brand-500 font-semibold text-white shadow",
                         )}
                       >
                         {Number(d.slice(8))}
@@ -252,7 +252,7 @@ export function BookingWizard({
                 </div>
               </div>
 
-              <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+              <div className="rounded-lg bg-card p-4 shadow-sm ring-1 ring-border">
                 <h3 className="mb-3 font-semibold">{date ? <span className="capitalize">{formatDay(date, lang)}</span> : b.chooseDay}</h3>
                 {date ? (
                   <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
@@ -263,8 +263,8 @@ export function BookingWizard({
                         onClick={() => setTime(s)}
                         aria-pressed={time === s}
                         className={cn(
-                          "min-h-11 rounded-lg py-2.5 text-sm font-medium tabular-nums ring-1 transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-orange-400/60",
-                          time === s ? "bg-orange-500 text-white ring-orange-500" : "bg-white ring-slate-200 hover:ring-orange-400",
+                          "min-h-11 rounded-lg py-2.5 text-sm font-medium tabular-nums ring-1 transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-brand-400/60",
+                          time === s ? "bg-brand-500 text-white ring-brand-500" : "bg-card ring-border hover:ring-brand-400",
                         )}
                         dir="ltr"
                       >
@@ -273,7 +273,7 @@ export function BookingWizard({
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-slate-500">{b.chooseTime}</p>
+                  <p className="text-sm text-muted-foreground">{b.chooseTime}</p>
                 )}
               </div>
             </div>
@@ -283,7 +283,7 @@ export function BookingWizard({
             <Button type="button" variant="ghost" onClick={() => setStep(0)}>
               <ArrowLeft className="size-4 rtl:rotate-180" aria-hidden /> {b.back}
             </Button>
-            <Button type="button" disabled={!date || !time} onClick={() => setStep(2)} className="bg-orange-500 hover:bg-orange-600">
+            <Button type="button" disabled={!date || !time} onClick={() => setStep(2)} className="bg-brand-500 hover:bg-brand-600">
               {b.next} <ArrowRight className="size-4 rtl:rotate-180" aria-hidden />
             </Button>
           </nav>
@@ -293,12 +293,12 @@ export function BookingWizard({
       {/* ── 3. Customer details ── */}
       {step === 2 && (
         <section className="space-y-4">
-          <div className="grid gap-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200 sm:grid-cols-2">
+          <div className="grid gap-3 rounded-lg bg-card p-4 shadow-sm ring-1 ring-border sm:grid-cols-2">
             {field("firstName", b.firstName, { autoComplete: "given-name", required: true })}
             {field("lastName", b.lastName, { autoComplete: "family-name", required: true })}
             {field("phone", b.phone, { type: "tel", autoComplete: "tel", inputMode: "tel", dir: "ltr", placeholder: "+216 …", required: true })}
             {field("email", b.email, { type: "email", autoComplete: "email", dir: "ltr" })}
-            {field("plate", b.plate, { dir: "ltr", placeholder: t.customers.platePlaceholder, className: "h-11 bg-white font-mono uppercase", required: true })}
+            {field("plate", b.plate, { dir: "ltr", placeholder: t.customers.platePlaceholder, className: "h-11 bg-card font-mono uppercase", required: true })}
             <div className="grid grid-cols-2 gap-3">
               {field("make", b.make)}
               {field("model", b.model)}
@@ -311,7 +311,7 @@ export function BookingWizard({
                 rows={3}
                 maxLength={500}
                 placeholder={b.notesPlaceholder}
-                className="bg-white"
+                className="bg-card"
               />
             </label>
           </div>
@@ -319,7 +319,7 @@ export function BookingWizard({
             <Button type="button" variant="ghost" onClick={() => setStep(1)}>
               <ArrowLeft className="size-4 rtl:rotate-180" aria-hidden /> {b.back}
             </Button>
-            <Button type="button" disabled={!detailsValid} onClick={() => setStep(3)} className="bg-orange-500 hover:bg-orange-600">
+            <Button type="button" disabled={!detailsValid} onClick={() => setStep(3)} className="bg-brand-500 hover:bg-brand-600">
               {b.next} <ArrowRight className="size-4 rtl:rotate-180" aria-hidden />
             </Button>
           </nav>
@@ -329,7 +329,7 @@ export function BookingWizard({
       {/* ── 4. Summary & confirm ── */}
       {step === 3 && service && (
         <section className="space-y-4">
-          <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+          <div className="rounded-lg bg-card p-5 shadow-sm ring-1 ring-border">
             <h2 className="mb-3 font-semibold">{b.summary}</h2>
             <dl className="divide-y text-sm">
               {[
@@ -343,7 +343,7 @@ export function BookingWizard({
                 ["", price(service)],
               ].map(([k, v], i) => (
                 <div key={i} className="flex justify-between gap-4 py-2">
-                  <dt className="text-slate-500">{k}</dt>
+                  <dt className="text-muted-foreground">{k}</dt>
                   <dd className="text-end font-medium">{v}</dd>
                 </div>
               ))}

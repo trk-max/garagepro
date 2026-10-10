@@ -32,7 +32,7 @@ export default async function NewPurchaseOrderPage({ searchParams }: PageProps) 
     <div className="mx-auto max-w-5xl p-6">
       <PageHeader title={t.purchase.new} />
       {staff.role !== "ADMIN" && (
-        <p className="mb-4 rounded-md border border-amber-500/30 bg-amber-500/10 px-4 py-2 text-sm text-amber-800 dark:text-amber-300">
+        <p className="mb-4 rounded-md border border-amber-500/30 bg-amber-500/10 px-4 py-2 text-sm text-amber-700 dark:text-amber-300">
           {t.purchase.pendingInfo}
         </p>
       )}

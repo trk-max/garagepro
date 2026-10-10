@@ -84,7 +84,7 @@ export default async function WorkOrderPage({ params }: PageProps) {
             <LiveRefresh url={`/api/staff/stream?topic=wo:${wo.id}`} liveLabel={t.portal.live} reconnectingLabel={t.portal.reconnecting} className="ms-auto" />
           </div>
           {customerApproval && wo.status !== "DELIVERED" && (
-            <p className="flex items-center gap-2 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-800 dark:text-emerald-300">
+            <p className="flex items-center gap-2 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-300">
               <CheckCircle2 className="size-4" aria-hidden /> {fmt(t.tracking.customerApproved, { date: formatDateTime(customerApproval.createdAt, lang) })}
             </p>
           )}
@@ -92,7 +92,7 @@ export default async function WorkOrderPage({ params }: PageProps) {
             <ul className="space-y-1">
               {unreadCustomerMessages.map((m) => (
                 <li key={m.id} className="flex items-start gap-2 rounded-md border border-blue-500/30 bg-blue-500/10 px-3 py-2 text-sm">
-                  <MessageCircle className="mt-0.5 size-4 shrink-0 text-blue-600" aria-hidden />
+                  <MessageCircle className="mt-0.5 size-4 shrink-0 text-blue-700 dark:text-blue-400" aria-hidden />
                   <span className="flex-1 whitespace-pre-line">{m.body}</span>
                   <time className="shrink-0 text-xs text-muted-foreground">{formatDateTime(m.createdAt, lang)}</time>
                 </li>
@@ -264,7 +264,7 @@ export default async function WorkOrderPage({ params }: PageProps) {
                   <a href={`/api/media/${m.id}`} target="_blank" rel="noopener" className="block aspect-video bg-muted">
                     {m.kind === "PHOTO" ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={`/api/media/${m.id}`} alt={m.caption ?? ""} loading="lazy" className="size-full object-cover" />
+                      <img src={`/api/media/${m.id}`} alt={m.caption ?? ""} loading="lazy" decoding="async" className="size-full object-cover" />
                     ) : (
                       <video src={`/api/media/${m.id}#t=0.5`} preload="metadata" muted className="size-full object-cover" />
                     )}

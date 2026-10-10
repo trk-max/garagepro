@@ -50,13 +50,33 @@ export async function sendSms(phone: string, text: string): Promise<boolean> {
   }
 }
 
+type NotifyMessage = { subject: string; text: string; brand?: string; attachment?: { filename: string; content: string } };
+
 /** Sends on every configured channel the customer can receive; returns the channels that worked. */
-export async function notifyCustomer(
+export async function notifyCustomer(contact: { phone?: string | null; email?: string | null }, message: NotifyMessage): Promise<Channel[]> {
+  return (await notifyCustomerDetailed(contact, message)).sent;
+}
+
+/**
+ * Same, but also says WHY nothing went out, so the team sees the real reason
+ * (no e-mail on file, Gmail password refused…) instead of a generic message.
+ * SMS and e-mail run in parallel: the slowest channel sets the wait, not the sum.
+ */
+export async function notifyCustomerDetailed(
   contact: { phone?: string | null; email?: string | null },
-  message: { subject: string; text: string; brand?: string; attachment?: { filename: string; content: string } },
-): Promise<Channel[]> {
+  message: NotifyMessage,
+): Promise<{ sent: Channel[]; errors: string[] }> {
   const sent: Channel[] = [];
-  if (contact.phone && (await sendSms(contact.phone, message.text))) sent.push("SMS");
-  if (contact.email && (await sendEmail({ to: contact.email, ...message })).ok) sent.push("EMAIL");
-  return sent;
+  const errors: string[] = [];
+  const smsOn = channelsConfigured().includes("SMS");
+  const [sms, email] = await Promise.all([
+    contact.phone && smsOn ? sendSms(contact.phone, message.text) : Promise.resolve(null),
+    contact.email ? sendEmail({ to: contact.email, ...message }) : Promise.resolve(null),
+  ]);
+  if (sms === true) sent.push("SMS");
+  else if (sms === false) errors.push("SMS non envoyé");
+  if (email?.ok) sent.push("EMAIL");
+  else if (email) errors.push(email.error);
+  else if (emailConfigured()) errors.push("Ce client n'a pas d'adresse e-mail");
+  return { sent, errors };
 }

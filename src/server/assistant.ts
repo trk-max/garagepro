@@ -180,7 +180,6 @@ export function bookingTool(services: AssistantService[]) {
 
 /** Strip control characters (except newlines/tabs) and trim to a maximum length. */
 function clean(text: string, max: number): string {
-  // eslint-disable-next-line no-control-regex
   return text.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "").trim().slice(0, max);
 }
 

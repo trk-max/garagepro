@@ -1,51 +1,87 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-@custom-variant dark (&:is(.dark *));
+/*
+ * GaragePro design system — "premium automotive".
+ * Light or dark (html.dark), chosen by each user with the sun/moon button
+ * (cookie "theme", default dark). Printed documents always stay light (.paper).
+ * One accent, used with intent: Guard Red (#E10600) for primary actions and alerts.
+ */
+@custom-variant dark (&:where(.dark, .dark *):not(:where(.theme-light, .theme-light *, .paper, .paper *)));
 
 :root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.141 0.005 285.823);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.141 0.005 285.823);
-  --primary: oklch(0.21 0.006 285.885);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.967 0.001 286.375);
-  --secondary-foreground: oklch(0.21 0.006 285.885);
-  --muted: oklch(0.967 0.001 286.375);
-  --muted-foreground: oklch(0.552 0.016 285.938);
-  --accent: oklch(0.967 0.001 286.375);
-  --accent-foreground: oklch(0.21 0.006 285.885);
-  --destructive: oklch(0.577 0.245 27.325);
-  --card: oklch(1 0 0);
-  --border: oklch(0.92 0.004 286.32);
-  --input: oklch(0.92 0.004 286.32);
-  --ring: oklch(0.705 0.015 286.067);
-  /* Brand (customer portal + e-mails) */
-  --brand-navy: #0b1f3a;
-  --brand-navy-2: #12305a;
-  --brand-anthracite: #1f2933;
+  /* 6 px cards, 4 px controls, 2 px chips: precise, engineered corners. */
+  --radius: 0.375rem;
+  --background: #ffffff;
+  --foreground: #0b0c10;
+  --card: #ffffff;
+  --popover: #ffffff;
+  --popover-foreground: #0b0c10;
+  --primary: #e10600;
+  --primary-foreground: #ffffff;
+  --secondary: #f2f3f5;
+  --secondary-foreground: #0b0c10;
+  --muted: #f2f3f5;
+  --muted-foreground: #5b616e;
+  --accent: #eceef2;
+  --accent-foreground: #0b0c10;
+  --destructive: #c40500;
+  --border: #e3e5e9;
+  --input: #d3d6dc;
+  --ring: #e10600;
+  color-scheme: light;
+  /* Brand surfaces (portal header/footer, e-mails) */
+  --brand-navy: #0b0c10;
+  --brand-navy-2: #1b1e27;
+  --brand-anthracite: #12141c;
+}
+
+/* Light islands inside the dark app: customer portal, A4 documents. */
+.theme-light,
+.paper {
+  --background: #ffffff;
+  --foreground: #0b0c10;
+  --card: #ffffff;
+  --popover: #ffffff;
+  --popover-foreground: #0b0c10;
+  --primary: #e10600;
+  --primary-foreground: #ffffff;
+  --secondary: #f2f3f5;
+  --secondary-foreground: #0b0c10;
+  --muted: #f2f3f5;
+  --muted-foreground: #5b616e;
+  --accent: #eceef2;
+  --accent-foreground: #0b0c10;
+  --destructive: #c40500;
+  --border: #e3e5e9;
+  --input: #d3d6dc;
+  --ring: #e10600;
+  color-scheme: light;
 }
 
 .dark {
-  --background: oklch(0.141 0.005 285.823);
-  --foreground: oklch(0.985 0 0);
-  --popover: oklch(0.21 0.006 285.885);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.92 0.004 286.32);
-  --primary-foreground: oklch(0.21 0.006 285.885);
-  --secondary: oklch(0.274 0.006 286.033);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.274 0.006 286.033);
-  --muted-foreground: oklch(0.705 0.015 286.067);
-  --accent: oklch(0.274 0.006 286.033);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --card: oklch(0.21 0.006 285.885);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.552 0.016 285.938);
+  --background: #0b0c10;
+  --foreground: #f4f5f7;
+  --card: #12141c;
+  --popover: #161922;
+  --popover-foreground: #f4f5f7;
+  --primary: #e10600;
+  --primary-foreground: #ffffff;
+  --secondary: #1b1e27;
+  --secondary-foreground: #f4f5f7;
+  --muted: #1b1e27;
+  --muted-foreground: #9ba1ad;
+  --accent: #1f232d;
+  --accent-foreground: #f4f5f7;
+  --destructive: #ff453a;
+  --border: rgb(255 255 255 / 0.09);
+  --input: rgb(255 255 255 / 0.16);
+  --ring: #e10600;
+  color-scheme: dark;
+  /* Carbon surfaces must stand out from the black page in dark mode. */
+  --brand-navy: #14161e;
+  --brand-navy-2: #232733;
+  --brand-anthracite: #262a35;
 }
 
 @theme inline {
@@ -72,6 +108,75 @@
   --color-navy: var(--brand-navy);
   --color-navy-2: var(--brand-navy-2);
   --color-anthracite: var(--brand-anthracite);
+
+  /* Guard Red scale (replaces the former orange accent). */
+  --color-brand-50: #fff1f0;
+  --color-brand-100: #ffdfdc;
+  --color-brand-200: #ffc5bf;
+  --color-brand-300: #ff9c93;
+  --color-brand-400: #ff5a4f;
+  --color-brand-500: #e10600;
+  --color-brand-600: #c40500;
+  --color-brand-700: #a00400;
+  --color-brand-800: #840807;
+  --color-brand-900: #6d0c0a;
+
+  /* Self-hosted Inter (no request to Google); Arabic falls back to the system font. */
+  --font-sans: "Inter Variable", "Inter", ui-sans-serif, system-ui, "Segoe UI", Tahoma, "Noto Sans Arabic", sans-serif;
+  /* Wide display face for the showroom pages (Archivo, width axis up to 125 %). */
+  --font-display: "Archivo Variable", "Inter Variable", ui-sans-serif, system-ui, "Segoe UI", Tahoma, "Noto Sans Arabic", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", monospace;
+}
+
+/* Technical section label: small caps-like uppercase with wide tracking. */
+@utility label-tech {
+  font-size: 0.6875rem;
+  line-height: 1rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted-foreground);
+}
+
+/* Showroom headline: wide, heavy, uppercase — Brabus / Mansory style. */
+@utility display-wide {
+  font-family: var(--font-display);
+  font-stretch: 125%;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  line-height: 0.95;
+}
+
+/* Spec-sheet label: tiny, very wide tracking. */
+@utility label-spec {
+  font-family: var(--font-display);
+  font-stretch: 110%;
+  font-size: 0.6875rem;
+  line-height: 1rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.32em;
+}
+
+/* Arabic is cursive: letter-spacing would break the joined letters, and tall
+   glyphs need more line height than the tight Latin display setting. */
+[dir="rtl"] .display-wide,
+[dir="rtl"] .label-spec {
+  letter-spacing: 0;
+}
+[dir="rtl"] .display-wide {
+  line-height: 1.3;
+}
+
+/* Carbon-fibre weave, pure CSS (no image to download). */
+@utility bg-carbon {
+  background-color: #060608;
+  background-image:
+    linear-gradient(45deg, rgb(255 255 255 / 0.025) 25%, transparent 25%, transparent 75%, rgb(255 255 255 / 0.025) 75%),
+    linear-gradient(45deg, rgb(255 255 255 / 0.025) 25%, transparent 25%, transparent 75%, rgb(255 255 255 / 0.025) 75%);
+  background-size: 8px 8px;
+  background-position: 0 0, 4px 4px;
 }
 
 @layer base {
@@ -81,6 +186,10 @@
   body {
     @apply bg-background text-foreground antialiased;
     line-height: 1.5;
+    font-feature-settings: "cv11", "ss01";
+  }
+  ::selection {
+    background: rgb(225 6 0 / 0.35);
   }
   /* Keyboard users always see where they are. */
   a:focus-visible,
@@ -131,4 +240,24 @@
 @media print {
   @page { size: A4; margin: 12mm; }
   html, body { background: white !important; }
+  .dark {
+  --background: #ffffff;
+  --foreground: #0b0c10;
+  --card: #ffffff;
+  --popover: #ffffff;
+  --popover-foreground: #0b0c10;
+  --primary: #e10600;
+  --primary-foreground: #ffffff;
+  --secondary: #f2f3f5;
+  --secondary-foreground: #0b0c10;
+  --muted: #f2f3f5;
+  --muted-foreground: #5b616e;
+  --accent: #eceef2;
+  --accent-foreground: #0b0c10;
+  --destructive: #c40500;
+  --border: #e3e5e9;
+  --input: #d3d6dc;
+  --ring: #e10600;
+  color-scheme: light;
+  }
 }

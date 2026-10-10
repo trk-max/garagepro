@@ -112,3 +112,18 @@ export async function setStaffPassword(userId: string, password: string) {
   const passwordHash = await bcrypt.hash(password, 12);
   await prisma.user.update({ where: { id: userId }, data: { passwordHash } });
 }
+
+/**
+ * Permanently remove a team member. Their history stays: work orders, payments,
+ * stock movements… keep their data and simply lose the name link (onDelete: SetNull).
+ * Not yourself, and never the last active admin.
+ */
+export async function deleteStaff(actorId: string, userId: string) {
+  if (actorId === userId) throw new AppError("ownDelete", {}, 403);
+  await prisma.$transaction(async (tx) => {
+    const user = await tx.user.findUnique({ where: { id: userId }, select: { role: true, isActive: true } });
+    if (!user) throw new AppError("notFound", {}, 404);
+    if (user.role === "ADMIN" && user.isActive) await assertAnotherAdmin(tx, userId);
+    await tx.user.delete({ where: { id: userId } });
+  });
+}

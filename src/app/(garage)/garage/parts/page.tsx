@@ -65,11 +65,11 @@ export default async function PartsPage({ searchParams }: PageProps) {
                     {p.brand && <span className="text-xs text-muted-foreground"> · {p.brand}</span>}
                   </Td>
                   <Td className="text-end tabular-nums">
-                    <span className={cn(p.stockX100 <= 0 ? "font-semibold text-red-600" : isLow(p) ? "font-semibold text-amber-600" : "")}>
+                    <span className={cn(p.stockX100 <= 0 ? "font-semibold text-red-700 dark:text-red-400" : isLow(p) ? "font-semibold text-amber-700 dark:text-amber-400" : "")}>
                       {formatQty(p.stockX100, lang)}
                     </span>{" "}
                     <span className="text-xs text-muted-foreground">{p.unit}</span>
-                    {isLow(p) && <div className="text-xs text-amber-600">{t.parts.low}</div>}
+                    {isLow(p) && <div className="text-xs text-amber-700 dark:text-amber-400">{t.parts.low}</div>}
                   </Td>
                   <Td className="text-end tabular-nums text-muted-foreground" dir="ltr">{formatMoney(p.costPrice, lang)}</Td>
                   <Td className="text-end tabular-nums" dir="ltr">{formatMoney(p.salePrice, lang)}</Td>
@@ -174,7 +174,7 @@ export default async function PartsPage({ searchParams }: PageProps) {
                     {formatDateTime(m.createdAt, lang)}
                   </p>
                 </div>
-                <span dir="ltr" className={cn("shrink-0 font-medium tabular-nums", m.deltaX100 > 0 ? "text-emerald-600" : "text-red-600")}>
+                <span dir="ltr" className={cn("shrink-0 font-medium tabular-nums", m.deltaX100 > 0 ? "text-emerald-700 dark:text-emerald-400" : "text-red-700 dark:text-red-400")}>
                   {m.deltaX100 > 0 ? "+" : ""}
                   {formatQty(m.deltaX100, lang)}
                 </span>

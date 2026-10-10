@@ -26,7 +26,7 @@ export default async function SupplierInvoicePage({ params }: PageProps) {
   const rows: [string, string, string?][] = [
     [t.supplierInvoices.supplier, inv.supplier.name],
     [t.supplierInvoices.issuedAt, formatDate(inv.issuedAt, lang)],
-    [t.supplierInvoices.dueDate, inv.dueDate ? formatDate(inv.dueDate, lang) : t.common.none, late ? "font-medium text-red-600" : undefined],
+    [t.supplierInvoices.dueDate, inv.dueDate ? formatDate(inv.dueDate, lang) : t.common.none, late ? "font-medium text-red-700 dark:text-red-400" : undefined],
     [t.supplierInvoices.totalHt, formatMoney(inv.totalHt, lang)],
     [t.supplierInvoices.totalTax, formatMoney(inv.totalTax, lang)],
     [t.supplierInvoices.totalTtc, formatMoney(inv.totalTtc, lang), "font-semibold"],

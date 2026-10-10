@@ -29,7 +29,7 @@ export default async function DashboardPage() {
   if (can(role, "viewWorkOrders")) {
     stats.push(
       { label: t.dashboard.inShop, value: String(d.inShop), icon: CarFront, href: "/garage/work-orders" },
-      { label: t.dashboard.ready, value: String(d.ready), icon: CheckCircle2, href: "/garage/work-orders?status=READY", tone: "text-emerald-600" },
+      { label: t.dashboard.ready, value: String(d.ready), icon: CheckCircle2, href: "/garage/work-orders?status=READY", tone: "text-emerald-700 dark:text-emerald-400" },
       { label: t.dashboard.dueToday, value: String(d.dueToday), icon: CalendarClock, href: "/garage/work-orders" },
     );
   }
@@ -37,15 +37,15 @@ export default async function DashboardPage() {
   if (can(role, "viewFinance")) {
     stats.push(
       { label: t.dashboard.revenueMonth, value: formatMoney(d.revenueMonthHt, lang), icon: Coins, href: "/garage/invoices" },
-      { label: t.dashboard.unpaid, value: formatMoney(d.unpaidTotal, lang), icon: Wallet, href: "/garage/invoices?status=ISSUED", tone: d.unpaidTotal ? "text-amber-600" : undefined },
+      { label: t.dashboard.unpaid, value: formatMoney(d.unpaidTotal, lang), icon: Wallet, href: "/garage/invoices?status=ISSUED", tone: d.unpaidTotal ? "text-amber-700 dark:text-amber-400" : undefined },
     );
     if (overdue) {
-      stats.push({ label: t.dashboard.overdue, value: String(overdue.count), icon: BellRing, href: "/garage/invoices?status=OVERDUE", tone: overdue.count ? "text-red-600" : undefined });
+      stats.push({ label: t.dashboard.overdue, value: String(overdue.count), icon: BellRing, href: "/garage/invoices?status=OVERDUE", tone: overdue.count ? "text-red-700 dark:text-red-400" : undefined });
     }
   }
   if (purchasing) {
     stats.push(
-      { label: t.dashboard.pendingApprovals, value: String(purchasing.pendingApprovals), icon: ClipboardCheck, href: "/garage/purchase-orders?status=PENDING_APPROVAL", tone: purchasing.pendingApprovals ? "text-amber-600" : undefined },
+      { label: t.dashboard.pendingApprovals, value: String(purchasing.pendingApprovals), icon: ClipboardCheck, href: "/garage/purchase-orders?status=PENDING_APPROVAL", tone: purchasing.pendingApprovals ? "text-amber-700 dark:text-amber-400" : undefined },
       { label: t.dashboard.openPurchases, value: String(purchasing.openOrders), icon: Truck, href: "/garage/purchase-orders?status=OPEN" },
     );
     if (role === "ADMIN") {
@@ -68,12 +68,18 @@ export default async function DashboardPage() {
         )}
       </PageHeader>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {stats.map(({ label, value, icon: Icon, href, tone }) => (
-          <Link key={label} href={href} className="rounded-lg border p-4 transition-colors hover:bg-accent/50">
-            <Icon className={`size-5 ${tone ?? "text-muted-foreground"}`} aria-hidden />
-            <p className="mt-3 text-2xl font-semibold tabular-nums" dir="ltr">{value}</p>
-            <p className="text-xs text-muted-foreground">{label}</p>
+          <Link
+            key={label}
+            href={href}
+            className="group relative overflow-hidden rounded-lg border bg-card p-4 transition-colors hover:border-white/20 after:absolute after:inset-x-0 after:top-0 after:h-0.5 after:bg-primary after:opacity-0 after:transition-opacity hover:after:opacity-100"
+          >
+            <div className="flex items-start justify-between gap-2">
+              <p className="label-tech">{label}</p>
+              <Icon className={`size-4 shrink-0 ${tone ?? "text-muted-foreground"}`} aria-hidden />
+            </div>
+            <p className="mt-3 break-words text-xl font-semibold tracking-tight tabular-nums sm:text-3xl" dir="ltr">{value}</p>
           </Link>
         ))}
       </div>
@@ -113,7 +119,7 @@ export default async function DashboardPage() {
 
         <Card>
           <CardTitle className="flex items-center gap-2">
-            <AlertTriangle className="size-4 text-amber-500" aria-hidden /> {t.dashboard.lowStock}
+            <AlertTriangle className="size-4 text-amber-700 dark:text-amber-400" aria-hidden /> {t.dashboard.lowStock}
           </CardTitle>
           {d.lowStock.length === 0 ? (
             <p className="text-sm text-muted-foreground">{t.dashboard.noLowStock}</p>
@@ -124,7 +130,7 @@ export default async function DashboardPage() {
                   <span className="min-w-0 truncate">
                     <span className="font-mono text-xs text-muted-foreground">{p.sku}</span> {p.name}
                   </span>
-                  <span className={`tabular-nums ${p.stockX100 <= 0 ? "text-red-600" : "text-amber-600"}`}>
+                  <span className={`tabular-nums ${p.stockX100 <= 0 ? "text-red-700 dark:text-red-400" : "text-amber-700 dark:text-amber-400"}`}>
                     {formatQty(p.stockX100, lang)} / {formatQty(p.minStockX100, lang)}
                   </span>
                 </li>
