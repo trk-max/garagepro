@@ -207,3 +207,5 @@ tests/                      tests automatiques (Vitest)
 - **Déconnexion** → retour sur `/login`.
 - **E-mail** : l'erreur réelle s'affiche (mot de passe Gmail refusé, client sans e-mail…). Pour Gmail : `SMTP_USER` + `SMTP_PASS` (mot de passe d'application) et **pas** de `SMTP_HOST`.
 - **Anciennes photos** (envoyées avant Supabase) : relues depuis le dossier local `storage/` si absentes du bucket.
+- **Lenteur (boutons bloqués plusieurs minutes)** : corrigé. Le « En direct » gardait une connexion ouverte par onglet ; sur `http://` le navigateur n'en autorise que 6 par site, donc avec plusieurs onglets tous les boutons attendaient. Maintenant : une petite requête toutes les 4 s, seulement quand l'onglet est visible. Requêtes Prisma groupées (`relationJoins`) et chargement en parallèle de la page OR.
+- **Page « L'atelier »** : style technique (Porsche / BMW M) — 4 modules de service, checklist d'ingénierie, catalogue technique par système.

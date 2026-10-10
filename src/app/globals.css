@@ -148,6 +148,23 @@
   line-height: 0.95;
 }
 
+/* Executive headline: clean, slightly wide, sentence case — Porsche / BMW M style. */
+@utility heading-exec {
+  font-family: var(--font-display);
+  font-stretch: 108%;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  line-height: 1.05;
+}
+
+/* Blueprint grid: thin 12-column guide lines, like a configurator canvas. */
+@utility bg-blueprint {
+  background-image:
+    linear-gradient(to right, rgb(255 255 255 / 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(255 255 255 / 0.035) 1px, transparent 1px);
+  background-size: calc(100% / 12) 100%, 100% 96px;
+}
+
 /* Spec-sheet label: tiny, very wide tracking. */
 @utility label-spec {
   font-family: var(--font-display);
@@ -156,16 +173,18 @@
   line-height: 1rem;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.32em;
+  letter-spacing: 0.24em;
 }
 
 /* Arabic is cursive: letter-spacing would break the joined letters, and tall
    glyphs need more line height than the tight Latin display setting. */
 [dir="rtl"] .display-wide,
+[dir="rtl"] .heading-exec,
 [dir="rtl"] .label-spec {
   letter-spacing: 0;
 }
-[dir="rtl"] .display-wide {
+[dir="rtl"] .display-wide,
+[dir="rtl"] .heading-exec {
   line-height: 1.3;
 }
 

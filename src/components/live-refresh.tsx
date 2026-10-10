@@ -4,10 +4,14 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
+/** How often a visible page checks for changes. Hidden tabs do not poll at all. */
+const POLL_MS = 4000;
+
 /**
- * Subscribes to a Server-Sent Events URL and re-renders the current page
- * (router.refresh keeps scroll position and form inputs) whenever the server
- * reports a change. Shows a small "Live" pill.
+ * Keeps the page up to date: while the tab is visible, asks `url` for a
+ * version every few seconds (one short request, nothing kept open, so buttons
+ * are never stuck behind it) and re-renders the page when it changes
+ * (router.refresh keeps scroll position and form inputs). Shows a "Live" pill.
  */
 export function LiveRefresh({
   url,
@@ -26,33 +30,57 @@ export function LiveRefresh({
 }) {
   const router = useRouter();
   const [connected, setConnected] = useState(false);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const last = useRef<string | null>(null);
 
   useEffect(() => {
-    const source = new EventSource(url);
-    const refresh = () => {
-      if (timer.current) clearTimeout(timer.current);
-      timer.current = setTimeout(() => router.refresh(), 250);
-    };
-    source.addEventListener("ready", () => setConnected(true));
-    source.addEventListener("update", () => {
-      setConnected(true);
-      refresh();
-    });
-    source.addEventListener("gone", () => {
-      source.close();
-      if (onGone) window.location.href = onGone;
-    });
-    source.onerror = () => setConnected(false); // EventSource retries on its own
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let controller: AbortController | null = null;
+    last.current = null;
 
-    // Phones pause background tabs: refresh once when the page becomes visible again.
-    const onVisible = () => document.visibilityState === "visible" && router.refresh();
+    const schedule = () => {
+      if (timer) clearTimeout(timer);
+      if (!stopped && document.visibilityState === "visible") timer = setTimeout(check, POLL_MS);
+    };
+
+    async function check() {
+      if (stopped || document.visibilityState !== "visible") return;
+      controller?.abort();
+      controller = new AbortController();
+      const timeout = setTimeout(() => controller?.abort(), 8000);
+      try {
+        const res = await fetch(url, { cache: "no-store", signal: controller.signal });
+        if (res.status === 410 || res.status === 401) {
+          stopped = true;
+          if (onGone) window.location.href = onGone;
+          return;
+        }
+        if (!res.ok) throw new Error(String(res.status));
+        const { version } = (await res.json()) as { version: string };
+        setConnected(true);
+        if (last.current !== null && version !== last.current) router.refresh();
+        last.current = version;
+      } catch {
+        if (!stopped) setConnected(false);
+      } finally {
+        clearTimeout(timeout);
+        schedule();
+      }
+    }
+
+    // Phones and browsers pause background tabs: check at once when visible again.
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void check();
+      else if (timer) clearTimeout(timer);
+    };
     document.addEventListener("visibilitychange", onVisible);
+    void check();
 
     return () => {
-      source.close();
+      stopped = true;
+      controller?.abort();
+      if (timer) clearTimeout(timer);
       document.removeEventListener("visibilitychange", onVisible);
-      if (timer.current) clearTimeout(timer.current);
     };
   }, [url, router, onGone]);
 

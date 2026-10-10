@@ -59,14 +59,13 @@ export default async function PortalHome() {
       </div>
 
       <section className="mx-auto max-w-5xl px-4 pt-10">
-        <Link href="/a-propos" className="dark bg-carbon group relative isolate flex flex-wrap items-center gap-4 overflow-hidden p-6 text-white ring-1 ring-white/10 sm:p-8">
-          <span aria-hidden className="absolute -right-20 -bottom-24 -z-10 h-56 w-96 rounded-full bg-brand-500/30 blur-3xl" />
-          <span className="min-w-0 flex-1">
+        <Link href="/a-propos" className="dark bg-blueprint group relative isolate flex flex-wrap items-center gap-4 overflow-hidden bg-[#15171c] p-6 text-white ring-1 ring-white/10 sm:p-8">
+                    <span className="min-w-0 flex-1">
             <span className="label-spec block text-brand-400">05 / 05</span>
-            <span className="display-wide mt-2 block text-xl sm:text-3xl">{about.homeBandTitle}</span>
+            <span className="heading-exec mt-2 block text-xl sm:text-3xl">{about.homeBandTitle}</span>
             <span className="mt-2 block text-sm text-white/65">{about.homeBandText}</span>
           </span>
-          <span className="label-spec inline-flex min-h-11 items-center gap-2 bg-brand-500 px-5 transition-colors group-hover:bg-brand-600">
+          <span className="label-spec inline-flex min-h-11 items-center gap-2 bg-white px-5 text-[#15171c] transition-colors group-hover:bg-brand-500 group-hover:text-white">
             {about.enter}
             <ArrowRight className="size-4 rtl:rotate-180" aria-hidden />
           </span>

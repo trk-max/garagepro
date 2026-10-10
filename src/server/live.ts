@@ -3,81 +3,37 @@ import { prisma } from "@/lib/prisma";
 import { ACTIVE_STATUSES } from "@/server/workflow";
 
 /**
- * Real-time updates without any extra service: each open page keeps one
- * Server-Sent Events connection; the server checks a cheap "version" every
- * POLL_MS and pushes `update` when it changes. The browser then re-renders.
- * One tiny indexed query every 2 s per open page — fine for a workshop.
+ * Real-time updates without any extra service, and without keeping a
+ * connection open: each visible page asks "what is the version now?" every
+ * few seconds (one short request), and re-renders only when it changed.
+ *
+ * Why not Server-Sent Events any more: on http:// a browser allows only 6
+ * open connections per site. A few tabs each holding a live stream used them
+ * all, and every button then waited — up to the 5-minute stream recycle.
+ *
+ * Several pages watching the same thing share one database query (2 s memo).
  */
-const POLL_MS = 2000;
-const HEARTBEAT_MS = 15_000;
-/** Connections are recycled; EventSource reconnects by itself. */
-const MAX_LIFETIME_MS = 5 * 60_000;
+const MEMO_MS = 2000;
+const memo = new Map<string, { at: number; value: Promise<string | null> }>();
 
-export function sseResponse(request: Request, version: () => Promise<string | null>): Response {
-  const encoder = new TextEncoder();
-  let closed = false;
-
-  const stream = new ReadableStream<Uint8Array>({
-    async start(controller) {
-      const send = (chunk: string) => {
-        if (!closed) controller.enqueue(encoder.encode(chunk));
-      };
-      const close = () => {
-        if (closed) return;
-        closed = true;
-        try {
-          controller.close();
-        } catch {
-          /* already closed */
-        }
-      };
-      request.signal.addEventListener("abort", close);
-
-      send("retry: 3000\n\n");
-      let last = await version().catch(() => null);
-      if (last === null) {
-        send("event: gone\ndata: {}\n\n");
-        return close();
-      }
-      send(`event: ready\ndata: ${JSON.stringify({ version: last })}\n\n`);
-
-      const started = Date.now();
-      let lastBeat = Date.now();
-      while (!closed && Date.now() - started < MAX_LIFETIME_MS) {
-        await new Promise((r) => setTimeout(r, POLL_MS));
-        if (closed) break;
-        try {
-          const current = await version();
-          if (current === null) {
-            send("event: gone\ndata: {}\n\n");
-            break;
-          }
-          if (current !== last) {
-            last = current;
-            send(`event: update\ndata: ${JSON.stringify({ version: current })}\n\n`);
-          } else if (Date.now() - lastBeat > HEARTBEAT_MS) {
-            lastBeat = Date.now();
-            send(": ping\n\n");
-          }
-        } catch (error) {
-          console.error("[sse] version check failed", error);
-        }
-      }
-      close();
-    },
-    cancel() {
-      closed = true;
-    },
+export function sharedVersion(key: string, read: () => Promise<string | null>): Promise<string | null> {
+  const now = Date.now();
+  const hit = memo.get(key);
+  if (hit && now - hit.at < MEMO_MS) return hit.value;
+  const value = read().catch((error) => {
+    memo.delete(key);
+    throw error;
   });
+  memo.set(key, { at: now, value });
+  if (memo.size > 500) for (const [k, v] of memo) if (now - v.at > MEMO_MS) memo.delete(k);
+  return value;
+}
 
-  return new Response(stream, {
-    headers: {
-      "Content-Type": "text/event-stream; charset=utf-8",
-      "Cache-Control": "no-cache, no-transform",
-      Connection: "keep-alive",
-      "X-Accel-Buffering": "no",
-    },
-  });
+/** JSON answer for the live poller: `{ version }`, or 410 when the item no longer exists. */
+export async function versionResponse(key: string, read: () => Promise<string | null>): Promise<Response> {
+  const version = await sharedVersion(key, read);
+  const headers = { "Cache-Control": "no-store" };
+  return version === null ? Response.json({ gone: true }, { status: 410, headers }) : Response.json({ version }, { headers });
 }
 
 export async function workOrderVersion(id: string): Promise<string | null> {

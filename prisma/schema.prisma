@@ -4,7 +4,10 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  // One SQL query (JOINs) per findMany/include instead of one per relation:
+  // with a remote database (Supabase) each round trip costs ~50-150 ms.
+  previewFeatures = ["relationJoins"]
 }
 
 datasource db {

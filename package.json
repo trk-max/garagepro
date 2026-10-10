@@ -18,6 +18,7 @@
     "test:watch": "vitest",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
+    "precheck": "node -e \"require('fs').rmSync('.next/types',{recursive:true,force:true})\"",
     "check": "tsc --noEmit && eslint . && vitest run",
     "doctor": "node scripts/doctor.mjs",
     "dev:lan": "next dev --turbopack -H 0.0.0.0",

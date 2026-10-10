@@ -76,9 +76,10 @@ export async function getWorkOrder(id: string) {
 
 export type WorkOrderDetail = NonNullable<Awaited<ReturnType<typeof getWorkOrder>>>;
 
-export async function getVehicleHistory(vehicleId: string, excludeId: string) {
+/** The vehicle's other work orders, found from this work order id (one query, loadable in parallel). */
+export async function getVehicleHistoryFor(workOrderId: string) {
   return prisma.workOrder.findMany({
-    where: { vehicleId, id: { not: excludeId } },
+    where: { id: { not: workOrderId }, vehicle: { workOrders: { some: { id: workOrderId } } } },
     select: { id: true, number: true, status: true, complaint: true, mileageIn: true, createdAt: true },
     orderBy: { createdAt: "desc" },
     take: 10,

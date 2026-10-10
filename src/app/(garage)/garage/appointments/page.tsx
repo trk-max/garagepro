@@ -46,7 +46,7 @@ export default async function AppointmentsPage({ searchParams }: PageProps) {
   return (
     <div className="mx-auto max-w-6xl p-4 sm:p-6">
       <PageHeader title={t.appointments.title}>
-        <LiveRefresh url="/api/staff/stream?topic=appointments" liveLabel={t.portal.live} reconnectingLabel={t.portal.reconnecting} />
+        <LiveRefresh url="/api/staff/live?topic=appointments" liveLabel={t.portal.live} reconnectingLabel={t.portal.reconnecting} />
       </PageHeader>
 
       <div className="mb-4 flex flex-wrap items-center gap-2">

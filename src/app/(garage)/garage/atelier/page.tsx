@@ -28,7 +28,7 @@ export default async function WorkshopPage({ searchParams }: PageProps) {
     <div className="mx-auto max-w-3xl space-y-4 p-3 sm:p-6">
       <header className="flex flex-wrap items-center gap-2">
         <h1 className="text-xl font-semibold">{t.workshop.title}</h1>
-        <LiveRefresh url="/api/staff/stream?topic=workshop" liveLabel={t.portal.live} reconnectingLabel={t.portal.reconnecting} />
+        <LiveRefresh url="/api/staff/live?topic=workshop" liveLabel={t.portal.live} reconnectingLabel={t.portal.reconnecting} />
         <nav className="ms-auto inline-flex rounded-md border p-0.5 text-sm">
           {(["mine", "all"] as const).map((v) => (
             <Link

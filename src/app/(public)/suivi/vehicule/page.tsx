@@ -53,7 +53,7 @@ export default async function TrackerPage() {
             </div>
           </div>
           <div className="flex flex-col items-end gap-2">
-            <LiveRefresh url="/api/portal/stream" liveLabel={t.portal.live} reconnectingLabel={t.portal.reconnecting} onGone="/suivi" tone="dark" />
+            <LiveRefresh url="/api/portal/live" liveLabel={t.portal.live} reconnectingLabel={t.portal.reconnecting} onGone="/suivi" tone="dark" />
             <form action={portalLogoutAction}>
               <button type="submit" className="inline-flex min-h-11 items-center gap-1.5 rounded-md px-2 text-sm text-slate-200 hover:bg-white/10 hover:text-white">
                 <LogOut className="size-4 rtl:rotate-180" aria-hidden /> {t.portal.logout}

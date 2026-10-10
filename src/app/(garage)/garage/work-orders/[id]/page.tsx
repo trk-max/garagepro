@@ -32,7 +32,7 @@ import { requirePageAccess } from "@/lib/session";
 import { packageOptions } from "@/server/admin";
 import { partOptions } from "@/server/parts";
 import { getSettings } from "@/server/settings";
-import { getVehicleHistory, getWorkOrder, listMechanics } from "@/server/work-orders";
+import { getVehicleHistoryFor, getWorkOrder, listMechanics } from "@/server/work-orders";
 import { NEXT_STEP, TRANSITIONS, isFinal } from "@/server/workflow";
 
 type PageProps = { params: Promise<{ id: string }> };
@@ -44,20 +44,20 @@ const toLocalInput = (d: Date | null, tz: string) => {
 };
 
 export default async function WorkOrderPage({ params }: PageProps) {
-  const staff = await requirePageAccess("viewWorkOrders");
   const { id } = await params;
-  const wo = await getWorkOrder(id);
-  if (!wo) notFound();
-
-  const [{ t, lang }, settings, parts, packages, mechanics, history, baseUrl] = await Promise.all([
+  // Everything in one parallel batch: each query is a round trip to the database.
+  const [staff, wo, { t, lang }, settings, parts, packages, mechanics, history, baseUrl] = await Promise.all([
+    requirePageAccess("viewWorkOrders"),
+    getWorkOrder(id),
     getI18n(),
     getSettings(),
     partOptions(),
     packageOptions(),
     listMechanics(),
-    getVehicleHistory(wo.vehicleId, wo.id),
+    getVehicleHistoryFor(id),
     getBaseUrl(),
   ]);
+  if (!wo) notFound();
   const customerApproval = wo.events.find((e) => e.type === "QUOTE_APPROVED");
   const unreadCustomerMessages = wo.events.filter((e) => e.type === "CUSTOMER_MESSAGE").slice(0, 3);
 
@@ -81,7 +81,7 @@ export default async function WorkOrderPage({ params }: PageProps) {
             </h1>
             <StatusBadge status={wo.status} t={t} />
             <PriorityBadge priority={wo.priority} t={t} />
-            <LiveRefresh url={`/api/staff/stream?topic=wo:${wo.id}`} liveLabel={t.portal.live} reconnectingLabel={t.portal.reconnecting} className="ms-auto" />
+            <LiveRefresh url={`/api/staff/live?topic=wo:${wo.id}`} liveLabel={t.portal.live} reconnectingLabel={t.portal.reconnecting} className="ms-auto" />
           </div>
           {customerApproval && wo.status !== "DELIVERED" && (
             <p className="flex items-center gap-2 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-300">
