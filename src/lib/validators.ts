@@ -170,6 +170,12 @@ export const staffSchema = z.object({
   password: z.string().min(8).max(100),
 });
 
+export const staffRoleSchema = z.object({ role: z.nativeEnum(Role) });
+
+export const staffPasswordSchema = z
+  .object({ password: z.string().min(8).max(100), confirm: z.string() })
+  .refine((v) => v.password === v.confirm, { message: "passwordMismatch", path: ["confirm"] });
+
 /** FormData → plain object (single values). */
 export function formToObject(form: FormData): Record<string, string> {
   const out: Record<string, string> = {};

@@ -1,31 +1,58 @@
 import "server-only";
+import nodemailer, { type Transporter } from "nodemailer";
 import { Resend } from "resend";
 import { escapeHtml } from "@/lib/html-escape";
 
 /**
- * Transactional e-mail through Resend (https://resend.com).
- * Needs in .env:
- *   RESEND_API_KEY      re_xxx… (Resend → API Keys)
- *   SUPPORT_FROM_EMAIL  "Garage Atlas <rdv@votredomaine.tn>"  — the domain must be verified in Resend.
- *                       Before verifying a domain you can use "Garage <onboarding@resend.dev>",
- *                       but Resend then only delivers to the e-mail address of your Resend account.
- * Optional:
- *   RESEND_REPLY_TO     where customer replies go (e.g. the garage's Gmail)
+ * Transactional e-mail. Two senders, tried in this order:
+ *
+ * 1. Resend (https://resend.com) — needs a verified domain to write to customers.
+ *      RESEND_API_KEY      re_xxx… (Resend → API Keys)
+ *      SUPPORT_FROM_EMAIL  "Garage Atlas <rdv@votredomaine.tn>"
+ *                          (with "…@resend.dev", Resend only delivers to your own Resend address)
+ *
+ * 2. SMTP — e.g. the garage's Gmail, free, NO domain needed (~500 e-mails/day).
+ *      SMTP_USER  garage@gmail.com
+ *      SMTP_PASS  Gmail "app password" (16 letters; Google account → Security →
+ *                 2-Step Verification ON → App passwords). NOT the normal password.
+ *      Optional: SMTP_HOST (default smtp.gmail.com), SMTP_PORT (default 465), SMTP_FROM_NAME.
+ *
+ * If Resend fails (not configured, domain not verified, quota…), SMTP is used automatically.
+ * Optional: RESEND_REPLY_TO / SMTP_REPLY_TO — where customer replies go.
  */
 
-let client: Resend | null = null;
+const resendConfigured = () => Boolean(process.env.RESEND_API_KEY && process.env.SUPPORT_FROM_EMAIL);
+const smtpConfigured = () => Boolean(process.env.SMTP_USER && process.env.SMTP_PASS);
 
 export function emailConfigured(): boolean {
-  return Boolean(process.env.RESEND_API_KEY && process.env.SUPPORT_FROM_EMAIL);
+  return resendConfigured() || smtpConfigured();
 }
 
+/** Shown in Settings → E-mails: which sender(s) will be used, in order. */
 export function emailSender(): string | null {
-  return process.env.SUPPORT_FROM_EMAIL ?? null;
+  const senders = [
+    resendConfigured() ? `Resend : ${process.env.SUPPORT_FROM_EMAIL}` : null,
+    smtpConfigured() ? `SMTP : ${process.env.SMTP_USER}` : null,
+  ].filter(Boolean);
+  return senders.length ? senders.join("  →  ") : null;
 }
 
-function resend(): Resend {
-  client ??= new Resend(process.env.RESEND_API_KEY);
-  return client;
+let resendClient: Resend | null = null;
+let smtpClient: Transporter | null = null;
+
+function smtp(): Transporter {
+  const port = Number(process.env.SMTP_PORT || 465);
+  smtpClient ??= nodemailer.createTransport({
+    host: process.env.SMTP_HOST || "smtp.gmail.com",
+    port,
+    secure: port === 465,
+    // Gmail shows app passwords as "abcd efgh ijkl mnop": spaces are removed.
+    auth: { user: process.env.SMTP_USER, pass: (process.env.SMTP_PASS ?? "").replace(/\s+/g, "") },
+    connectionTimeout: 15_000,
+    greetingTimeout: 15_000,
+    socketTimeout: 20_000,
+  });
+  return smtpClient;
 }
 
 export type EmailMessage = {
@@ -40,30 +67,70 @@ export type EmailMessage = {
 
 export type EmailResult = { ok: true; id: string } | { ok: false; error: string };
 
-/** Sends one e-mail. Never throws: returns Resend's error message so the UI can show it. */
+async function viaResend(message: EmailMessage): Promise<EmailResult> {
+  resendClient ??= new Resend(process.env.RESEND_API_KEY);
+  const { data, error } = await resendClient.emails.send({
+    from: process.env.SUPPORT_FROM_EMAIL!,
+    to: [message.to],
+    subject: message.subject,
+    text: message.text,
+    html: renderHtml(message),
+    ...(process.env.RESEND_REPLY_TO ? { replyTo: process.env.RESEND_REPLY_TO } : {}),
+    ...(message.attachment ? { attachments: [{ filename: message.attachment.filename, content: Buffer.from(message.attachment.content) }] } : {}),
+  });
+  if (error || !data) return { ok: false, error: `Resend : ${error?.message ?? "erreur inconnue"}` };
+  return { ok: true, id: data.id };
+}
+
+async function viaSmtp(message: EmailMessage): Promise<EmailResult> {
+  // Gmail only sends as the account itself: the display name is free, the address is not.
+  const name = (process.env.SMTP_FROM_NAME || message.brand || "Garage").replace(/["<>]/g, "");
+  const info = await smtp().sendMail({
+    from: { name, address: process.env.SMTP_USER! },
+    to: message.to,
+    subject: message.subject,
+    text: message.text,
+    html: renderHtml(message),
+    ...(process.env.SMTP_REPLY_TO || process.env.RESEND_REPLY_TO ? { replyTo: process.env.SMTP_REPLY_TO || process.env.RESEND_REPLY_TO } : {}),
+    // Content is always passed in memory (never a path/URL): no file or network access.
+    ...(message.attachment ? { attachments: [{ filename: message.attachment.filename, content: Buffer.from(message.attachment.content) }] } : {}),
+  });
+  if (info.rejected?.length) return { ok: false, error: "SMTP : adresse refusée" };
+  return { ok: true, id: info.messageId };
+}
+
+const SMTP_HINTS: [RegExp, string][] = [
+  [/535|Username and Password not accepted|BadCredentials/i, "mot de passe refusé : utilisez un « mot de passe d'application » Gmail, pas le mot de passe normal"],
+  [/ETIMEDOUT|ECONNREFUSED|ENOTFOUND|ESOCKET/i, "serveur SMTP injoignable (Internet ? port 465 bloqué ?)"],
+  [/550|5\.4\.5|limit/i, "limite d'envoi Gmail atteinte, réessayez demain"],
+];
+
+/** Sends one e-mail through Resend, then SMTP. Never throws: returns the error so the UI can show it. */
 export async function sendEmail(message: EmailMessage): Promise<EmailResult> {
-  if (!emailConfigured()) return { ok: false, error: "RESEND_API_KEY / SUPPORT_FROM_EMAIL manquant dans .env" };
-  try {
-    const { data, error } = await resend().emails.send({
-      from: process.env.SUPPORT_FROM_EMAIL!,
-      to: [message.to],
-      subject: message.subject,
-      text: message.text,
-      html: renderHtml(message),
-      ...(process.env.RESEND_REPLY_TO ? { replyTo: process.env.RESEND_REPLY_TO } : {}),
-      ...(message.attachment
-        ? { attachments: [{ filename: message.attachment.filename, content: Buffer.from(message.attachment.content) }] }
-        : {}),
-    });
-    if (error || !data) {
-      console.error("[email] Resend error", error);
-      return { ok: false, error: error?.message ?? "Unknown Resend error" };
+  if (!emailConfigured()) return { ok: false, error: "Aucun envoi d'e-mail configuré : ajoutez SMTP_USER/SMTP_PASS (Gmail) ou RESEND_API_KEY dans .env" };
+  const errors: string[] = [];
+  if (resendConfigured()) {
+    try {
+      const r = await viaResend(message);
+      if (r.ok) return r;
+      errors.push(r.error);
+    } catch (error) {
+      errors.push(`Resend : ${error instanceof Error ? error.message : String(error)}`);
     }
-    return { ok: true, id: data.id };
-  } catch (error) {
-    console.error("[email] send failed", error);
-    return { ok: false, error: error instanceof Error ? error.message : String(error) };
   }
+  if (smtpConfigured()) {
+    try {
+      const r = await viaSmtp(message);
+      if (r.ok) return r;
+      errors.push(r.error);
+    } catch (error) {
+      const raw = error instanceof Error ? error.message : String(error);
+      const hint = SMTP_HINTS.find(([re]) => re.test(raw))?.[1];
+      errors.push(`SMTP : ${hint ?? raw.split("\n")[0]}`);
+    }
+  }
+  console.error("[email] not sent:", errors.join(" | "));
+  return { ok: false, error: errors.join(" · ") };
 }
 
 /** Minimal, mail-client-safe HTML (inline styles, no external assets). */

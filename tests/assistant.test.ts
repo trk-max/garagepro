@@ -104,14 +104,22 @@ describe("provider chain configuration", () => {
   it("nothing configured = no attempt", () => {
     expect(buildAttempts({})).toEqual([]);
   });
-  it("skips providers without key, keeps the default order, several keys per provider", () => {
-    const a = buildAttempts({ GROQ_API_KEY: "g1, g2", GEMINI_API_KEY: "m1" });
-    expect(a.map((x) => `${x.provider}:${x.key}`)).toEqual(["gemini:m1", "groq:g1", "groq:g2"]);
-    expect(a[1]!.baseUrl).toBe("https://api.groq.com/openai/v1/");
+  it("skips providers without key, keeps the default order, several keys and models per provider", () => {
+    const a = buildAttempts({ GROQ_API_KEY: "g1, g2", GEMINI_API_KEY: "m1", GROQ_MODEL: "a,b" });
+    expect(a.map((x) => `${x.provider}:${x.key}:${x.model}`)).toEqual([
+      "gemini:m1:gemini-3.8-flash",
+      "gemini:m1:gemini-3.5-flash",
+      "gemini:m1:gemini-3.5-flash-lite",
+      "groq:g1:a",
+      "groq:g1:b",
+      "groq:g2:a",
+      "groq:g2:b",
+    ]);
+    expect(a[3]!.baseUrl).toBe("https://api.groq.com/openai/v1/");
   });
   it("custom order, custom model, duplicate keys removed", () => {
-    const a = buildAttempts({ AI_PROVIDERS: "mistral,gemini", MISTRAL_API_KEY: "k", GEMINI_API_KEY: "x,x", MISTRAL_MODEL: "mistral-medium-latest" });
-    expect(a.map((x) => `${x.provider}:${x.model}`)).toEqual(["mistral:mistral-medium-latest", "gemini:gemini-3.8-flash"]);
+    const a = buildAttempts({ AI_PROVIDERS: "mistral,gemini", MISTRAL_API_KEY: "k", GEMINI_API_KEY: "x,x", MISTRAL_MODEL: "mistral-medium-latest", GEMINI_MODEL: "g" });
+    expect(a.map((x) => `${x.provider}:${x.model}`)).toEqual(["mistral:mistral-medium-latest", "gemini:g"]);
   });
   it("OpenRouter is skipped without an explicit (free) model", () => {
     expect(buildAttempts({ OPENROUTER_API_KEY: "o" })).toEqual([]);
@@ -189,6 +197,23 @@ describe("askAssistant failover", () => {
     const f = fakeFetch({ "gemini:bad": status(401), "groq:good": ok("2") });
     await askAssistant(input, { attempts, fetchImpl: f.impl });
     expect(f.calls).toEqual(["groq:good:tool"]);
+  });
+  it("model overloaded (503) or missing (404) → next model; refused key (401) skips its other models", async () => {
+    const calls: string[] = [];
+    const impl = (async (_u: string, init: RequestInit) => {
+      const body = JSON.parse(init.body as string);
+      const key = (init.headers as Record<string, string>).Authorization!.slice(7);
+      calls.push(`${key}:${body.model}`);
+      if (key === "bad") return status(401);
+      if (body.model === "busy") return status(503);
+      if (body.model === "gone") return status(404);
+      return ok("Réponse du modèle de secours");
+    }) as unknown as typeof fetch;
+    const m = (key: string, model: string): Attempt => ({ ...attempt("gemini", key), model });
+    const r = await askAssistant(input, { attempts: [m("bad", "busy"), m("bad", "spare"), m("k", "busy"), m("k", "gone"), m("k", "spare")], fetchImpl: impl });
+    expect(r.reply).toBe("Réponse du modèle de secours");
+    // "bad" is tried once only; 404 does not waste a second call without tools.
+    expect(calls).toEqual(["bad:busy", "k:busy", "k:gone", "k:spare"]);
   });
   it("no provider configured", async () => {
     await expect(askAssistant(input, { attempts: [] })).rejects.toMatchObject({ reason: "not_configured" });

@@ -1,6 +1,7 @@
 import "server-only";
 import { z } from "zod";
 import type { Lang } from "@/lib/format";
+import providerConfig from "./ai-providers.json";
 
 /**
  * AI car-help assistant for the customer portal.
@@ -16,7 +17,11 @@ import type { Lang } from "@/lib/format";
  *   OPENROUTER_API_KEY  https://openrouter.ai              → Keys (+ OPENROUTER_MODEL ending in ":free")
  *   AI_API_KEY + AI_BASE_URL + AI_MODEL  any other compatible server (e.g. Ollama on your PC)
  *
- *   <PROVIDER>_MODEL    optional model override, e.g. GROQ_MODEL="openai/gpt-oss-20b"
+ *   <PROVIDER>_MODEL    optional model list, e.g. GROQ_MODEL="openai/gpt-oss-20b,llama-3.1-8b-instant"
+ *
+ * Each provider has a list of free models (src/server/ai-providers.json): if one
+ * model is overloaded (503) or no longer exists (404), the next model is tried.
+ * Check every key and model at once with:  npm run doctor
  *   AI_PROVIDERS        optional order, e.g. "groq,gemini" (default: DEFAULT_ORDER)
  *
  * Safety design: the model can only (1) write text and (2) PROPOSE a booking for
@@ -27,17 +32,14 @@ import type { Lang } from "@/lib/format";
 
 export type ProviderId = "gemini" | "groq" | "cerebras" | "mistral" | "openrouter" | "custom";
 
-type ProviderDef = { label: string; envKey: string; baseUrl: string; model: string; tools: boolean };
+type ProviderDef = { label: string; env: string; baseUrl: string; models: string[]; tools: boolean };
 
-/** Defaults checked against each provider's documentation (Oct. 2026). Override with <PROVIDER>_MODEL. */
-const PROVIDERS: Record<Exclude<ProviderId, "custom">, ProviderDef> = {
-  gemini: { label: "Google Gemini", envKey: "GEMINI", baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai/", model: "gemini-3.8-flash", tools: true },
-  groq: { label: "Groq", envKey: "GROQ", baseUrl: "https://api.groq.com/openai/v1/", model: "llama-3.3-70b-versatile", tools: true },
-  cerebras: { label: "Cerebras", envKey: "CEREBRAS", baseUrl: "https://api.cerebras.ai/v1/", model: "gpt-oss-120b", tools: true },
-  mistral: { label: "Mistral", envKey: "MISTRAL", baseUrl: "https://api.mistral.ai/v1/", model: "mistral-small-latest", tools: true },
-  // No safe default: OpenRouter's free models change often and "auto" could pick a PAID model.
-  openrouter: { label: "OpenRouter", envKey: "OPENROUTER", baseUrl: "https://openrouter.ai/api/v1/", model: "", tools: false },
-};
+/**
+ * Defaults (checked against each provider's documentation, Oct. 2026) live in
+ * ai-providers.json, shared with `npm run doctor`. OpenRouter has no default model:
+ * its free models change often and "auto" could pick a PAID one.
+ */
+const PROVIDERS = providerConfig.providers as Record<Exclude<ProviderId, "custom">, ProviderDef>;
 export const DEFAULT_ORDER: ProviderId[] = ["gemini", "groq", "cerebras", "mistral", "openrouter", "custom"];
 
 const ATTEMPT_TIMEOUT_MS = 15_000;
@@ -55,7 +57,7 @@ export type BookingProposal = { serviceId: string; serviceName: string; urgency:
 export type AssistantAnswer = { reply: string; booking: BookingProposal | null };
 export type BookingMode = "tool" | "marker";
 
-/** One concrete thing to try: a provider + one of its keys. */
+/** One concrete thing to try: a provider + one of its keys + one of its models. */
 export type Attempt = { provider: ProviderId; label: string; baseUrl: string; model: string; key: string; tools: boolean };
 
 type Env = Record<string, string | undefined>;
@@ -69,7 +71,7 @@ const splitKeys = (value: string | undefined) =>
 const withSlash = (url: string) => url.replace(/\/?$/, "/");
 
 /**
- * Every (provider, key) pair that is configured, in order. A provider without a
+ * Every (provider, key, model) that is configured, in order. A provider without a
  * key (or without a model) is simply skipped. Pure function: easy to test.
  */
 export function buildAttempts(env: Env = process.env): Attempt[] {
@@ -80,19 +82,21 @@ export function buildAttempts(env: Env = process.env): Attempt[] {
     if (provider === "custom") {
       // AI_API_KEY without AI_BASE_URL = a Gemini key (setting from the first version).
       if (!env.AI_BASE_URL) continue;
-      const model = env.AI_MODEL?.trim();
-      if (!model) continue;
       for (const key of splitKeys(env.AI_API_KEY)) {
-        attempts.push({ provider, label: "Custom", baseUrl: withSlash(env.AI_BASE_URL), model, key, tools: true });
+        for (const model of splitKeys(env.AI_MODEL)) {
+          attempts.push({ provider, label: "Custom", baseUrl: withSlash(env.AI_BASE_URL), model, key, tools: true });
+        }
       }
       continue;
     }
     const def = PROVIDERS[provider];
-    const keys = splitKeys(env[`${def.envKey}_API_KEY`] ?? env[`${def.envKey}_API_KEYS`]);
+    const keys = splitKeys(env[`${def.env}_API_KEY`] ?? env[`${def.env}_API_KEYS`]);
     if (provider === "gemini" && !env.AI_BASE_URL) keys.push(...splitKeys(env.AI_API_KEY));
-    const model = env[`${def.envKey}_MODEL`]?.trim() || def.model;
-    if (!model) continue;
-    for (const key of [...new Set(keys)]) attempts.push({ provider, label: def.label, baseUrl: def.baseUrl, model, key, tools: def.tools });
+    const custom = splitKeys(env[`${def.env}_MODEL`]);
+    const models = custom.length ? custom : def.models;
+    for (const key of [...new Set(keys)]) {
+      for (const model of models) attempts.push({ provider, label: def.label, baseUrl: def.baseUrl, model, key, tools: def.tools });
+    }
   }
   return attempts;
 }
@@ -225,6 +229,17 @@ export function parseModelMessage(message: ModelMessage | undefined, services: A
   return { reply: reply || fallbackReply, booking };
 }
 
+/** Short French hint printed in the terminal next to a failure. */
+function hint(e: AssistantUnavailable): string {
+  if (isBadKey(e)) return " → clé refusée (mal copiée, supprimée ou pas encore activée)";
+  if (e.status === 404) return " → modèle introuvable, essai du modèle suivant";
+  if (e.status === 429) return " → quota gratuit atteint, essai suivant";
+  if (e.status === 503 || e.status === 500) return " → serveur surchargé, essai suivant";
+  if (e.reason === "timeout") return " → trop lent, essai suivant";
+  if (e.reason === "network") return " → pas de connexion Internet ?";
+  return "";
+}
+
 export class AssistantUnavailable extends Error {
   constructor(
     public readonly reason: string,
@@ -235,12 +250,19 @@ export class AssistantUnavailable extends Error {
   }
 }
 
-/** Keys that just failed are rested for a while (per server instance) to answer faster. */
+/**
+ * What just failed is rested for a while (per server instance) to answer faster:
+ * a refused key (401/403) for 10 min with all its models, a model for 1 min (quota)
+ * or 20 s (overloaded, missing, timeout).
+ */
 const cooldown = new Map<string, number>();
-const coolKey = (a: Attempt) => `${a.provider}:${a.key.slice(-8)}`;
-function rest(a: Attempt, error: AssistantUnavailable) {
-  const ms = error.status === 401 || error.status === 403 ? 10 * 60_000 : error.status === 429 ? 60_000 : 20_000;
-  cooldown.set(coolKey(a), Date.now() + ms);
+const keyId = (a: Attempt) => `${a.provider}:${a.key.slice(-8)}`;
+const modelId = (a: Attempt) => `${keyId(a)}:${a.model}`;
+const resting = (a: Attempt, at: number) => Math.max(cooldown.get(keyId(a)) ?? 0, cooldown.get(modelId(a)) ?? 0) > at;
+const isBadKey = (e: AssistantUnavailable) => e.status === 401 || e.status === 403;
+function rest(a: Attempt, error: AssistantUnavailable, at: number) {
+  if (isBadKey(error)) cooldown.set(keyId(a), at + 10 * 60_000);
+  else cooldown.set(modelId(a), at + (error.status === 429 ? 60_000 : 20_000));
 }
 export function resetCooldowns() {
   cooldown.clear();
@@ -277,8 +299,9 @@ export async function callProvider(attempt: Attempt, input: Input, mode: Booking
 }
 
 /**
- * Tries every configured (provider, key) in order until one answers.
- * A provider that rejects tool calling (400/404/422) is retried once in "marker" mode.
+ * Tries every configured (provider, key, model) in order until one answers.
+ * A model that rejects tool calling (400/422) is retried once in "marker" mode.
+ * A refused key (401/403) skips all the other models of that key.
  */
 export async function askAssistant(
   input: Input,
@@ -289,29 +312,32 @@ export async function askAssistant(
   const now = options.now ?? Date.now;
   const deadline = now() + TOTAL_BUDGET_MS;
 
-  const fresh = attempts.filter((a) => (cooldown.get(coolKey(a)) ?? 0) <= now());
-  // If every key is resting, still try them all rather than giving up.
+  const fresh = attempts.filter((a) => !resting(a, now()));
+  // If everything is resting, still try it all rather than giving up.
   const queue = fresh.length ? fresh : attempts;
+  const badKeys = new Set<string>();
   let quotaOnly = true;
 
   for (const attempt of queue) {
+    if (badKeys.has(keyId(attempt))) continue;
     const left = deadline - now();
     if (left < 2_000) break;
     const modes: BookingMode[] = attempt.tools ? ["tool", "marker"] : ["marker"];
     for (const mode of modes) {
       try {
         const answer = await callProvider(attempt, input, mode, Math.min(ATTEMPT_TIMEOUT_MS, left), options.fetchImpl);
-        cooldown.delete(coolKey(attempt));
+        cooldown.delete(modelId(attempt));
+        if (process.env.NODE_ENV !== "test") console.info(`[assistant] answered by ${attempt.label} · ${attempt.model}`);
         return { ...answer, provider: attempt.provider };
       } catch (error) {
         if (!(error instanceof AssistantUnavailable)) throw error;
         // Status only, never the body (it may echo the prompt) nor the key.
-        console.error(`[assistant] ${attempt.label} (${mode}) failed: ${error.reason}`);
+        console.error(`[assistant] ${attempt.label} · ${attempt.model} (${mode}) failed: ${error.reason}${hint(error)}`);
         if (error.reason !== "quota") quotaOnly = false;
-        const toolsRejected = mode === "tool" && [400, 404, 422].includes(error.status);
-        if (toolsRejected) continue; // same key, without tools
-        rest(attempt, error);
-        break; // next key / provider
+        if (mode === "tool" && [400, 422].includes(error.status)) continue; // same model, without tools
+        rest(attempt, error, now());
+        if (isBadKey(error)) badKeys.add(keyId(attempt));
+        break; // next model / key / provider
       }
     }
   }

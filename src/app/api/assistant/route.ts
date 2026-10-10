@@ -39,14 +39,13 @@ export async function POST(request: Request) {
   const bookable = settings.bookingEnabled ? catalog : [];
 
   try {
-    const { provider, ...answer } = await askAssistant({
+    const answer = await askAssistant({
       system: (mode) => buildSystemPrompt({ garageName: settings.garageName, phone: settings.phone, services: bookable, lang, mode }),
       messages: parsed.data.messages,
       services: bookable,
       fallbackReply: t.assistant.bookingFallback,
     });
-    console.info(`[assistant] answered by ${provider}`);
-    return NextResponse.json(answer);
+    return NextResponse.json({ reply: answer.reply, booking: answer.booking });
   } catch (error) {
     if (error instanceof AssistantUnavailable) {
       return NextResponse.json({ error: error.reason === "quota" ? "tooMany" : "unavailable" }, { status: error.reason === "quota" ? 429 : 502 });

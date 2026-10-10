@@ -14,11 +14,13 @@ import {
   partSchema,
   paymentSchema,
   settingsSchema,
+  staffPasswordSchema,
+  staffRoleSchema,
   staffSchema,
   stockMovementSchema,
   vehicleSchema,
 } from "@/lib/validators";
-import { addPackageLine, archivePackage, createPackage, createStaff, removePackageLine, setStaffActive } from "@/server/admin";
+import { addPackageLine, archivePackage, createPackage, createStaff, removePackageLine, setStaffActive, setStaffPassword, setStaffRole } from "@/server/admin";
 import { addVehicle, createCustomer, updateCustomer } from "@/server/customers";
 import { recordPayment } from "@/server/invoices";
 import { createPart, moveStock, updatePart } from "@/server/parts";
@@ -207,6 +209,32 @@ export async function createStaffAction(form: FormData): Promise<Result> {
   try {
     await requirePermission("manageSettings");
     await createStaff(staffSchema.parse(formToObject(form)));
+    return done();
+  } catch (error) {
+    return toActionError(error);
+  }
+}
+
+export async function setStaffRoleAction(userId: string, form: FormData): Promise<Result> {
+  try {
+    const admin = await requirePermission("manageSettings");
+    const { role } = staffRoleSchema.parse(formToObject(form));
+    await setStaffRole(admin.id, id.parse(userId), role);
+    return done();
+  } catch (error) {
+    return toActionError(error);
+  }
+}
+
+export async function setStaffPasswordAction(userId: string, form: FormData): Promise<Result> {
+  try {
+    await requirePermission("manageSettings");
+    const parsed = staffPasswordSchema.safeParse(formToObject(form));
+    if (!parsed.success) {
+      const mismatch = parsed.error.issues.some((i) => i.message === "passwordMismatch");
+      throw new AppError(mismatch ? "passwordMismatch" : "passwordTooShort", {}, 422);
+    }
+    await setStaffPassword(id.parse(userId), parsed.data.password);
     return done();
   } catch (error) {
     return toActionError(error);

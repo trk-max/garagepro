@@ -204,6 +204,13 @@ export function AssistantChat({
           <div role="alert" className="ms-11 rounded-xl bg-red-50 p-3 text-sm text-red-800 ring-1 ring-red-200">
             {error}
             <ContactButtons phone={phone} whatsapp={whatsapp} />
+            <button
+              type="button"
+              onClick={restart}
+              className="mt-2 inline-flex min-h-11 items-center gap-1.5 rounded-md px-2 text-sm font-medium text-red-900 underline-offset-2 hover:underline"
+            >
+              <RotateCcw className="size-4" aria-hidden /> {a.useGuide}
+            </button>
           </div>
         )}
         <div ref={endRef} />

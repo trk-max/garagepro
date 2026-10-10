@@ -11,7 +11,7 @@ Next.js 15 · TypeScript · Tailwind v4 · PostgreSQL (Supabase) + Prisma 6 · A
 | **Clients & véhicules** | fiche client, plusieurs véhicules par client, historique des visites, total facturé |
 | **Stock pièces** | références, prix achat/vente, seuil d'alerte, entrées/sorties, sortie automatique quand une pièce est ajoutée à un OR (et retour si supprimée ou OR annulé) |
 | **Factures** | numérotation F2026-0001, TVA par taux, droit de timbre, copie figée, paiements partiels (espèces, carte, chèque, virement), impression A4 / PDF |
-| **Paramètres** (admin) | infos garage, taux horaire, TVA, timbre, pied de facture, forfaits, équipe et rôles |
+| **Paramètres** (admin) | infos garage, taux horaire, TVA, timbre, pied de facture, forfaits, équipe : créer, **changer le rôle**, **changer le mot de passe**, désactiver (le garage garde toujours au moins un admin actif ; un admin ne peut pas changer son propre rôle) |
 | **Langue** | bouton Français / العربية (interface RTL complète en arabe) |
 
 Statuts : Réceptionné → Diagnostic → Devis envoyé → Attente pièces → En réparation → Prêt → Livré (ou Annulé).
@@ -72,56 +72,56 @@ Activation : renseignez au moins une clé dans `.env` (voir `.env.example`), pui
 
 Garde-fous : l'IA ne peut **rien écrire** dans la base ; ses propositions sont vérifiées (prestation existante, urgence valide, texte nettoyé) ; 30 messages/heure par visiteur et 800/jour pour le site ; consignes de sécurité (arrêt du véhicule en cas de danger) ; réponses affichées en texte brut. Les offres gratuites peuvent utiliser les conversations pour améliorer leurs modèles : le portail demande de ne pas partager d'informations personnelles.
 
-## E-mails (Resend)
+## E-mails (Gmail gratuit, ou Resend)
 
-1. Créez un compte sur https://resend.com → **API Keys** → **Create API Key**.
-2. Dans `.env` : `RESEND_API_KEY="re_…"` et `SUPPORT_FROM_EMAIL="Garage <onboarding@resend.dev>"`, puis redémarrez `npm run dev`.
-3. **Paramètres → E-mails (Resend)** → *Envoyer le test*.
-4. Pour écrire aux vrais clients : **Resend → Domains → Add Domain**, ajoutez les enregistrements DNS chez votre hébergeur, puis `SUPPORT_FROM_EMAIL="Garage Atlas <rdv@votredomaine.tn>"`.
+L'application essaie **Resend**, puis **votre Gmail** (SMTP) si Resend n'est pas configuré ou refuse. Avec Gmail, **pas besoin de domaine**.
 
-E-mails envoyés : confirmation de RDV (+ fichier agenda .ics), code de suivi, « véhicule prêt », relance de facture impayée (bouton E-mail sur la facture).
+**Gmail (le plus simple, gratuit, ~500 e-mails/jour)**
+1. Compte Google du garage → **Sécurité** → activez la **Validation en 2 étapes**.
+2. Même page → **Mots de passe des applications** → nom `GaragePro` → **Créer** → copiez les 16 lettres.
+3. Dans `.env` : `SMTP_USER="votregarage@gmail.com"` et `SMTP_PASS="abcd efgh ijkl mnop"` (facultatif : `SMTP_FROM_NAME="911 Garages"`).
+4. Redémarrez (`start.cmd`), puis **Paramètres → E-mails → Envoyer le test**. `npm run doctor` vérifie aussi la connexion.
 
-## Installation (Windows, cmd)
+Le mot de passe normal de Gmail ne marche **pas** : il faut le « mot de passe d'application ».
 
+**Resend** (si vous avez un domaine) : `RESEND_API_KEY` + `SUPPORT_FROM_EMAIL="Garage <rdv@votredomaine.tn>"` après vérification du domaine (Resend → Domains).
+
+E-mails envoyés : confirmation de RDV (+ fichier agenda .ics), code de suivi, « véhicule prêt », relance de facture impayée.
+
+## Installation et lancement (Windows) — en un clic
+
+| Fichier | Quand | Ce qu'il fait |
+|---|---|---|
+| **`setup.cmd`** | une fois, sur un nouveau PC | installe Node.js et Git si besoin (winget), les dépendances, crée `.env` (ouvre le Bloc-notes), met la base à jour **sans rien effacer**, vérifie tout, lance les tests |
+| **`start.cmd`** | chaque jour | vérifie tout (`npm run doctor`), s'arrête si un point bloque, sinon lance l'app et ouvre le navigateur |
+| `npm run doctor` | quand quelque chose ne marche pas | vérification complète : Node, dépendances, `.env` (doublons, mots de passe oubliés), **les deux adresses de la base**, comptes admin, photos, Resend, **chaque clé et chaque modèle IA**, adresses pour téléphone |
+
+Double-cliquez sur le fichier dans l'Explorateur, ou tapez son nom dans cmd.
+
+### Sur un nouveau PC
 ```cmd
-cd C:\Users\VOUS\Desktop\garagepro
-npm install
-npm approve-scripts @prisma/client @prisma/engines prisma esbuild
-npm rebuild
-copy .env.example .env
-notepad .env
+winget install -e --id Git.Git
 ```
-
-Dans `.env` : `DATABASE_URL`, `DIRECT_URL` (Supabase → Connect → ORM → Prisma) et `AUTH_SECRET`.
-
+Fermez et rouvrez cmd, puis :
 ```cmd
-npm run db:reset
-npm run dev
+git clone https://github.com/ouit77-blip/garagepro.git C:\garagepro
+cd C:\garagepro
+setup.cmd
 ```
+Le fichier `.env` (secrets) n'est **jamais** sur GitHub : recopiez-le depuis votre PC principal par clé USB, ou remplissez-le dans le Bloc-notes qui s'ouvre.
 
-`db:reset` **efface** la base puis crée les tables et les données de démo.
+### Depuis un téléphone ou un autre PC
+- **Même Wi-Fi** (atelier) : lancez `start.cmd` sur le PC du garage, puis ouvrez sur le téléphone l'adresse `http://192.168.x.x:3000` affichée au point 7 de la vérification. Au premier lancement, Windows demande l'accès réseau pour Node.js : cochez **Réseaux privés** → Autoriser. Le PC doit rester allumé.
+- **Partout (4G, maison, clients)** : mettez l'app en ligne sur Vercel (gratuit) → une adresse `https://…vercel.app` accessible de n'importe où, sans PC allumé.
 
-Mise à jour d'une version précédente **sans perdre les données** (ajoute les tables, les 6 prestations réservables et un code de suivi à chaque OR existant) :
-
-```cmd
-npm run db:push
-npm run db:seed
-```
-
-Ouvrir http://localhost:3000 — comptes de démo (mot de passe `password123`) :
-
-| E-mail | Rôle |
-|---|---|
-| admin@garage.tn | Admin |
-| accueil@garage.tn | Réception |
-| karim@garage.tn | Mécanicien |
-| stock@garage.tn | Magasinier |
+### Nouvelle base vide (première installation)
+`setup.cmd` crée les tables. Pour ajouter les données de départ (paramètres, prestations, comptes de démo `admin@garage.tn` … mot de passe `password123`) : `npm run db:seed`. Créez ensuite votre propre compte admin et **désactivez les comptes de démo**.
 
 ## Tests et vérifications
 
 | Commande | Rôle |
 |---|---|
-| `npm test` | 82 tests (argent, TVA, créneaux, permissions, stock, limite de connexion, guide et assistant IA) |
+| `npm test` | 97 tests (argent, TVA, créneaux, permissions, stock, connexion, équipe, e-mails, guide et assistant IA) |
 | `npm run test:watch` | relance les tests à chaque sauvegarde |
 | `npm run check` | TypeScript + tests (à lancer avant chaque commit) |
 | `npm run build` | build de production |

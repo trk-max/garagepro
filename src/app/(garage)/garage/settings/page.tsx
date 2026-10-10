@@ -1,4 +1,4 @@
-import { Pause, Play, Trash2 } from "lucide-react";
+import { KeyRound, Pause, Play, Trash2 } from "lucide-react";
 import { Role } from "@prisma/client";
 import {
   addPackageLineAction,
@@ -7,6 +7,8 @@ import {
   createStaffAction,
   removePackageLineAction,
   setStaffActiveAction,
+  setStaffPasswordAction,
+  setStaffRoleAction,
   updateSettingsAction,
 } from "@/actions/catalog";
 import { ActionButton, ActionForm } from "@/components/action-form";
@@ -77,18 +79,59 @@ export default async function SettingsPage() {
           <CardTitle>{t.settings.staff}</CardTitle>
           <ul className="mb-4 divide-y text-sm">
             {staff.map((u) => (
-              <li key={u.id} className="flex items-center gap-2 py-2">
-                <div className="min-w-0 flex-1">
-                  <p className={u.isActive ? "font-medium" : "text-muted-foreground line-through"}>{u.name}</p>
-                  <p className="text-xs text-muted-foreground" dir="ltr">{u.email}</p>
+              <li key={u.id} className="py-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className={u.isActive ? "font-medium" : "text-muted-foreground line-through"}>
+                      {u.name}
+                      {u.id === me.id && <span className="ms-1 text-xs font-normal text-muted-foreground">({t.settings.you})</span>}
+                    </p>
+                    <p className="text-xs text-muted-foreground" dir="ltr">{u.email}</p>
+                  </div>
+                  <Badge variant="secondary">{t.roles[u.role]}</Badge>
+                  {u.id !== me.id && (
+                    <ActionButton size="sm" variant="ghost" action={setStaffActiveAction.bind(null, u.id, !u.isActive)}>
+                      {u.isActive ? <Pause aria-hidden /> : <Play aria-hidden />}
+                      <span className="max-sm:sr-only">{u.isActive ? t.common.deactivate : t.common.activate}</span>
+                    </ActionButton>
+                  )}
                 </div>
-                <Badge variant="secondary">{t.roles[u.role]}</Badge>
-                {u.id !== me.id && (
-                  <ActionButton size="sm" variant="ghost" action={setStaffActiveAction.bind(null, u.id, !u.isActive)}>
-                    {u.isActive ? <Pause aria-hidden /> : <Play aria-hidden />}
-                    <span className="max-sm:sr-only">{u.isActive ? t.common.deactivate : t.common.activate}</span>
-                  </ActionButton>
-                )}
+                <details className="mt-1 rounded-md">
+                  <summary className="cursor-pointer text-xs font-medium text-muted-foreground hover:text-foreground">
+                    <KeyRound className="me-1 inline size-3.5" aria-hidden />
+                    {t.settings.manage}
+                  </summary>
+                  <div className="mt-2 grid gap-3 rounded-md bg-muted/40 p-3 sm:grid-cols-2">
+                    {u.id !== me.id && (
+                      <ActionForm action={setStaffRoleAction.bind(null, u.id)} reset={false} successMessage={t.settings.roleSaved} className="grid content-start gap-2">
+                        <Field label={t.settings.changeRole}>
+                          <NativeSelect name="role" defaultValue={u.role}>
+                            {Object.values(Role).map((r) => (
+                              <option key={r} value={r}>
+                                {t.roles[r]}
+                              </option>
+                            ))}
+                          </NativeSelect>
+                        </Field>
+                        <Button type="submit" size="sm" variant="secondary">
+                          {t.settings.saveRole}
+                        </Button>
+                      </ActionForm>
+                    )}
+                    <ActionForm action={setStaffPasswordAction.bind(null, u.id)} successMessage={t.settings.passwordSaved} className="grid content-start gap-2">
+                      <Field label={t.settings.newPassword}>
+                        <Input name="password" type="password" required minLength={8} autoComplete="new-password" dir="ltr" />
+                      </Field>
+                      <Field label={t.settings.confirmPassword}>
+                        <Input name="confirm" type="password" required minLength={8} autoComplete="new-password" dir="ltr" />
+                      </Field>
+                      <Button type="submit" size="sm" variant="secondary">
+                        {t.settings.setPassword}
+                      </Button>
+                      <p className="text-xs text-muted-foreground">{t.settings.passwordHint}</p>
+                    </ActionForm>
+                  </div>
+                </details>
               </li>
             ))}
           </ul>

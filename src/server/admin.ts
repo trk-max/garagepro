@@ -1,5 +1,5 @@
 import "server-only";
-import type { LineType, Role } from "@prisma/client";
+import type { LineType, Prisma, Role } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { AppError } from "@/lib/http";
 import { prisma } from "@/lib/prisma";
@@ -78,5 +78,37 @@ export async function createStaff(input: { name: string; email: string; phone?: 
 }
 
 export async function setStaffActive(userId: string, isActive: boolean) {
-  await prisma.user.update({ where: { id: userId }, data: { isActive } });
+  await prisma.$transaction(async (tx) => {
+    const user = await tx.user.findUnique({ where: { id: userId }, select: { role: true, isActive: true } });
+    if (!user) throw new AppError("notFound", {}, 404);
+    if (!isActive && user.role === "ADMIN" && user.isActive) await assertAnotherAdmin(tx, userId);
+    await tx.user.update({ where: { id: userId }, data: { isActive } });
+  });
+}
+
+type Tx = Prisma.TransactionClient;
+
+/** The garage must always keep at least one active admin (otherwise nobody can manage it). */
+async function assertAnotherAdmin(tx: Tx, exceptUserId: string) {
+  // Lock the admin rows so two simultaneous changes cannot remove the last two admins.
+  await tx.$queryRaw`SELECT id FROM "User" WHERE role = 'ADMIN' AND "isActive" = true FOR UPDATE`;
+  const others = await tx.user.count({ where: { role: "ADMIN", isActive: true, id: { not: exceptUserId } } });
+  if (others === 0) throw new AppError("lastAdmin", {}, 409);
+}
+
+/** Change a team member's role. An admin cannot change their own role (no accidental lock-out). */
+export async function setStaffRole(actorId: string, userId: string, role: Role) {
+  if (actorId === userId) throw new AppError("ownRole", {}, 403);
+  await prisma.$transaction(async (tx) => {
+    const user = await tx.user.findUnique({ where: { id: userId }, select: { role: true, isActive: true } });
+    if (!user) throw new AppError("notFound", {}, 404);
+    if (user.role === "ADMIN" && role !== "ADMIN" && user.isActive) await assertAnotherAdmin(tx, userId);
+    await tx.user.update({ where: { id: userId }, data: { role } });
+  });
+}
+
+/** Set a new password (the admin gives it to the person, who can then log in with it). */
+export async function setStaffPassword(userId: string, password: string) {
+  const passwordHash = await bcrypt.hash(password, 12);
+  await prisma.user.update({ where: { id: userId }, data: { passwordHash } });
 }
