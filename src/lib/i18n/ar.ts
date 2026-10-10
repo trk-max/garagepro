@@ -539,6 +539,11 @@ export const ar: Dictionary = {
   },
   booking: {
     title: "حجز موعد",
+    errRequired: "حقل إجباري.",
+    errPhone: "رقم غير صالح: 8 أرقام على الأقل (مثال 20 111 222).",
+    errEmail: "بريد إلكتروني غير صالح (مثال name@gmail.com). اتركه فارغًا إن لم يكن لديك.",
+    errPlate: "أدخل رقم السيارة.",
+    fixErrors: "صحّح الحقول باللون الأحمر للمتابعة.",
     prevMonth: "الشهر السابق",
     nextMonth: "الشهر التالي",
     steps: { service: "الخدمة", slot: "التاريخ والساعة", details: "معلوماتكم", confirm: "التأكيد" },

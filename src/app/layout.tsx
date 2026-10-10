@@ -18,13 +18,16 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: "GaragePro",
   description: "Gestion d'atelier mécanique",
+  // The app is already in French, Arabic and English: stop the browser from
+  // auto-translating it (its rewrites of the page break the language switch).
+  other: { google: "notranslate" },
 };
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
   const [{ lang, dir, t }, jar] = await Promise.all([getI18n(), cookies()]);
   const theme = parseTheme(jar.get(THEME_COOKIE)?.value);
   return (
-    <html lang={lang} dir={dir} className={theme === "dark" ? "dark" : undefined} suppressHydrationWarning>
+    <html lang={lang} dir={dir} translate="no" className={theme === "dark" ? "dark" : undefined} suppressHydrationWarning>
       <body className="antialiased">
         <I18nProvider lang={lang} t={t}>
           {children}

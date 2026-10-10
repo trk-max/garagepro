@@ -103,9 +103,28 @@ export function BookingWizard({
   const firstMonth = days?.[0] ? monthKey(days[0].date) : "";
   const lastMonth = days?.length ? monthKey(days[days.length - 1]!.date) : "";
 
-  const detailsValid =
-    details.firstName.trim() && details.lastName.trim() && /^[+\d\s().-]{8,20}$/.test(details.phone.trim()) && details.plate.trim().length >= 2 &&
-    (!details.email || /^\S+@\S+\.\S+$/.test(details.email));
+  // Each field says what is wrong (instead of a grey button with no explanation).
+  const errors: Partial<Record<keyof Details, string>> = {};
+  if (!details.firstName.trim()) errors.firstName = b.errRequired;
+  if (!details.lastName.trim()) errors.lastName = b.errRequired;
+  if (!details.phone.trim()) errors.phone = b.errRequired;
+  else if (!/^[+\d\s().-]{8,20}$/.test(details.phone.trim())) errors.phone = b.errPhone;
+  if (details.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(details.email.trim())) errors.email = b.errEmail;
+  if (details.plate.trim().length < 2) errors.plate = b.errPlate;
+  const [showErrors, setShowErrors] = useState(false);
+
+  const goToSummary = () => {
+    if (Object.keys(errors).length === 0) {
+      setShowErrors(false);
+      setStep(3);
+      return;
+    }
+    setShowErrors(true);
+    toast.error(b.fixErrors);
+    // Put the cursor in the first field to fix.
+    const first = (["firstName", "lastName", "phone", "email", "plate"] as const).find((k) => errors[k]);
+    if (first) document.getElementById(`bk-${first}`)?.focus();
+  };
 
   const submit = () =>
     startTransition(async () => {
@@ -128,12 +147,28 @@ export function BookingWizard({
       if (result.data.redirectTo) router.push(result.data.redirectTo);
     });
 
-  const field = (key: keyof Details, labelText: string, props: React.ComponentProps<typeof Input> = {}) => (
-    <label className="block space-y-1.5 text-sm">
-      <span className="font-medium">{labelText}</span>
-      <Input value={details[key]} onChange={(e) => setDetails((d) => ({ ...d, [key]: e.target.value }))} className="h-11 bg-card" {...props} />
-    </label>
-  );
+  const field = (key: keyof Details, labelText: string, props: React.ComponentProps<typeof Input> = {}) => {
+    const error = showErrors ? errors[key] : undefined;
+    return (
+      <label className="block space-y-1.5 text-sm">
+        <span className="font-medium">{labelText}</span>
+        <Input
+          id={`bk-${key}`}
+          value={details[key]}
+          onChange={(e) => setDetails((d) => ({ ...d, [key]: e.target.value }))}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? `bk-${key}-error` : undefined}
+          {...props}
+          className={cn("h-11 bg-card", props.className, error && "border-destructive ring-1 ring-destructive/40")}
+        />
+        {error && (
+          <span id={`bk-${key}-error`} className="block text-xs font-medium text-destructive">
+            {error}
+          </span>
+        )}
+      </label>
+    );
+  };
 
   return (
     <div className="space-y-5">
@@ -319,7 +354,7 @@ export function BookingWizard({
             <Button type="button" variant="ghost" onClick={() => setStep(1)}>
               <ArrowLeft className="size-4 rtl:rotate-180" aria-hidden /> {b.back}
             </Button>
-            <Button type="button" disabled={!detailsValid} onClick={() => setStep(3)} className="bg-brand-500 hover:bg-brand-600">
+            <Button type="button" onClick={goToSummary} className="bg-brand-500 hover:bg-brand-600">
               {b.next} <ArrowRight className="size-4 rtl:rotate-180" aria-hidden />
             </Button>
           </nav>

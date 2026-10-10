@@ -537,6 +537,11 @@ export const fr = {
   },
   booking: {
     title: "Prendre rendez-vous",
+    errRequired: "Champ obligatoire.",
+    errPhone: "Numéro invalide : au moins 8 chiffres (ex. 20 111 222).",
+    errEmail: "Adresse e-mail invalide (ex. nom@gmail.com). Laissez vide si vous n'en avez pas.",
+    errPlate: "Indiquez l'immatriculation.",
+    fixErrors: "Corrigez les champs en rouge pour continuer.",
     prevMonth: "Mois précédent",
     nextMonth: "Mois suivant",
     steps: { service: "Prestation", slot: "Date & heure", details: "Vos informations", confirm: "Confirmation" },

@@ -539,6 +539,11 @@ export const en: Dictionary = {
   },
   booking: {
     title: "Book an appointment",
+    errRequired: "Required field.",
+    errPhone: "Invalid number: at least 8 digits (e.g. 20 111 222).",
+    errEmail: "Invalid email (e.g. name@gmail.com). Leave it empty if you don't have one.",
+    errPlate: "Enter the plate number.",
+    fixErrors: "Fix the fields in red to continue.",
     prevMonth: "Previous month",
     nextMonth: "Next month",
     steps: { service: "Service", slot: "Date & time", details: "Your details", confirm: "Confirmation" },
