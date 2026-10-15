@@ -470,6 +470,9 @@ export const fr = {
     tooLong: "Message trop long (1 500 caractères maximum).",
   },
   portal: {
+    pauseVideo: "Mettre la vidéo en pause",
+    playVideo: "Lire la vidéo",
+    galleryTitle: "L'atelier en images",
     tagline: "Votre garage, en toute transparence",
     homeTitle: "Bienvenue chez {garage}",
     homeSubtitle: "Suivez la réparation de votre véhicule en direct ou réservez votre prochain passage à l'atelier.",

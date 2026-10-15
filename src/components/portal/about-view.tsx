@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { ArrowDown, ArrowRight, Check, Clock, FileText, MessageCircle, Phone, Radio, ShieldCheck, Wind, type LucideIcon } from "lucide-react";
+import { HeroBackdrop } from "@/components/portal/hero-backdrop";
 import type { AboutContent, AboutModule } from "@/lib/about-content";
+import type { SiteMedia } from "@/lib/site-media";
 import { cn } from "@/lib/utils";
 
 export type AboutService = { id: string; name: string; description: string | null; durationMin: number; price: string };
@@ -37,7 +39,8 @@ export function AboutView({
   phoneLabel,
   whatsapp: wa,
   services,
-  heroPhoto,
+  media,
+  videoLabels,
 }: {
   c: AboutContent;
   garageName: string;
@@ -45,14 +48,15 @@ export function AboutView({
   phoneLabel: string | null;
   whatsapp: string | null;
   services: AboutService[];
-  heroPhoto: boolean;
+  media: SiteMedia;
+  videoLabels: { pause: string; play: string };
 }) {
   return (
     <div className="dark bg-black text-white">
       {/* ── 00 Hero: configurator canvas ─────────────────────────────── */}
       <section className="relative isolate overflow-hidden border-b border-[#303030]">
-        {heroPhoto && <div aria-hidden className="absolute inset-0 -z-10 bg-cover bg-center opacity-40" style={{ backgroundImage: "url(/hero.jpg)" }} />}
-        <div aria-hidden className="absolute inset-0 -z-10 bg-gradient-to-b from-black/30 via-black/70 to-black" />
+        <HeroBackdrop video={media.aboutVideo ?? media.heroVideo} photo={media.aboutPhoto ?? media.heroPhoto} dim="soft" labels={videoLabels} />
+        {!media.aboutVideo && !media.aboutPhoto && !media.heroVideo && !media.heroPhoto && <div aria-hidden className="absolute inset-0 -z-10 bg-gradient-to-b from-black/30 via-black/70 to-black" />}
 
         <div className="mx-auto grid max-w-6xl gap-12 px-4 pt-16 pb-14 sm:pt-24 lg:grid-cols-12 lg:items-end">
           <div className="lg:col-span-7">

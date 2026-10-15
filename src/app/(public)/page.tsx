@@ -1,14 +1,10 @@
-import { existsSync } from "node:fs";
-import path from "node:path";
 import { HomeView } from "@/components/portal/home-view";
 import { aboutContent } from "@/lib/about-content";
 import { fmt } from "@/lib/format";
 import { getI18n } from "@/lib/i18n/server";
+import { siteMedia } from "@/lib/site-media";
 import { getSettings } from "@/server/settings";
 import { listBookableServices, priceLabel } from "@/server/booking";
-
-/** Optional photo of the garage: put it at public/hero.jpg and it fills the hero edge to edge. */
-const HAS_HERO_PHOTO = existsSync(path.join(process.cwd(), "public", "hero.jpg"));
 
 export default async function PortalHome() {
   const [{ t, lang }, settings, services] = await Promise.all([getI18n(), getSettings(), listBookableServices()]);
@@ -18,7 +14,7 @@ export default async function PortalHome() {
 
   return (
     <HomeView
-      heroPhoto={HAS_HERO_PHOTO}
+      media={siteMedia()}
       phone={phone}
       whatsapp={whatsapp}
       services={services.map((s) => ({
@@ -42,6 +38,9 @@ export default async function PortalHome() {
         servicesTitle: about.servicesLabel,
         call: t.portal.call,
         whatsapp: t.portal.whatsapp,
+        galleryTitle: t.portal.galleryTitle,
+        pauseVideo: t.portal.pauseVideo,
+        playVideo: t.portal.playVideo,
       }}
     />
   );

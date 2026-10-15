@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowRight, MapPin, Phone } from "lucide-react";
 import { LangSwitch } from "@/components/garage/lang-switch";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { GpMonogram, GpWordmark } from "@/components/brand/garagepro-logo";
 
 type Labels = { tagline: string; about: string; assistant: string; track: string; book: string; staff: string };
 
@@ -38,9 +39,10 @@ export function PortalShell({
     <div className="ferrari flex min-h-dvh flex-col bg-background text-foreground">
       <header className="dark border-b border-[#303030] bg-black text-white">
         <div className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-3">
-          <Link href="/" className="min-w-0 py-1">
-            <span className="f-label block truncate text-[0.8125rem] text-white">{garageName}</span>
-            <span className="block truncate text-[0.6875rem] tracking-[0.06em] text-[#8f8f8f]">{labels.tagline}</span>
+          <Link href="/" aria-label={garageName} className="group flex min-w-0 items-center gap-3 py-1">
+            <GpMonogram className="h-9 w-auto shrink-0 text-white" aria-hidden />
+            <span className="hidden h-7 w-px bg-[#303030] sm:block" aria-hidden />
+            <GpWordmark className="h-2.5 w-auto text-white sm:h-3" aria-hidden />
           </Link>
 
           <nav className="ms-auto hidden items-center lg:flex" aria-label="Navigation">
@@ -82,8 +84,9 @@ export function PortalShell({
 
       <footer className="dark border-t border-[#303030] bg-[#181818] text-white">
         <div className="mx-auto grid max-w-6xl gap-8 px-4 py-12 sm:grid-cols-3">
-          <div className="space-y-2">
-            <p className="f-label text-white">{garageName}</p>
+          <div className="space-y-4">
+            <GpMonogram className="h-10 w-auto text-white" aria-hidden />
+            <GpWordmark className="h-3 w-auto text-white" aria-hidden />
             <p className="text-[0.75rem] tracking-[0.06em] text-[#8f8f8f]">{labels.tagline}</p>
           </div>
           <div className="space-y-3 text-[0.75rem] tracking-[0.06em] text-white/80">

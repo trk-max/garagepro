@@ -472,6 +472,9 @@ export const ar: Dictionary = {
     tooLong: "الرسالة طويلة جدا (1500 حرف كحد أقصى).",
   },
   portal: {
+    pauseVideo: "إيقاف الفيديو مؤقتًا",
+    playVideo: "تشغيل الفيديو",
+    galleryTitle: "الورشة بالصور",
     tagline: "ورشتكم، بكل شفافية",
     homeTitle: "مرحبًا بكم في {garage}",
     homeSubtitle: "تابعوا إصلاح سيارتكم مباشرة أو احجزوا موعدكم القادم في الورشة.",

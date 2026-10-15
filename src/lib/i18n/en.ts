@@ -472,6 +472,9 @@ export const en: Dictionary = {
     tooLong: "Message too long (1,500 characters max).",
   },
   portal: {
+    pauseVideo: "Pause video",
+    playVideo: "Play video",
+    galleryTitle: "The workshop in pictures",
     tagline: "Your garage, fully transparent",
     homeTitle: "Welcome to {garage}",
     homeSubtitle: "Follow your vehicle's repair live, or book your next workshop visit.",

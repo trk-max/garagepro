@@ -1,5 +1,9 @@
+import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, Bot, CalendarCheck, Clock, Gauge, MessageCircle, Phone } from "lucide-react";
+import { GpMonogram } from "@/components/brand/garagepro-logo";
+import { HeroBackdrop } from "@/components/portal/hero-backdrop";
+import type { SiteMedia } from "@/lib/site-media";
 
 export type HomeService = { id: string; name: string; durationMin: number; price: string };
 
@@ -18,6 +22,9 @@ type Labels = {
   servicesTitle: string;
   call: string;
   whatsapp: string;
+  galleryTitle: string;
+  pauseVideo: string;
+  playVideo: string;
 };
 
 /** Square, flat, hairline-bordered tile; the arrow is the affordance, red only on hover. */
@@ -25,45 +32,45 @@ const TILE =
   "group flex flex-col justify-between gap-10 border border-border bg-card p-6 transition-colors hover:border-foreground sm:p-8";
 
 /**
- * Customer home, "black marble" style: a full-bleed black hero (with the
- * garage's own photo when public/hero.jpg exists), centered uppercase type,
- * then flat square tiles separated by hairlines. Pure view, no data loading.
+ * Customer home, "black marble" style: a full-bleed cinematic hero (video or
+ * photo from public/site/), centered uppercase type, flat square tiles on
+ * hairlines, a video band, a photo mosaic. Pure view, no data loading.
  */
 export function HomeView({
   labels,
   services,
   phone,
   whatsapp,
-  heroPhoto,
+  media,
 }: {
   labels: Labels;
   services: HomeService[];
   phone: string | null;
   whatsapp: string | null;
-  heroPhoto: boolean;
+  media: SiteMedia;
 }) {
+  const gallery = media.gallery.slice(0, 6);
+  const mosaic = gallery.length === 6;
+
   return (
     <>
-      {/* ── Hero: the black void (or the garage's photo, edge to edge) ── */}
-      <section className="dark relative isolate flex min-h-[64dvh] items-end overflow-hidden bg-black text-white sm:min-h-[72dvh]">
-        {heroPhoto && (
-          <>
-            <div aria-hidden className="absolute inset-0 -z-10 bg-cover bg-center" style={{ backgroundImage: "url(/hero.jpg)" }} />
-            <div aria-hidden className="absolute inset-0 -z-10 bg-gradient-to-t from-black via-black/40 to-black/10" />
-          </>
-        )}
-        <div className="mx-auto w-full max-w-6xl px-4 pt-24 pb-14 text-center sm:pb-20">
-          <h1 className="f-display mx-auto max-w-4xl text-3xl text-white sm:text-5xl">{labels.title}</h1>
-          <p className="mx-auto mt-5 max-w-xl text-[0.8125rem] leading-relaxed tracking-[0.03em] text-[#8f8f8f]">{labels.subtitle}</p>
+      {/* ── Hero: the garage's film (or photo) edge to edge, type centered ── */}
+      <section className="dark relative isolate flex min-h-[78dvh] flex-col justify-end overflow-hidden bg-black text-white sm:min-h-[calc(100dvh-4.5rem)]">
+        <HeroBackdrop video={media.heroVideo} photo={media.heroPhoto} labels={{ pause: labels.pauseVideo, play: labels.playVideo }} />
+        <div className="mx-auto w-full max-w-6xl px-4 pt-28 pb-16 text-center sm:pb-24">
+          <GpMonogram className="mx-auto h-12 w-auto text-white sm:h-16" aria-hidden />
+          <h1 className="f-display mx-auto mt-8 max-w-4xl text-3xl text-white sm:text-5xl">{labels.title}</h1>
+          <p className="mx-auto mt-5 max-w-xl text-[0.8125rem] leading-relaxed tracking-[0.03em] text-white/60">{labels.subtitle}</p>
           <div className="mt-10 flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
             <Link href="/rdv" className="f-label inline-flex min-h-12 items-center gap-3 bg-white px-7 text-black transition-colors hover:bg-brand-500 hover:text-white">
               {labels.book} <ArrowRight className="size-4 rtl:rotate-180" aria-hidden />
             </Link>
-            <Link href="/suivi" className="f-label inline-flex min-h-12 items-center gap-3 text-white transition-colors hover:text-brand-500">
+            <Link href="/suivi" className="f-label inline-flex min-h-12 items-center gap-3 border-b border-transparent text-white transition-colors hover:border-brand-500 hover:text-brand-500">
               {labels.track} <ArrowRight className="size-4 rtl:rotate-180" aria-hidden />
             </Link>
           </div>
         </div>
+        <span aria-hidden className="absolute start-1/2 bottom-0 h-12 w-px -translate-x-1/2 bg-gradient-to-b from-transparent to-white/50 rtl:translate-x-1/2" />
       </section>
 
       {/* ── Three entry points ── */}
@@ -86,25 +93,55 @@ export function HomeView({
         </div>
       </section>
 
-      {/* ── Protocol band: dark void, centered ── */}
-      <section className="dark border-y border-[#303030] bg-black text-white">
-        <Link href="/a-propos" className="group mx-auto flex max-w-6xl flex-col items-center px-4 py-20 text-center sm:py-28">
-          <span className="f-label text-[#8f8f8f]">05 / 05</span>
+      {/* ── Protocol band: a second film, centered statement ── */}
+      <section className="dark relative isolate overflow-hidden bg-black text-white">
+        <HeroBackdrop video={media.bandVideo} photo={media.bandPhoto} labels={{ pause: labels.pauseVideo, play: labels.playVideo }} />
+        <Link href="/a-propos" className="group mx-auto flex min-h-[70dvh] max-w-6xl flex-col items-center justify-end sm:min-h-[85dvh] px-4 pt-40 pb-16 text-center sm:pb-20">
+          <span className="f-label text-white/60">05 / 05</span>
           <span className="f-display mt-5 block text-2xl sm:text-4xl">{labels.protocolTitle}</span>
-          <span className="mt-4 block max-w-lg text-[0.8125rem] leading-relaxed text-[#8f8f8f]">{labels.protocolText}</span>
-          <span className="f-label mt-8 inline-flex items-center gap-2 border-b border-transparent pb-1 text-white transition-colors group-hover:border-brand-500 group-hover:text-brand-500">
+          <span className="mt-4 block max-w-lg text-[0.8125rem] leading-relaxed text-white/70">{labels.protocolText}</span>
+          <span className="f-label mt-8 inline-flex items-center gap-2 border-b border-white/40 pb-1 text-white transition-colors group-hover:border-brand-500 group-hover:text-brand-500">
             {labels.protocolCta} <ArrowRight className="size-4 rtl:rotate-180" aria-hidden />
           </span>
         </Link>
       </section>
 
+      {/* ── Gallery: photos bleed to the edges, 1px black seams ── */}
+      {gallery.length > 0 && (
+        <section className="dark bg-black text-white">
+          <h2 className="f-label px-4 pt-16 pb-8 text-center text-white/60">{labels.galleryTitle}</h2>
+          <div className={mosaic ? "grid grid-cols-2 gap-px md:grid-cols-3" : "grid grid-cols-2 gap-px md:grid-flow-col md:auto-cols-fr md:grid-cols-none"}>
+            {gallery.map((src, i) => (
+              <div
+                key={src}
+                className={
+                  mosaic && i === 0
+                    ? "group relative col-span-2 aspect-[16/10] overflow-hidden md:row-span-2 md:aspect-auto"
+                    : mosaic && i === 5
+                      ? "group relative col-span-2 aspect-[16/10] overflow-hidden md:col-span-1"
+                      : "group relative aspect-[16/10] overflow-hidden"
+                }
+              >
+                <Image
+                  src={src}
+                  alt=""
+                  fill
+                  sizes={mosaic && i === 0 ? "(min-width: 768px) 67vw, 100vw" : "(min-width: 768px) 33vw, 50vw"}
+                  className="object-cover transition-transform duration-700 ease-out group-hover:scale-[1.03] motion-reduce:transition-none"
+                />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* ── Services ── */}
       {services.length > 0 && (
         <section className="mx-auto max-w-6xl px-4 py-16 sm:py-24">
           <h2 className="f-display text-center text-xl sm:text-2xl">{labels.servicesTitle}</h2>
-          <div className="mt-10 grid border-s border-t border-border sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-10 grid ps-px pt-px sm:grid-cols-2 lg:grid-cols-3">
             {services.map((s) => (
-              <Link key={s.id} href={`/rdv?service=${s.id}`} className="group flex items-end justify-between gap-4 border-e border-b border-border bg-background p-6 transition-colors hover:bg-card">
+              <Link key={s.id} href={`/rdv?service=${s.id}`} className="group -ms-px -mt-px flex items-end justify-between gap-4 border border-border bg-background p-6 transition-colors hover:bg-card">
                 <span className="min-w-0">
                   <span className="f-label block text-foreground">{s.name}</span>
                   <span className="mt-2 flex items-center gap-3 text-[0.75rem] text-muted-foreground">
