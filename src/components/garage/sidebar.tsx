@@ -20,8 +20,8 @@ import {
   Settings,
   ShoppingCart,
   Truck,
-  Wrench,
 } from "lucide-react";
+import { GpMonogram, GpWordmark } from "@/components/brand/garagepro-logo";
 import type { LucideIcon } from "lucide-react";
 import type { Role } from "@prisma/client";
 import { LangSwitch } from "@/components/garage/lang-switch";
@@ -80,23 +80,19 @@ export function Sidebar({
   garageName: string;
   badges?: Partial<Record<NavKey, number>>;
 }) {
-  const { t } = useI18n();
-
   return (
-    <aside className="hidden h-dvh flex-col border-e bg-card lg:flex print:hidden">
-      <div className="flex items-center gap-2 px-4 py-4">
-        <span className="grid size-9 place-items-center rounded-lg bg-primary text-primary-foreground">
-          <Wrench className="size-5" aria-hidden />
+    <aside className="dark hidden h-dvh flex-col border-e border-[#303030] bg-black text-white lg:flex print:hidden">
+      <Link href="/garage" className="flex items-center gap-3 border-b border-[#303030] px-4 py-5" aria-label={garageName}>
+        <GpMonogram className="h-9 w-auto shrink-0 text-white" aria-hidden />
+        <span className="min-w-0">
+          <GpWordmark className="h-2.5 w-auto text-white" aria-hidden />
+          <span className="f-label mt-1.5 block truncate text-[0.625rem] text-white/50">{garageName}</span>
         </span>
-        <div className="min-w-0">
-          <p className="truncate text-sm font-semibold">{garageName}</p>
-          <p className="text-xs text-muted-foreground">{t.common.appName}</p>
-        </div>
-      </div>
+      </Link>
 
       <NavLinks role={user.role} badges={badges} className="flex-1 overflow-y-auto px-2" />
 
-      <div className="space-y-3 border-t p-4">
+      <div className="space-y-3 border-t border-[#303030] p-4">
         <div className="flex items-center justify-between gap-2">
           <LangSwitch />
           <ThemeToggle />
@@ -116,7 +112,7 @@ function UserRow({ user }: { user: { name: string; role: Role } }) {
         <p className="text-xs text-muted-foreground">{t.roles[user.role]}</p>
       </div>
       <form action={signOutAction}>
-        <button type="submit" className="rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-foreground" aria-label={t.common.signOut} title={t.common.signOut}>
+        <button type="submit" className="grid size-10 place-items-center text-muted-foreground transition-colors hover:text-brand-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500" aria-label={t.common.signOut} title={t.common.signOut}>
           <LogOut className="size-4 rtl:rotate-180" />
         </button>
       </form>
@@ -128,14 +124,14 @@ function NavLinks({ role, badges, className, onNavigate }: { role: Role; badges:
   const pathname = usePathname();
   const { t } = useI18n();
   return (
-      <nav className={cn("space-y-4", className)} aria-label="Navigation">
+      <nav className={cn("space-y-5 py-4", className)} aria-label="Navigation">
         {GROUPS.map((group, gi) => {
           const items = group.items.filter((i) => !i.permission || can(role, i.permission));
           if (items.length === 0) return null;
           return (
             <div key={gi} className="space-y-0.5">
               {group.title && (
-                <p className="label-tech px-3 pb-1.5">{t.nav[group.title]}</p>
+                <p className="f-label px-3 pb-2 text-[0.625rem] text-muted-foreground">{t.nav[group.title]}</p>
               )}
               {items.map(({ key, href, icon: Icon }) => {
                 const active = href === "/garage" ? pathname === href : pathname.startsWith(href);
@@ -147,15 +143,15 @@ function NavLinks({ role, badges, className, onNavigate }: { role: Role; badges:
                     onClick={onNavigate}
                     aria-current={active ? "page" : undefined}
                     className={cn(
-                      "relative flex min-h-10 items-center gap-2.5 rounded-md px-3 py-2 text-sm transition-colors pointer-coarse:min-h-11",
+                      "relative flex min-h-10 items-center gap-3 px-3 py-2 text-[0.75rem] tracking-[0.06em] uppercase transition-colors pointer-coarse:min-h-11",
                       active
-                        ? "bg-accent font-medium text-accent-foreground before:absolute before:inset-y-2 before:start-0 before:w-0.5 before:rounded-full before:bg-primary"
-                        : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
+                        ? "bg-accent text-foreground before:absolute before:inset-y-0 before:start-0 before:w-0.5 before:bg-brand-500"
+                        : "text-muted-foreground hover:text-foreground",
                     )}
                   >
-                    <Icon className="size-4 shrink-0" aria-hidden />
+                    <Icon className="size-4 shrink-0" strokeWidth={1.5} aria-hidden />
                     <span className="flex-1">{t.nav[key]}</span>
-                    {badge ? <span className="min-w-5 rounded-full bg-red-600 px-1.5 text-center text-xs font-semibold text-white">{badge}</span> : null}
+                    {badge ? <span className="min-w-5 bg-brand-500 px-1.5 text-center text-[0.6875rem] font-semibold tracking-normal text-white">{badge}</span> : null}
                   </Link>
                 );
               })}
@@ -180,25 +176,25 @@ export function MobileNav({
   const [open, setOpen] = useState(false);
   const total = Object.values(badges).reduce<number>((s, n) => s + (n ?? 0), 0);
   return (
-    <div className="sticky top-0 z-40 border-b bg-background lg:hidden print:hidden">
-      <div className="flex items-center gap-2 px-3 py-2">
-        <span className="grid size-8 place-items-center rounded-lg bg-primary text-primary-foreground">
-          <Wrench className="size-4" aria-hidden />
-        </span>
-        <span className="min-w-0 flex-1 truncate text-sm font-semibold">{garageName}</span>
+    <div className="dark sticky top-0 z-40 border-b border-[#303030] bg-black text-white lg:hidden print:hidden">
+      <div className="flex items-center gap-3 px-3 py-2">
+        <Link href="/garage" className="flex min-w-0 flex-1 items-center gap-3" aria-label={garageName}>
+          <GpMonogram className="h-8 w-auto shrink-0 text-white" aria-hidden />
+          <GpWordmark className="h-2.5 w-auto text-white" aria-hidden />
+        </Link>
         <button
           type="button"
           onClick={() => setOpen((o) => !o)}
           aria-expanded={open}
-          className="relative grid size-11 place-items-center rounded-md hover:bg-accent focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
+          className="relative grid size-11 place-items-center hover:text-brand-500 focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
           aria-label={t.common.menu}
         >
           <Menu className="size-5" aria-hidden />
-          {total > 0 && <span className="absolute end-1 top-1 size-2 rounded-full bg-red-500" aria-hidden />}
+          {total > 0 && <span className="absolute end-1.5 top-1.5 size-2 bg-brand-500" aria-hidden />}
         </button>
       </div>
       {open && (
-        <div className="max-h-[80dvh] space-y-3 overflow-y-auto border-t bg-background p-3 shadow-lg">
+        <div className="max-h-[80dvh] space-y-3 overflow-y-auto border-t border-[#303030] bg-black p-3">
           <NavLinks role={user.role} badges={badges} onNavigate={() => setOpen(false)} />
           <div className="flex items-center justify-between gap-2">
             <LangSwitch />

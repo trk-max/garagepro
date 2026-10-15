@@ -33,7 +33,7 @@ export function CardTitle({ className, ...props }: React.ComponentProps<"h2">) {
 export function PageHeader({ title, children }: { title: string; children?: React.ReactNode }) {
   return (
     <header className="mb-6 flex flex-wrap items-center gap-3 border-b pb-4">
-      <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+      <h1 className="f-display text-xl sm:text-2xl">{title}</h1>
       <div className="ms-auto flex flex-wrap items-center gap-2">{children}</div>
     </header>
   );

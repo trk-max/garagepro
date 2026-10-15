@@ -12,7 +12,7 @@ export function PortalLoginForm({ defaultPlate }: { defaultPlate: string }) {
   return (
     <ActionForm action={portalLoginAction} reset={false} silent className="mt-6 space-y-4">
       <label className="block space-y-1.5 text-sm">
-        <span className="font-medium">{t.portal.plate}</span>
+        <span className="f-label text-muted-foreground">{t.portal.plate}</span>
         <Input
           name="plate"
           required
@@ -25,7 +25,7 @@ export function PortalLoginForm({ defaultPlate }: { defaultPlate: string }) {
         />
       </label>
       <label className="block space-y-1.5 text-sm">
-        <span className="font-medium">{t.portal.pin}</span>
+        <span className="f-label text-muted-foreground">{t.portal.pin}</span>
         <Input
           name="pin"
           required
@@ -38,7 +38,7 @@ export function PortalLoginForm({ defaultPlate }: { defaultPlate: string }) {
           className="h-12 text-center font-mono text-2xl tracking-[0.6em]"
         />
       </label>
-      <Button type="submit" className="h-12 w-full bg-primary text-primary-foreground hover:bg-brand-500 hover:text-white">
+      <Button type="submit" className="mt-2 h-12 w-full bg-primary text-primary-foreground hover:bg-brand-500 hover:text-white">
         {t.portal.loginSubmit}
       </Button>
     </ActionForm>

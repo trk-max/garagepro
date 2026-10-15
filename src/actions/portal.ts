@@ -27,7 +27,7 @@ export async function portalLoginAction(form: FormData): Promise<Result> {
 
 export async function portalLogoutAction(): Promise<void> {
   await endPortalSession();
-  redirect("/suivi");
+  redirect("/");
 }
 
 async function requirePortal(): Promise<string> {

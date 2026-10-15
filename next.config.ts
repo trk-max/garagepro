@@ -8,6 +8,7 @@ import type { NextConfig } from "next";
  *   hero.mp4|webm + hero.jpg    home hero (video, and its poster/fallback photo)
  *   band.mp4|webm + band.jpg    "protocol" band of the home page
  *   about.mp4|webm + about.jpg  hero of the "L'atelier" page
+ *   assistant.* / suivi.* / login.*  banners of those pages (login falls back to hero)
  *   galerie/*.jpg|webp|png      gallery (6 photos fill the mosaic exactly)
  */
 function scanSiteMedia() {
@@ -27,13 +28,14 @@ function scanSiteMedia() {
   const legacyHero = existsSync(path.join(process.cwd(), "public", "hero.jpg")) ? "/hero.jpg" : null;
   const VIDEO = ["mp4", "webm"];
   const PHOTO = ["jpg", "jpeg", "webp", "png", "avif"];
+  const slots: Record<string, string | null> = {};
+  for (const slot of ["hero", "band", "about", "assistant", "suivi", "login"]) {
+    slots[`${slot}Video`] = pick(slot, VIDEO);
+    slots[`${slot}Photo`] = pick(slot, PHOTO);
+  }
+  slots.heroPhoto ??= legacyHero;
   return {
-    heroVideo: pick("hero", VIDEO),
-    heroPhoto: pick("hero", PHOTO) ?? legacyHero,
-    bandVideo: pick("band", VIDEO),
-    bandPhoto: pick("band", PHOTO),
-    aboutVideo: pick("about", VIDEO),
-    aboutPhoto: pick("about", PHOTO),
+    ...slots,
     gallery,
   };
 }
