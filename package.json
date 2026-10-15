@@ -25,7 +25,8 @@
     "predev:lan": "prisma generate",
     "serve": "node scripts/serve.mjs",
     "preserve": "prisma generate",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "reset-access": "node --env-file=.env scripts/reset-access.mjs"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

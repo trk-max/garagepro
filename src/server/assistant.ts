@@ -276,7 +276,12 @@ export async function callProvider(attempt: Attempt, input: Input, mode: Booking
   try {
     res = await fetchImpl(`${attempt.baseUrl}chat/completions`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${attempt.key}` },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${attempt.key}`,
+        // Claude (OpenAI-compatible endpoint) also accepts its native headers.
+        ...(/anthropic\.com/i.test(attempt.baseUrl) ? { "x-api-key": attempt.key, "anthropic-version": "2023-06-01" } : {}),
+      },
       body: JSON.stringify({
         model: attempt.model,
         messages: [{ role: "system", content: input.system(mode) }, ...input.messages],

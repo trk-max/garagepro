@@ -133,5 +133,42 @@ export function sniffMedia(buf: Buffer): { kind: "PHOTO" | "VIDEO"; contentType:
   return null;
 }
 
+/** True when files go to Supabase Storage (then big files can be sent straight from the browser). */
+export function directUploadAvailable(): boolean {
+  return supabase() !== null;
+}
+
+/**
+ * One-time signed URL letting the browser PUT one file straight into the private
+ * bucket at `key` — the file never passes through our server (Vercel refuses
+ * request bodies over 4.5 MB). The URL works once, for that key only, ~2 hours.
+ */
+export async function createSignedUpload(key: string): Promise<string> {
+  const sb = supabase();
+  if (!sb) throw new Error("Supabase Storage is not configured");
+  const res = await fetch(`${sb.url}/storage/v1/object/upload/sign/${sb.bucket}/${key}`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${sb.key}`, apikey: sb.key, "Content-Type": "application/json" },
+    body: "{}",
+  });
+  if (!res.ok) throw new Error(`Supabase signed upload failed: ${res.status} ${await res.text()}`);
+  const { url } = (await res.json()) as { url: string };
+  return `${sb.url}/storage/v1${url}`;
+}
+
+/** First bytes and total size of a stored object (to check what was really uploaded). */
+export async function readObjectHead(key: string, bytes = 32): Promise<{ head: Buffer; size: number } | null> {
+  const sb = supabase();
+  if (!sb) return null;
+  const res = await fetch(`${sb.url}/storage/v1/object/authenticated/${sb.bucket}/${key}`, {
+    headers: { Authorization: `Bearer ${sb.key}`, apikey: sb.key, Range: `bytes=0-${bytes - 1}` },
+  });
+  if (!res.ok && res.status !== 206) return null;
+  const head = Buffer.from(await res.arrayBuffer()).subarray(0, bytes);
+  const total = /\/(\d+)$/.exec(res.headers.get("content-range") ?? "")?.[1];
+  const size = total ? Number(total) : Number(res.headers.get("content-length") ?? head.length);
+  return { head, size };
+}
+
 export const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
 export const MAX_VIDEO_BYTES = 50 * 1024 * 1024;

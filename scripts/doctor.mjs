@@ -224,7 +224,10 @@ for (const [id, p] of Object.entries(providers)) {
 if (env.AI_BASE_URL) for (const key of split(env.AI_API_KEY)) checks.push({ label: "Serveur perso", base: env.AI_BASE_URL.replace(/\/?$/, "/"), key, models: split(env.AI_MODEL), keyUrl: "" });
 
 if (!checks.length) warn("Aucune clé IA : seul le guide à choix est proposé", "ajoutez GEMINI_API_KEY, GROQ_API_KEY… (voir .env.example)");
-const results = await Promise.all(checks.map(async (c) => ({ c, r: await get(`${c.base}models`, { Authorization: `Bearer ${c.key}` }) })));
+// Anthropic (Claude) lists its models with its own headers, not "Authorization: Bearer".
+const authHeaders = (c) =>
+  /anthropic\.com/i.test(c.base) ? { "x-api-key": c.key, "anthropic-version": "2023-06-01" } : { Authorization: `Bearer ${c.key}` };
+const results = await Promise.all(checks.map(async (c) => ({ c, r: await get(`${c.base}models`, authHeaders(c)) })));
 let aiOk = 0;
 for (const { c, r } of results) {
   const name = `${c.label} (clé ${mask(c.key)})`;
@@ -237,12 +240,15 @@ for (const { c, r } of results) {
     continue;
   }
   if (r.status !== 200) {
-    warn(`${name} : réponse HTTP ${r.status}`);
+    const detail = r.body?.error?.message ?? r.body?.message ?? "";
+    warn(`${name} : réponse HTTP ${r.status}${detail ? ` (${String(detail).slice(0, 140)})` : ""}`);
     continue;
   }
   const available = new Set((r.body?.data ?? r.body?.models ?? []).map((m) => String(m.id ?? m.name ?? "").replace(/^models\//, "")));
-  const usable = c.models.filter((m) => !available.size || available.has(m));
-  const missing = c.models.filter((m) => available.size && !available.has(m));
+  // An alias ("claude-haiku-4-5") counts when a dated version of it is listed.
+  const exists = (m) => available.has(m) || [...available].some((id) => id.startsWith(`${m}-`));
+  const usable = c.models.filter((m) => !available.size || exists(m));
+  const missing = c.models.filter((m) => available.size && !exists(m));
   if (usable.length) {
     aiOk++;
     ok(`${name} : clé valide · modèles utilisables : ${usable.join(", ")}`);
