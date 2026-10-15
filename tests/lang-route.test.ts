@@ -22,4 +22,22 @@ describe("language switch route", () => {
       expect(call(`l=fr&next=${encodeURIComponent(next)}`).headers.get("location")).toBe("http://localhost:3000/");
     }
   });
+  it("tab / newline / carriage return tricks stay on the site (%09, %0A, %0D)", () => {
+    // The URL parser drops these characters, so "/<TAB>/evil.example" would become "//evil.example".
+    for (const qs of [
+      "next=%2F%09%2Fevil.example",
+      "next=%2F%0A%2Fevil.example%2Fx",
+      "next=%2F%0D%5Cevil.example",
+      "next=%2F%0D%2Fevil.example",
+      "next=%09%2F%2Fevil.example",
+      "next=%2F%5C%09evil.example",
+    ]) {
+      const location = call(`l=fr&${qs}`).headers.get("location");
+      expect(location, qs).toBe("http://localhost:3000/");
+      expect(new URL(location!).host).toBe("localhost:3000");
+    }
+  });
+  it("keeps query string and hash of a same-site path", () => {
+    expect(call(`l=fr&next=${encodeURIComponent("/suivi/vehicule?x=1#hist")}`).headers.get("location")).toBe("http://localhost:3000/suivi/vehicule?x=1#hist");
+  });
 });

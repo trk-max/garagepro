@@ -9,6 +9,7 @@ import {
   StockMovementReason,
   WorkOrderStatus,
 } from "@prisma/client";
+import { MIN_PHONE_DIGITS } from "@/lib/booking";
 import { normalizePlate } from "@/lib/format";
 
 /** Form helpers: HTML inputs always send strings, empty means "not provided". */
@@ -283,7 +284,13 @@ export const bookingSchema = z.object({
   time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
   firstName: requiredText(60),
   lastName: requiredText(60),
-  phone: z.string().trim().min(8).max(20).regex(/^[+\d\s().-]+$/),
+  phone: z
+    .string()
+    .trim()
+    .min(8)
+    .max(20)
+    .regex(/^[+\d\s().-]+$/)
+    .refine((p) => p.replace(/\D/g, "").length >= MIN_PHONE_DIGITS, { message: "Au moins 8 chiffres" }),
   email: z.preprocess(emptyToUndefined, z.string().trim().email().max(120).optional()),
   plate: z.string().trim().min(2).max(20),
   make: optionalText(40),

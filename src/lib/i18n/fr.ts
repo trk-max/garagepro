@@ -278,6 +278,7 @@ export const fr = {
     locked: "Trop de tentatives échouées. Réessayez dans 15 minutes.",
   },
   errors: {
+    appUrlMissing: "Adresse du site non configurée (APP_URL) : ajoutez APP_URL dans .env ou sur Vercel pour envoyer des liens aux clients.",
     generic: "Une erreur est survenue. Réessayez.",
     pageTitle: "Cette page n'a pas pu s'afficher",
     pageBody: "Un problème technique est survenu (connexion à la base de données ou au serveur). Vos données n'ont pas été modifiées.",

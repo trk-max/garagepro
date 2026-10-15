@@ -149,3 +149,16 @@ export function availability(
   }
   return days;
 }
+
+/** Digits a phone number must contain to be valid, and to be used to find an existing customer. */
+export const MIN_PHONE_DIGITS = 8;
+
+/**
+ * Last 8 digits of a phone, used to link a booking to an existing customer
+ * file; null when the number has fewer than 8 digits (an empty or short needle
+ * would match an unrelated customer).
+ */
+export function phoneMatchNeedle(phone: string): string | null {
+  const digits = phone.replace(/\D/g, "");
+  return digits.length >= MIN_PHONE_DIGITS ? digits.slice(-MIN_PHONE_DIGITS) : null;
+}

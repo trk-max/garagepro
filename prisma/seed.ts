@@ -1,16 +1,16 @@
 import { PrismaClient, type Customer, type LineType, type User, type Vehicle } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { randomInt } from "node:crypto";
+import { demoSeedRefusal } from "./seed-guard";
 
 const prisma = new PrismaClient();
 const DT = (v: number) => Math.round(v * 1000); // dinars → millimes
 const Q = (v: number) => Math.round(v * 100); // quantity ×100
 
 async function main() {
-  // Demo data uses the shared password "password123": never in production by accident.
-  if (process.env.NODE_ENV === "production" && process.env.ALLOW_DEMO_SEED !== "true") {
-    throw new Error("Refusing to seed demo accounts in production (set ALLOW_DEMO_SEED=true to override).");
-  }
+  // Demo data uses the shared password "password123": never in production or on Supabase by accident.
+  const refusal = demoSeedRefusal(process.env);
+  if (refusal) throw new Error(refusal);
   const passwordHash = await bcrypt.hash("password123", 12);
 
   const users = await Promise.all(

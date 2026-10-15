@@ -2,7 +2,7 @@ import "server-only";
 import { computeTotals, lineTotalHt, normalizePlate } from "@/lib/format";
 import { AppError } from "@/lib/http";
 import { prisma } from "@/lib/prisma";
-import { isLimited, recordAttempt } from "@/server/rate-limit";
+import { markAttemptsOk, reserveAttempt } from "@/server/rate-limit";
 import { clientIp, isTrackable, startPortalSession } from "@/server/portal-session";
 import { getSettings } from "@/server/settings";
 import { customerSteps } from "@/server/workflow";
@@ -24,9 +24,17 @@ export async function portalLogin(rawPlate: string, pin: string): Promise<LoginO
   const plateKey = `track:${plate}`;
   const ipKey = `track-ip:${ip}`;
 
-  if ((await isLimited(plateKey, MAX_FAILS_PER_PLATE, LOCK_MINUTES)) || (await isLimited(ipKey, MAX_FAILS_PER_IP, LOCK_MINUTES))) {
-    return "locked";
-  }
+  // Atomic: the attempt is written (as a failure) BEFORE the PIN lookup, under a
+  // lock, so concurrent guesses cannot all pass the check before any is recorded.
+  const attempt = await reserveAttempt(
+    [
+      { key: plateKey, max: MAX_FAILS_PER_PLATE },
+      { key: ipKey, max: MAX_FAILS_PER_IP },
+    ],
+    LOCK_MINUTES,
+    true,
+  );
+  if (!attempt) return "locked";
 
   const wo = /^\d{4}$/.test(pin)
     ? await prisma.workOrder.findFirst({
@@ -37,11 +45,25 @@ export async function portalLogin(rawPlate: string, pin: string): Promise<LoginO
     : null;
 
   const ok = !!wo && isTrackable(wo);
-  await Promise.all([recordAttempt(plateKey, ok), recordAttempt(ipKey, ok)]);
   if (!ok || !wo) return "invalid";
 
+  await markAttemptsOk(attempt);
   await startPortalSession(wo.id, pin);
   return "ok";
+}
+
+/**
+ * Timeline events the customer may see. MEDIA_ADDED events carry the photo's
+ * caption, so they are kept only when that photo is still visible to the
+ * customer: hidden (internal) or deleted photos leave no trace in the portal.
+ */
+export function customerVisibleEvents<E extends { type: string; data: unknown }>(events: E[], visibleMediaIds: Iterable<string>): E[] {
+  const visible = new Set(visibleMediaIds);
+  return events.filter((e) => {
+    if (e.type !== "MEDIA_ADDED") return true;
+    const mediaId = (e.data as { mediaId?: unknown } | null)?.mediaId;
+    return typeof mediaId === "string" && visible.has(mediaId);
+  });
 }
 
 /** Everything the customer page shows — and nothing internal (no notes, no costs, no staff e-mails). */
@@ -80,6 +102,9 @@ export async function getTrackingView(workOrderId: string) {
   ]);
   if (!wo) return null;
 
+  // A "photo added" event shows its caption: keep it only while that photo is visible to the customer.
+  const events = customerVisibleEvents(wo.events, wo.media.map((m) => m.id));
+
   const everWaitedForParts =
     wo.status === "WAITING_PARTS" ||
     wo.events.some((e) => e.type === "STATUS_CHANGED" && (e.data as { to?: string } | null)?.to === "WAITING_PARTS");
@@ -89,6 +114,7 @@ export async function getTrackingView(workOrderId: string) {
 
   return {
     ...wo,
+    events,
     // Mechanic's first name only, for privacy.
     mechanicName: wo.mechanic?.name.split(/\s+/)[0] ?? null,
     stepper: customerSteps(wo.status, everWaitedForParts),
@@ -120,8 +146,7 @@ export async function approveQuoteByCustomer(workOrderId: string): Promise<void>
 /** Message from the portal; appears in the work order timeline for the team. */
 export async function customerMessage(workOrderId: string, body: string): Promise<void> {
   const key = `msg:${workOrderId}`;
-  if (await isLimited(key, 10, 60, false)) throw new AppError("tooMany", {}, 429);
-  await recordAttempt(key, true);
+  if (!(await reserveAttempt([{ key, max: 10 }], 60, false))) throw new AppError("tooMany", {}, 429);
   await prisma.$transaction([
     prisma.workOrderEvent.create({ data: { workOrderId, type: "CUSTOMER_MESSAGE", body } }),
     prisma.workOrder.update({ where: { id: workOrderId }, data: { updatedAt: new Date() } }),

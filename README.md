@@ -115,7 +115,7 @@ Le fichier `.env` (secrets) n'est **jamais** sur GitHub : recopiez-le depuis vot
 - **Partout (4G, maison, clients)** : mettez l'app en ligne sur Vercel (gratuit) → une adresse `https://…vercel.app` accessible de n'importe où, sans PC allumé.
 
 ### Nouvelle base vide (première installation)
-`setup.cmd` crée les tables. Pour ajouter les données de départ (paramètres, prestations, comptes de démo `admin@garage.tn` … mot de passe `password123`) : `npm run db:seed`. Créez ensuite votre propre compte admin et **désactivez les comptes de démo**.
+`setup.cmd` crée les tables. Pour ajouter les données de départ (paramètres, prestations, comptes de démo `admin@garage.tn` … mot de passe `password123`) : `npm run db:seed`. Créez ensuite votre propre compte admin et **désactivez les comptes de démo**. Le seed est **refusé sur une base Supabase** (et en production) : pour une base de test jetable seulement, lancez-le avec `ALLOW_DEMO_SEED=true`.
 
 ## Performance
 
@@ -158,7 +158,7 @@ Les tests sont dans `tests/` et n'utilisent **pas** la base de données (aucun r
 | Pièce ajoutée à un OR avec stock insuffisant : **autorisée avec avertissement** (règle métier : la pièce peut être en rayon sans être saisie) | `src/server/work-orders.ts` |
 | Montant ou quantité vide : refusé (n'est plus enregistré comme 0) | `src/lib/validators.ts` |
 | Erreur technique : page « Réessayer », jamais de détail technique affiché | `error.tsx`, `global-error.tsx` |
-| Données de démo (`password123`) refusées si `NODE_ENV=production` | `prisma/seed.ts` |
+| Données de démo (`password123`) refusées si `NODE_ENV=production` ou si `DATABASE_URL` pointe vers Supabase (sauf `ALLOW_DEMO_SEED=true`) | `prisma/seed-guard.ts` |
 
 **Risques acceptés (documentés)** — `npm audit` signale des alertes « high » (0 critique) dans `deepmerge-ts` (outil en ligne de commande Prisma) et `braces` (outil ESLint) : ces paquets servent uniquement au développement, jamais à l'application en marche. Elles disparaîtront avec une future version de Prisma. **Ne lancez pas `npm audit fix --force`** : il installe des versions incompatibles.
 

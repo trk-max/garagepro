@@ -8,7 +8,7 @@ import { bookingSchema, customerMessageSchema, formToObject, portalLoginSchema }
 import { cancelByCustomer, createAppointment, manageToken, sendBookingConfirmation } from "@/server/booking";
 import { approveQuoteByCustomer, customerMessage, portalLogin } from "@/server/portal";
 import { clientIp, endPortalSession, getPortalWorkOrderId } from "@/server/portal-session";
-import { isLimited, recordAttempt } from "@/server/rate-limit";
+import { releaseAttempts, reserveAttempt } from "@/server/rate-limit";
 
 type Result = ActionResult<{ redirectTo?: string; warning?: string }>;
 
@@ -63,13 +63,22 @@ const MAX_BOOKINGS_PER_HOUR = 5;
 export async function createBookingAction(form: FormData): Promise<Result> {
   try {
     const input = bookingSchema.parse(formToObject(form));
+    // Links in the confirmation come from APP_URL only: checked before anything is booked.
+    const baseUrl = await getBaseUrl();
     const ipKey = `book-ip:${await clientIp()}`;
-    if (await isLimited(ipKey, MAX_BOOKINGS_PER_HOUR, 60, false)) throw new AppError("tooMany", {}, 429);
+    // Atomic: the booking is counted BEFORE it is created, so parallel requests cannot exceed the limit.
+    const attempt = await reserveAttempt([{ key: ipKey, max: MAX_BOOKINGS_PER_HOUR }], 60, false);
+    if (!attempt) throw new AppError("tooMany", {}, 429);
 
-    const appointment = await createAppointment(input);
-    await recordAttempt(ipKey, true);
+    let appointment: Awaited<ReturnType<typeof createAppointment>>;
+    try {
+      appointment = await createAppointment(input);
+    } catch (error) {
+      await releaseAttempts(attempt); // nothing was booked (slot taken…): does not count
+      throw error;
+    }
 
-    const [{ t, lang }, baseUrl] = await Promise.all([getI18n(), getBaseUrl()]);
+    const { t, lang } = await getI18n();
     const sent = await sendBookingConfirmation(appointment.id, { t, lang, baseUrl });
     const query = new URLSearchParams({ t: manageToken(appointment.reference), new: "1" });
     if (sent.length) query.set("sent", sent.join(","));

@@ -8,6 +8,7 @@ import { createBookingAction } from "@/actions/portal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/field";
+import { MIN_PHONE_DIGITS } from "@/lib/booking";
 import { displayPlate, fmt, formatDay, formatMoney } from "@/lib/format";
 import { useI18n } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
@@ -108,7 +109,7 @@ export function BookingWizard({
   if (!details.firstName.trim()) errors.firstName = b.errRequired;
   if (!details.lastName.trim()) errors.lastName = b.errRequired;
   if (!details.phone.trim()) errors.phone = b.errRequired;
-  else if (!/^[+\d\s().-]{8,20}$/.test(details.phone.trim())) errors.phone = b.errPhone;
+  else if (!/^[+\d\s().-]{8,20}$/.test(details.phone.trim()) || details.phone.replace(/\D/g, "").length < MIN_PHONE_DIGITS) errors.phone = b.errPhone;
   if (details.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(details.email.trim())) errors.email = b.errEmail;
   if (details.plate.trim().length < 2) errors.plate = b.errPlate;
   const [showErrors, setShowErrors] = useState(false);

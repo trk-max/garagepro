@@ -1,6 +1,6 @@
 import "server-only";
 import type { AppointmentStatus, Setting } from "@prisma/client";
-import { availability, freeSlots, parseOpeningHours, utcToZoned, zonedToUtc, addDays, type BookingRules } from "@/lib/booking";
+import { availability, freeSlots, parseOpeningHours, phoneMatchNeedle, utcToZoned, zonedToUtc, addDays, type BookingRules } from "@/lib/booking";
 import { fmt, formatMoney, normalizePlate, type Lang } from "@/lib/format";
 import { createReference } from "@/lib/id";
 import { AppError, isUniqueViolation } from "@/lib/http";
@@ -106,9 +106,11 @@ export async function createAppointment(input: BookingInput) {
 
         // Link to an existing customer file when the plate (or phone) is already known.
         const vehicle = await tx.vehicle.findUnique({ where: { plate }, select: { id: true, customerId: true } });
+        // Phone match only on a full 8-digit needle: never "contains ''", which would match anyone.
+        const needle = phoneMatchNeedle(input.phone);
         const customerId =
           vehicle?.customerId ??
-          (await tx.customer.findFirst({ where: { phone: { contains: input.phone.replace(/\D/g, "").slice(-8) } }, select: { id: true } }))?.id;
+          (needle ? (await tx.customer.findFirst({ where: { phone: { contains: needle } }, select: { id: true } }))?.id : undefined);
 
         return tx.appointment.create({
           data: {

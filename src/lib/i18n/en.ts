@@ -280,6 +280,7 @@ export const en: Dictionary = {
     locked: "Too many failed attempts. Try again in 15 minutes.",
   },
   errors: {
+    appUrlMissing: "Site address not configured (APP_URL): add APP_URL to .env or on Vercel to send links to customers.",
     generic: "Something went wrong. Please try again.",
     pageTitle: "This page could not be displayed",
     pageBody: "A technical problem occurred (database or server connection). Your data has not been changed.",

@@ -12,12 +12,29 @@ export const dynamic = "force-dynamic";
 export function GET(request: NextRequest) {
   const l = request.nextUrl.searchParams.get("l") as Lang | null;
   const lang: Lang = l && LANGS.includes(l) ? l : "fr";
-  const next = request.nextUrl.searchParams.get("next") ?? "/";
-  // Only same-site paths ("/x"), never "//evil.com" or "https://…" (open redirect).
-  const target = next.startsWith("/") && !next.startsWith("//") && !next.startsWith("/\\") ? next : "/";
-
-  const res = NextResponse.redirect(new URL(target, request.url), 303);
+  const res = NextResponse.redirect(safeNext(request), 303);
   res.cookies.set("lang", lang, { path: "/", maxAge: 60 * 60 * 24 * 365, sameSite: "lax" });
   res.headers.set("Cache-Control", "no-store");
   return res;
+}
+
+/**
+ * Where to send the browser back to: a same-site path only (no open redirect).
+ * The value is resolved with the URL parser FIRST and accepted only if it stays
+ * on our origin: the parser drops tab/LF/CR and reads a backslash as "/", so checking
+ * the raw string alone let "/%09/evil.example" through. Control characters and
+ * backslashes are refused outright.
+ */
+function safeNext(request: NextRequest): URL {
+  const home = new URL("/", request.url);
+  const next = request.nextUrl.searchParams.get("next") ?? "/";
+  if (!next.startsWith("/") || /[\u0000-\u001f\u007f\\]/.test(next)) return home;
+  let resolved: URL;
+  try {
+    resolved = new URL(next, request.url);
+  } catch {
+    return home;
+  }
+  if (resolved.origin !== home.origin) return home;
+  return new URL(resolved.pathname + resolved.search + resolved.hash, home);
 }
