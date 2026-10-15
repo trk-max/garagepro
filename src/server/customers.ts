@@ -31,7 +31,10 @@ const optionSelect = {
   id: true,
   name: true,
   phone: true,
-  vehicles: { select: { id: true, plate: true, make: true, model: true, mileage: true }, orderBy: { createdAt: "asc" } },
+  vehicles: {
+    select: { id: true, plate: true, make: true, model: true, mileage: true, vin: true, year: true, fuel: true, color: true },
+    orderBy: { createdAt: "asc" },
+  },
 } satisfies Prisma.CustomerSelect;
 
 export type CustomerOption = Prisma.CustomerGetPayload<{ select: typeof optionSelect }>;

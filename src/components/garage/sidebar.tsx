@@ -6,6 +6,8 @@ import { useState } from "react";
 import { signOutAction } from "@/actions/auth";
 import { ThemeToggle } from "@/components/theme-toggle";
 import {
+  BarChart3,
+  MessageSquareWarning,
   Boxes,
   CalendarDays,
   Car,
@@ -41,6 +43,8 @@ type NavKey =
   | "purchaseOrders"
   | "receipts"
   | "supplierInvoices"
+  | "claims"
+  | "reports"
   | "settings";
 
 type Item = { key: NavKey; href: string; icon: LucideIcon; permission?: Permission };
@@ -56,6 +60,7 @@ const GROUPS: Group[] = [
       { key: "workOrders", href: "/garage/work-orders", icon: ClipboardList, permission: "viewWorkOrders" },
       { key: "customers", href: "/garage/customers", icon: Car, permission: "viewCustomers" },
       { key: "clientInvoices", href: "/garage/invoices", icon: FileText, permission: "viewClientInvoices" },
+      { key: "claims", href: "/garage/reclamations", icon: MessageSquareWarning, permission: "manageClaims" },
     ],
   },
   {
@@ -68,7 +73,12 @@ const GROUPS: Group[] = [
       { key: "supplierInvoices", href: "/garage/supplier-invoices", icon: ReceiptText, permission: "viewSupplierInvoices" },
     ],
   },
-  { items: [{ key: "settings", href: "/garage/settings", icon: Settings, permission: "manageSettings" }] },
+  {
+    items: [
+      { key: "reports", href: "/garage/rapports", icon: BarChart3, permission: "viewReports" },
+      { key: "settings", href: "/garage/settings", icon: Settings, permission: "manageSettings" },
+    ],
+  },
 ];
 
 export function Sidebar({

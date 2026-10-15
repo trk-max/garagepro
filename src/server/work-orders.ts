@@ -1,5 +1,6 @@
 import "server-only";
-import type { LineType, Prisma, Priority, WorkOrderStatus } from "@prisma/client";
+import { missingVehicleInfo } from "@/lib/vehicle-info";
+import type { FuelType, LineType, Prisma, Priority, WorkOrderStatus } from "@prisma/client";
 import { normalizePlate } from "@/lib/format";
 import { AppError } from "@/lib/http";
 import { prisma } from "@/lib/prisma";
@@ -86,6 +87,45 @@ export async function getVehicleHistoryFor(workOrderId: string) {
   });
 }
 
+/**
+ * Plate typed at the front desk: the vehicle (if known) with its owner and its
+ * visits, newest first. The caller opens the current order when there is one.
+ */
+export async function lookupVehicleByPlate(rawPlate: string) {
+  const plate = normalizePlate(rawPlate);
+  if (plate.length < 2) return { plate, vehicle: null };
+  const vehicle = await prisma.vehicle.findUnique({
+    where: { plate },
+    select: {
+      id: true,
+      plate: true,
+      make: true,
+      model: true,
+      year: true,
+      vin: true,
+      fuel: true,
+      color: true,
+      mileage: true,
+      customer: { select: { id: true, name: true, phone: true } },
+      workOrders: {
+        orderBy: { createdAt: "desc" },
+        take: 30,
+        select: {
+          id: true,
+          number: true,
+          status: true,
+          complaint: true,
+          diagnosis: true,
+          mileageIn: true,
+          createdAt: true,
+          invoice: { select: { totalTtc: true } },
+        },
+      },
+    },
+  });
+  return { plate, vehicle };
+}
+
 export async function listMechanics() {
   return prisma.user.findMany({
     where: { isActive: true },
@@ -141,7 +181,39 @@ export type CreateWorkOrderInput = {
   mileageIn?: number;
   promisedAt?: Date;
   mechanicId?: string;
+  /** Missing info typed at check-in for a known vehicle (VIN, year…). */
+  completeVehicle?: { vin?: string; year?: number; fuel?: FuelType; color?: string };
+  /** Refuse to open the order while the vehicle lacks VIN, year, fuel, colour or mileage. */
+  requireCompleteVehicle?: boolean;
 };
+
+/**
+ * Fills the missing pieces of a work order's vehicle file (orders opened from
+ * an online booking, or cars created before VIN was mandatory).
+ */
+export async function completeVehicleInfo(workOrderId: string, fill: { vin?: string; year?: number; fuel?: FuelType; color?: string }, mileageIn: number | undefined) {
+  return prisma.$transaction(async (tx) => {
+    const wo = await tx.workOrder.findUnique({
+      where: { id: workOrderId },
+      select: { status: true, mileageIn: true, vehicleId: true, vehicle: { select: { vin: true, year: true, fuel: true, color: true } } },
+    });
+    if (!wo) throw new AppError("notFound", {}, 404);
+    if (isFinal(wo.status)) throw new AppError("final", {}, 409);
+    const data = Object.fromEntries(Object.entries(fill).filter(([, v]) => v !== undefined && v !== ""));
+    if (Object.keys(data).length) await tx.vehicle.update({ where: { id: wo.vehicleId }, data });
+    const km = mileageIn ?? wo.mileageIn ?? undefined;
+    if (mileageIn !== undefined) {
+      await tx.workOrder.update({ where: { id: workOrderId }, data: { mileageIn } });
+      await tx.vehicle.update({ where: { id: wo.vehicleId }, data: { mileage: mileageIn } });
+    }
+    assertVehicleComplete({ ...wo.vehicle, ...data }, km);
+  });
+}
+
+/** VIN, year, fuel, colour and the check-in mileage are mandatory to open an order. */
+function assertVehicleComplete(v: { vin?: string | null; year?: number | null; fuel?: string | null; color?: string | null }, mileageIn: number | undefined) {
+  if (missingVehicleInfo(v).length || mileageIn === undefined) throw new AppError("vehicleIncomplete", {}, 422);
+}
 
 /** Vehicle check-in: resolves/creates customer + vehicle, opens the order. */
 export async function createWorkOrder(input: CreateWorkOrderInput, actor: StaffUser) {
@@ -154,10 +226,14 @@ export async function createWorkOrder(input: CreateWorkOrderInput, actor: StaffU
 
     let vehicleId = input.vehicleId;
     if (vehicleId) {
-      const vehicle = await tx.vehicle.findUnique({ where: { id: vehicleId }, select: { customerId: true } });
+      const vehicle = await tx.vehicle.findUnique({ where: { id: vehicleId }, select: { customerId: true, vin: true, year: true, fuel: true, color: true } });
       if (!vehicle || vehicle.customerId !== customerId) throw new AppError("invalid");
+      const fill = Object.fromEntries(Object.entries(input.completeVehicle ?? {}).filter(([, v]) => v !== undefined && v !== ""));
+      if (Object.keys(fill).length) await tx.vehicle.update({ where: { id: vehicleId }, data: fill });
+      if (input.requireCompleteVehicle) assertVehicleComplete({ ...vehicle, ...fill }, input.mileageIn);
     } else {
       if (!input.newVehicle) throw new AppError("invalid");
+      if (input.requireCompleteVehicle) assertVehicleComplete(input.newVehicle, input.mileageIn);
       vehicleId = (await tx.vehicle.create({ data: { ...input.newVehicle, customerId }, select: { id: true } })).id;
     }
 
@@ -240,6 +316,8 @@ export async function workshopOrders(mechanicId?: string) {
       customer: { select: { name: true } },
       mechanic: { select: { name: true } },
       _count: { select: { media: true } },
+      // Latest photos/videos, shown as a strip on the workshop card (with delete).
+      media: { orderBy: { createdAt: "desc" }, take: 6, select: { id: true, kind: true, caption: true } },
     },
     orderBy: [{ priority: "desc" }, { promisedAt: { sort: "asc", nulls: "last" } }, { createdAt: "asc" }],
   });

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useI18n } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
 
-type ActionData = { redirectTo?: string; warning?: string } | null | undefined;
+type ActionData = { redirectTo?: string; warning?: string; message?: string } | null | undefined;
 type Result = { ok: true; data: ActionData } | { ok: false; error: string };
 
 /**
@@ -49,6 +49,7 @@ export function ActionForm({
             return;
           }
           if (result.data?.warning) toast.warning(result.data.warning);
+          else if (result.data?.message) toast.success(result.data.message);
           else if (successMessage) toast.success(successMessage);
           else if (!silent) toast.success(t.common.saved);
           if (reset) ref.current?.reset();

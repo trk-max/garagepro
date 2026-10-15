@@ -11,6 +11,9 @@ import { Textarea } from "@/components/ui/field";
 import { displayPlate, fmt, formatDateTime, formatKm, formatMoney, formatQty, woNumber } from "@/lib/format";
 import type { Dictionary } from "@/lib/i18n/fr";
 import { getI18n } from "@/lib/i18n/server";
+import { ClaimForm } from "@/components/portal/claim-form";
+import { FeedbackForm } from "@/components/portal/feedback-form";
+import { hasFeedback } from "@/server/claims";
 import { getTrackingView, type TrackingView } from "@/server/portal";
 import { getPortalWorkOrderId } from "@/server/portal-session";
 
@@ -28,7 +31,7 @@ export default async function TrackerPage() {
   const workOrderId = await getPortalWorkOrderId();
   if (!workOrderId) redirect("/suivi");
 
-  const [view, { t, lang }] = await Promise.all([getTrackingView(workOrderId), getI18n()]);
+  const [view, { t, lang }, rated] = await Promise.all([getTrackingView(workOrderId), getI18n(), hasFeedback(workOrderId)]);
   if (!view) redirect("/suivi");
 
   const ready = view.status === "READY";
@@ -208,6 +211,22 @@ export default async function TrackerPage() {
           </Button>
         </ActionForm>
       </section>
+
+      {/* ── Rating once the car is ready / delivered ── */}
+      {(ready || delivered) && (
+        <section className="rounded-lg bg-card p-5 shadow-sm ring-1 ring-border">
+          <h2 className="mb-3 font-semibold">{t.feedback.trackerTitle}</h2>
+          {rated ? <p className="text-sm text-muted-foreground">{t.feedback.already}</p> : <FeedbackForm fromTracker />}
+        </section>
+      )}
+
+      {/* ── Complaint about this repair ── */}
+      <details className="group rounded-lg bg-card p-5 shadow-sm ring-1 ring-border">
+        <summary className="cursor-pointer font-semibold marker:text-muted-foreground">{t.claims.fromTracker}</summary>
+        <div className="mt-4">
+          <ClaimForm fromTracker defaults={{ name: view.customer.name, plate: displayPlate(view.vehicle.plate) }} />
+        </div>
+      </details>
 
       {/* ── History ── */}
       <section className="rounded-lg bg-card p-5 shadow-sm ring-1 ring-border">

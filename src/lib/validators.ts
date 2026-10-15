@@ -1,5 +1,7 @@
 import { z } from "zod";
 import {
+  ClaimCategory,
+  ClaimStatus,
   FuelType,
   ReminderChannel,
   LineType,
@@ -11,6 +13,7 @@ import {
 } from "@prisma/client";
 import { MIN_PHONE_DIGITS } from "@/lib/booking";
 import { normalizePlate } from "@/lib/format";
+import { isValidVin, normalizeVin } from "@/lib/vehicle-info";
 
 /** Form helpers: HTML inputs always send strings, empty means "not provided". */
 const emptyToUndefined = (v: unknown) => (typeof v === "string" && v.trim() === "" ? undefined : v);
@@ -82,10 +85,33 @@ export const vehicleSchema = z.object({
   make: requiredText(60),
   model: requiredText(60),
   year: z.preprocess(emptyToUndefined, z.coerce.number().int().min(1950).max(2100).optional()),
-  vin: optionalText(40),
+  vin: z.preprocess(emptyToUndefined, z.string().trim().max(40).transform(normalizeVin).optional()),
   fuel: z.preprocess(emptyToUndefined, z.nativeEnum(FuelType).optional()),
   color: optionalText(40),
   mileage: optionalInt,
+});
+
+/** Chassis number: 17 characters (spaces and dashes removed, uppercase). */
+export const vin = z
+  .string()
+  .trim()
+  .transform(normalizeVin)
+  .refine(isValidVin, { message: "VIN : 17 caractères (chiffres et lettres sauf I, O, Q)" });
+
+/** New vehicle at check-in: every piece of information is mandatory. */
+export const checkInVehicleSchema = vehicleSchema.extend({
+  vin,
+  year: z.coerce.number().int().min(1950).max(2100),
+  fuel: z.nativeEnum(FuelType),
+  color: requiredText(40),
+});
+
+/** Known vehicle at check-in: the missing pieces typed in the form (f_vin, f_year…). */
+export const vehicleCompletionSchema = z.object({
+  vin: z.preprocess(emptyToUndefined, vin.optional()),
+  year: z.preprocess(emptyToUndefined, z.coerce.number().int().min(1950).max(2100).optional()),
+  fuel: z.preprocess(emptyToUndefined, z.nativeEnum(FuelType).optional()),
+  color: optionalText(40),
 });
 
 export const createWorkOrderSchema = z.object({
@@ -93,7 +119,8 @@ export const createWorkOrderSchema = z.object({
   vehicleId: optionalId,
   complaint: requiredText(2000),
   priority: z.nativeEnum(Priority).default("NORMAL"),
-  mileageIn: optionalInt,
+  /** Mileage at check-in: mandatory. */
+  mileageIn: z.preprocess(emptyToUndefined, z.coerce.number().int().min(0).max(10_000_000)),
   promisedAt: optionalLocalDateTime,
   mechanicId: optionalId,
 });
@@ -298,6 +325,38 @@ export const bookingSchema = z.object({
   notes: optionalText(500),
   /** Honeypot: hidden field, must stay empty (bots fill it). */
   website: z.string().max(0).optional().default(""),
+});
+
+/** Complaint from the customer site. */
+export const claimSchema = z.object({
+  name: requiredText(80),
+  phone: z
+    .string()
+    .trim()
+    .max(20)
+    .regex(/^[+\d\s().-]+$/)
+    .refine((p) => p.replace(/\D/g, "").length >= MIN_PHONE_DIGITS),
+  email: z.preprocess(emptyToUndefined, z.string().trim().email().max(120).optional()),
+  plate: z.preprocess(emptyToUndefined, z.string().trim().min(2).max(20).transform(normalizePlate).optional()),
+  category: z.nativeEnum(ClaimCategory).default("OTHER"),
+  message: z.string().trim().min(10).max(2000),
+  /** Honeypot: hidden field, must stay empty (bots fill it). */
+  website: z.string().max(0).optional().default(""),
+});
+
+/** Customer rating (1-5 stars) after a repair or a visit. */
+export const feedbackSchema = z.object({
+  rating: z.coerce.number().int().min(1).max(5),
+  comment: optionalText(1000),
+  name: optionalText(80),
+  plate: z.preprocess(emptyToUndefined, z.string().trim().min(2).max(20).transform(normalizePlate).optional()),
+  website: z.string().max(0).optional().default(""),
+});
+
+/** Staff handling a complaint. */
+export const claimUpdateSchema = z.object({
+  status: z.nativeEnum(ClaimStatus),
+  response: optionalText(2000),
 });
 
 export const bookableServiceSchema = z.object({

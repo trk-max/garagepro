@@ -1,6 +1,45 @@
-# GaragePro — gestion d'atelier mécanique (FR / عربي)
+<p align="center">
+  <img src="docs/media/demo-hero.gif" alt="GaragePro — page d'accueil du site client (vidéo)" width="720">
+</p>
 
-Next.js 15 · TypeScript · Tailwind v4 · PostgreSQL (Supabase) + Prisma 6 · Auth.js v5
+<h1 align="center">GaragePro</h1>
+<p align="center"><b>Gestion d'atelier mécanique + site client</b> · Français / العربية / English</p>
+<p align="center">Next.js 15 · TypeScript · Tailwind v4 · PostgreSQL (Supabase) + Prisma 6 · Auth.js v5 · Vercel</p>
+
+<p align="center">
+  <img src="docs/media/01-accueil.jpg" alt="Site client : accueil" width="49%">
+  <img src="docs/media/04-tableau-de-bord.jpg" alt="Espace équipe : tableau de bord" width="49%">
+</p>
+
+## Aperçu
+
+| Site client | Espace équipe |
+|---|---|
+| ![Avis et réclamations](docs/media/02-avis-reclamations.jpg) **Avis & réclamations** : note de 1 à 5 ★ et réclamations suivies par l'équipe | ![Entrée d'un véhicule par la plaque](docs/media/05-entree-vehicule-plaque.jpg) **Entrée par la plaque** : ordre en cours ouvert directement, sinon historique + fiche complète (VIN, km…) |
+| ![Assistant IA](docs/media/07-assistant-ia.jpg) **Assistant IA** : guide de pannes + IA (Claude / OpenRouter / Groq) | ![Rapports](docs/media/06-rapports.jpg) **Rapports** : jour, 7 jours, 30 jours, 3 mois — argent, voitures, pannes, pièces, mécaniciens, avis |
+| ![Version mobile en arabe](docs/media/08-mobile-arabe.jpg) **Mobile + arabe (RTL)** | ![Connexion de l'équipe](docs/media/03-connexion-equipe.jpg) **Connexion de l'équipe** |
+
+> Photos et vidéos du site : dossier `public/site/` (voir « Photos et vidéos du site » plus bas). Pour mettre une **vidéo** dans ce README sur GitHub : modifiez le fichier sur github.com et glissez-déposez un `.mp4` (moins de 10 Mo) dans l'éditeur, GitHub crée le lien tout seul.
+
+## Nouveautés V5
+
+| | |
+|---|---|
+| **Entrée par la plaque** | Nouvel ordre → on tape la plaque. Voiture déjà à l'atelier → son ordre s'ouvre. Voiture connue → historique (dates, km, pannes, diagnostics, montants) puis la fiche. Première visite → fiche client + véhicule complète. Recherche de plaque aussi sur le tableau de bord et la liste des ordres. |
+| **Fiche véhicule obligatoire** | Pour ouvrir un ordre : immatriculation, marque, modèle, année, carburant, couleur, **VIN (17 caractères)** et **kilométrage**. Une voiture connue sans VIN : les champs manquants sont demandés. Un ordre créé depuis un RDV en ligne affiche un encadré « Complétez la fiche du véhicule ». |
+| **Rapports** (admin) | Aujourd'hui / 7 jours / 30 jours / 3 mois, comparés à la période précédente : facturé, encaissé (par mode), main-d'œuvre, pièces, marge, achats fournisseurs, trésorerie, reste à encaisser ; voitures reçues / livrées, durée à l'atelier, nouveaux clients, retours < 30 jours ; **pannes les plus fréquentes** ; pièces les plus utilisées ; mécaniciens ; réclamations et avis ; **« À retenir »** (conseils calculés). Imprimable en PDF. |
+| **Avis & réclamations** | Site client : page `/reclamation` (note 1-5 ★ + réclamation). Suivi de réparation : avis quand la voiture est prête, réclamation liée à l'ordre. Équipe : page *Réclamations & avis* (réponse, statut Ouverte / En cours / Résolue, compteur dans le menu). |
+| **Photos** | Tout membre de l'équipe qui peut ajouter des photos peut aussi les supprimer, depuis l'ordre et depuis *Atelier (mobile)* (vignettes avec 🗑). |
+
+### Mise à jour vers la V5 (base de données)
+
+Deux tables sont ajoutées (réclamations, avis). **Rien n'est effacé ni modifié.** À lancer **une fois, avant** le `git push` :
+
+```
+npx prisma db execute --file prisma/migrations/2_claims_feedback/migration.sql --schema prisma/schema.prisma
+```
+
+Le script peut être relancé sans risque (il ignore ce qui existe déjà).
 
 ## Fonctionnalités
 
@@ -12,7 +51,9 @@ Next.js 15 · TypeScript · Tailwind v4 · PostgreSQL (Supabase) + Prisma 6 · A
 | **Stock pièces** | références, prix achat/vente, seuil d'alerte, entrées/sorties, sortie automatique quand une pièce est ajoutée à un OR (et retour si supprimée ou OR annulé) |
 | **Factures** | numérotation F2026-0001, TVA par taux, droit de timbre, copie figée, paiements partiels (espèces, carte, chèque, virement), impression A4 / PDF |
 | **Paramètres** (admin) | infos garage, taux horaire, TVA, timbre, pied de facture, forfaits, équipe : créer, **changer le rôle**, **changer le mot de passe**, désactiver (le garage garde toujours au moins un admin actif ; un admin ne peut pas changer son propre rôle) |
-| **Langue** | bouton Français / العربية (interface RTL complète en arabe) |
+| **Langue** | Français / العربية / English (interface RTL complète en arabe) |
+| **Rapports** (admin) | jour, 7 jours, 30 jours, 3 mois : argent, voitures, pannes fréquentes, pièces, mécaniciens, réclamations, avis, conseils |
+| **Réclamations & avis** | côté client (page publique + suivi de réparation) et côté équipe (réponse, statut) |
 
 Statuts : Réceptionné → Diagnostic → Devis envoyé → Attente pièces → En réparation → Prêt → Livré (ou Annulé).
 
@@ -49,7 +90,7 @@ Montants stockés en millimes (entiers) : aucune erreur d'arrondi.
 
 \* l'étape « Attente pièces » n'apparaît que si le véhicule passe par là.
 
-**Temps réel** : chaque page ouverte reçoit les changements par Server-Sent Events (aucun service externe). Quand le mécanicien change l'étape depuis `Atelier (mobile)`, la page du client se met à jour en ~2 s, sans rechargement. Même chose pour l'équipe : nouveaux RDV, devis validé ou message du client.
+**Temps réel** : chaque page ouverte vérifie les changements toutes les 4 s tant qu'elle est visible (aucun service externe). Quand le mécanicien change l'étape depuis `Atelier (mobile)`, la page du client se met à jour en quelques secondes, sans rechargement. Même chose pour l'équipe : nouveaux RDV, devis validé ou message du client.
 
 **Sécurité** : 5 codes faux par immatriculation (et 20 par adresse IP) = blocage 15 min ; session signée liée au code (« Nouveau code » déconnecte l'ancien) ; accès coupé 7 jours après la livraison ; photos privées, servies après contrôle ; type réel des fichiers vérifié.
 
@@ -185,6 +226,21 @@ npx prisma migrate resolve --applied 0_init
 
 Ensuite, à chaque changement du schéma : `npm run db:migrate` (développement) puis `npm run db:deploy` (production).
 ⚠ Ne lancez jamais `npm run db:reset`, `prisma migrate reset` ou `db push --force-reset` sur la vraie base : ils **effacent toutes les données**.
+
+## Photos et vidéos du site
+
+Tout est dans `public/site/` ; changez un fichier en gardant **le même nom**, puis `git push` (la liste est lue au moment du build).
+
+| Fichier | Où il apparaît |
+|---|---|
+| `hero.mp4` + `hero.jpg` | grand fond de l'accueil (la photo s'affiche avant la vidéo, et pour les connexions lentes) |
+| `band.mp4` + `band.jpg` | bande « Le protocole de l'atelier » de l'accueil, et bandeau du tableau de bord |
+| `about.mp4` + `about.jpg` | haut de la page « L'atelier » et de la page « Avis & réclamations » |
+| `assistant.jpg`, `suivi.jpg`, `login.jpg` | bandeaux de l'assistant IA, du suivi de réparation, de la connexion équipe (sinon : `hero`) |
+| `galerie/*.jpg` | galerie de l'accueil (6 photos remplissent la mosaïque) |
+| `brand/*.svg` | logos GaragePro (monogramme et texte), en vectoriel |
+
+Vidéos : MP4 (H.264), muettes, 5 à 10 s, 1600 px de large, moins de 2 Mo de préférence.
 
 ## Structure
 

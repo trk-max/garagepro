@@ -5,10 +5,10 @@ import { LangSwitch } from "@/components/garage/lang-switch";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { GpMonogram, GpWordmark } from "@/components/brand/garagepro-logo";
 
-type Labels = { tagline: string; about: string; assistant: string; track: string; book: string; staff: string };
+type Labels = { tagline: string; about: string; assistant: string; track: string; book: string; staff: string; claims: string };
 
 const NAV_LINK =
-  "f-label inline-flex min-h-11 shrink-0 items-center px-3 text-white/70 transition-colors hover:text-white focus-visible:text-white";
+  "f-label inline-flex min-h-11 shrink-0 items-center whitespace-nowrap px-3 text-white/70 transition-colors hover:text-white focus-visible:text-white";
 
 /**
  * Customer site shell, "black marble" style: a flat black bar with small
@@ -33,6 +33,7 @@ export function PortalShell({
     { href: "/a-propos", label: labels.about },
     { href: "/assistant", label: labels.assistant },
     { href: "/suivi", label: labels.track },
+    { href: "/reclamation", label: labels.claims },
   ];
 
   return (
@@ -45,7 +46,7 @@ export function PortalShell({
             <GpWordmark className="h-2.5 w-auto text-white sm:h-3" aria-hidden />
           </Link>
 
-          <nav className="ms-auto hidden items-center lg:flex" aria-label="Navigation">
+          <nav className="ms-auto hidden items-center xl:flex" aria-label="Navigation">
             {links.map((l) => (
               <Link key={l.href} href={l.href} className={NAV_LINK}>
                 {l.label}
@@ -53,21 +54,21 @@ export function PortalShell({
             ))}
             <Link
               href="/rdv"
-              className="f-label ms-2 inline-flex min-h-10 items-center gap-2 border border-white px-4 text-white transition-colors hover:border-brand-500 hover:bg-brand-500"
+              className="f-label ms-2 inline-flex min-h-10 items-center gap-2 whitespace-nowrap border border-white px-4 text-white transition-colors hover:border-brand-500 hover:bg-brand-500"
             >
               {labels.book}
               <ArrowRight className="size-3.5 rtl:rotate-180" aria-hidden />
             </Link>
           </nav>
 
-          <div className="ms-auto flex items-center gap-1 lg:ms-3">
+          <div className="ms-auto flex items-center gap-1 xl:ms-3">
             <ThemeToggle className="text-white/70 hover:bg-white/10 hover:text-white" />
             <LangSwitch className="border-[#303030]" />
           </div>
         </div>
 
         {/* Phones and tablets: the same links on one scrollable row. */}
-        <nav className="flex overflow-x-auto border-t border-[#303030] px-2 lg:hidden" aria-label="Navigation">
+        <nav className="flex overflow-x-auto border-t border-[#303030] px-2 xl:hidden" aria-label="Navigation">
           {links.map((l) => (
             <Link key={l.href} href={l.href} className={NAV_LINK}>
               {l.label}

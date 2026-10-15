@@ -152,6 +152,7 @@ model User {
   reminders               InvoiceReminder[]
   uploadedMedia           WorkOrderMedia[]
   appointments            Appointment[]
+  handledClaims           CustomerClaim[]
 }
 
 // ── Clients & véhicules ──────────────────────────────────────────────────────
@@ -172,6 +173,8 @@ model Customer {
   workOrders   WorkOrder[]
   invoices     Invoice[]
   appointments Appointment[]
+  claims       CustomerClaim[]
+  feedbacks    CustomerFeedback[]
 
   @@index([phone])
   @@index([name])
@@ -236,6 +239,8 @@ model WorkOrder {
   stockMovements StockMovement[]
   media          WorkOrderMedia[]
   appointment    Appointment?
+  claims         CustomerClaim[]
+  feedback       CustomerFeedback?
 
   @@index([status, updatedAt(sort: Desc)])
   @@index([mechanicId, status])
@@ -680,4 +685,69 @@ model Appointment {
   @@index([startAt, status])
   @@index([plate])
   @@index([customerId])
+}
+
+// ── Réclamations & avis clients ──────────────────────────────────────────────
+
+enum ClaimCategory {
+  QUALITY // travail mal fait / panne revenue
+  DELAY // retard
+  PRICE // prix / devis
+  BILLING // facture
+  DAMAGE // dommage sur le véhicule
+  BEHAVIOR // accueil / comportement
+  OTHER
+}
+
+enum ClaimStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+}
+
+/// Réclamation déposée par un client depuis le site (espace client).
+model CustomerClaim {
+  id          String        @id @default(cuid())
+  /// Affiché "REC-0012".
+  number      Int           @unique @default(autoincrement())
+  category    ClaimCategory @default(OTHER)
+  status      ClaimStatus   @default(OPEN)
+  name        String
+  phone       String
+  email       String?
+  plate       String?
+  message     String
+  /// Réponse de l'équipe.
+  response    String?
+  workOrderId String?
+  customerId  String?
+  handledById String?
+  resolvedAt  DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  workOrder WorkOrder? @relation(fields: [workOrderId], references: [id], onDelete: SetNull)
+  customer  Customer?  @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  handledBy User?      @relation(fields: [handledById], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt(sort: Desc)])
+  @@index([createdAt])
+}
+
+/// Avis du client après une réparation ou une visite (note de 1 à 5).
+model CustomerFeedback {
+  id          String   @id @default(cuid())
+  rating      Int
+  comment     String?
+  name        String?
+  plate       String?
+  /// Une seule note par ordre de réparation.
+  workOrderId String?  @unique
+  customerId  String?
+  createdAt   DateTime @default(now())
+
+  workOrder WorkOrder? @relation(fields: [workOrderId], references: [id], onDelete: SetNull)
+  customer  Customer?  @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
 }

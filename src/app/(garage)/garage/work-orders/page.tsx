@@ -4,6 +4,7 @@ import { PlateChip, PriorityBadge, StatusBadge } from "@/components/garage/badge
 import { SearchForm } from "@/components/garage/search-form";
 import { Button } from "@/components/ui/button";
 import { PageHeader, Table, Td, Th } from "@/components/ui/field";
+import { PlateSearch } from "@/components/garage/plate-search";
 import { formatDate, woNumber } from "@/lib/format";
 import { getI18n } from "@/lib/i18n/server";
 import { requirePageAccess } from "@/lib/session";
@@ -43,6 +44,7 @@ export default async function WorkOrdersPage({ searchParams }: PageProps) {
     <div className="mx-auto max-w-7xl p-6">
       <PageHeader title={t.workOrders.title}>
         <SearchForm placeholder={t.workOrders.searchPlaceholder} defaultValue={params.q} hidden={{ status: params.status }} />
+        <PlateSearch className="w-48" placeholder={t.plateLookup.quick} label={t.plateLookup.title} />
         <Button asChild>
           <Link href="/garage/work-orders/new">{t.workOrders.new}</Link>
         </Button>

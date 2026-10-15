@@ -5,6 +5,7 @@ import { can } from "@/lib/permissions";
 import { getStaff } from "@/lib/session";
 import { countUpcomingToday } from "@/server/booking";
 import { countOverdue } from "@/server/invoices";
+import { countOpenClaims } from "@/server/claims";
 import { prisma } from "@/lib/prisma";
 import { getSettings } from "@/server/settings";
 
@@ -14,12 +15,14 @@ export default async function GarageLayout({ children }: { children: ReactNode }
   const staff = await getStaff();
   if (!staff) redirect("/login");
 
-  // Menu counters: 3 small COUNT queries in parallel (no rows loaded).
-  const [settings, overdue, pendingApprovals, appointmentsToday] = await Promise.all([
+  // Menu counters: small COUNT queries in parallel (no rows loaded).
+  const [settings, overdue, pendingApprovals, appointmentsToday, openClaims] = await Promise.all([
     getSettings(),
     can(staff.role, "viewClientInvoices") ? countOverdue() : 0,
     staff.role === "ADMIN" ? prisma.purchaseOrder.count({ where: { status: "PENDING_APPROVAL" } }) : 0,
     can(staff.role, "viewAppointments") ? countUpcomingToday() : 0,
+    // .catch: the menu must never break, even before the complaints table exists.
+    can(staff.role, "manageClaims") ? countOpenClaims().catch(() => 0) : 0,
   ]);
 
   // Counters in the menu: today's remaining bookings, late customer invoices, orders waiting for the admin.
@@ -27,6 +30,7 @@ export default async function GarageLayout({ children }: { children: ReactNode }
     appointments: appointmentsToday || undefined,
     clientInvoices: overdue || undefined,
     purchaseOrders: pendingApprovals || undefined,
+    claims: openClaims || undefined,
   };
   const user = { name: staff.name, role: staff.role };
 

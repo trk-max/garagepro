@@ -18,6 +18,8 @@ import { MediaUploader } from "@/components/garage/media-uploader";
 import { TrackingCard } from "@/components/garage/tracking-card";
 import { LiveRefresh } from "@/components/live-refresh";
 import { getBaseUrl } from "@/lib/base-url";
+import { missingVehicleInfo } from "@/lib/vehicle-info";
+import { VehicleCompletionCard } from "@/components/garage/vehicle-completion";
 import { InvoiceBadge, PlateChip, PriorityBadge, StatusBadge } from "@/components/garage/badges";
 import { LineAdder } from "@/components/garage/line-adder";
 import { Timeline } from "@/components/garage/timeline";
@@ -67,6 +69,8 @@ export default async function WorkOrderPage({ params }: PageProps) {
   const canSeeInvoice = can(staff?.role, "viewClientInvoices");
   const totals = computeTotals(wo.lines, settings.stampDuty);
   const next = NEXT_STEP[wo.status];
+  // Vehicle file incomplete (VIN, year, fuel, colour, check-in mileage): asked on top of the order.
+  const vehicleMissing: string[] = [...missingVehicleInfo(wo.vehicle), ...(wo.mileageIn === null ? ["mileage"] : [])];
 
   return (
     <div className="grid min-h-full grid-cols-1 xl:grid-cols-[minmax(0,1fr)_340px]">
@@ -98,6 +102,9 @@ export default async function WorkOrderPage({ params }: PageProps) {
                 </li>
               ))}
             </ul>
+          )}
+          {!final && vehicleMissing.length > 0 && (
+            <VehicleCompletionCard workOrderId={wo.id} missing={vehicleMissing} vinDefault={wo.vehicle.vin ?? undefined} />
           )}
           <p className="text-sm text-muted-foreground">
             {t.workOrders.complaint}: <span className="text-foreground">{wo.complaint}</span>

@@ -25,7 +25,7 @@ export function PageBanner({
   return (
     <section className="dark relative isolate flex min-h-[36dvh] flex-col justify-end overflow-hidden bg-black text-white sm:min-h-[44dvh]">
       <HeroBackdrop video={video} photo={photo} labels={labels} />
-      <div className="mx-auto w-full max-w-6xl px-4 pt-20 pb-10 sm:pb-14">
+      <div className="mx-auto w-full max-w-6xl px-4 pt-20 pb-16 sm:pb-14">
         {kicker && (
           <p className="f-label flex items-center gap-3 text-white/60">
             <span className="h-px w-8 bg-white/40" aria-hidden />

@@ -1,12 +1,13 @@
 import Link from "next/link";
-import { CalendarClock, ChevronRight, Images } from "lucide-react";
-import { workshopStatusAction } from "@/actions/workshop";
+import { CalendarClock, ChevronRight, Images, Play, Trash2 } from "lucide-react";
+import { deleteMediaAction, workshopStatusAction } from "@/actions/workshop";
 import { ActionButton } from "@/components/action-form";
 import { PlateChip, PriorityBadge, StatusBadge } from "@/components/garage/badges";
 import { MediaUploader } from "@/components/garage/media-uploader";
 import { LiveRefresh } from "@/components/live-refresh";
 import { fmt, formatDateTime } from "@/lib/format";
 import { getI18n } from "@/lib/i18n/server";
+import { can } from "@/lib/permissions";
 import { requirePageAccess } from "@/lib/session";
 import { cn } from "@/lib/utils";
 import { workshopOrders } from "@/server/work-orders";
@@ -75,6 +76,37 @@ export default async function WorkshopPage({ searchParams }: PageProps) {
                   </span>
                 )}
               </p>
+
+              {wo.media.length > 0 && (
+                <ul className="mt-3 flex gap-2 overflow-x-auto pb-1" aria-label={t.tracking.media}>
+                  {wo.media.map((m) => (
+                    <li key={m.id} className="relative size-20 shrink-0 overflow-hidden border bg-muted">
+                      <a href={`/api/media/${m.id}`} target="_blank" rel="noopener" className="block size-full">
+                        {m.kind === "PHOTO" ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={`/api/media/${m.id}`} alt={m.caption ?? ""} loading="lazy" decoding="async" className="size-full object-cover" />
+                        ) : (
+                          <span className="grid size-full place-items-center bg-black text-white">
+                            <Play className="size-5" aria-hidden />
+                          </span>
+                        )}
+                      </a>
+                      {can(staff.role, "uploadMedia") && (
+                        <ActionButton
+                          size="icon-sm"
+                          variant="secondary"
+                          className="absolute end-1 top-1 size-7 bg-black/70 text-white hover:bg-brand-500 hover:text-white"
+                          aria-label={t.common.delete}
+                          confirm={`${t.common.delete} ?`}
+                          action={deleteMediaAction.bind(null, m.id)}
+                        >
+                          <Trash2 className="size-3.5" aria-hidden />
+                        </ActionButton>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
 
               <div className="mt-3 flex flex-wrap gap-2">
                 {next && next !== "DELIVERED" && (

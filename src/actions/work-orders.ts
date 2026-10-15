@@ -14,7 +14,8 @@ import {
   noteSchema,
   optionalId,
   statusSchema,
-  vehicleSchema,
+  checkInVehicleSchema,
+  vehicleCompletionSchema,
   workOrderMetaSchema,
 } from "@/lib/validators";
 import { notifyVehicleReady } from "@/server/customer-notifications";
@@ -22,6 +23,7 @@ import { createInvoice } from "@/server/invoices";
 import { getSettings } from "@/server/settings";
 import { zonedToUtc } from "@/lib/booking";
 import {
+  completeVehicleInfo,
   addLine,
   addNote,
   applyPackage,
@@ -65,12 +67,31 @@ export async function createWorkOrderAction(form: FormData): Promise<ActionResul
         ...base,
         promisedAt: await localToUtc(base.promisedAt),
         newCustomer: base.customerId ? undefined : customerSchema.parse(prefixed(raw, "c_")),
-        newVehicle: base.vehicleId ? undefined : vehicleSchema.parse(prefixed(raw, "v_")),
+        // New car: every field is mandatory (VIN, year, fuel, colour…); its mileage is the check-in mileage.
+        newVehicle: base.vehicleId ? undefined : { ...checkInVehicleSchema.parse(prefixed(raw, "v_")), mileage: base.mileageIn },
+        // Known car: what was missing on file, typed in the form.
+        completeVehicle: base.vehicleId ? vehicleCompletionSchema.parse(prefixed(raw, "f_")) : undefined,
+        requireCompleteVehicle: true,
       },
       actor,
     );
     refresh();
     return { ok: true, data: { redirectTo: `/garage/work-orders/${wo.id}` } };
+  } catch (error) {
+    return toActionError(error);
+  }
+}
+
+/** Completes the vehicle file from the work order page (VIN, year, fuel, colour, mileage). */
+export async function completeVehicleAction(workOrderId: string, form: FormData): Promise<ActionResult<Redirect>> {
+  try {
+    await requirePermission("viewWorkOrders");
+    const raw = formToObject(form);
+    const fill = vehicleCompletionSchema.parse(prefixed(raw, "f_"));
+    const mileageIn = raw.mileageIn === undefined || raw.mileageIn === "" ? undefined : createWorkOrderSchema.shape.mileageIn.parse(raw.mileageIn);
+    await completeVehicleInfo(id.parse(workOrderId), fill, mileageIn);
+    refresh(workOrderId);
+    return { ok: true, data: {} };
   } catch (error) {
     return toActionError(error);
   }

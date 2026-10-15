@@ -11,13 +11,14 @@ import { displayPlate } from "@/lib/format";
 import { useI18n } from "@/lib/i18n/client";
 import type { CustomerOption } from "@/server/customers";
 import { CustomerPicker } from "@/components/garage/customer-picker";
-import { FuelType } from "@prisma/client";
+import { missingVehicleInfo } from "@/lib/vehicle-info";
+import { FuelSelect, MissingVehicleFields, VinInput } from "@/components/garage/vehicle-completion";
 
 type Props = {
   /** Pre-selected customer (form opened from a customer page). */
   initialCustomer: CustomerOption | null;
   mechanics: { id: string; name: string }[];
-  preset?: { vehicleId?: string };
+  preset?: { vehicleId?: string; plate?: string };
 };
 
 const NEW = "__new";
@@ -29,6 +30,9 @@ export function CheckInForm({ initialCustomer, mechanics, preset }: Props) {
   const customerId = customer?.id ?? NEW;
   const vehicles = customer?.vehicles ?? [];
   const vehicle = vehicles.find((v) => v.id === vehicleId);
+  // Known car with an incomplete file: the missing pieces must be typed now.
+  const missing = vehicle ? missingVehicleInfo(vehicle) : [];
+  const req = ` (${t.customers.required})`;
 
   return (
     <ActionForm action={createWorkOrderAction} reset={false} silent className="grid gap-4 lg:grid-cols-2">
@@ -76,31 +80,35 @@ export function CheckInForm({ initialCustomer, mechanics, preset }: Props) {
           )}
           {vehicleId === NEW && (
             <div className="mt-3 grid gap-3 sm:grid-cols-3">
-              <Field label={t.customers.plate}>
-                <Input name="v_plate" required dir="ltr" className="uppercase" placeholder={t.customers.platePlaceholder} />
+              <Field label={t.customers.plate + req}>
+                <Input name="v_plate" required dir="ltr" className="uppercase" placeholder={t.customers.platePlaceholder} defaultValue={preset?.plate} />
               </Field>
-              <Field label={t.customers.make}>
+              <Field label={t.customers.make + req}>
                 <Input name="v_make" required placeholder="Peugeot" />
               </Field>
-              <Field label={t.customers.model}>
+              <Field label={t.customers.model + req}>
                 <Input name="v_model" required placeholder="208" />
               </Field>
-              <Field label={t.customers.year}>
-                <Input name="v_year" type="number" min={1950} max={2100} dir="ltr" />
+              <Field label={t.customers.year + req}>
+                <Input name="v_year" type="number" required min={1950} max={2100} dir="ltr" />
               </Field>
-              <Field label={t.customers.fuel}>
-                <NativeSelect name="v_fuel" defaultValue="">
-                  <option value="">{t.common.none}</option>
-                  {Object.values(FuelType).map((f) => (
-                    <option key={f} value={f}>
-                      {t.fuel[f]}
-                    </option>
-                  ))}
-                </NativeSelect>
+              <Field label={t.customers.fuel + req}>
+                <FuelSelect name="v_fuel" />
               </Field>
-              <Field label={t.customers.vin}>
-                <Input name="v_vin" dir="ltr" className="uppercase" />
+              <Field label={t.customers.color + req}>
+                <Input name="v_color" required maxLength={40} />
               </Field>
+              <Field label={t.customers.vin + req} hint={t.customers.vinHint} className="sm:col-span-3">
+                <VinInput name="v_vin" />
+              </Field>
+            </div>
+          )}
+          {vehicle && missing.length > 0 && (
+            <div className="mt-4 border-s-2 border-brand-500 ps-3">
+              <p className="f-label text-brand-500">{t.customers.completeInfo}</p>
+              <div className="mt-3">
+                <MissingVehicleFields missing={missing} prefix="f_" vinDefault={vehicle.vin ?? undefined} />
+              </div>
             </div>
           )}
         </div>
@@ -113,8 +121,8 @@ export function CheckInForm({ initialCustomer, mechanics, preset }: Props) {
             <Textarea name="complaint" required placeholder={t.workOrders.complaintPlaceholder} rows={4} />
           </Field>
           <div className="grid gap-3 sm:grid-cols-2">
-            <Field label={t.workOrders.mileageIn} hint={vehicle?.mileage ? `${t.customers.mileage}: ${vehicle.mileage} km` : undefined}>
-              <Input name="mileageIn" type="number" min={0} dir="ltr" />
+            <Field label={t.workOrders.mileageIn + req} hint={vehicle?.mileage ? `${t.customers.mileage}: ${vehicle.mileage} km` : undefined}>
+              <Input name="mileageIn" type="number" required min={0} max={10_000_000} dir="ltr" />
             </Field>
             <Field label={t.workOrders.promisedAt}>
               <Input name="promisedAt" type="datetime-local" min="2000-01-01T00:00" max="2100-12-31T23:59" dir="ltr" />

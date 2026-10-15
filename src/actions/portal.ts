@@ -4,13 +4,15 @@ import { redirect } from "next/navigation";
 import { getBaseUrl } from "@/lib/base-url";
 import { AppError, toActionError, type ActionResult } from "@/lib/http";
 import { getI18n } from "@/lib/i18n/server";
-import { bookingSchema, customerMessageSchema, formToObject, portalLoginSchema } from "@/lib/validators";
+import { bookingSchema, claimSchema, customerMessageSchema, feedbackSchema, formToObject, portalLoginSchema } from "@/lib/validators";
+import { createClaim, createFeedback } from "@/server/claims";
+import { fmt } from "@/lib/format";
 import { cancelByCustomer, createAppointment, manageToken, sendBookingConfirmation } from "@/server/booking";
 import { approveQuoteByCustomer, customerMessage, portalLogin } from "@/server/portal";
 import { clientIp, endPortalSession, getPortalWorkOrderId } from "@/server/portal-session";
 import { releaseAttempts, reserveAttempt } from "@/server/rate-limit";
 
-type Result = ActionResult<{ redirectTo?: string; warning?: string }>;
+type Result = ActionResult<{ redirectTo?: string; warning?: string; message?: string }>;
 
 // ── Live repair tracker ──────────────────────────────────────────────────────
 
@@ -97,6 +99,37 @@ export async function cancelBookingAction(reference: string, token: string): Pro
       const { t } = await getI18n();
       return { ok: false, error: t.booking.cancelTooLate };
     }
+    return toActionError(error);
+  }
+}
+
+// ── Complaints & reviews (customer site) ─────────────────────────────────────
+
+/** Sent from the repair tracker ("fromTracker"): tied to the signed-in work order. */
+async function trackerWorkOrder(form: FormData): Promise<string | null> {
+  return form.get("fromTracker") === "1" ? getPortalWorkOrderId() : null;
+}
+
+export async function submitClaimAction(form: FormData): Promise<Result> {
+  try {
+    const { website, ...input } = claimSchema.parse(formToObject(form));
+    void website; // honeypot, already checked empty by the schema
+    const claim = await createClaim(input, { ip: await clientIp(), workOrderId: await trackerWorkOrder(form) });
+    const { t } = await getI18n();
+    return { ok: true, data: { message: fmt(t.claims.sent, { number: `REC-${String(claim.number).padStart(4, "0")}` }) } };
+  } catch (error) {
+    return toActionError(error);
+  }
+}
+
+export async function submitFeedbackAction(form: FormData): Promise<Result> {
+  try {
+    const { website, ...input } = feedbackSchema.parse(formToObject(form));
+    void website; // honeypot, already checked empty by the schema
+    await createFeedback(input, { ip: await clientIp(), workOrderId: await trackerWorkOrder(form) });
+    const { t } = await getI18n();
+    return { ok: true, data: { message: t.feedback.thanks, redirectTo: form.get("fromTracker") === "1" ? "/suivi/vehicule" : undefined } };
+  } catch (error) {
     return toActionError(error);
   }
 }

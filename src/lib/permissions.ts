@@ -19,6 +19,7 @@ const MATRIX = {
   viewAppointments: ["ADMIN", "RECEPTION", "MECHANIC"],
   manageAppointments: ["ADMIN", "RECEPTION"],
   useWorkshop: ["ADMIN", "RECEPTION", "MECHANIC"],
+  manageClaims: ["ADMIN", "RECEPTION"],
 
   // Espace fournisseur
   viewStock: ["ADMIN", "RECEPTION", "MECHANIC", "STOREKEEPER"],
@@ -34,6 +35,7 @@ const MATRIX = {
 
   // Administration
   manageSettings: ["ADMIN"],
+  viewReports: ["ADMIN"],
 } as const satisfies Record<string, readonly Role[]>;
 
 export type Permission = keyof typeof MATRIX;

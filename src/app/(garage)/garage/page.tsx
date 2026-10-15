@@ -4,6 +4,7 @@ import type { LucideIcon } from "lucide-react";
 import { PlateChip, StatusBadge } from "@/components/garage/badges";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/field";
+import { PlateSearch } from "@/components/garage/plate-search";
 import { siteMedia } from "@/lib/site-media";
 import { getSettings } from "@/server/settings";
 import { formatDateTime, formatMoney, formatQty, woNumber } from "@/lib/format";
@@ -76,6 +77,9 @@ export default async function DashboardPage() {
             <h1 className="f-display mt-3 text-2xl text-white sm:text-4xl">{t.dashboard.title}</h1>
           </div>
           <div className="ms-auto flex flex-wrap items-center gap-2">
+            {can(role, "viewWorkOrders") && (
+              <PlateSearch className="w-56 [&_input]:border-white/30 [&_input]:bg-black/60 [&_input]:text-white" placeholder={t.plateLookup.quick} label={t.plateLookup.title} />
+            )}
             {can(role, "viewWorkOrders") && (
               <Button asChild>
                 <Link href="/garage/work-orders/new">{t.workOrders.new}</Link>
