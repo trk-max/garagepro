@@ -30,6 +30,17 @@
   --input: #d3d6dc;
   --ring: #e10600;
   color-scheme: light;
+  /* Accent scale (Guard Red in the team app; Rosso Corsa on the customer site, see .ferrari). */
+  --brand-50: #fff1f0;
+  --brand-100: #ffdfdc;
+  --brand-200: #ffc5bf;
+  --brand-300: #ff9c93;
+  --brand-400: #ff5a4f;
+  --brand-500: #e10600;
+  --brand-600: #c40500;
+  --brand-700: #a00400;
+  --brand-800: #840807;
+  --brand-900: #6d0c0a;
   /* Brand surfaces (portal header/footer, e-mails) */
   --brand-navy: #0b0c10;
   --brand-navy-2: #1b1e27;
@@ -84,6 +95,64 @@
   --brand-anthracite: #262a35;
 }
 
+/*
+ * Customer site ("ferrari" scope): black void or white canvas, square corners,
+ * hairline dividers, small uppercase tracked type, and a single Rosso Corsa
+ * used only for active / hover / focus states — never as decoration.
+ */
+.ferrari {
+  --radius: 0px;
+  --background: #ffffff;
+  --foreground: #000000;
+  --card: #f7f7f7;
+  --popover: #ffffff;
+  --popover-foreground: #000000;
+  --primary: #000000;
+  --primary-foreground: #ffffff;
+  --secondary: #ebebeb;
+  --secondary-foreground: #000000;
+  --muted: #ebebeb;
+  --muted-foreground: #666666;
+  --accent: #ebebeb;
+  --accent-foreground: #000000;
+  --border: #d2d2d2;
+  --input: #d2d2d2;
+  --ring: #da291c;
+  --brand-50: #fdf0ef;
+  --brand-100: #fadbd8;
+  --brand-200: #f4b5b0;
+  --brand-300: #ec8a82;
+  --brand-400: #e4574d;
+  --brand-500: #da291c;
+  --brand-600: #b8221a;
+  --brand-700: #9d2211;
+  --brand-800: #7f1b0e;
+  --brand-900: #5f140b;
+  --brand-navy: #000000;
+  --brand-navy-2: #181818;
+  --brand-anthracite: #181818;
+}
+.dark .ferrari,
+.ferrari.dark,
+.ferrari .dark {
+  --background: #000000;
+  --foreground: #ffffff;
+  --card: #181818;
+  --popover: #181818;
+  --popover-foreground: #ffffff;
+  --primary: #ffffff;
+  --primary-foreground: #000000;
+  --secondary: #181818;
+  --secondary-foreground: #ffffff;
+  --muted: #181818;
+  --muted-foreground: #8f8f8f;
+  --accent: #232323;
+  --accent-foreground: #ffffff;
+  --border: #303030;
+  --input: #303030;
+  color-scheme: dark;
+}
+
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -110,16 +179,16 @@
   --color-anthracite: var(--brand-anthracite);
 
   /* Guard Red scale (replaces the former orange accent). */
-  --color-brand-50: #fff1f0;
-  --color-brand-100: #ffdfdc;
-  --color-brand-200: #ffc5bf;
-  --color-brand-300: #ff9c93;
-  --color-brand-400: #ff5a4f;
-  --color-brand-500: #e10600;
-  --color-brand-600: #c40500;
-  --color-brand-700: #a00400;
-  --color-brand-800: #840807;
-  --color-brand-900: #6d0c0a;
+  --color-brand-50: var(--brand-50);
+  --color-brand-100: var(--brand-100);
+  --color-brand-200: var(--brand-200);
+  --color-brand-300: var(--brand-300);
+  --color-brand-400: var(--brand-400);
+  --color-brand-500: var(--brand-500);
+  --color-brand-600: var(--brand-600);
+  --color-brand-700: var(--brand-700);
+  --color-brand-800: var(--brand-800);
+  --color-brand-900: var(--brand-900);
 
   /* Self-hosted Inter (no request to Google); Arabic falls back to the system font. */
   --font-sans: "Inter Variable", "Inter", ui-sans-serif, system-ui, "Segoe UI", Tahoma, "Noto Sans Arabic", sans-serif;
@@ -136,6 +205,22 @@
   text-transform: uppercase;
   letter-spacing: 0.12em;
   color: var(--muted-foreground);
+}
+
+/* Customer-site type: quiet, uppercase, tracked. Tracking widens as type shrinks. */
+@utility f-display {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  line-height: 1.12;
+}
+@utility f-label {
+  font-size: 0.75rem;
+  line-height: 1.5;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
 }
 
 /* Showroom headline: wide, heavy, uppercase — Brabus / Mansory style. */
@@ -180,6 +265,8 @@
    glyphs need more line height than the tight Latin display setting. */
 [dir="rtl"] .display-wide,
 [dir="rtl"] .heading-exec,
+[dir="rtl"] .f-display,
+[dir="rtl"] .f-label,
 [dir="rtl"] .label-spec {
   letter-spacing: 0;
 }
@@ -242,6 +329,32 @@
       align-items: center;
     }
   }
+}
+
+/* Customer site: page titles and buttons speak in the same uppercase whisper; no shadows. */
+.ferrari h1,
+.ferrari h2 {
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.ferrari [data-slot="button"] {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+.ferrari .shadow-xs,
+.ferrari .shadow-sm,
+.ferrari .shadow,
+.ferrari .shadow-md,
+.ferrari .shadow-lg {
+  box-shadow: none;
+}
+[dir="rtl"] .ferrari h1,
+[dir="rtl"] .ferrari h2,
+[dir="rtl"] .ferrari [data-slot="button"] {
+  letter-spacing: 0;
 }
 
 /* Respect "reduce motion" system setting. */

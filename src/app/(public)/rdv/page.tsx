@@ -17,7 +17,7 @@ export default async function BookingPage({ searchParams }: PageProps) {
         <p className="flex items-center gap-3 rounded-lg bg-card p-6 text-sm ring-1 ring-border">
           <CalendarX className="size-6 text-muted-foreground" aria-hidden /> {t.booking.closed}
           {phone && (
-            <a href={`tel:${phone}`} className="ms-auto font-medium text-brand-700 dark:text-brand-400" dir="ltr">
+            <a href={`tel:${phone}`} className="ms-auto font-medium text-foreground" dir="ltr">
               {settings.phone}
             </a>
           )}

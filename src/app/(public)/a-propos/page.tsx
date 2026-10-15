@@ -1,7 +1,6 @@
 import { existsSync } from "node:fs";
 import path from "node:path";
 import type { Metadata } from "next";
-import "@fontsource-variable/archivo/wdth.css";
 import { AboutView } from "@/components/portal/about-view";
 import { aboutContent } from "@/lib/about-content";
 import { getI18n } from "@/lib/i18n/server";

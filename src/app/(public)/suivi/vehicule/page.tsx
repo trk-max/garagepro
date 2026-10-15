@@ -102,8 +102,8 @@ export default async function TrackerPage() {
 
       {/* ── Quote to approve ── */}
       {view.quote && (
-        <section className="rounded-lg bg-card p-5 shadow-sm ring-2 ring-brand-400">
-          <h2 className="font-semibold text-brand-700 dark:text-brand-400">{t.portal.quoteTitle}</h2>
+        <section className="rounded-lg bg-card p-5 ring-2 ring-foreground">
+          <h2 className="font-semibold text-foreground">{t.portal.quoteTitle}</h2>
           <p className="mt-1 text-sm text-muted-foreground">{t.portal.quoteIntro}</p>
           <ul className="mt-4 divide-y text-sm">
             {view.quote.lines.map((l, i) => (
@@ -167,7 +167,7 @@ export default async function TrackerPage() {
           {view.invoice.totalTtc > view.invoice.paidAmount && (
             <div className="text-end text-sm">
               <p className="text-muted-foreground">{t.portal.amountDue}</p>
-              <p className="font-semibold text-brand-700 dark:text-brand-400" dir="ltr">{formatMoney(view.invoice.totalTtc - view.invoice.paidAmount, lang)}</p>
+              <p className="font-semibold text-foreground" dir="ltr">{formatMoney(view.invoice.totalTtc - view.invoice.paidAmount, lang)}</p>
             </div>
           )}
         </section>
@@ -215,7 +215,7 @@ export default async function TrackerPage() {
         <ol className="space-y-3 border-s-2 border-border ps-4">
           {view.events.map((e) => (
             <li key={e.id} className="relative text-sm">
-              <span className="absolute -start-[21px] top-1.5 size-2.5 rounded-full bg-brand-400 ring-4 ring-white" aria-hidden />
+              <span className="absolute -start-[21px] top-1.5 size-2.5 rounded-full bg-brand-500 ring-4 ring-background" aria-hidden />
               <p className="font-medium">{eventLabel(e, t)}</p>
               {e.body && <p className="mt-0.5 whitespace-pre-line text-muted-foreground">{e.body}</p>}
               <time className="text-xs text-muted-foreground">{formatDateTime(e.createdAt, lang)}</time>

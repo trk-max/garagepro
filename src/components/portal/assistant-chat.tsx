@@ -244,7 +244,7 @@ export function AssistantChat({
                 placeholder={a.placeholder}
                 className="min-h-11 flex-1 resize-none rounded-md border border-border bg-card px-3 py-2.5 text-base outline-none focus-visible:border-brand-400 focus-visible:ring-[3px] focus-visible:ring-brand-400/40"
               />
-              <Button type="submit" disabled={pending || !draft.trim()} className="h-11 bg-brand-500 px-4 hover:bg-brand-600" aria-label={a.send}>
+              <Button type="submit" disabled={pending || !draft.trim()} className="h-11 bg-primary px-4 text-primary-foreground hover:bg-brand-500 hover:text-white" aria-label={a.send}>
                 {pending ? <Loader2 className="animate-spin" aria-hidden /> : <Send className="rtl:-scale-x-100" aria-hidden />}
                 <span className="max-sm:sr-only">{a.send}</span>
               </Button>
@@ -273,7 +273,7 @@ function Chip({ children, onClick, highlight }: { children: ReactNode; onClick: 
         "min-h-11 rounded-md px-4 text-start text-sm transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-brand-500/50",
         highlight
           ? "border border-dashed border-muted-foreground/50 bg-transparent text-muted-foreground hover:bg-accent"
-          : "bg-card font-medium text-foreground ring-1 ring-border hover:text-brand-700 hover:ring-brand-500",
+          : "bg-card font-medium text-foreground ring-1 ring-border hover:ring-foreground",
       )}
     >
       {children}
@@ -284,7 +284,7 @@ function Chip({ children, onClick, highlight }: { children: ReactNode; onClick: 
 function Bubble({ mine, label, ai, children }: { mine: boolean; label: string; ai?: boolean; children: ReactNode }) {
   return (
     <div className={cn("flex items-start gap-3", mine && "flex-row-reverse")}>
-      <span className={cn("grid size-8 shrink-0 place-items-center rounded-full text-white", mine ? "bg-foreground text-background" : "bg-brand-500")} aria-hidden>
+      <span className={cn("grid size-8 shrink-0 place-items-center rounded-full text-white", mine ? "bg-foreground text-background" : "bg-[#303030] text-white")} aria-hidden>
         {mine ? <User className="size-4" /> : ai ? <Sparkles className="size-4" /> : <Bot className="size-4" />}
       </span>
       <div className={cn("max-w-[85%] rounded-lg px-4 py-3 text-[15px] leading-relaxed", mine ? "bg-foreground text-background" : "bg-muted text-foreground")}>
@@ -351,7 +351,7 @@ function ResultCard(props: {
       {result.service === "none" ? (
         <p className="text-sm text-emerald-700 dark:text-emerald-400">{a.noService}</p>
       ) : service ? (
-        <Button asChild className={WRAP + " w-full bg-brand-500 hover:bg-brand-600"}>
+        <Button asChild className={WRAP + " w-full bg-primary text-primary-foreground hover:bg-brand-500 hover:text-white"}>
           <Link href={bookingHref(service.id, `${tr(result.title, lang)} — ${props.summary}`)}>
             <CalendarCheck aria-hidden /> {a.bookingCta} : {serviceName}
           </Link>
@@ -378,16 +378,16 @@ function BookingCard({ booking }: { booking: Booking }) {
   const { t } = useI18n();
   const a = t.assistant;
   return (
-    <div className="ms-11 max-w-[85%] rounded-lg bg-card p-4 shadow-sm ring-1 ring-brand-200">
+    <div className="ms-11 max-w-[85%] rounded-lg bg-card p-4 ring-1 ring-border">
       <p className="flex items-center gap-2 text-sm font-semibold">
-        <CalendarCheck className="size-4 text-brand-600" aria-hidden /> {a.bookingTitle}
+        <CalendarCheck className="size-4" aria-hidden /> {a.bookingTitle}
       </p>
       <p className="mt-1 font-medium">{booking.serviceName}</p>
       <div className="mt-2">
         <UrgencyBadge urgency={booking.urgency} />
       </div>
       {booking.summary && <p className="mt-2 text-sm text-muted-foreground">{booking.summary}</p>}
-      <Button asChild className={WRAP + " mt-3 w-full bg-brand-500 hover:bg-brand-600"}>
+      <Button asChild className={WRAP + " mt-3 w-full bg-primary text-primary-foreground hover:bg-brand-500 hover:text-white"}>
         <Link href={bookingHref(booking.serviceId, booking.summary)}>{a.bookingCta}</Link>
       </Button>
     </div>

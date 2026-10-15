@@ -112,7 +112,7 @@ export default async function BookingConfirmationPage({ params, searchParams }: 
       </div>
 
       <p className="mt-6 text-center text-sm">
-        <Link href="/rdv" className="font-medium text-brand-700 dark:text-brand-400 hover:underline">
+        <Link href="/rdv" className="font-medium text-foreground hover:underline">
           {b.newBooking}
         </Link>
       </p>

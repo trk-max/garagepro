@@ -21,11 +21,11 @@ export function RepairStepper({ steps, progress, t, ready }: { steps: CustomerSt
     <section aria-label={t.portal.progress} className="rounded-lg bg-card p-5 shadow-sm ring-1 ring-border">
       <div className="flex items-baseline justify-between">
         <h2 className="text-sm font-semibold text-muted-foreground">{t.portal.progress}</h2>
-        <span className={cn("text-2xl font-bold tabular-nums", ready ? "text-emerald-600" : "text-brand-600")}>{progress}%</span>
+        <span className={cn("text-2xl font-bold tabular-nums", ready ? "text-emerald-600" : "text-foreground")}>{progress}%</span>
       </div>
       <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-muted" role="progressbar" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100}>
         <div
-          className={cn("h-full rounded-full transition-[width] duration-700 ease-out", ready ? "bg-emerald-500" : "bg-gradient-to-r from-brand-400 to-brand-600")}
+          className={cn("h-full rounded-full transition-[width] duration-700 ease-out", ready ? "bg-emerald-500" : "bg-foreground")}
           style={{ width: `${Math.max(progress, 4)}%` }}
         />
       </div>
@@ -48,7 +48,7 @@ export function RepairStepper({ steps, progress, t, ready }: { steps: CustomerSt
                 className={cn(
                   "relative z-10 grid size-10 shrink-0 place-items-center rounded-full ring-4 ring-white transition-colors",
                   step.state === "done" && "bg-emerald-500 text-white",
-                  step.state === "current" && (ready ? "bg-emerald-500 text-white" : "bg-brand-500 text-white shadow-sm shadow-brand-500/30"),
+                  step.state === "current" && (ready ? "bg-emerald-500 text-white" : "bg-brand-500 text-white"),
                   step.state === "upcoming" && "bg-muted text-muted-foreground",
                 )}
               >

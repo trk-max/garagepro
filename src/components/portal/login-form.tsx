@@ -38,7 +38,7 @@ export function PortalLoginForm({ defaultPlate }: { defaultPlate: string }) {
           className="h-12 text-center font-mono text-2xl tracking-[0.6em]"
         />
       </label>
-      <Button type="submit" className="h-12 w-full bg-brand-500 text-base hover:bg-brand-600">
+      <Button type="submit" className="h-12 w-full bg-primary text-primary-foreground hover:bg-brand-500 hover:text-white">
         {t.portal.loginSubmit}
       </Button>
     </ActionForm>

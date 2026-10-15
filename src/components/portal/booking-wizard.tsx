@@ -210,7 +210,7 @@ export function BookingWizard({
                   <span className="inline-flex items-center gap-1 text-muted-foreground">
                     <Clock className="size-4" aria-hidden /> {b.duration} : {duration(s.durationMin)}
                   </span>
-                  <span className="font-medium text-brand-700 dark:text-brand-400" dir="ltr">{price(s)}</span>
+                  <span className="font-medium text-foreground" dir="ltr">{price(s)}</span>
                 </p>
               </button>
             ))}
@@ -277,7 +277,7 @@ export function BookingWizard({
                           "aspect-square min-h-10 rounded-lg text-sm tabular-nums transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-brand-400/60",
                           !free && "cursor-not-allowed text-muted-foreground line-through decoration-border",
                           free && !selected && "bg-emerald-50 dark:bg-emerald-500/10 font-medium text-emerald-800 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-500/15",
-                          selected && "bg-brand-500 font-semibold text-white shadow",
+                          selected && "bg-brand-500 font-semibold text-white",
                         )}
                       >
                         {Number(d.slice(8))}
@@ -318,7 +318,7 @@ export function BookingWizard({
             <Button type="button" variant="ghost" onClick={() => setStep(0)}>
               <ArrowLeft className="size-4 rtl:rotate-180" aria-hidden /> {b.back}
             </Button>
-            <Button type="button" disabled={!date || !time} onClick={() => setStep(2)} className="bg-brand-500 hover:bg-brand-600">
+            <Button type="button" disabled={!date || !time} onClick={() => setStep(2)} className="bg-primary text-primary-foreground hover:bg-brand-500 hover:text-white">
               {b.next} <ArrowRight className="size-4 rtl:rotate-180" aria-hidden />
             </Button>
           </nav>
@@ -354,7 +354,7 @@ export function BookingWizard({
             <Button type="button" variant="ghost" onClick={() => setStep(1)}>
               <ArrowLeft className="size-4 rtl:rotate-180" aria-hidden /> {b.back}
             </Button>
-            <Button type="button" onClick={goToSummary} className="bg-brand-500 hover:bg-brand-600">
+            <Button type="button" onClick={goToSummary} className="bg-primary text-primary-foreground hover:bg-brand-500 hover:text-white">
               {b.next} <ArrowRight className="size-4 rtl:rotate-180" aria-hidden />
             </Button>
           </nav>
