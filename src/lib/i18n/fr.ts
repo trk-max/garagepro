@@ -838,6 +838,15 @@ export const fr = {
     thanks: "Merci pour votre avis !",
     already: "Merci, votre avis a bien été enregistré.",
   },
+  footer: {
+    marquee: ["Suivi en direct", "Photos et vidéos de chaque étape", "Devis validé en ligne", "Valeurs constructeur", "Garantie 7 jours", "Zéro surprise sur la facture"],
+    heading: "Prêt à reprendre la route ?",
+    craftedWith: "Entretenu avec",
+    by: "par",
+    rights: "Tous droits réservés.",
+    backToTop: "Revenir en haut",
+    call: "Appeler",
+  },
 };
 
 export type Dictionary = typeof fr;

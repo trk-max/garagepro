@@ -23,6 +23,7 @@ export default async function PublicLayout({ children }: { children: ReactNode }
         staff: t.portal.staffLink,
         claims: t.claims.navLink,
       }}
+      footer={t.footer}
     >
       {children}
     </PortalShell>

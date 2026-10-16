@@ -840,4 +840,13 @@ export const en: Dictionary = {
     thanks: "Thank you for your review!",
     already: "Thank you, your review has been saved.",
   },
+  footer: {
+    marquee: ["Live tracking", "Photos and videos of every step", "Quote approved online", "Manufacturer values", "7-day guarantee", "No surprise on the invoice"],
+    heading: "Ready to hit the road again?",
+    craftedWith: "Looked after with",
+    by: "by",
+    rights: "All rights reserved.",
+    backToTop: "Back to top",
+    call: "Call",
+  },
 };

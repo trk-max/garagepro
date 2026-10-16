@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { ArrowRight, MapPin, Phone } from "lucide-react";
+import { ArrowRight, CalendarCheck, Gauge, MapPin, Phone } from "lucide-react";
+import { CinematicFooter } from "@/components/ui/motion-footer";
+import type { Dictionary } from "@/lib/i18n/fr";
 import { LangSwitch } from "@/components/garage/lang-switch";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { GpMonogram, GpWordmark } from "@/components/brand/garagepro-logo";
@@ -21,12 +23,14 @@ export function PortalShell({
   address,
   phone,
   labels,
+  footer,
   children,
 }: {
   garageName: string;
   address: string | null;
   phone: string | null;
   labels: Labels;
+  footer: Dictionary["footer"];
   children: ReactNode;
 }) {
   const links = [
@@ -83,38 +87,41 @@ export function PortalShell({
 
       <main className="flex-1">{children}</main>
 
-      <footer className="dark border-t border-[#303030] bg-[#181818] text-white">
-        <div className="mx-auto grid max-w-6xl gap-8 px-4 py-12 sm:grid-cols-3">
-          <div className="space-y-4">
-            <GpMonogram className="h-10 w-auto text-white" aria-hidden />
-            <GpWordmark className="h-3 w-auto text-white" aria-hidden />
-            <p className="text-[0.75rem] tracking-[0.06em] text-[#8f8f8f]">{labels.tagline}</p>
-          </div>
-          <div className="space-y-3 text-[0.75rem] tracking-[0.06em] text-white/80">
+      <CinematicFooter
+        className="dark"
+        giantText="GARAGEPRO"
+        marquee={footer.marquee}
+        heading={footer.heading}
+        primaryLinks={[
+          { href: "/rdv", label: labels.book, icon: <CalendarCheck aria-hidden /> },
+          { href: "/suivi", label: labels.track, icon: <Gauge aria-hidden /> },
+          ...(phone ? [{ href: `tel:${phone.replace(/\s/g, "")}`, label: footer.call, icon: <Phone aria-hidden />, external: true }] : []),
+        ]}
+        secondaryLinks={[
+          { href: "/a-propos", label: labels.about },
+          { href: "/assistant", label: labels.assistant },
+          { href: "/reclamation", label: labels.claims },
+          { href: "/login", label: labels.staff },
+        ]}
+        copyright={`© ${new Date().getFullYear()} ${garageName}. ${footer.rights}`}
+        credit={{ before: footer.craftedWith, after: footer.by, name: garageName }}
+        backToTopLabel={footer.backToTop}
+        info={
+          <span className="inline-flex flex-wrap items-center justify-center gap-x-4 gap-y-1 md:justify-start">
+            <span>{labels.tagline}</span>
             {address && (
-              <p className="flex items-start gap-2">
-                <MapPin className="mt-0.5 size-4 shrink-0" strokeWidth={1.5} aria-hidden /> {address}
-              </p>
+              <span className="inline-flex items-center gap-1">
+                <MapPin className="size-3.5" strokeWidth={1.5} aria-hidden /> {address}
+              </span>
             )}
             {phone && (
-              <a href={`tel:${phone.replace(/\s/g, "")}`} className="flex items-center gap-2 transition-colors hover:text-brand-500" dir="ltr">
-                <Phone className="size-4 shrink-0" strokeWidth={1.5} aria-hidden /> {phone}
-              </a>
+              <span dir="ltr" className="inline-flex items-center gap-1">
+                <Phone className="size-3.5" strokeWidth={1.5} aria-hidden /> {phone}
+              </span>
             )}
-          </div>
-          <div className="flex flex-col items-start gap-1 sm:items-end">
-            <Link href="/rdv" className="f-label inline-flex min-h-11 items-center gap-2 text-white transition-colors hover:text-brand-500">
-              {labels.book} <ArrowRight className="size-3.5 rtl:rotate-180" aria-hidden />
-            </Link>
-            <Link href="/login" className="f-label inline-flex min-h-11 items-center text-[#8f8f8f] transition-colors hover:text-white">
-              {labels.staff}
-            </Link>
-          </div>
-        </div>
-        <p className="f-label border-t border-[#303030] px-4 py-5 text-center text-[0.6875rem] text-[#666666]">
-          © {new Date().getFullYear()} {garageName}
-        </p>
-      </footer>
+          </span>
+        }
+      />
     </div>
   );
 }
