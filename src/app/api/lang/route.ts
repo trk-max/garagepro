@@ -23,7 +23,7 @@ export function GET(request: NextRequest) {
  * The value is resolved with the URL parser FIRST and accepted only if it stays
  * on our origin: the parser drops tab/LF/CR and reads a backslash as "/", so checking
  * the raw string alone let "/%09/evil.example" through. Control characters and
- * backslashes are refused outright.
+ * backslashes are refused outright, and so is a resolved path starting with "//".
  */
 function safeNext(request: NextRequest): URL {
   const home = new URL("/", request.url);
@@ -35,6 +35,9 @@ function safeNext(request: NextRequest): URL {
   } catch {
     return home;
   }
-  if (resolved.origin !== home.origin) return home;
-  return new URL(resolved.pathname + resolved.search + resolved.hash, home);
+  // "/.//evil.example" resolves to pathname "//evil.example" on OUR origin; re-parsing
+  // that pathname would make it scheme-relative (another site). Refuse it, and
+  // return the validated URL object itself, never a re-parsed string.
+  if (resolved.origin !== home.origin || resolved.pathname.startsWith("//")) return home;
+  return resolved;
 }

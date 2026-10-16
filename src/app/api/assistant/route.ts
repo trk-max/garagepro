@@ -3,7 +3,7 @@ import { getI18n } from "@/lib/i18n/server";
 import { AssistantUnavailable, aiConfigured, askAssistant, buildSystemPrompt, chatRequestSchema } from "@/server/assistant";
 import { listBookableServices } from "@/server/booking";
 import { clientIp } from "@/server/portal-session";
-import { isLimited, recordAttempt } from "@/server/rate-limit";
+import { releaseAttempts, reserveAttempt } from "@/server/rate-limit";
 import { getSettings } from "@/server/settings";
 
 export const runtime = "nodejs";
@@ -23,11 +23,17 @@ export async function POST(request: Request) {
   const parsed = chatRequestSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: "invalid" }, { status: 400 });
 
+  // Atomic reservations (count + record under a lock), BEFORE any provider call:
+  // parallel requests cannot all slip under the caps. Visitor first, then the site;
+  // if the site cap is reached, the visitor's slot is given back.
   const ipKey = `ai:ip:${await clientIp()}`;
-  if ((await isLimited(ipKey, MAX_PER_IP_PER_HOUR, 60, false)) || (await isLimited("ai:site", MAX_SITE_PER_DAY, 24 * 60, false))) {
+  const ipSlot = await reserveAttempt([{ key: ipKey, max: MAX_PER_IP_PER_HOUR }], 60, false);
+  if (!ipSlot) return NextResponse.json({ error: "tooMany" }, { status: 429 });
+  const siteSlot = await reserveAttempt([{ key: "ai:site", max: MAX_SITE_PER_DAY }], 24 * 60, false);
+  if (!siteSlot) {
+    await releaseAttempts(ipSlot);
     return NextResponse.json({ error: "tooMany" }, { status: 429 });
   }
-  await Promise.all([recordAttempt(ipKey, true), recordAttempt("ai:site", true)]);
 
   const [{ t, lang }, settings, services] = await Promise.all([getI18n(), getSettings(), listBookableServices()]);
   const catalog = services.map((s) => ({

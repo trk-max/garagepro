@@ -1,4 +1,5 @@
 import "server-only";
+import { ipFromHeaders } from "@/lib/client-ip";
 import { createHmac, randomInt, timingSafeEqual } from "node:crypto";
 import { cookies, headers } from "next/headers";
 import { prisma } from "@/lib/prisma";
@@ -69,7 +70,7 @@ export function isTrackable(wo: { status: string; deliveredAt: Date | null }): b
   return true;
 }
 
+/** Rate-limit key of the visitor: platform IP on Vercel, trusted proxy hop elsewhere (see lib/client-ip.ts). */
 export async function clientIp(): Promise<string> {
-  const h = await headers();
-  return h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || "unknown";
+  return ipFromHeaders(await headers());
 }

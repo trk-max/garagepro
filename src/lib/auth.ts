@@ -4,7 +4,8 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import type { Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { isLimited, recordAttempt } from "@/server/rate-limit";
+import { ipFromHeaders } from "@/lib/client-ip";
+import { markAttemptsOk, reserveAttempt } from "@/server/rate-limit";
 
 declare module "next-auth" {
   interface Session {
@@ -41,8 +42,39 @@ class TooManyAttempts extends CredentialsSignin {
 const DUMMY_HASH = "$2b$12$eC5BuRcUIHN7N1lpACqZP.9WFQ2y0gipZqNiNHJQVbezd0eTcO/l6";
 
 function requestIp(request: Request | undefined): string {
-  const h = request?.headers;
-  return h?.get("x-forwarded-for")?.split(",")[0]?.trim() || h?.get("x-real-ip") || "unknown";
+  return ipFromHeaders(request?.headers);
+}
+
+/**
+ * E-mail + password check with an atomic lockout: the attempt is written as a
+ * failure BEFORE the bcrypt check, under a lock (reserveAttempt), so parallel
+ * wrong passwords cannot all pass the "5 per e-mail / 15 min" check; it is
+ * flipped to a success only when the password is right.
+ */
+export async function authorizeStaff(raw: unknown, request: Request | undefined) {
+  const parsed = credentialsSchema.safeParse(raw);
+  if (!parsed.success) return null;
+
+  const emailKey = `login:email:${parsed.data.email}`;
+  const ipKey = `login:ip:${requestIp(request)}`;
+  const attempt = await reserveAttempt(
+    [
+      { key: emailKey, max: LOGIN_MAX_FAILS_PER_EMAIL },
+      { key: ipKey, max: LOGIN_MAX_FAILS_PER_IP },
+    ],
+    LOGIN_LOCK_MINUTES,
+    true,
+  );
+  if (!attempt) throw new TooManyAttempts();
+
+  const user = await prisma.user.findUnique({ where: { email: parsed.data.email } });
+  // Same work whether or not the account exists (no timing hint about valid e-mails).
+  const valid = await bcrypt.compare(parsed.data.password, user?.passwordHash ?? DUMMY_HASH);
+  if (!user || !user.isActive || !valid) return null; // stays recorded as a failure
+
+  await markAttemptsOk(attempt);
+  await prisma.user.update({ where: { id: user.id }, data: { lastSeenAt: new Date() } });
+  return { id: user.id, email: user.email, name: user.name, role: user.role };
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -51,30 +83,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
     Credentials({
       credentials: { email: {}, password: {} },
-      async authorize(raw, request) {
-        const parsed = credentialsSchema.safeParse(raw);
-        if (!parsed.success) return null;
-
-        const emailKey = `login:email:${parsed.data.email}`;
-        const ipKey = `login:ip:${requestIp(request)}`;
-        if (
-          (await isLimited(emailKey, LOGIN_MAX_FAILS_PER_EMAIL, LOGIN_LOCK_MINUTES)) ||
-          (await isLimited(ipKey, LOGIN_MAX_FAILS_PER_IP, LOGIN_LOCK_MINUTES))
-        ) {
-          throw new TooManyAttempts();
-        }
-
-        const user = await prisma.user.findUnique({ where: { email: parsed.data.email } });
-        // Same work whether or not the account exists (no timing hint about valid e-mails).
-        const valid = await bcrypt.compare(parsed.data.password, user?.passwordHash ?? DUMMY_HASH);
-        if (!user || !user.isActive || !valid) {
-          await Promise.all([recordAttempt(emailKey, false), recordAttempt(ipKey, false)]);
-          return null;
-        }
-
-        await prisma.user.update({ where: { id: user.id }, data: { lastSeenAt: new Date() } });
-        return { id: user.id, email: user.email, name: user.name, role: user.role };
-      },
+      authorize: (raw, request) => authorizeStaff(raw, request),
     }),
   ],
   callbacks: {

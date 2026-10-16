@@ -37,6 +37,13 @@ describe("language switch route", () => {
       expect(new URL(location!).host).toBe("localhost:3000");
     }
   });
+  it("dot segments that collapse to //host stay on the site", () => {
+    for (const next of ["/.//evil.example", "/..//evil.example", "/%2e%2e//evil.example", "/x/..//evil.example/path?q=1", "/././/evil.example"]) {
+      const location = call(`l=fr&next=${encodeURIComponent(next)}`).headers.get("location");
+      expect(location, next).toBe("http://localhost:3000/");
+      expect(new URL(location!).host).toBe("localhost:3000");
+    }
+  });
   it("keeps query string and hash of a same-site path", () => {
     expect(call(`l=fr&next=${encodeURIComponent("/suivi/vehicule?x=1#hist")}`).headers.get("location")).toBe("http://localhost:3000/suivi/vehicule?x=1#hist");
   });

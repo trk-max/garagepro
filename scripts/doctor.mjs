@@ -12,6 +12,7 @@ import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { activeDemoAccounts } from "./lib/accounts.mjs";
 
 const require = createRequire(import.meta.url);
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -140,16 +141,23 @@ const direct = await checkDb("DIRECT_URL (migrations, port 5432)", env.DIRECT_UR
 if (direct) await direct.$disconnect();
 if (db) {
   try {
-    const [settings, users, admins] = await Promise.all([
+    const [settings, users, admins, activeUsers] = await Promise.all([
       db.setting.count(),
       db.user.count({ where: { isActive: true } }),
       db.user.findMany({ where: { role: "ADMIN", isActive: true }, select: { email: true } }),
+      db.user.findMany({ where: { isActive: true }, select: { email: true, role: true, isActive: true } }),
     ]);
     ok(`Tables présentes · ${users} utilisateur(s) actif(s)`);
     if (!settings) warn("Paramètres du garage absents", "npm run db:seed (ajoute les données de base sans rien effacer)");
     if (!admins.length) fail("Aucun administrateur actif", "personne ne peut gérer le garage");
-    const demo = admins.filter((a) => a.email.endsWith("@garage.tn"));
-    if (demo.length) warn(`Compte(s) de démo encore actif(s) : ${demo.map((a) => a.email).join(", ")}`, "créez votre compte admin, puis désactivez les comptes @garage.tn (Paramètres → Équipe)");
+    // Every role: any active demo account (public password "password123") gives that role to anyone.
+    const demo = activeDemoAccounts(activeUsers);
+    if (demo.length) {
+      warn(
+        `Compte(s) de démo encore actif(s) : ${demo.map((a) => `${a.email} (${a.role})`).join(", ")}`,
+        'mot de passe public "password123" : créez votre admin (npm run reset-access -- --create-admin EMAIL MOTDEPASSE "Nom"), puis désactivez TOUS les comptes @garage.tn (Paramètres → Équipe)',
+      );
+    }
     const applied = await db.$queryRawUnsafe(`SELECT count(*)::int AS n FROM "_prisma_migrations" WHERE finished_at IS NOT NULL`).catch(() => null);
     if (applied) ok(`Migrations appliquées : ${applied[0].n}`);
     else warn("Historique des migrations absent", "voir README → Migrations Prisma");

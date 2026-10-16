@@ -276,13 +276,18 @@ export async function changeStatus(workOrderId: string, to: WorkOrderStatus, act
     }
 
     const now = new Date();
-    const data: Prisma.WorkOrderUpdateInput = { status: to };
+    const data: Prisma.WorkOrderUpdateManyMutationInput = { status: to };
     if (wo.status === "QUOTE_SENT" && (to === "IN_PROGRESS" || to === "WAITING_PARTS")) data.quoteApprovedAt = now;
     // A new (or complementary) quote must be approved again by the customer.
     if (to === "QUOTE_SENT") data.quoteApprovedAt = null;
     if (to === "READY") data.readyAt = now;
     if (to === "DELIVERED") data.deliveredAt = now;
-    await tx.workOrder.update({ where: { id: workOrderId }, data });
+    // Conditional write: only if the status is still the one checked above. Two
+    // simultaneous requests (e.g. two "Cancel" clicks) cannot both pass: the second
+    // UPDATE waits for the first, then matches 0 rows and stops here, BEFORE any
+    // part is returned to stock a second time.
+    const { count } = await tx.workOrder.updateMany({ where: { id: workOrderId, status: wo.status }, data });
+    if (count === 0) throw new AppError("transition", { from: wo.status, to }, 409);
 
     // Cancelling puts every consumed part back on the shelf.
     if (to === "CANCELLED") {
