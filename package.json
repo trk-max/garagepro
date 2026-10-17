@@ -26,7 +26,12 @@
     "serve": "node scripts/serve.mjs",
     "preserve": "prisma generate",
     "lint": "eslint .",
-    "reset-access": "node --env-file=.env scripts/reset-access.mjs"
+    "reset-access": "node --env-file=.env scripts/reset-access.mjs",
+    "hub:init": "node --env-file=.env scripts/hub/init.mjs",
+    "hub": "node --env-file=.env scripts/hub/start.mjs",
+    "prehub": "prisma generate",
+    "hub:sync": "node --env-file=.env scripts/hub/run-sync.mjs --once",
+    "test:hub": "vitest run tests/hub-sync.test.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -47,6 +52,7 @@
     "next": "^15.5.0",
     "next-auth": "5.0.0-beta.32",
     "nodemailer": "10.1.0",
+    "pg": "^8.16.3",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "resend": "^6.32.1",
@@ -60,6 +66,7 @@
     "@tailwindcss/postcss": "^4.1.13",
     "@types/node": "^22.18.0",
     "@types/nodemailer": "^8.0.2",
+    "@types/pg": "^8.15.5",
     "@types/react": "^19.1.12",
     "@types/react-dom": "^19.1.9",
     "eslint": "^9.39.5",

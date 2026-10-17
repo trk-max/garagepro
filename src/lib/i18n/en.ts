@@ -285,6 +285,7 @@ export const en: Dictionary = {
     locked: "Too many failed attempts. Try again in 15 minutes.",
   },
   errors: {
+    hubOnly: "In garage mode, invoices, purchase orders and goods receipts are created from the garage app (garage PC), so numbers never repeat.",
     vehicleIncomplete: "Vehicle file incomplete: VIN (17 characters), year, fuel, colour and mileage are mandatory.",
     alreadyRated: "You have already rated this repair. Thank you!",
     appUrlMissing: "Site address not configured (APP_URL): add APP_URL to .env or on Vercel to send links to customers.",
@@ -848,5 +849,16 @@ export const en: Dictionary = {
     rights: "All rights reserved.",
     backToTop: "Back to top",
     call: "Call",
+  },
+  pwa: {
+    install: "Install the app",
+    installHint: "On iPhone: Share button, then “Add to Home Screen”.",
+    offline: "Offline: you are seeing the last saved version of this page. Changes will resume when the network is back.",
+    backOnline: "Back online.",
+    hub: "Garage server",
+    hubPending: "{n} change(s) waiting to be sent to the internet",
+    hubSynced: "In sync",
+    hubOffline: "Internet down: the garage keeps working locally",
+    hubLastSync: "Last sync: {time}",
   },
 };

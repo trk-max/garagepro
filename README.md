@@ -41,6 +41,47 @@ npx prisma db execute --file prisma/migrations/2_claims_feedback/migration.sql -
 
 Le script peut être relancé sans risque (il ignore ce qui existe déjà).
 
+## Nouveautés V6 — application PC / téléphone et mode hors ligne
+
+| | |
+|---|---|
+| **Application** | GaragePro s'installe comme une vraie application (icône, plein écran, sans barre du navigateur). Bouton **« Installer l'application »** en bas du menu de l'espace équipe. PC (Chrome / Edge) : bouton, ou icône ⊕ dans la barre d'adresse. Android (Chrome) : bouton, ou ⋮ → *Installer l'application*. iPhone (Safari) : Partager → *Sur l'écran d'accueil*. |
+| **Coupure courte** | Bandeau « Pas de connexion » ; les pages déjà ouvertes restent consultables ; message quand la connexion revient. Rien n'est enregistré dans le navigateur pour les données sensibles (aucune API mise en cache) et la déconnexion efface les pages gardées. |
+| **Mode hors ligne complet (hub du garage)** | Le PC du garage fait tourner GaragePro avec **sa propre base**. Toute l'équipe (PC, téléphones, tablettes sur le **Wi-Fi du garage**) travaille normalement **sans internet** : ordres, atelier, photos, factures, stock, achats. Quand internet revient, tout est envoyé automatiquement à Supabase, et ce qui a été fait en ligne (RDV du site, réclamations…) revient au garage. |
+| **Pied de page** | Plus petit (une bande, plus de plein écran). |
+| **Corrections** | Lien de suivi sans APP_URL, montants cachés aux non-autorisés sur *Nouvel ordre*, fichier agenda (.ics), bons de réception avec pièce en double, liaison des réclamations publiques. |
+
+### Mode hors ligne : installer le hub sur le PC du garage (une seule fois)
+
+1. **Installer PostgreSQL** sur le PC (invite de commandes **administrateur**) :
+   ```cmd
+   winget install PostgreSQL.PostgreSQL.16
+   ```
+   Notez le mot de passe choisi pour l'utilisateur `postgres`. Puis créez la base :
+   ```cmd
+   "C:\Program Files\PostgreSQL\16\bin\createdb.exe" -U postgres garagepro
+   ```
+2. **Modifier le `.env` du PC du garage** (jamais celui de Vercel) — modèle complet dans `.env.example` :
+   - `DATABASE_URL` et `DIRECT_URL` = `postgresql://postgres:MOTDEPASSE@localhost:5432/garagepro`
+   - `CLOUD_DATABASE_URL` = l'ancienne adresse Supabase **port 5432** (Connect → *Session pooler*)
+   - `GARAGE_HUB_LOCAL="1"`
+   - `SUPABASE_STORAGE_BUCKET=""` (vide) et le nom du bucket dans `CLOUD_STORAGE_BUCKET`
+3. **Installer** (copie toutes les données en ligne vers le PC, ne supprime rien en ligne) :
+   ```cmd
+   npm run hub:init
+   ```
+4. **Sur Vercel** : Settings → Environment Variables → `GARAGE_HUB` = `1`, puis *Redeploy*.
+   Les factures, bons de commande et bons de réception sont alors numérotés **uniquement au garage** (deux numéros identiques sont impossibles).
+
+**Chaque jour** : double-cliquez sur `start-hub.cmd` (ou `npm run hub`). La fenêtre affiche l'adresse à ouvrir sur les téléphones, par ex. `http://192.168.1.20:3000`, et l'état de la synchronisation (toutes les 30 s). Le menu de l'équipe affiche **« Serveur du garage »** : synchronisé / modifications en attente / internet coupé.
+
+**À savoir**
+- Le PC du garage doit rester allumé pendant le travail (c'est le serveur). Donnez-lui une adresse IP fixe dans la box.
+- Même ligne modifiée au garage **et** en ligne pendant une coupure : **la modification la plus récente gagne**. Un conflit impossible à fusionner (ex. même plaque créée des deux côtés) est affiché dans la fenêtre du hub et réessayé jusqu'à correction.
+- Les numéros d'ordres et de réclamations ne se croisent jamais : **impairs au garage, pairs en ligne**.
+- Sur les téléphones, l'adresse `http://IP:3000` fonctionne sans internet, mais le bouton « Installer » n'y apparaît pas (les navigateurs exigent `https` pour installer une application) : ajoutez simplement un favori / raccourci sur l'écran d'accueil.
+- Synchronisation manuelle : `npm run hub:sync`. Test réel de la synchronisation (base PostgreSQL de test, jamais la vraie) : `set TEST_PG_URL=postgresql://postgres:MDP@localhost:5432/postgres` puis `npm run test:hub`.
+
 ## Fonctionnalités
 
 | Module | Contenu |

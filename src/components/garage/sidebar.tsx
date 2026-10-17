@@ -5,6 +5,9 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { signOutAction } from "@/actions/auth";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { InstallAppButton } from "@/components/pwa/install-app-button";
+import { clearPrivateCache } from "@/components/pwa/pwa-register";
+import { HubStatus } from "@/components/pwa/hub-status";
 import {
   BarChart3,
   MessageSquareWarning,
@@ -103,6 +106,8 @@ export function Sidebar({
       <NavLinks role={user.role} badges={badges} className="flex-1 overflow-y-auto px-2" />
 
       <div className="space-y-3 border-t border-[#303030] p-4">
+        <HubStatus />
+        <InstallAppButton />
         <div className="flex items-center justify-between gap-2">
           <LangSwitch />
           <ThemeToggle />
@@ -121,7 +126,8 @@ function UserRow({ user }: { user: { name: string; role: Role } }) {
         <p className="truncate text-sm font-medium">{user.name}</p>
         <p className="text-xs text-muted-foreground">{t.roles[user.role]}</p>
       </div>
-      <form action={signOutAction}>
+      {/* Sign-out also forgets the pages saved for offline use on this device. */}
+      <form action={signOutAction} onSubmit={() => clearPrivateCache()}>
         <button type="submit" className="grid size-10 place-items-center text-muted-foreground transition-colors hover:text-brand-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500" aria-label={t.common.signOut} title={t.common.signOut}>
           <LogOut className="size-4 rtl:rotate-180" />
         </button>
@@ -206,6 +212,8 @@ export function MobileNav({
       {open && (
         <div className="max-h-[80dvh] space-y-3 overflow-y-auto border-t border-[#303030] bg-black p-3">
           <NavLinks role={user.role} badges={badges} onNavigate={() => setOpen(false)} />
+          <HubStatus />
+          <InstallAppButton />
           <div className="flex items-center justify-between gap-2">
             <LangSwitch />
             <ThemeToggle withLabel />

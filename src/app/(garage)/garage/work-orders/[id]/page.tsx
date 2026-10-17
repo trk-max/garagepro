@@ -57,7 +57,8 @@ export default async function WorkOrderPage({ params }: PageProps) {
     packageOptions(),
     listMechanics(),
     getVehicleHistoryFor(id),
-    getBaseUrl(),
+    // No APP_URL in production: the page still works, only the tracking link is replaced by a hint.
+    getBaseUrl().catch(() => null),
   ]);
   if (!wo) notFound();
   const customerApproval = wo.events.find((e) => e.type === "QUOTE_APPROVED");
@@ -355,9 +356,9 @@ export default async function WorkOrderPage({ params }: PageProps) {
           <TrackingCard
             workOrderId={wo.id}
             pin={wo.trackingPin}
-            link={`${baseUrl}/suivi?plate=${wo.vehicle.plate}`}
+            link={baseUrl ? `${baseUrl}/suivi?plate=${wo.vehicle.plate}` : t.errors.appUrlMissing}
             shareText={
-              wo.trackingPin
+              wo.trackingPin && baseUrl
                 ? fmt(t.tracking.shareMessage, {
                     name: wo.customer.name.split(/\s+/)[0] ?? wo.customer.name,
                     vehicle: `${wo.vehicle.make} ${wo.vehicle.model}`,

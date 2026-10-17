@@ -12,9 +12,8 @@ const MAX_PER_IP_PER_HOUR = 5;
 export type ClaimInput = { name: string; phone: string; email?: string; plate?: string; category: ClaimCategory; message: string };
 
 /**
- * New complaint from the customer site. Linked to the customer file when the
- * plate (or an 8-digit phone match) is known, and to the work order when sent
- * from the repair tracker.
+ * New complaint from the customer site. Linked to the work order when sent from
+ * the repair tracker, otherwise to the customer file only if plate + phone match.
  */
 export async function createClaim(input: ClaimInput, ctx: { ip: string; workOrderId?: string | null }) {
   if (!(await reserveAttempt([{ key: `claim-ip:${ctx.ip}`, max: MAX_PER_IP_PER_HOUR }], 60, false))) {
@@ -49,19 +48,22 @@ export async function createFeedback(input: FeedbackInput, ctx: { ip: string; wo
   }
 }
 
+/**
+ * Which customer file a complaint/review belongs to.
+ * - From the repair tracker: the signed-in work order (proved by plate + PIN).
+ * - From the public page: only when the plate AND the phone typed both match the
+ *   same customer file. A plate alone proves nothing (anyone can read a plate),
+ *   so a stranger cannot attach messages to someone else's file.
+ */
 async function findCustomer(plate: string | undefined, phone: string | undefined, workOrderId: string | null) {
   if (workOrderId) {
     const wo = await prisma.workOrder.findUnique({ where: { id: workOrderId }, select: { id: true, customerId: true } });
     if (wo) return { workOrderId: wo.id, customerId: wo.customerId };
   }
-  if (plate) {
-    const vehicle = await prisma.vehicle.findUnique({ where: { plate }, select: { customerId: true } });
-    if (vehicle) return { workOrderId: null, customerId: vehicle.customerId };
-  }
   const needle = phone ? phoneMatchNeedle(phone) : null;
-  if (needle) {
-    const customer = await prisma.customer.findFirst({ where: { phone: { contains: needle } }, select: { id: true } });
-    if (customer) return { workOrderId: null, customerId: customer.id };
+  if (plate && needle) {
+    const vehicle = await prisma.vehicle.findUnique({ where: { plate }, select: { customerId: true, customer: { select: { phone: true } } } });
+    if (vehicle && vehicle.customer.phone.replace(/\D/g, "").includes(needle)) return { workOrderId: null, customerId: vehicle.customerId };
   }
   return { workOrderId: null, customerId: null };
 }

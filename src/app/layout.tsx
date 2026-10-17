@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import { Toaster } from "sonner";
 import { I18nProvider } from "@/lib/i18n/client";
+import { NetworkStatus } from "@/components/pwa/network-status";
+import { PwaRegister } from "@/components/pwa/pwa-register";
 import { cookies } from "next/headers";
 import { getI18n } from "@/lib/i18n/server";
 import { parseTheme, THEME_COOKIE } from "@/lib/theme";
@@ -21,6 +23,10 @@ export const metadata: Metadata = {
   // The app is already in French, Arabic and English: stop the browser from
   // auto-translating it (its rewrites of the page break the language switch).
   other: { google: "notranslate" },
+  // Installable app (PC + phone): see app/manifest.ts and public/sw.js.
+  applicationName: "GaragePro",
+  appleWebApp: { capable: true, title: "GaragePro", statusBarStyle: "black-translucent" },
+  icons: { apple: "/icons/apple-180.png" },
 };
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
@@ -30,8 +36,10 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     <html lang={lang} dir={dir} translate="no" className={theme === "dark" ? "dark" : undefined} suppressHydrationWarning>
       <body className="antialiased">
         <I18nProvider lang={lang} t={t}>
+          <NetworkStatus />
           {children}
         </I18nProvider>
+        <PwaRegister />
         <Toaster position={dir === "rtl" ? "bottom-left" : "bottom-right"} richColors theme={theme} dir={dir} />
       </body>
     </html>

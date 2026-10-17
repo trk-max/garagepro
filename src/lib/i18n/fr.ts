@@ -283,6 +283,7 @@ export const fr = {
     locked: "Trop de tentatives échouées. Réessayez dans 15 minutes.",
   },
   errors: {
+    hubOnly: "Avec le mode garage, les factures, bons de commande et bons de réception sont créés depuis l'application du garage (PC du garage), pour garder une numérotation sans doublon.",
     vehicleIncomplete: "Fiche du véhicule incomplète : VIN (17 caractères), année, carburant, couleur et kilométrage sont obligatoires.",
     alreadyRated: "Vous avez déjà donné votre avis pour cette réparation. Merci !",
     appUrlMissing: "Adresse du site non configurée (APP_URL) : ajoutez APP_URL dans .env ou sur Vercel pour envoyer des liens aux clients.",
@@ -846,6 +847,17 @@ export const fr = {
     rights: "Tous droits réservés.",
     backToTop: "Revenir en haut",
     call: "Appeler",
+  },
+  pwa: {
+    install: "Installer l'application",
+    installHint: "Sur iPhone : bouton Partager, puis « Sur l'écran d'accueil ».",
+    offline: "Hors ligne : vous voyez la dernière version enregistrée de cette page. Les modifications reprendront au retour du réseau.",
+    backOnline: "Connexion rétablie.",
+    hub: "Serveur du garage",
+    hubPending: "{n} changement(s) en attente d'envoi vers internet",
+    hubSynced: "Synchronisé",
+    hubOffline: "Internet coupé : le garage continue en local",
+    hubLastSync: "Dernière synchro : {time}",
   },
 };
 

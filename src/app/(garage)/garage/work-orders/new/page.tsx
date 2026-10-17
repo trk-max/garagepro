@@ -6,6 +6,7 @@ import { PlateSearch } from "@/components/garage/plate-search";
 import { Card, CardTitle, PageHeader } from "@/components/ui/field";
 import { displayPlate, fmt, formatDate, formatKm, formatMoney, woNumber } from "@/lib/format";
 import { getI18n } from "@/lib/i18n/server";
+import { can } from "@/lib/permissions";
 import { requirePageAccess } from "@/lib/session";
 import { customerOption } from "@/server/customers";
 import { listMechanics, lookupVehicleByPlate } from "@/server/work-orders";
@@ -21,7 +22,9 @@ type PageProps = { searchParams: Promise<{ customerId?: string; vehicleId?: stri
  * Opened from a customer page (customerId[/vehicleId]) it skips the plate step.
  */
 export default async function NewWorkOrderPage({ searchParams }: PageProps) {
-  await requirePageAccess("viewWorkOrders");
+  const staffUser = await requirePageAccess("viewWorkOrders");
+  // Money (totals, invoice amounts) only for roles that see finances, as on the customer page.
+  const showMoney = can(staffUser.role, "viewFinance");
   const preset = await searchParams;
   const { t, lang } = await getI18n();
   const p = t.plateLookup;
@@ -68,8 +71,13 @@ export default async function NewWorkOrderPage({ searchParams }: PageProps) {
               · <span dir="ltr">{vehicle.customer.phone}</span>
             </span>
             <span className="ms-auto text-sm text-muted-foreground">
-              {fmt(p.visits, { n: vehicle.workOrders.length })} · {p.lastKm} : {formatKm(vehicle.mileage, lang)} · {p.totalSpent} :{" "}
-              {formatMoney(vehicle.workOrders.reduce((s, w) => s + (w.invoice?.totalTtc ?? 0), 0), lang)}
+              {fmt(p.visits, { n: vehicle.workOrders.length })} · {p.lastKm} : {formatKm(vehicle.mileage, lang)}
+              {showMoney && (
+                <>
+                  {" "}
+                  · {p.totalSpent} : {formatMoney(vehicle.workOrders.reduce((s, w) => s + (w.invoice?.totalTtc ?? 0), 0), lang)}
+                </>
+              )}
             </span>
           </div>
           <CardTitle className="mt-5">{p.history}</CardTitle>
@@ -93,7 +101,7 @@ export default async function NewWorkOrderPage({ searchParams }: PageProps) {
                   </div>
                   <div className="flex items-center gap-3 sm:justify-end">
                     <span className="tabular-nums text-muted-foreground">{formatKm(w.mileageIn, lang)}</span>
-                    {w.invoice && <span className="tabular-nums">{formatMoney(w.invoice.totalTtc, lang)}</span>}
+                    {showMoney && w.invoice && <span className="tabular-nums">{formatMoney(w.invoice.totalTtc, lang)}</span>}
                     <StatusBadge status={w.status} t={t} />
                   </div>
                 </li>

@@ -1,4 +1,5 @@
 import "server-only";
+import { assertCanNumberDocuments } from "@/server/hub";
 import type { PaymentMethod, Prisma, PurchaseOrderStatus, SupplierInvoiceStatus } from "@prisma/client";
 import { AppError } from "@/lib/http";
 import { prisma } from "@/lib/prisma";
@@ -8,6 +9,7 @@ type Tx = Prisma.TransactionClient;
 
 /** Yearly numbering: BC2026-0001, BR2026-0001… */
 async function nextNumber(tx: Tx, prefix: "BC" | "BR"): Promise<string> {
+  assertCanNumberDocuments();
   const year = new Date().getFullYear();
   const key = `${prefix}-${year}`;
   const seq = await tx.sequence.upsert({ where: { key }, create: { key, value: 1 }, update: { value: { increment: 1 } } });
@@ -210,9 +212,12 @@ export async function createReceipt(
       if (po.status !== "APPROVED" && po.status !== "PARTIAL") throw new AppError("poNotApproved", {}, 409);
       supplierId = po.supplierId;
       poLines = po.lines;
-      for (const l of lines) {
-        const pl = poLines.find((p) => p.partId === l.partId);
-        if (!pl || l.quantityX100 > pl.quantityX100 - pl.receivedX100) throw new AppError("overReceive", {}, 422);
+      // Totals per part: two lines for the same part cannot exceed what is still due on the order.
+      const perPart = new Map<string, number>();
+      for (const l of lines) perPart.set(l.partId, (perPart.get(l.partId) ?? 0) + l.quantityX100);
+      for (const [partId, qty] of perPart) {
+        const pl = poLines.find((p) => p.partId === partId);
+        if (!pl || qty > pl.quantityX100 - pl.receivedX100) throw new AppError("overReceive", {}, 422);
       }
     }
 

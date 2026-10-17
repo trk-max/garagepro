@@ -189,7 +189,8 @@ export function buildIcs(
   serviceName: string,
 ): string {
   const stamp = (d: Date) => d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
-  const esc = (s: string) => s.replace(/([,;\\])/g, "\\$1").replace(/\n/g, "\\n");
+  // RFC 5545 text: escape , ; \ and every line break (CRLF, CR or LF) — a raw CR would start a new property.
+  const esc = (s: string) => s.replace(/([,;\\])/g, "\\$1").replace(/\r\n|\r|\n/g, "\\n");
   return [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",

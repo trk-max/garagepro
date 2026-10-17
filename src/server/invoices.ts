@@ -1,4 +1,5 @@
 import "server-only";
+import { assertCanNumberDocuments } from "@/server/hub";
 import type { InvoiceStatus, LineType, PaymentMethod, Prisma, ReminderChannel } from "@prisma/client";
 import { computeTotals, lineTotalHt, normalizePlate } from "@/lib/format";
 import { AppError } from "@/lib/http";
@@ -31,6 +32,7 @@ export async function createInvoice(workOrderId: string, actor: StaffUser) {
 
     const totals = computeTotals(wo.lines, settings.stampDuty);
     const year = new Date().getFullYear();
+    assertCanNumberDocuments(); // with a garage hub, invoices are numbered on the garage PC only
     const seq = await tx.sequence.upsert({
       where: { key: `invoice-${year}` },
       create: { key: `invoice-${year}`, value: 1 },

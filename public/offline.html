@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GaragePro — hors ligne</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #000; color: #fff; font: 15px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif; text-align: center; padding: 24px; box-sizing: border-box; }
+  img { width: 72px; height: 72px; }
+  h1 { font-size: 18px; letter-spacing: .08em; text-transform: uppercase; font-weight: 500; margin: 24px 0 8px; }
+  p { color: #8f8f8f; max-width: 34em; margin: 0 auto 6px; }
+  button { margin-top: 20px; background: #fff; color: #000; border: 0; padding: 12px 22px; font: inherit; font-size: 12px; letter-spacing: .1em; text-transform: uppercase; cursor: pointer; }
+  button:hover { background: #da291c; color: #fff; }
+  [dir=rtl] { direction: rtl; }
+</style>
+</head>
+<body>
+  <main>
+    <img src="/icons/icon-192.png" alt="GaragePro">
+    <h1>Pas de connexion</h1>
+    <p>Cette page n'a pas encore été ouverte sur cet appareil, elle n'est donc pas disponible hors ligne.</p>
+    <p>Au garage : connectez-vous au Wi-Fi du garage, l'application fonctionne sans internet grâce au PC du garage.</p>
+    <p dir="rtl">لا يوجد اتصال. في الورشة: اتصل بشبكة Wi-Fi الخاصة بالورشة، التطبيق يعمل دون إنترنت عبر حاسوب الورشة.</p>
+    <button type="button" onclick="location.reload()">Réessayer</button>
+  </main>
+</body>
+</html>
