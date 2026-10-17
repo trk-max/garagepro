@@ -35,9 +35,11 @@ export default async function GarageLayout({ children }: { children: ReactNode }
   const user = { name: staff.name, role: staff.role };
 
   return (
-    <div className="ferrari h-dvh overflow-hidden bg-background text-foreground lg:grid lg:grid-cols-[250px_minmax(0,1fr)] print:block print:h-auto">
+    // Phones/tablets: the whole page scrolls (the browser bar can hide, pull-to-refresh works).
+    // Computers (lg): fixed sidebar, only the content column scrolls.
+    <div className="ferrari min-h-dvh bg-background text-foreground lg:grid lg:h-dvh lg:grid-cols-[250px_minmax(0,1fr)] lg:overflow-hidden print:block print:h-auto">
       <Sidebar user={user} garageName={settings.garageName} badges={badges} />
-      <main className="h-dvh min-w-0 overflow-y-auto print:h-auto print:overflow-visible">
+      <main className="min-w-0 lg:h-dvh lg:overflow-y-auto print:h-auto print:overflow-visible">
         <MobileNav user={user} garageName={settings.garageName} badges={badges} />
         {children}
       </main>

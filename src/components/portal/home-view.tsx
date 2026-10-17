@@ -81,7 +81,7 @@ export function HomeView({
             { href: "/rdv", icon: CalendarCheck, title: labels.book, hint: labels.bookHint },
             { href: "/assistant", icon: Bot, title: labels.assistant, hint: labels.assistantHint },
           ].map(({ href, icon: Icon, title, hint }) => (
-            <Link key={href} href={href} className="group flex min-h-64 flex-col justify-between gap-10 bg-background p-6 transition-colors hover:bg-card sm:p-8">
+            <Link key={href} href={href} className="group flex min-h-44 flex-col justify-between gap-6 bg-background p-6 sm:min-h-64 sm:gap-10 transition-colors hover:bg-card sm:p-8">
               <Icon className="size-6 text-foreground" strokeWidth={1.25} aria-hidden />
               <span>
                 <span className="f-display block text-lg">{title}</span>

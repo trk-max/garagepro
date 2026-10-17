@@ -40,7 +40,7 @@ export default async function PurchaseOrdersPage({ searchParams }: PageProps) {
           <Link
             key={c.label}
             href={c.value ? `/garage/purchase-orders?status=${c.value}` : "/garage/purchase-orders"}
-            className={cn("rounded-full border px-3 py-1 text-xs", status === c.value ? "border-primary bg-primary text-primary-foreground" : "hover:bg-accent")}
+            className={cn("chip-tap rounded-full border px-3 py-1 text-xs", status === c.value ? "border-primary bg-primary text-primary-foreground" : "hover:bg-accent")}
           >
             {c.label}
           </Link>

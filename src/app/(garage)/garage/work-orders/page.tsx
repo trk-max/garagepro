@@ -57,7 +57,7 @@ export default async function WorkOrdersPage({ searchParams }: PageProps) {
             href={href(chip.value)}
             aria-current={filter === chip.value ? "page" : undefined}
             className={cn(
-              "rounded-full border px-3 py-1 text-xs transition-colors",
+              "chip-tap rounded-full border px-3 py-1 text-xs transition-colors",
               filter === chip.value ? "border-primary bg-primary text-primary-foreground" : "hover:bg-accent",
             )}
           >
@@ -90,7 +90,7 @@ export default async function WorkOrdersPage({ searchParams }: PageProps) {
                   </Link>
                 </Td>
                 <Td>
-                  <Link href={`/garage/work-orders/${wo.id}`} className="flex flex-col gap-1">
+                  <Link href={`/garage/work-orders/${wo.id}`} className="flex flex-col items-start gap-1">
                     <PlateChip plate={wo.vehicle.plate} />
                     <span className="text-xs text-muted-foreground">{wo.vehicle.make} {wo.vehicle.model}</span>
                   </Link>

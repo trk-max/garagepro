@@ -110,7 +110,7 @@ export default async function DashboardPage() {
           ))}
         </div>
 
-        <div className="mt-6 grid gap-4 lg:grid-cols-3">
+        <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
           {can(role, "viewWorkOrders") && (
             <Card className="lg:col-span-2">
               <CardTitle>{t.dashboard.byStatus}</CardTitle>

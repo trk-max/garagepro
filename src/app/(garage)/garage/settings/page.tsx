@@ -36,7 +36,7 @@ export default async function SettingsPage() {
     <div className="mx-auto max-w-6xl space-y-6 p-6">
       <PageHeader title={t.settings.title} />
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card>
           <CardTitle>{t.settings.garage}</CardTitle>
           <ActionForm action={updateSettingsAction} reset={false} className="grid gap-3 sm:grid-cols-2">
@@ -186,7 +186,7 @@ export default async function SettingsPage() {
       <Card>
         <CardTitle>{t.settings.packages}</CardTitle>
         {packages.length === 0 && <p className="mb-3 text-sm text-muted-foreground">{t.settings.noPackages}</p>}
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           {packages.map((pkg) => {
             const estimate = pkg.lines.reduce(
               (sum, l) => sum + Math.round((l.quantityX100 * (l.unitPrice ?? (l.type === "LABOR" ? settings.laborRate : (l.part?.salePrice ?? 0)))) / 100),

@@ -36,7 +36,7 @@ export default async function PartsPage({ searchParams }: PageProps) {
           )}
           <Link
             href={low === "1" ? "/garage/parts" : "/garage/parts?low=1"}
-            className={cn("rounded-full border px-3 py-1 text-xs", low === "1" ? "border-primary bg-primary text-primary-foreground" : "hover:bg-accent")}
+            className={cn("chip-tap rounded-full border px-3 py-1 text-xs", low === "1" ? "border-primary bg-primary text-primary-foreground" : "hover:bg-accent")}
           >
             {t.parts.lowOnly}
           </Link>

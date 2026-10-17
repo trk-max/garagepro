@@ -43,7 +43,7 @@ export default async function SupplierInvoicePage({ params }: PageProps) {
         </Button>
       </PageHeader>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card>
           <dl className="space-y-2 text-sm">
             {rows.map(([label, value, cls]) => (

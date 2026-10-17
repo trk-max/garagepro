@@ -50,12 +50,12 @@ export default async function SupplierInvoicesPage({ searchParams }: PageProps) 
               ["overdue", t.supplierInvoices.overdueOnly],
             ] as const
           ).map(([f, label]) => (
-            <Link key={f} href={href(f)} className={cn("rounded-full border px-3 py-1 text-xs", filter === f ? "border-primary bg-primary text-primary-foreground" : "hover:bg-accent")}>
+            <Link key={f} href={href(f)} className={cn("chip-tap rounded-full border px-3 py-1 text-xs", filter === f ? "border-primary bg-primary text-primary-foreground" : "hover:bg-accent")}>
               {label}
             </Link>
           ))}
           {params.supplier && (
-            <Link href="/garage/supplier-invoices" className="rounded-full border px-3 py-1 text-xs hover:bg-accent">
+            <Link href="/garage/supplier-invoices" className="chip-tap rounded-full border px-3 py-1 text-xs hover:bg-accent">
               ✕ {suppliers.find((s) => s.id === params.supplier)?.name}
             </Link>
           )}

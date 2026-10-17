@@ -31,7 +31,7 @@ export default async function ClaimsAdminPage({ searchParams }: PageProps) {
   return (
     <div className="mx-auto max-w-6xl p-6">
       <PageHeader title={c.staffTitle} />
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="space-y-4 lg:col-span-2">
           <nav className="flex flex-wrap gap-1" aria-label={c.staffTitle}>
             {[undefined, ...Object.values(ClaimStatus)].map((s) => (

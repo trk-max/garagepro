@@ -71,17 +71,18 @@ export function PortalShell({
           </div>
         </div>
 
-        {/* Phones and tablets: the same links on one scrollable row. */}
-        <nav className="flex overflow-x-auto border-t border-[#303030] px-2 xl:hidden" aria-label="Navigation">
-          {links.map((l) => (
+        {/* Phones and tablets: booking first (the main action, always visible),
+            then the other links on one swipeable row. */}
+        <nav className="scroll-row flex overflow-x-auto border-t border-[#303030] px-2 xl:hidden" aria-label="Navigation">
+          <Link href="/rdv" className={`${NAV_LINK} gap-1.5 text-white underline decoration-brand-500 decoration-2 underline-offset-8`}>
+            {labels.book}
+            <ArrowRight className="size-3.5 rtl:rotate-180" aria-hidden />
+          </Link>
+          {["/suivi", "/assistant", "/a-propos", "/reclamation"].flatMap((href) => links.filter((l) => l.href === href)).map((l) => (
             <Link key={l.href} href={l.href} className={NAV_LINK}>
               {l.label}
             </Link>
           ))}
-          <Link href="/rdv" className={`${NAV_LINK} gap-1.5 text-white`}>
-            {labels.book}
-            <ArrowRight className="size-3.5 rtl:rotate-180" aria-hidden />
-          </Link>
         </nav>
       </header>
 

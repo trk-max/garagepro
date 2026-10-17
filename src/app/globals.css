@@ -475,3 +475,117 @@
   .animate-footer-scroll-marquee,
   .animate-footer-heartbeat { animation: none; }
 }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Phones (< 640px)
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* Data tables become stacked cards: every value keeps its column name in
+   front of it (labels set by ResponsiveTable), nothing is cut off on the right. */
+@media (max-width: 639.98px) {
+  .rtable-wrap {
+    overflow: visible;
+    border: 0;
+    background: transparent;
+  }
+  .rtable,
+  .rtable > tbody {
+    display: block;
+    width: 100%;
+  }
+  .rtable > thead {
+    display: none;
+  }
+  .rtable > tbody > tr {
+    display: block;
+    margin-bottom: 0.625rem;
+    padding: 0.75rem 0.875rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--card);
+  }
+  .rtable > tbody > tr > td,
+  .rtable > tbody > tr > th {
+    position: relative;
+    display: block;
+    max-width: none;
+    padding: 0.3rem 0;
+    border: 0;
+    text-align: start;
+    white-space: normal;
+  }
+  .rtable > tbody > tr > td[data-label] {
+    padding-inline-start: 38%;
+    min-height: 1.75rem;
+  }
+  .rtable > tbody > tr > td[data-label]::before {
+    content: attr(data-label);
+    position: absolute;
+    inset-inline-start: 0;
+    top: 0.35rem;
+    width: 35%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.6875rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+  }
+  /* First column (number / reference / name) reads as the card title. */
+  .rtable > tbody > tr > td:first-child {
+    margin-bottom: 0.25rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.9375rem;
+  }
+  .rtable > tbody > tr > td:empty {
+    display: none;
+  }
+  .rtable > tfoot {
+    display: block;
+  }
+  .rtable > tfoot > tr {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.75rem 0.875rem;
+  }
+  .rtable > tfoot > tr > td,
+  .rtable > tfoot > tr > th {
+    display: block;
+    padding: 0;
+    border: 0;
+  }
+
+  /* 16px text in form fields: below that, iPhone zooms the whole page in as
+     soon as a field is tapped (and does not zoom back out). */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+  select,
+  textarea {
+    font-size: 16px;
+  }
+
+  /* Filter chips: big enough to tap with a thumb. */
+  .chip-tap {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.25rem;
+  }
+}
+
+/* Horizontal link rows on phones: no visible scrollbar, a soft fade on the
+   edge shows there is more to swipe. */
+.scroll-row {
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  mask-image: linear-gradient(to right, #000 85%, transparent);
+}
+.scroll-row::-webkit-scrollbar {
+  display: none;
+}
+[dir="rtl"] .scroll-row {
+  mask-image: linear-gradient(to left, #000 85%, transparent);
+}
+
