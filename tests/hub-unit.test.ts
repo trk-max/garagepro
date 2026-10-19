@@ -1,7 +1,7 @@
 import { mkdtempSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { assertCanNumberDocuments, isCloudWithHub, isHubLocal } from "@/server/hub";
 // @ts-expect-error plain JS script without types
 import { syncMedia } from "../scripts/hub/media-sync.mjs";
@@ -11,6 +11,11 @@ import { isCloudUrl } from "../scripts/hub/connect.mjs";
 afterEach(() => vi.unstubAllEnvs());
 
 describe("who may number invoices / purchase orders", () => {
+  // The garage PC's own .env may set these: each test states them explicitly.
+  beforeEach(() => {
+    vi.stubEnv("GARAGE_HUB", "");
+    vi.stubEnv("GARAGE_HUB_LOCAL", "");
+  });
   it("no hub: everywhere (as before)", () => {
     expect(() => assertCanNumberDocuments()).not.toThrow();
   });

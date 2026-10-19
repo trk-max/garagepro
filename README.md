@@ -3,7 +3,8 @@
 </p>
 
 <h1 align="center">GaragePro</h1>
-<p align="center"><b>Gestion d'atelier mécanique + site client</b> · Français / العربية / English</p>
+<p align="center"><b>Gestion d'atelier mécanique + site client + espace équipe + portail entreprises</b> · Français / العربية / English</p>
+<p align="center">Version <b>7.0</b> — application PC / téléphone, fonctionne aussi <b>sans internet</b> (hub du garage)</p>
 <p align="center">Next.js 15 · TypeScript · Tailwind v4 · PostgreSQL (Supabase) + Prisma 6 · Auth.js v5 · Vercel</p>
 
 <p align="center">
@@ -20,26 +21,6 @@
 | ![Version mobile en arabe](docs/media/08-mobile-arabe.jpg) **Mobile + arabe (RTL)** | ![Connexion de l'équipe](docs/media/03-connexion-equipe.jpg) **Connexion de l'équipe** |
 
 > Photos et vidéos du site : dossier `public/site/` (voir « Photos et vidéos du site » plus bas). Pour mettre une **vidéo** dans ce README sur GitHub : modifiez le fichier sur github.com et glissez-déposez un `.mp4` (moins de 10 Mo) dans l'éditeur, GitHub crée le lien tout seul.
-
-## Nouveautés V5
-
-| | |
-|---|---|
-| **Entrée par la plaque** | Nouvel ordre → on tape la plaque. Voiture déjà à l'atelier → son ordre s'ouvre. Voiture connue → historique (dates, km, pannes, diagnostics, montants) puis la fiche. Première visite → fiche client + véhicule complète. Recherche de plaque aussi sur le tableau de bord et la liste des ordres. |
-| **Fiche véhicule obligatoire** | Pour ouvrir un ordre : immatriculation, marque, modèle, année, carburant, couleur, **VIN (17 caractères)** et **kilométrage**. Une voiture connue sans VIN : les champs manquants sont demandés. Un ordre créé depuis un RDV en ligne affiche un encadré « Complétez la fiche du véhicule ». |
-| **Rapports** (admin) | Aujourd'hui / 7 jours / 30 jours / 3 mois, comparés à la période précédente : facturé, encaissé (par mode), main-d'œuvre, pièces, marge, achats fournisseurs, trésorerie, reste à encaisser ; voitures reçues / livrées, durée à l'atelier, nouveaux clients, retours < 30 jours ; **pannes les plus fréquentes** ; pièces les plus utilisées ; mécaniciens ; réclamations et avis ; **« À retenir »** (conseils calculés). Imprimable en PDF. |
-| **Avis & réclamations** | Site client : page `/reclamation` (note 1-5 ★ + réclamation). Suivi de réparation : avis quand la voiture est prête, réclamation liée à l'ordre. Équipe : page *Réclamations & avis* (réponse, statut Ouverte / En cours / Résolue, compteur dans le menu). |
-| **Photos** | Tout membre de l'équipe qui peut ajouter des photos peut aussi les supprimer, depuis l'ordre et depuis *Atelier (mobile)* (vignettes avec 🗑). |
-
-### Mise à jour vers la V5 (base de données)
-
-Deux tables sont ajoutées (réclamations, avis). **Rien n'est effacé ni modifié.** À lancer **une fois, avant** le `git push` :
-
-```
-npx prisma db execute --file prisma/migrations/2_claims_feedback/migration.sql --schema prisma/schema.prisma
-```
-
-Le script peut être relancé sans risque (il ignore ce qui existe déjà).
 
 ## Nouveautés V7 — gestion complète du garage (équipe, atelier, entreprises)
 
@@ -117,6 +98,26 @@ Tests de la V7 sur une vraie base PostgreSQL **de test** : `set TEST_DATABASE_UR
 - Sur les téléphones, l'adresse `http://IP:3000` fonctionne sans internet, mais le bouton « Installer » n'y apparaît pas (les navigateurs exigent `https` pour installer une application) : ajoutez simplement un favori / raccourci sur l'écran d'accueil.
 - Synchronisation manuelle : `npm run hub:sync`. Test réel de la synchronisation (base PostgreSQL de test, jamais la vraie) : `set TEST_PG_URL=postgresql://postgres:MDP@localhost:5432/postgres` puis `npm run test:hub`.
 
+## Nouveautés V5
+
+| | |
+|---|---|
+| **Entrée par la plaque** | Nouvel ordre → on tape la plaque. Voiture déjà à l'atelier → son ordre s'ouvre. Voiture connue → historique (dates, km, pannes, diagnostics, montants) puis la fiche. Première visite → fiche client + véhicule complète. Recherche de plaque aussi sur le tableau de bord et la liste des ordres. |
+| **Fiche véhicule obligatoire** | Pour ouvrir un ordre : immatriculation, marque, modèle, année, carburant, couleur, **VIN (17 caractères)** et **kilométrage**. Une voiture connue sans VIN : les champs manquants sont demandés. Un ordre créé depuis un RDV en ligne affiche un encadré « Complétez la fiche du véhicule ». |
+| **Rapports** (admin) | Aujourd'hui / 7 jours / 30 jours / 3 mois, comparés à la période précédente : facturé, encaissé (par mode), main-d'œuvre, pièces, marge, achats fournisseurs, trésorerie, reste à encaisser ; voitures reçues / livrées, durée à l'atelier, nouveaux clients, retours < 30 jours ; **pannes les plus fréquentes** ; pièces les plus utilisées ; mécaniciens ; réclamations et avis ; **« À retenir »** (conseils calculés). Imprimable en PDF. |
+| **Avis & réclamations** | Site client : page `/reclamation` (note 1-5 ★ + réclamation). Suivi de réparation : avis quand la voiture est prête, réclamation liée à l'ordre. Équipe : page *Réclamations & avis* (réponse, statut Ouverte / En cours / Résolue, compteur dans le menu). |
+| **Photos** | Tout membre de l'équipe qui peut ajouter des photos peut aussi les supprimer, depuis l'ordre et depuis *Atelier (mobile)* (vignettes avec 🗑). |
+
+### Mise à jour vers la V5 (base de données)
+
+Deux tables sont ajoutées (réclamations, avis). **Rien n'est effacé ni modifié.** À lancer **une fois, avant** le `git push` :
+
+```
+npx prisma db execute --file prisma/migrations/2_claims_feedback/migration.sql --schema prisma/schema.prisma
+```
+
+Le script peut être relancé sans risque (il ignore ce qui existe déjà).
+
 ## Fonctionnalités
 
 | Module | Contenu |
@@ -130,23 +131,35 @@ Tests de la V7 sur une vraie base PostgreSQL **de test** : `set TEST_DATABASE_UR
 | **Langue** | Français / العربية / English (interface RTL complète en arabe) |
 | **Rapports** (admin) | jour, 7 jours, 30 jours, 3 mois : argent, voitures, pannes fréquentes, pièces, mécaniciens, réclamations, avis, conseils |
 | **Réclamations & avis** | côté client (page publique + suivi de réparation) et côté équipe (réponse, statut) |
+| **Pointage & congés** | borne du garage (code 30 s + QR), arrivée / pause / départ, corrections tracées, demandes de congé, autorisations, absences |
+| **Équipe** (responsable) | présence en direct, demandes à valider, fiche employé, rapport par période (CSV / PDF), attestation de travail PDF |
+| **Calendrier** | jour, semaine, mois, année : congés, RDV, livraisons promises |
+| **Suivi & retards** | livraisons promises dépassées, pièces en retard, attente assurance, qui appeler, quoi faire |
+| **Temps & qualité sur l'ordre** | chrono par mécanicien, heures-personnes / durée / heures facturées, pièces manquantes, dossier assurance, contrôle qualité obligatoire |
+| **Portail entreprise** | `/entreprise` : chaque entreprise cliente voit seulement ses véhicules, réparations, photos (et factures selon le rôle) |
+| **Journal** (admin) | qui a fait quoi, quand, avant → après ; non modifiable |
+| **Hors ligne** | hub sur le PC du garage, synchronisation automatique avec Supabase |
 
-Statuts : Réceptionné → Diagnostic → Devis envoyé → Attente pièces → En réparation → Prêt → Livré (ou Annulé).
+Statuts : Réceptionné → Diagnostic → Devis envoyé / **Attente assurance** → Attente pièces → En réparation → **Contrôle qualité (checklist validée)** → Lavage → Prêt → Livré (ou Annulé).
 
 ### Espaces et rôles
 
-| | Admin | Réception | Mécanicien | Magasinier |
-|---|:-:|:-:|:-:|:-:|
-| **Espace client** : ordres de réparation, clients & véhicules, devis | ✓ | ✓ | ✓ | |
-| Factures clients (consulter, encaisser, relancer) | ✓ | ✓ | | |
-| **Établir une facture** | ✓ | | | |
-| CA du mois / reste à encaisser | ✓ | ✓ | | |
-| **Espace fournisseur** : stock (mouvements) | ✓ | lecture | lecture | ✓ |
-| Fournisseurs, bons de commande (demande) | ✓ | | | ✓ |
-| **Valider / refuser un bon de commande** | ✓ | | | |
-| Bons de réception (entrée en stock) | ✓ | | | ✓ |
-| Factures fournisseurs (saisie / suivi) | ✓ | | | ✓ |
-| Payer un fournisseur, paramètres | ✓ | | | |
+| | Admin | Responsable | Réception | Mécanicien | Magasinier |
+|---|:-:|:-:|:-:|:-:|:-:|
+| **Espace client** : ordres de réparation, clients & véhicules, devis | ✓ | ✓ | ✓ | ✓ | |
+| Factures clients (consulter, encaisser, relancer) | ✓ | ✓ | ✓ | | |
+| **Établir une facture** | ✓ | | | | |
+| CA du mois / reste à encaisser | ✓ | ✓ | ✓ | | |
+| **Espace fournisseur** : stock (mouvements) | ✓ | lecture | lecture | lecture | ✓ |
+| Fournisseurs, bons de commande (demande) | ✓ | ✓ | | | ✓ |
+| **Valider / refuser un bon de commande** | ✓ | | | | |
+| Bons de réception (entrée en stock) | ✓ | | | | ✓ |
+| Factures fournisseurs (saisie / suivi) | ✓ | | | | ✓ |
+| Pointer, demander un congé, chrono sur ses réparations | ✓ | ✓ | ✓ | ✓ | ✓ (sans chrono) |
+| Valider congés et corrections, rapports employés, attestations | ✓ | ✓ (pas pour soi) | | | |
+| **Valider le contrôle qualité** (débloque « Prêt ») | ✓ | ✓ | | | |
+| Comptes du portail entreprise | ✓ | ✓ | | | |
+| Payer un fournisseur, paramètres, rapports du garage, journal | ✓ | | | | |
 
 Circuit d'achat : le magasinier crée une **demande** (pré-remplie avec les pièces en stock bas) → l'admin **valide** ou **refuse** (avec motif) → bon de commande imprimable → **bon de réception** (entrée en stock, prix d'achat mis à jour) → **facture fournisseur** et paiements.
 
@@ -256,13 +269,15 @@ Application équipe : cockpit sombre « carbone » (`#0B0C10` / `#12141C`), un s
 
 | Commande | Rôle |
 |---|---|
-| `npm test` | 97 tests (argent, TVA, créneaux, permissions, stock, connexion, équipe, e-mails, guide et assistant IA) |
+| `npm test` | 210 tests (argent, TVA, créneaux, permissions, stock, connexion, équipe, pointage, heures, congés, e-mails, guide et assistant IA, hub) |
+| `npm run test:db` | tests sur une vraie base PostgreSQL **de test** (`TEST_DATABASE_URL`) : pointage, congés, contrôle qualité, portail entreprise, attestations, journal |
+| `npm run test:hub` | synchronisation garage ↔ en ligne sur deux bases de test (`TEST_PG_URL`) |
 | `npm run test:watch` | relance les tests à chaque sauvegarde |
 | `npm run lint` | ESLint (règles Next.js) |
 | `npm run check` | TypeScript + ESLint + tests (à lancer avant chaque commit) |
 | `npm run build` | build de production |
 
-Les tests sont dans `tests/` et n'utilisent **pas** la base de données (aucun risque pour vos données).
+Les tests sont dans `tests/`. `npm test` n'utilise **pas** la base de données ; `test:db` et `test:hub` créent leurs propres bases jetables (`gp_test_db`, `gp_hub_*`) sur le serveur de test indiqué — **jamais** l'adresse Supabase ni la base du garage (refusé automatiquement pour Supabase).
 
 ## Sécurité — règles en place
 
@@ -323,10 +338,14 @@ Vidéos : MP4 (H.264), muettes, 5 à 10 s, 1600 px de large, moins de 2 Mo de pr
 ```
 prisma/schema.prisma        modèle de données
 prisma/seed.ts              données de démo
-src/app/(garage)/garage/    pages (dashboard, work-orders, customers, parts, invoices, settings)
+prisma/migrations/          migrations (0 à 4) — uniquement des ajouts
+src/app/(garage)/garage/    espace équipe (ordres, clients, stock, factures, pointage, equipe, calendrier, suivi, journal…)
+src/app/entreprise/         portail entreprise
+src/app/(public)/           site client
 src/actions/                Server Actions (validation + rôles)
-src/server/                 logique métier (statuts, stock, facturation)
-src/lib/i18n/fr.ts · ar.ts  traductions
+src/server/                 logique métier (statuts, stock, facturation, pointage, congés, qualité, audit…)
+src/lib/i18n/               traductions fr · ar · en (+ v7-*.ts)
+scripts/hub/                hub hors ligne (installation, synchronisation, db:cloud)
 src/lib/format.ts           monnaie TND, quantités, totaux TVA
 tests/                      tests automatiques (Vitest)
 ```
