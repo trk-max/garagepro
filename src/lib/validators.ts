@@ -382,3 +382,102 @@ export const bookingSettingsSchema = z.object({
     z.object({ closed: z.boolean(), open: hhmm, close: hhmm }).refine((d) => d.closed || d.open < d.close),
   ).length(7),
 });
+
+// ── V7 : équipe, pointage, congés, suivi des réparations, portail entreprise ──
+
+const isoDay = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+const localDateTime = z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/);
+const checkbox = z.preprocess((v) => v === "on" || v === "true" || v === "1", z.boolean());
+
+export const punchSchema = z.object({
+  kind: z.enum(["IN", "OUT", "BREAK_START", "BREAK_END"]),
+  code: optionalText(12),
+});
+
+export const leaveRequestSchema = z
+  .object({
+    userId: optionalId,
+    type: z.enum(["PAID_LEAVE", "SICK", "UNPAID", "AUTHORIZATION", "ABSENCE", "OTHER"]),
+    firstDay: z.preprocess(emptyToUndefined, isoDay.optional()),
+    lastDay: z.preprocess(emptyToUndefined, isoDay.optional()),
+    date: z.preprocess(emptyToUndefined, isoDay.optional()),
+    from: z.preprocess(emptyToUndefined, hhmm.optional()),
+    to: z.preprocess(emptyToUndefined, hhmm.optional()),
+    reason: optionalText(500),
+  })
+  .refine((v) => (v.type === "AUTHORIZATION" ? !!(v.date && v.from && v.to && v.from < v.to) : !!(v.firstDay && v.lastDay && v.firstDay <= v.lastDay)), {
+    message: "dates",
+  });
+
+export const leaveDecisionSchema = z.object({ decision: z.enum(["approve", "reject"]), note: optionalText(500) });
+
+export const punchCorrectionSchema = z.object({
+  userId: id,
+  kind: z.enum(["IN", "OUT", "BREAK_START", "BREAK_END"]),
+  at: localDateTime,
+  reason: z.string().trim().min(3).max(300),
+  replaceEventId: optionalId,
+});
+
+export const reasonSchema = z.string().trim().min(3).max(300);
+
+export const employeeProfileSchema = z.object({
+  jobTitle: optionalText(120),
+  hireDate: z.preprocess(emptyToUndefined, isoDay.optional()),
+  nationalId: z.preprocess(emptyToUndefined, z.string().trim().regex(/^[A-Z0-9]{6,12}$/i).optional()),
+});
+
+export const laborManualSchema = z.object({ userId: id, from: localDateTime, to: localDateTime, note: optionalText(300) });
+
+export const qualityCheckSchema = z.object({
+  roadTest: z.preprocess(emptyToUndefined, z.enum(["DONE", "NOT_NEEDED"]).optional()),
+  fluidsOk: checkbox,
+  warningsOk: checkbox,
+  toolsRemoved: checkbox,
+  workVerified: checkbox,
+  billingVerified: checkbox,
+  notes: optionalText(1000),
+});
+
+export const insuranceSchema = z.object({
+  insurerName: optionalText(120),
+  insuranceClaimRef: optionalText(80),
+  insuranceRequestedAt: z.preprocess(emptyToUndefined, isoDay.optional()),
+  insuranceDecision: z.preprocess(emptyToUndefined, z.enum(["APPROVED", "REJECTED", "PARTIAL"]).optional()),
+});
+
+export const partNeedSchema = z.object({
+  partId: optionalId,
+  description: z.string().trim().min(2).max(200),
+  quantity,
+  supplierId: optionalId,
+  expectedAt: z.preprocess(emptyToUndefined, isoDay.optional()),
+  note: optionalText(300),
+});
+
+export const partNeedUpdateSchema = z.object({
+  status: z.enum(["NEEDED", "ORDERED", "RECEIVED", "CANCELLED"]),
+  expectedAt: z.preprocess(emptyToUndefined, isoDay.optional()),
+  supplierId: optionalId,
+});
+
+export const certificateSchema = z.object({ purpose: optionalText(120), endDate: z.preprocess(emptyToUndefined, isoDay.optional()) });
+
+export const companyUserSchema = z.object({
+  email: z.string().trim().toLowerCase().email().max(200),
+  name: z.string().trim().min(2).max(120),
+  role: z.enum(["FLEET_ADMIN", "MANAGER", "VIEWER"]),
+  password: z.string().min(10).max(200),
+});
+
+export const companyLoginSchema = z.object({ email: z.string().trim().toLowerCase().email().max(200), password: z.string().min(1).max(200) });
+
+export const settingsV7Schema = z.object({
+  legalName: optionalText(200),
+  legalRepName: optionalText(120),
+  legalRepTitle: optionalText(80),
+  city: optionalText(80),
+  clockMode: z.enum(["CODE", "NETWORK", "CODE_AND_NETWORK"]),
+  clockNetworks: optionalText(500),
+  laborBillingMode: z.enum(["ELAPSED", "PERSON"]),
+});

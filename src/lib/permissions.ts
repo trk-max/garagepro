@@ -6,36 +6,61 @@ import type { Role } from "@prisma/client";
  */
 const MATRIX = {
   // Espace client
-  viewWorkOrders: ["ADMIN", "RECEPTION", "MECHANIC"],
-  viewCustomers: ["ADMIN", "RECEPTION", "MECHANIC"],
-  printQuote: ["ADMIN", "RECEPTION", "MECHANIC"],
-  viewClientInvoices: ["ADMIN", "RECEPTION"],
+  viewWorkOrders: ["ADMIN", "MANAGER", "RECEPTION", "MECHANIC"],
+  viewCustomers: ["ADMIN", "MANAGER", "RECEPTION", "MECHANIC"],
+  printQuote: ["ADMIN", "MANAGER", "RECEPTION", "MECHANIC"],
+  viewClientInvoices: ["ADMIN", "MANAGER", "RECEPTION"],
   createInvoice: ["ADMIN"],
-  recordPayment: ["ADMIN", "RECEPTION"],
-  sendReminder: ["ADMIN", "RECEPTION"],
-  viewFinance: ["ADMIN", "RECEPTION"],
-  uploadMedia: ["ADMIN", "RECEPTION", "MECHANIC"],
-  manageTracking: ["ADMIN", "RECEPTION"],
-  viewAppointments: ["ADMIN", "RECEPTION", "MECHANIC"],
-  manageAppointments: ["ADMIN", "RECEPTION"],
-  useWorkshop: ["ADMIN", "RECEPTION", "MECHANIC"],
-  manageClaims: ["ADMIN", "RECEPTION"],
+  recordPayment: ["ADMIN", "MANAGER", "RECEPTION"],
+  sendReminder: ["ADMIN", "MANAGER", "RECEPTION"],
+  viewFinance: ["ADMIN", "MANAGER", "RECEPTION"],
+  uploadMedia: ["ADMIN", "MANAGER", "RECEPTION", "MECHANIC"],
+  manageTracking: ["ADMIN", "MANAGER", "RECEPTION"],
+  viewAppointments: ["ADMIN", "MANAGER", "RECEPTION", "MECHANIC"],
+  manageAppointments: ["ADMIN", "MANAGER", "RECEPTION"],
+  useWorkshop: ["ADMIN", "MANAGER", "RECEPTION", "MECHANIC"],
+  manageClaims: ["ADMIN", "MANAGER", "RECEPTION"],
+  /// Dossier assurance, pièces manquantes, retards.
+  manageRepairFollowUp: ["ADMIN", "MANAGER", "RECEPTION"],
+  /// Déclarer une pièce manquante (le mécanicien qui la constate aussi).
+  reportMissingPart: ["ADMIN", "MANAGER", "RECEPTION", "MECHANIC", "STOREKEEPER"],
+  /// Chronométrer son propre temps sur une réparation.
+  logOwnLabor: ["ADMIN", "MANAGER", "RECEPTION", "MECHANIC"],
+  /// Saisir / corriger le temps des autres.
+  manageLabor: ["ADMIN", "MANAGER"],
+  /// Remplir la checklist de contrôle qualité.
+  fillQualityCheck: ["ADMIN", "MANAGER", "RECEPTION", "MECHANIC"],
+  /// Validation finale du contrôle qualité (débloque « Prêt »).
+  approveQualityCheck: ["ADMIN", "MANAGER"],
+  /// Comptes du portail entreprise d'un client.
+  manageCompanyAccess: ["ADMIN", "MANAGER"],
 
   // Espace fournisseur
-  viewStock: ["ADMIN", "RECEPTION", "MECHANIC", "STOREKEEPER"],
+  viewStock: ["ADMIN", "MANAGER", "RECEPTION", "MECHANIC", "STOREKEEPER"],
   manageStock: ["ADMIN", "STOREKEEPER"],
-  viewSuppliers: ["ADMIN", "STOREKEEPER"],
+  viewSuppliers: ["ADMIN", "MANAGER", "STOREKEEPER"],
   manageSuppliers: ["ADMIN", "STOREKEEPER"],
-  requestPurchase: ["ADMIN", "STOREKEEPER"],
+  requestPurchase: ["ADMIN", "MANAGER", "STOREKEEPER"],
   approvePurchase: ["ADMIN"],
   receiveGoods: ["ADMIN", "STOREKEEPER"],
   viewSupplierInvoices: ["ADMIN", "STOREKEEPER"],
   manageSupplierInvoices: ["ADMIN", "STOREKEEPER"],
   paySupplier: ["ADMIN"],
 
+  // Équipe
+  /// Pointer, demander un congé, voir ses heures : tout le personnel.
+  useTimeClock: ["ADMIN", "MANAGER", "RECEPTION", "MECHANIC", "STOREKEEPER"],
+  /// Voir la présence de l'équipe, corriger un pointage, valider les congés, rapports par employé.
+  manageTeam: ["ADMIN", "MANAGER"],
+  /// Afficher la borne de pointage (écran du garage).
+  showClockKiosk: ["ADMIN", "MANAGER"],
+  /// Délivrer une attestation de travail.
+  issueCertificates: ["ADMIN", "MANAGER"],
+
   // Administration
   manageSettings: ["ADMIN"],
   viewReports: ["ADMIN"],
+  viewAuditLog: ["ADMIN"],
 } as const satisfies Record<string, readonly Role[]>;
 
 export type Permission = keyof typeof MATRIX;

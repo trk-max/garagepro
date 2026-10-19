@@ -19,6 +19,13 @@ export function formatQty(x100: number, lang: Lang): string {
   return new Intl.NumberFormat(LOCALE[lang], { maximumFractionDigits: 2, numberingSystem: "latn" }).format(x100 / 100);
 }
 
+/**
+ * 24-hour clock in French and Arabic, as in Tunisia. Set explicitly: some ICU
+ * versions format "fr-TN" with AM/PM, and the server and the browser could then
+ * disagree (hydration mismatch).
+ */
+const hour24 = (lang: Lang): Intl.DateTimeFormatOptions => (lang === "en" ? {} : { hourCycle: "h23" });
+
 /** Dates are always shown in the garage's time zone, whatever the server's zone is. */
 export const GARAGE_TZ = "Africa/Tunis";
 
@@ -32,11 +39,12 @@ export function formatDateTime(value: Date | string, lang: Lang, timeZone = GARA
     timeStyle: "short",
     numberingSystem: "latn",
     timeZone,
+    ...hour24(lang),
   }).format(new Date(value));
 }
 
 export function formatTime(value: Date | string, lang: Lang, timeZone = GARAGE_TZ): string {
-  return new Intl.DateTimeFormat(LOCALE[lang], { timeStyle: "short", numberingSystem: "latn", timeZone }).format(new Date(value));
+  return new Intl.DateTimeFormat(LOCALE[lang], { timeStyle: "short", numberingSystem: "latn", timeZone, ...hour24(lang) }).format(new Date(value));
 }
 
 /** "mercredi 7 octobre" for a YYYY-MM-DD calendar day (no time-zone shift). */

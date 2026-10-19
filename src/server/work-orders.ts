@@ -1,4 +1,6 @@
 import "server-only";
+import { audit } from "@/server/audit";
+import { assertQualityApproved, resetQualityApproval } from "@/server/quality";
 import { missingVehicleInfo } from "@/lib/vehicle-info";
 import type { FuelType, LineType, Prisma, Priority, WorkOrderStatus } from "@prisma/client";
 import { normalizePlate } from "@/lib/format";
@@ -52,7 +54,7 @@ export async function listWorkOrders(filter: WorkOrderFilter, q?: string, mechan
 export async function countByStatus(): Promise<Record<WorkOrderStatus, number>> {
   const groups = await prisma.workOrder.groupBy({ by: ["status"], _count: { _all: true } });
   const out = {
-    RECEIVED: 0, DIAGNOSIS: 0, QUOTE_SENT: 0, WAITING_PARTS: 0,
+    RECEIVED: 0, DIAGNOSIS: 0, QUOTE_SENT: 0, WAITING_INSURANCE: 0, WAITING_PARTS: 0,
     IN_PROGRESS: 0, QUALITY_CONTROL: 0, WASHING: 0, READY: 0, DELIVERED: 0, CANCELLED: 0,
   } satisfies Record<WorkOrderStatus, number>;
   for (const g of groups) out[g.status] = g._count._all;
@@ -275,6 +277,11 @@ export async function changeStatus(workOrderId: string, to: WorkOrderStatus, act
       throw new AppError("transition", { from: wo.status, to }, 409);
     }
 
+    // Mandatory quality control: "Ready" only after the checklist is validated by a manager.
+    if (to === "READY") await assertQualityApproved(tx, workOrderId);
+    // Back to the workshop: the checklist must be validated again afterwards.
+    if (to === "IN_PROGRESS" || to === "WAITING_PARTS" || to === "QUOTE_SENT") await resetQualityApproval(tx, workOrderId);
+
     const now = new Date();
     const data: Prisma.WorkOrderUpdateManyMutationInput = { status: to };
     if (wo.status === "QUOTE_SENT" && (to === "IN_PROGRESS" || to === "WAITING_PARTS")) data.quoteApprovedAt = now;
@@ -304,6 +311,7 @@ export async function changeStatus(workOrderId: string, to: WorkOrderStatus, act
     }
 
     await event(tx, workOrderId, actor.id, "STATUS_CHANGED", { from: wo.status, to });
+    await audit(tx, actor, "workOrder.status", "WorkOrder", workOrderId, { before: { status: wo.status }, after: { status: to } });
   });
 }
 

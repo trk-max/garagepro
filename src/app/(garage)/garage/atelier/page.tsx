@@ -1,15 +1,17 @@
 import Link from "next/link";
-import { CalendarClock, ChevronRight, Images, Play, Trash2 } from "lucide-react";
+import { CalendarClock, ChevronRight, Images, Play, Timer, Trash2 } from "lucide-react";
 import { deleteMediaAction, workshopStatusAction } from "@/actions/workshop";
+import { startLaborAction, stopLaborAction } from "@/actions/follow-up";
 import { ActionButton } from "@/components/action-form";
 import { PlateChip, PriorityBadge, StatusBadge } from "@/components/garage/badges";
 import { MediaUploader } from "@/components/garage/media-uploader";
 import { LiveRefresh } from "@/components/live-refresh";
-import { fmt, formatDateTime } from "@/lib/format";
+import { fmt, formatDateTime, formatTime } from "@/lib/format";
 import { getI18n } from "@/lib/i18n/server";
 import { can } from "@/lib/permissions";
 import { requirePageAccess } from "@/lib/session";
 import { cn } from "@/lib/utils";
+import { runningLabor } from "@/server/labor";
 import { workshopOrders } from "@/server/work-orders";
 import { NEXT_STEP, TRANSITIONS } from "@/server/workflow";
 
@@ -23,7 +25,8 @@ export default async function WorkshopPage({ searchParams }: PageProps) {
   const staff = await requirePageAccess("useWorkshop");
   const { view } = await searchParams;
   const mineOnly = view ? view === "mine" : staff.role === "MECHANIC";
-  const [{ t, lang }, orders] = await Promise.all([getI18n(), workshopOrders(mineOnly ? staff.id : undefined)]);
+  const [{ t, lang }, orders, running] = await Promise.all([getI18n(), workshopOrders(mineOnly ? staff.id : undefined), runningLabor(staff.id)]);
+  const canTime = can(staff.role, "logOwnLabor");
 
   return (
     <div className="mx-auto max-w-3xl space-y-4 p-3 sm:p-6">
@@ -116,6 +119,16 @@ export default async function WorkshopPage({ searchParams }: PageProps) {
                 )}
                 <MediaUploader workOrderId={wo.id} compact />
               </div>
+              {canTime &&
+                (running?.workOrder.id === wo.id ? (
+                  <ActionButton variant="destructive" className="mt-2 h-11 w-full" action={stopLaborAction.bind(null, running.id, wo.id)}>
+                    <Timer className="size-4" aria-hidden /> {t.v7.labor.stop} · {fmt(t.v7.labor.running, { time: formatTime(running.startedAt, lang) })}
+                  </ActionButton>
+                ) : (
+                  <ActionButton variant="outline" className="mt-2 h-11 w-full" action={startLaborAction.bind(null, wo.id)}>
+                    <Timer className="size-4" aria-hidden /> {t.v7.labor.start}
+                  </ActionButton>
+                ))}
               <div className="mt-2 flex flex-wrap gap-2">
                   {alternatives.map((s) => (
                     <ActionButton key={s} size="sm" variant="secondary" action={workshopStatusAction.bind(null, wo.id, s)}>

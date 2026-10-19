@@ -12,6 +12,7 @@ import { formatDate, formatKm, formatMoney, woNumber } from "@/lib/format";
 import { getI18n } from "@/lib/i18n/server";
 import { can } from "@/lib/permissions";
 import { requirePageAccess } from "@/lib/session";
+import { CompanyAccess } from "@/components/garage/company-access";
 import { getCustomer } from "@/server/customers";
 
 type PageProps = { params: Promise<{ id: string }> };
@@ -123,6 +124,7 @@ export default async function CustomerPage({ params }: PageProps) {
           </Card>
         </div>
 
+        <div className="space-y-6">
         <Card className="h-fit">
           <CardTitle>{t.common.edit}</CardTitle>
           <ActionForm action={updateCustomerAction.bind(null, customer.id)} reset={false} className="space-y-4">
@@ -132,6 +134,8 @@ export default async function CustomerPage({ params }: PageProps) {
             </Button>
           </ActionForm>
         </Card>
+        {can(staff.role, "manageCompanyAccess") && <CompanyAccess customerId={customer.id} t={t} lang={lang} />}
+        </div>
       </div>
     </div>
   );

@@ -36,6 +36,7 @@ vi.mock("@/lib/prisma", () => {
     },
     stockMovement: { create: async () => void db.movements++ },
     workOrderEvent: { create: async () => ({}) },
+    auditLog: { create: async () => ({}) }, // journal (V7)
   };
   return { prisma: { $transaction: async (fn: (t: typeof tx) => unknown) => fn(tx) } };
 });

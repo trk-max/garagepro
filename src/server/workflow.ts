@@ -2,12 +2,15 @@ import type { WorkOrderStatus } from "@prisma/client";
 
 /** Allowed status moves on the shop floor. DELIVERED and CANCELLED are final. */
 export const TRANSITIONS: Record<WorkOrderStatus, WorkOrderStatus[]> = {
-  RECEIVED: ["DIAGNOSIS", "QUOTE_SENT", "IN_PROGRESS", "CANCELLED"],
-  DIAGNOSIS: ["QUOTE_SENT", "WAITING_PARTS", "IN_PROGRESS", "CANCELLED"],
-  QUOTE_SENT: ["WAITING_PARTS", "IN_PROGRESS", "CANCELLED"],
+  RECEIVED: ["DIAGNOSIS", "QUOTE_SENT", "WAITING_INSURANCE", "IN_PROGRESS", "CANCELLED"],
+  DIAGNOSIS: ["QUOTE_SENT", "WAITING_INSURANCE", "WAITING_PARTS", "IN_PROGRESS", "CANCELLED"],
+  QUOTE_SENT: ["WAITING_INSURANCE", "WAITING_PARTS", "IN_PROGRESS", "CANCELLED"],
+  // Expertise / accord de l'assurance avant les travaux (sinistre).
+  WAITING_INSURANCE: ["QUOTE_SENT", "WAITING_PARTS", "IN_PROGRESS", "CANCELLED"],
   WAITING_PARTS: ["IN_PROGRESS", "CANCELLED"],
   // QUOTE_SENT from IN_PROGRESS = devis complémentaire découvert pendant la réparation.
-  IN_PROGRESS: ["QUALITY_CONTROL", "WAITING_PARTS", "QUOTE_SENT", "WASHING", "READY", "CANCELLED"],
+  // « Prêt » passe obligatoirement par le contrôle qualité (checklist validée, voir server/quality.ts).
+  IN_PROGRESS: ["QUALITY_CONTROL", "WAITING_PARTS", "WAITING_INSURANCE", "QUOTE_SENT", "CANCELLED"],
   QUALITY_CONTROL: ["WASHING", "READY", "IN_PROGRESS"],
   WASHING: ["READY", "QUALITY_CONTROL"],
   READY: ["IN_PROGRESS", "DELIVERED"],
@@ -20,6 +23,7 @@ export const NEXT_STEP: Partial<Record<WorkOrderStatus, WorkOrderStatus>> = {
   RECEIVED: "DIAGNOSIS",
   DIAGNOSIS: "QUOTE_SENT",
   QUOTE_SENT: "IN_PROGRESS",
+  WAITING_INSURANCE: "IN_PROGRESS",
   WAITING_PARTS: "IN_PROGRESS",
   IN_PROGRESS: "QUALITY_CONTROL",
   QUALITY_CONTROL: "WASHING",
@@ -31,6 +35,7 @@ export const ACTIVE_STATUSES: WorkOrderStatus[] = [
   "RECEIVED",
   "DIAGNOSIS",
   "QUOTE_SENT",
+  "WAITING_INSURANCE",
   "WAITING_PARTS",
   "IN_PROGRESS",
   "QUALITY_CONTROL",
@@ -48,7 +53,7 @@ export type CustomerStepKey = "reception" | "parts" | "repair" | "quality" | "wa
 
 /** The 6 steps the customer sees, and which shop statuses belong to each. */
 export const CUSTOMER_STEPS: { key: CustomerStepKey; statuses: WorkOrderStatus[]; optional?: boolean }[] = [
-  { key: "reception", statuses: ["RECEIVED", "DIAGNOSIS", "QUOTE_SENT"] },
+  { key: "reception", statuses: ["RECEIVED", "DIAGNOSIS", "QUOTE_SENT", "WAITING_INSURANCE"] },
   { key: "parts", statuses: ["WAITING_PARTS"], optional: true },
   { key: "repair", statuses: ["IN_PROGRESS"] },
   { key: "quality", statuses: ["QUALITY_CONTROL"] },

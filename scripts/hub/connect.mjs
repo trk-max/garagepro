@@ -36,7 +36,9 @@ export async function connectCloud({ timeoutMs = 8000 } = {}) {
   const url = process.env.CLOUD_DATABASE_URL;
   if (!url) throw new Error("CLOUD_DATABASE_URL manquant (adresse Supabase, port 5432).");
   const caFile = process.env.CLOUD_DATABASE_CA_FILE;
-  const ssl = caFile ? { ca: readFileSync(caFile, "utf8"), rejectUnauthorized: true } : { rejectUnauthorized: false };
+  // sslmode=disable only for a local test server (Supabase always uses SSL).
+  const noSsl = new URL(url).searchParams.get("sslmode") === "disable" && !isCloudUrl(url);
+  const ssl = noSsl ? false : caFile ? { ca: readFileSync(caFile, "utf8"), rejectUnauthorized: true } : { rejectUnauthorized: false };
   const client = new pg.Client({ connectionString: withoutSslParams(url), ssl, connectionTimeoutMillis: timeoutMs, query_timeout: 60_000 });
   await client.connect();
   return client;

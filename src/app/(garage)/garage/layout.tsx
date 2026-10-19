@@ -16,13 +16,20 @@ export default async function GarageLayout({ children }: { children: ReactNode }
   if (!staff) redirect("/login");
 
   // Menu counters: small COUNT queries in parallel (no rows loaded).
-  const [settings, overdue, pendingApprovals, appointmentsToday, openClaims] = await Promise.all([
+  const [settings, overdue, pendingApprovals, appointmentsToday, openClaims, pendingLeaves, lateRepairs] = await Promise.all([
     getSettings(),
     can(staff.role, "viewClientInvoices") ? countOverdue() : 0,
     staff.role === "ADMIN" ? prisma.purchaseOrder.count({ where: { status: "PENDING_APPROVAL" } }) : 0,
     can(staff.role, "viewAppointments") ? countUpcomingToday() : 0,
     // .catch: the menu must never break, even before the complaints table exists.
     can(staff.role, "manageClaims") ? countOpenClaims().catch(() => 0) : 0,
+    // V7 counters: also .catch, so the menu works before migration 4 is applied.
+    can(staff.role, "manageTeam") ? prisma.leaveRequest.count({ where: { status: "PENDING" } }).catch(() => 0) : 0,
+    can(staff.role, "manageRepairFollowUp")
+      ? prisma.workOrder
+          .count({ where: { status: { notIn: ["READY", "DELIVERED", "CANCELLED"] }, promisedAt: { lt: new Date() } } })
+          .catch(() => 0)
+      : 0,
   ]);
 
   // Counters in the menu: today's remaining bookings, late customer invoices, orders waiting for the admin.
@@ -31,6 +38,8 @@ export default async function GarageLayout({ children }: { children: ReactNode }
     clientInvoices: overdue || undefined,
     purchaseOrders: pendingApprovals || undefined,
     claims: openClaims || undefined,
+    team: pendingLeaves || undefined,
+    delays: lateRepairs || undefined,
   };
   const user = { name: staff.name, role: staff.role };
 

@@ -10,6 +10,11 @@ import { clearPrivateCache } from "@/components/pwa/pwa-register";
 import { HubStatus } from "@/components/pwa/hub-status";
 import {
   BarChart3,
+  CalendarRange,
+  Clock3,
+  History,
+  TriangleAlert,
+  Users,
   MessageSquareWarning,
   Boxes,
   CalendarDays,
@@ -48,10 +53,18 @@ type NavKey =
   | "supplierInvoices"
   | "claims"
   | "reports"
-  | "settings";
+  | "settings"
+  | "timeClock"
+  | "team"
+  | "calendar"
+  | "delays"
+  | "audit";
+
+type V7Key = "timeClock" | "team" | "calendar" | "delays" | "audit";
+const V7_KEYS: V7Key[] = ["timeClock", "team", "calendar", "delays", "audit"];
 
 type Item = { key: NavKey; href: string; icon: LucideIcon; permission?: Permission };
-type Group = { title?: "clientSpace" | "supplierSpace"; items: Item[] };
+type Group = { title?: "clientSpace" | "supplierSpace" | "teamSpace"; items: Item[] };
 
 const GROUPS: Group[] = [
   { items: [{ key: "dashboard", href: "/garage", icon: LayoutDashboard }] },
@@ -61,6 +74,7 @@ const GROUPS: Group[] = [
       { key: "appointments", href: "/garage/appointments", icon: CalendarDays, permission: "viewAppointments" },
       { key: "workshop", href: "/garage/atelier", icon: Smartphone, permission: "useWorkshop" },
       { key: "workOrders", href: "/garage/work-orders", icon: ClipboardList, permission: "viewWorkOrders" },
+      { key: "delays", href: "/garage/suivi", icon: TriangleAlert, permission: "manageRepairFollowUp" },
       { key: "customers", href: "/garage/customers", icon: Car, permission: "viewCustomers" },
       { key: "clientInvoices", href: "/garage/invoices", icon: FileText, permission: "viewClientInvoices" },
       { key: "claims", href: "/garage/reclamations", icon: MessageSquareWarning, permission: "manageClaims" },
@@ -77,8 +91,17 @@ const GROUPS: Group[] = [
     ],
   },
   {
+    title: "teamSpace",
+    items: [
+      { key: "timeClock", href: "/garage/pointage", icon: Clock3, permission: "useTimeClock" },
+      { key: "calendar", href: "/garage/calendrier", icon: CalendarRange, permission: "useTimeClock" },
+      { key: "team", href: "/garage/equipe", icon: Users, permission: "manageTeam" },
+    ],
+  },
+  {
     items: [
       { key: "reports", href: "/garage/rapports", icon: BarChart3, permission: "viewReports" },
+      { key: "audit", href: "/garage/journal", icon: History, permission: "viewAuditLog" },
       { key: "settings", href: "/garage/settings", icon: Settings, permission: "manageSettings" },
     ],
   },
@@ -147,7 +170,7 @@ function NavLinks({ role, badges, className, onNavigate }: { role: Role; badges:
           return (
             <div key={gi} className="space-y-0.5">
               {group.title && (
-                <p className="f-label px-3 pb-2 text-[0.625rem] text-muted-foreground">{t.nav[group.title]}</p>
+                <p className="f-label px-3 pb-2 text-[0.625rem] text-muted-foreground">{group.title === "teamSpace" ? t.v7.team.title : t.nav[group.title]}</p>
               )}
               {items.map(({ key, href, icon: Icon }) => {
                 const active = href === "/garage" ? pathname === href : pathname.startsWith(href);
@@ -166,7 +189,7 @@ function NavLinks({ role, badges, className, onNavigate }: { role: Role; badges:
                     )}
                   >
                     <Icon className="size-4 shrink-0" strokeWidth={1.5} aria-hidden />
-                    <span className="flex-1">{t.nav[key]}</span>
+                    <span className="flex-1">{(V7_KEYS as string[]).includes(key) ? t.v7.nav[key as V7Key] : t.nav[key as Exclude<NavKey, V7Key>]}</span>
                     {badge ? <span className="min-w-5 bg-brand-500 px-1.5 text-center text-[0.6875rem] font-semibold tracking-normal text-white">{badge}</span> : null}
                   </Link>
                 );

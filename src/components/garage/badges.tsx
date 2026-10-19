@@ -7,6 +7,7 @@ const STATUS_CLASS: Record<WorkOrderStatus, string> = {
   RECEIVED: "bg-slate-500/10 text-slate-700 border-slate-500/20 dark:text-slate-300",
   DIAGNOSIS: "bg-violet-500/10 text-violet-700 border-violet-500/20 dark:text-violet-300",
   QUOTE_SENT: "bg-amber-500/10 text-amber-700 border-amber-500/30 dark:text-amber-300",
+  WAITING_INSURANCE: "bg-fuchsia-500/10 text-fuchsia-700 border-fuchsia-500/30 dark:text-fuchsia-300",
   WAITING_PARTS: "bg-orange-500/10 text-orange-700 border-orange-500/30 dark:text-orange-300",
   IN_PROGRESS: "bg-blue-500/10 text-blue-700 border-blue-500/20 dark:text-blue-300",
   QUALITY_CONTROL: "bg-cyan-500/10 text-cyan-700 border-cyan-500/30 dark:text-cyan-300",

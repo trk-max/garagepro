@@ -1,3 +1,4 @@
+import { v7En } from "@/lib/i18n/v7-en";
 import type { Dictionary } from "@/lib/i18n/fr";
 
 export const en: Dictionary = {
@@ -58,11 +59,12 @@ export const en: Dictionary = {
     appointments: "Appointments",
     workshop: "Workshop (mobile)",
   },
-  roles: { ADMIN: "Administrator", RECEPTION: "Reception", MECHANIC: "Mechanic", STOREKEEPER: "Storekeeper" },
+  roles: { ADMIN: "Administrator", MANAGER: "Manager", RECEPTION: "Reception", MECHANIC: "Mechanic", STOREKEEPER: "Storekeeper" },
   status: {
     RECEIVED: "Received",
     DIAGNOSIS: "Diagnosis",
     QUOTE_SENT: "Quote sent",
+    WAITING_INSURANCE: "Waiting for insurance",
     WAITING_PARTS: "Waiting for parts",
     IN_PROGRESS: "In repair",
     QUALITY_CONTROL: "Quality control",
@@ -285,6 +287,24 @@ export const en: Dictionary = {
     locked: "Too many failed attempts. Try again in 15 minutes.",
   },
   errors: {
+    clockCodeInvalid: "Wrong or expired kiosk code. Type the code shown right now on the garage screen.",
+    clockNetwork: "Clocking in is only possible from the garage network.",
+    clockSequence: "This punch does not follow the previous one (e.g. two arrivals in a row). Refresh the page.",
+    clockTooMany: "Too many attempts. Try again in 10 minutes or ask your manager.",
+    notOwnCorrection: "You cannot correct your own punches: ask the administrator.",
+    notOwnDecision: "You cannot decide on your own request: the administrator must.",
+    leaveDates: "Wrong dates: the end must be after the start (365 days max).",
+    leaveOverlap: "This period overlaps request #{n}, pending or approved.",
+    leaveNotPending: "This request has already been handled.",
+    laborClosedOrder: "This order is closed (delivered or cancelled).",
+    laborRunning: "A timer is already running ({n}). Stop it first.",
+    laborNotRunning: "This timer is already stopped.",
+    laborDates: "Wrong times: end after start (16 h max, not in the future).",
+    qcIncomplete: "Quality control incomplete: tick every point (and road test: done or not needed).",
+    qcNotApproved: "Cannot set “Ready”: quality control must be complete and validated by a manager.",
+    certificateMissing: "Missing information for the certificate: {fields}. Fill them in (Settings / employee file): nothing is made up.",
+    companyLogin: "Wrong e-mail or password.",
+    reasonRequired: "Give a reason (kept in the history).",
     hubOnly: "In garage mode, invoices, purchase orders and goods receipts are created from the garage app (garage PC), so numbers never repeat.",
     vehicleIncomplete: "Vehicle file incomplete: VIN (17 characters), year, fuel, colour and mileage are mandatory.",
     alreadyRated: "You have already rated this repair. Thank you!",
@@ -861,4 +881,5 @@ export const en: Dictionary = {
     hubOffline: "Internet down: the garage keeps working locally",
     hubLastSync: "Last sync: {time}",
   },
+  v7: v7En,
 };

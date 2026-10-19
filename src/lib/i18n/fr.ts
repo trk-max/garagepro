@@ -1,3 +1,4 @@
+import { v7Fr } from "@/lib/i18n/v7-fr";
 export const fr = {
   common: {
     appName: "GaragePro",
@@ -56,11 +57,12 @@ export const fr = {
     appointments: "Rendez-vous",
     workshop: "Atelier (mobile)",
   },
-  roles: { ADMIN: "Administrateur", RECEPTION: "Réception", MECHANIC: "Mécanicien", STOREKEEPER: "Magasinier" },
+  roles: { ADMIN: "Administrateur", MANAGER: "Responsable", RECEPTION: "Réception", MECHANIC: "Mécanicien", STOREKEEPER: "Magasinier" },
   status: {
     RECEIVED: "Réceptionné",
     DIAGNOSIS: "Diagnostic",
     QUOTE_SENT: "Devis envoyé",
+    WAITING_INSURANCE: "Attente assurance",
     WAITING_PARTS: "Attente pièces",
     IN_PROGRESS: "En réparation",
     QUALITY_CONTROL: "Contrôle qualité",
@@ -283,6 +285,24 @@ export const fr = {
     locked: "Trop de tentatives échouées. Réessayez dans 15 minutes.",
   },
   errors: {
+    clockCodeInvalid: "Code de la borne incorrect ou expiré. Tapez le code affiché en ce moment sur l'écran du garage.",
+    clockNetwork: "Le pointage n'est possible que depuis le réseau du garage.",
+    clockSequence: "Ce pointage ne suit pas le précédent (ex. deux arrivées de suite). Actualisez la page.",
+    clockTooMany: "Trop d'essais. Réessayez dans 10 minutes ou demandez à votre responsable.",
+    notOwnCorrection: "Vous ne pouvez pas corriger vos propres pointages : demandez à l'administrateur.",
+    notOwnDecision: "Vous ne pouvez pas valider votre propre demande : elle doit être décidée par l'administrateur.",
+    leaveDates: "Dates incorrectes : la fin doit être après le début (365 jours maximum).",
+    leaveOverlap: "Cette période chevauche la demande n° {n} déjà en cours ou acceptée.",
+    leaveNotPending: "Cette demande a déjà été traitée.",
+    laborClosedOrder: "Cet ordre est terminé (livré ou annulé).",
+    laborRunning: "Un chronomètre tourne déjà ({n}). Arrêtez-le d'abord.",
+    laborNotRunning: "Ce chronomètre est déjà arrêté.",
+    laborDates: "Horaires incorrects : la fin doit être après le début (16 h maximum, pas dans le futur).",
+    qcIncomplete: "Contrôle qualité incomplet : cochez tous les points (et l'essai routier : fait ou non nécessaire).",
+    qcNotApproved: "Impossible de passer à « Prêt » : le contrôle qualité doit être complet et validé par un responsable.",
+    certificateMissing: "Informations manquantes pour l'attestation : {fields}. Complétez-les (Paramètres / fiche employé) : rien n'est inventé.",
+    companyLogin: "E-mail ou mot de passe incorrect.",
+    reasonRequired: "Indiquez un motif (il est conservé dans l'historique).",
     hubOnly: "Avec le mode garage, les factures, bons de commande et bons de réception sont créés depuis l'application du garage (PC du garage), pour garder une numérotation sans doublon.",
     vehicleIncomplete: "Fiche du véhicule incomplète : VIN (17 caractères), année, carburant, couleur et kilométrage sont obligatoires.",
     alreadyRated: "Vous avez déjà donné votre avis pour cette réparation. Merci !",
@@ -859,6 +879,7 @@ export const fr = {
     hubOffline: "Internet coupé : le garage continue en local",
     hubLastSync: "Dernière synchro : {time}",
   },
+  v7: v7Fr,
 };
 
 export type Dictionary = typeof fr;

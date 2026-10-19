@@ -41,6 +41,41 @@ npx prisma db execute --file prisma/migrations/2_claims_feedback/migration.sql -
 
 Le script peut être relancé sans risque (il ignore ce qui existe déjà).
 
+## Nouveautés V7 — gestion complète du garage (équipe, atelier, entreprises)
+
+| | |
+|---|---|
+| **Rôle « Responsable »** | Nouveau rôle entre Administrateur et Réception : valide les congés, les corrections de pointage, le contrôle qualité ; voit les rapports des employés. |
+| **Pointage sécurisé** | Menu *Pointage & congés*. L'écran du garage (*Ouvrir la borne*) affiche un **code à 6 chiffres qui change toutes les 30 s** + un QR code. Chaque employé pointe depuis **son** compte avec ce code : il doit voir l'écran du garage. Un code ne sert qu'une fois par personne, 8 essais faux = blocage 10 min. Option (Paramètres) : exiger aussi le **réseau du garage** (automatique sur le PC du garage ; en ligne, IP fixe du garage). Arrivée, départ, pauses. |
+| **Corrections** | Le responsable ajoute ou corrige un pointage avec un **motif obligatoire** ; la ligne d'origine n'est jamais effacée (marquée « annulée »). Personne ne corrige ses propres pointages (sauf l'administrateur). |
+| **Congés et absences** | Demande depuis son compte (congé payé, maladie, sans solde, autorisation de quelques heures, absence) → le responsable accepte ou refuse (jamais sa propre demande). Chevauchements refusés. Historique complet. |
+| **Calendrier** | Vues jour, semaine, mois, année : congés acceptés, demandes en attente (pour l'intéressé et les responsables), RDV, livraisons promises. Les collègues voient « Absent », pas le motif. |
+| **Rapports par employé** | Heures de présence, heures sur chaque réparation, pauses, jours incomplets (sortie non pointée = 0 h, jamais deviné), congés de la période. Export **Excel (CSV)** et **impression / PDF**. |
+| **Attestation de travail (PDF)** | Générée avec les informations réellement enregistrées (Paramètres → Entreprise + fiche employé), numérotée ATT-AAAA-NNNN et archivée. Sans signature ni cachet (à signer à la main). Refusée si une information manque. |
+| **Temps des mécaniciens** | Chrono par mécanicien sur l'ordre et dans *Atelier (mobile)* ; plusieurs mécaniciens sur le même ordre. L'ordre affiche **heures-personnes** (2 mécaniciens × 2 h = 4 h, pour les rapports), **durée de l'intervention** (2 h) et **main-d'œuvre facturée** (les lignes). La facture n'est jamais changée automatiquement : un bouton propose la ligne selon la règle choisie dans Paramètres. |
+| **Assurance, pièces manquantes, retards** | Statut **« Attente assurance »** (compagnie, n° de sinistre, décision). Pièces manquantes avec fournisseur et date de livraison prévue. Page **Suivi & retards** : livraisons promises dépassées, pièces en retard, assurance en attente depuis plus de 3 jours, avec qui appeler et quoi faire. |
+| **Contrôle qualité obligatoire** | Checklist : essai routier (fait / non nécessaire), liquides, voyants, outils retirés, travaux vérifiés, facturation vérifiée, puis **validation par un responsable**. Le passage à « Prêt » est **bloqué par le serveur** tant que ce n'est pas fait ; modifier un point ou renvoyer la voiture en réparation annule la validation. |
+| **Portail entreprise** | `/entreprise` : les comptes d'un client professionnel (créés depuis sa fiche client) voient **uniquement** leurs véhicules, réparations, photos et — selon le rôle — devis et factures. Tout est filtré côté serveur. |
+| **Journal** | *Journal* (administrateur) : qui a fait quoi, quand, avant → après. Lignes impossibles à modifier ou effacer (protection dans la base). Jamais de mot de passe ni de code dedans. |
+
+### Mise à jour vers la V7 (base de données)
+
+**Avec le hub du garage (votre cas)**, une commande à la fois, internet branché :
+
+```
+npm install
+```
+```
+npm run db:cloud
+```
+(ajoute les nouvelles tables à Supabase — rien n'est supprimé ; à faire **avant** le `git push`). La base du PC du garage se met à jour toute seule au prochain `start-hub.cmd`.
+
+**Sans hub** : `npx prisma db execute --file prisma/migrations/4_team_quality/migration.sql --schema prisma/schema.prisma`
+
+Ensuite : **Paramètres** → *Entreprise (attestations)* et *Pointage* ; **Équipe** → fiche de chaque employé (poste, date d'embauche).
+
+Tests de la V7 sur une vraie base PostgreSQL **de test** : `set TEST_DATABASE_URL=postgresql://postgres:MDP@localhost:5432/postgres` puis `npm run test:db`. Rapport détaillé : [`docs/RAPPORT-V7.md`](docs/RAPPORT-V7.md).
+
 ## Nouveautés V6 — application PC / téléphone et mode hors ligne
 
 | | |

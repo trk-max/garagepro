@@ -12,6 +12,7 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["tests/**/*.test.ts"],
+    exclude: ["tests/**/*.db.test.ts", "node_modules/**"],
     env: { AUTH_SECRET: "test-secret-not-used-in-production", TZ: "UTC" },
   },
 });

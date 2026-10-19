@@ -20,6 +20,8 @@ datasource db {
 
 enum Role {
   ADMIN
+  /// Responsable d'atelier : valide congés, corrections de pointage, contrôle qualité.
+  MANAGER
   RECEPTION
   MECHANIC
   STOREKEEPER // magasinier
@@ -29,6 +31,7 @@ enum WorkOrderStatus {
   RECEIVED // véhicule réceptionné
   DIAGNOSIS // diagnostic en cours
   QUOTE_SENT // devis envoyé, en attente d'accord client
+  WAITING_INSURANCE // en attente de l'accord de l'assurance
   WAITING_PARTS // en attente de pièces
   IN_PROGRESS // réparation en cours
   QUALITY_CONTROL // contrôle qualité & essai routier
@@ -137,9 +140,19 @@ model User {
   passwordHash String
   isActive     Boolean   @default(true)
   lastSeenAt   DateTime?
+  /// Fiche RH (attestations, rapports) — facultatif.
+  jobTitle     String?
+  hireDate     DateTime? @db.Date
+  /// N° CIN, uniquement pour les attestations de travail.
+  nationalId   String?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
+  clockEvents             ClockEvent[]      @relation("ClockUser")
+  leaveRequests           LeaveRequest[]    @relation("LeaveUser")
+  decidedLeaves           LeaveRequest[]    @relation("LeaveDecidedBy")
+  laborEntries            LaborEntry[]      @relation("LaborUser")
+  certificates            WorkCertificate[] @relation("CertificateUser")
   assignedWorkOrders      WorkOrder[]       @relation("Mechanic")
   createdWorkOrders       WorkOrder[]       @relation("CreatedBy")
   events                  WorkOrderEvent[]
@@ -166,9 +179,12 @@ model Customer {
   /// Matricule fiscal pour les clients professionnels (facturation).
   taxId     String?
   notes     String?
+  /// Client professionnel (flotte) : peut avoir des comptes sur le portail entreprise.
+  isCompany Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  companyUsers CompanyUser[]
   vehicles     Vehicle[]
   workOrders   WorkOrder[]
   invoices     Invoice[]
@@ -205,34 +221,41 @@ model Vehicle {
 // ── Ordres de réparation ─────────────────────────────────────────────────────
 
 model WorkOrder {
-  id              String          @id @default(cuid())
+  id                   String          @id @default(cuid())
   /// Affiché "OR-0042".
-  number          Int             @unique @default(autoincrement())
-  status          WorkOrderStatus @default(RECEIVED)
-  priority        Priority        @default(NORMAL)
+  number               Int             @unique @default(autoincrement())
+  status               WorkOrderStatus @default(RECEIVED)
+  priority             Priority        @default(NORMAL)
   /// Ce que le client signale.
-  complaint       String
+  complaint            String
   /// Constat du mécanicien.
-  diagnosis       String?
-  mileageIn       Int?
-  customerId      String
-  vehicleId       String
-  mechanicId      String?
-  createdById     String?
+  diagnosis            String?
+  mileageIn            Int?
+  customerId           String
+  vehicleId            String
+  mechanicId           String?
+  createdById          String?
   /// Heure de fin estimée (ETA) affichée au client.
-  promisedAt      DateTime?
-  quoteApprovedAt DateTime?
+  promisedAt           DateTime?
+  quoteApprovedAt      DateTime?
   /// Code à 4 chiffres remis au client pour le suivi en ligne (avec l'immatriculation).
-  trackingPin     String?
-  readyAt         DateTime?
-  deliveredAt     DateTime?
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  trackingPin          String?
+  readyAt              DateTime?
+  deliveredAt          DateTime?
+  /// Assurance (dossier sinistre).
+  insurerName          String?
+  insuranceClaimRef    String?
+  insuranceRequestedAt DateTime?
+  insuranceDecidedAt   DateTime?
+  /// APPROVED | REJECTED | PARTIAL (null = pas de décision).
+  insuranceDecision    String?
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
 
-  customer       Customer         @relation(fields: [customerId], references: [id], onDelete: Restrict)
-  vehicle        Vehicle          @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
-  mechanic       User?            @relation("Mechanic", fields: [mechanicId], references: [id], onDelete: SetNull)
-  createdBy      User?            @relation("CreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  customer       Customer            @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  vehicle        Vehicle             @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
+  mechanic       User?               @relation("Mechanic", fields: [mechanicId], references: [id], onDelete: SetNull)
+  createdBy      User?               @relation("CreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   lines          WorkOrderLine[]
   events         WorkOrderEvent[]
   invoice        Invoice?
@@ -241,6 +264,9 @@ model WorkOrder {
   appointment    Appointment?
   claims         CustomerClaim[]
   feedback       CustomerFeedback?
+  laborEntries   LaborEntry[]
+  partNeeds      WorkOrderPartNeed[]
+  qualityCheck   QualityCheck?
 
   @@index([status, updatedAt(sort: Desc)])
   @@index([mechanicId, status])
@@ -306,6 +332,7 @@ model Part {
   packageLines      PackageLine[]
   purchaseLines     PurchaseOrderLine[]
   receiptLines      GoodsReceiptLine[]
+  partNeeds         WorkOrderPartNeed[]
   defaultSupplierId String?
   defaultSupplier   Supplier?           @relation(fields: [defaultSupplierId], references: [id], onDelete: SetNull)
 
@@ -456,6 +483,18 @@ model Setting {
   /// Jusqu'à combien de jours à l'avance on peut réserver.
   bookingHorizonDays Int      @default(30)
   /// Horaires par jour (0 = dimanche) : { "1": { "open": "08:00", "close": "17:00" }, "0": null }
+  /// Raison sociale, représentant légal, ville (attestations de travail).
+  legalName          String?
+  legalRepName       String?
+  legalRepTitle      String?
+  city               String?
+  /// Pointage : "CODE" (code de la borne), "NETWORK" (réseau du garage) ou "CODE_AND_NETWORK".
+  clockMode          String   @default("CODE")
+  /// Réseaux autorisés pour le pointage, ex. "192.168.100.0/24, 41.226.10.5".
+  clockNetworks      String?
+  /// Facturation de la main-d'œuvre proposée à partir du temps passé :
+  /// "ELAPSED" (temps de l'intervention, même si plusieurs mécaniciens) ou "PERSON" (somme des heures de chacun).
+  laborBillingMode   String   @default("ELAPSED")
   openingHours       Json     @default("{\"0\":null,\"1\":{\"open\":\"08:00\",\"close\":\"17:00\"},\"2\":{\"open\":\"08:00\",\"close\":\"17:00\"},\"3\":{\"open\":\"08:00\",\"close\":\"17:00\"},\"4\":{\"open\":\"08:00\",\"close\":\"17:00\"},\"5\":{\"open\":\"08:00\",\"close\":\"17:00\"},\"6\":{\"open\":\"08:00\",\"close\":\"13:00\"}}")
   updatedAt          DateTime @updatedAt
 }
@@ -479,6 +518,7 @@ model Supplier {
   purchaseOrders PurchaseOrder[]
   receipts       GoodsReceipt[]
   invoices       SupplierInvoice[]
+  partNeeds      WorkOrderPartNeed[]
 
   @@index([name])
 }
@@ -505,6 +545,7 @@ model PurchaseOrder {
   lines       PurchaseOrderLine[]
   receipts    GoodsReceipt[]
   invoices    SupplierInvoice[]
+  partNeeds   WorkOrderPartNeed[]
 
   @@index([status, createdAt(sort: Desc)])
   @@index([supplierId])
@@ -557,6 +598,7 @@ model GoodsReceiptLine {
 
   receipt GoodsReceipt @relation(fields: [receiptId], references: [id], onDelete: Cascade)
   part    Part         @relation(fields: [partId], references: [id], onDelete: Restrict)
+
   @@index([receiptId])
 }
 
@@ -596,6 +638,7 @@ model SupplierPayment {
 
   supplierInvoice SupplierInvoice @relation(fields: [supplierInvoiceId], references: [id], onDelete: Cascade)
   actor           User?           @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
   @@index([supplierInvoiceId])
 }
 
@@ -774,4 +817,239 @@ model SyncState {
   updatedAt DateTime @default(now()) @db.Timestamptz(3)
 
   @@map("_sync_state")
+}
+
+// ── Équipe : journal, pointage, congés, attestations ─────────────────────────
+
+/// Journal d'audit : qui a fait quoi, quand, avant / après. Lignes non modifiables
+/// (protégées par un trigger SQL). Jamais de mot de passe ni de secret dedans.
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId   String?
+  /// Nom de l'auteur au moment de l'action (reste lisible si le compte est supprimé).
+  actorName String
+  action    String
+  entity    String
+  entityId  String?
+  before    Json?
+  after     Json?
+  ip        String?
+  createdAt DateTime @default(now())
+
+  @@index([entity, entityId, createdAt])
+  @@index([createdAt])
+  @@index([actorId, createdAt])
+}
+
+enum ClockKind {
+  IN
+  OUT
+  BREAK_START
+  BREAK_END
+}
+
+enum ClockMethod {
+  /// Code affiché sur la borne du garage (change toutes les 30 s).
+  KIOSK_CODE
+  /// Appareil sur le réseau du garage.
+  NETWORK
+  /// Code de la borne ET réseau du garage.
+  KIOSK_CODE_NETWORK
+  /// Saisie / correction par un responsable (avec motif).
+  CORRECTION
+}
+
+/// Pointage. Jamais modifié ni supprimé : une erreur est annulée (voidedAt + motif)
+/// et remplacée par une ligne CORRECTION.
+model ClockEvent {
+  id          String      @id @default(cuid())
+  userId      String
+  kind        ClockKind
+  at          DateTime
+  method      ClockMethod
+  ip          String?
+  /// Fenêtre du code de borne utilisée (un code = un pointage par personne).
+  codeWindow  Int?
+  reason      String?
+  createdById String?
+  voidedAt    DateTime?
+  voidedById  String?
+  voidReason  String?
+  createdAt   DateTime    @default(now())
+
+  user User @relation("ClockUser", fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, codeWindow])
+  @@index([userId, at])
+  @@index([at])
+}
+
+enum LeaveType {
+  PAID_LEAVE // congé payé
+  SICK // maladie
+  UNPAID // congé sans solde
+  AUTHORIZATION // autorisation (quelques heures)
+  ABSENCE // absence déclarée
+  OTHER
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+model LeaveRequest {
+  id           String      @id @default(cuid())
+  number       Int         @unique @default(autoincrement())
+  userId       String
+  type         LeaveType
+  startAt      DateTime
+  endAt        DateTime
+  /// true = journées entières (startAt/endAt à minuit, fin exclue).
+  allDay       Boolean     @default(true)
+  reason       String?
+  status       LeaveStatus @default(PENDING)
+  createdById  String?
+  decidedById  String?
+  decidedAt    DateTime?
+  decisionNote String?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  user      User  @relation("LeaveUser", fields: [userId], references: [id], onDelete: Restrict)
+  decidedBy User? @relation("LeaveDecidedBy", fields: [decidedById], references: [id], onDelete: SetNull)
+
+  @@index([userId, startAt])
+  @@index([status, startAt])
+  @@index([startAt, endAt])
+}
+
+/// Attestation de travail délivrée (copie figée des informations imprimées).
+model WorkCertificate {
+  id         String   @id @default(cuid())
+  /// "ATT-2026-0001"
+  number     String   @unique
+  userId     String
+  issuedById String?
+  purpose    String?
+  snapshot   Json
+  issuedAt   DateTime @default(now())
+
+  user User @relation("CertificateUser", fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId, issuedAt])
+}
+
+// ── Atelier : temps passé, pièces manquantes, contrôle qualité ──────────────
+
+/// Temps réellement passé par un mécanicien sur un ordre (plusieurs mécaniciens possibles).
+/// Indépendant des lignes de main-d'œuvre facturées.
+model LaborEntry {
+  id          String    @id @default(cuid())
+  workOrderId String
+  userId      String
+  startedAt   DateTime
+  /// null = chronomètre en cours.
+  endedAt     DateTime?
+  note        String?
+  createdById String?
+  voidedAt    DateTime?
+  voidedById  String?
+  voidReason  String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Restrict)
+  user      User      @relation("LaborUser", fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([workOrderId, startedAt])
+  @@index([userId, startedAt])
+}
+
+enum PartNeedStatus {
+  NEEDED // à commander
+  ORDERED // commandée
+  RECEIVED // reçue
+  CANCELLED
+}
+
+/// Pièce qui manque pour terminer une réparation.
+model WorkOrderPartNeed {
+  id              String         @id @default(cuid())
+  workOrderId     String
+  partId          String?
+  description     String
+  quantityX100    Int            @default(100)
+  status          PartNeedStatus @default(NEEDED)
+  supplierId      String?
+  purchaseOrderId String?
+  orderedAt       DateTime?
+  /// Date de livraison prévue.
+  expectedAt      DateTime?
+  receivedAt      DateTime?
+  note            String?
+  createdById     String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  workOrder     WorkOrder      @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  part          Part?          @relation(fields: [partId], references: [id], onDelete: SetNull)
+  supplier      Supplier?      @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  purchaseOrder PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id], onDelete: SetNull)
+
+  @@index([workOrderId])
+  @@index([status, expectedAt])
+}
+
+/// Contrôle qualité obligatoire avant « Prêt ».
+model QualityCheck {
+  id              String    @id @default(cuid())
+  workOrderId     String    @unique
+  /// "DONE" | "NOT_NEEDED" (null = pas encore renseigné).
+  roadTest        String?
+  fluidsOk        Boolean   @default(false)
+  warningsOk      Boolean   @default(false)
+  toolsRemoved    Boolean   @default(false)
+  workVerified    Boolean   @default(false)
+  billingVerified Boolean   @default(false)
+  notes           String?
+  checkedById     String?
+  checkedAt       DateTime?
+  /// Validation finale par un responsable (annulée si un point change ensuite).
+  approvedById    String?
+  approvedAt      DateTime?
+  updatedAt       DateTime  @updatedAt
+
+  workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+}
+
+// ── Portail entreprise ───────────────────────────────────────────────────────
+
+enum CompanyRole {
+  /// Gère les comptes de son entreprise, voit tout (dont factures).
+  FLEET_ADMIN
+  /// Voit véhicules, réparations, devis et factures.
+  MANAGER
+  /// Voit véhicules et réparations, sans montants.
+  VIEWER
+}
+
+/// Compte d'un employé d'une entreprise cliente : ne voit QUE les véhicules de son entreprise.
+model CompanyUser {
+  id           String      @id @default(cuid())
+  customerId   String
+  email        String      @unique
+  name         String
+  role         CompanyRole @default(VIEWER)
+  passwordHash String
+  isActive     Boolean     @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Restrict)
+
+  @@index([customerId])
 }

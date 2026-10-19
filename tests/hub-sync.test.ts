@@ -160,6 +160,16 @@ describe.skipIf(!BASE)("garage hub ↔ online database", () => {
     expect(await one(local, `SELECT id FROM "Vehicle" WHERE id='v5'`)).toBeUndefined();
   });
 
+  it("V7 tables travel too (journal is append-only but copied by the hub)", async () => {
+    await local.query(`INSERT INTO "AuditLog"(id, "actorName", action, entity) VALUES ('a1', 'Admin', 'leave.approve', 'LeaveRequest')`);
+    await local.query(`INSERT INTO "LeaveRequest"(id, "userId", type, "startAt", "endAt", "updatedAt") VALUES ('l1', 'u1', 'PAID_LEAVE', now(), now() + interval '1 day', now())`);
+    const r = await syncOnce(local, cloud);
+    expect(r.errors).toEqual([]);
+    expect((await one(cloud, `SELECT action FROM "AuditLog" WHERE id='a1'`)).action).toBe("leave.approve");
+    expect(Number((await one(cloud, `SELECT number FROM "LeaveRequest" WHERE id='l1'`)).number) % 2).toBe(1); // garage numbers are odd
+    await expect(cloud.query(`DELETE FROM "AuditLog" WHERE id='a1'`)).rejects.toThrow(/append-only/);
+  });
+
   it("a database without a hub logs nothing", async () => {
     const plain = await freshDb(admin, "gp_hub_plain", allMigrations);
     try {

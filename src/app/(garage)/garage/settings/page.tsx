@@ -25,6 +25,7 @@ import { partOptions } from "@/server/parts";
 import { getSettings } from "@/server/settings";
 import { listBookableServices } from "@/server/booking";
 import { BookingSettings } from "@/components/garage/booking-settings";
+import { SettingsV7 } from "@/components/garage/settings-v7";
 import { EmailSettings } from "@/components/garage/email-settings";
 
 export default async function SettingsPage() {
@@ -251,6 +252,8 @@ export default async function SettingsPage() {
           <Button type="submit">{t.settings.newPackage}</Button>
         </ActionForm>
       </Card>
+      <SettingsV7 t={t} settings={settings} />
+
       <BookingSettings t={t} lang={lang} settings={settings} services={bookableServices} />
       <EmailSettings t={t} defaultTo={me.email} />
     </div>
