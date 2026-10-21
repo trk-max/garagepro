@@ -43,7 +43,7 @@ describe("Relevés OBD-II", () => {
       ["ADAPTER", "NOT_APPLIED", workOrder.id],
       ["ADAPTER", "APPLIED", null],
     ]);
-    expect(rows[0].dtcs).toEqual([{ code: "P0133", kind: "stored" }]);
+    expect(rows[0]?.dtcs).toEqual([{ code: "P0133", kind: "stored" }]);
   });
 
   it("a LOWER odometer is flagged and never applied, even if confirmation is sent", async () => {

@@ -41,6 +41,8 @@ function scanSiteMedia() {
 }
 
 const nextConfig: NextConfig = {
+  // scripts/serve.mjs builds into .next-new, then switches it in only if the build succeeded.
+  distDir: process.env.NEXT_DIST_DIR || ".next",
   // The project folder is the root, even if a stray package-lock.json exists in a parent folder.
   turbopack: { root: process.cwd() },
   outputFileTracingRoot: process.cwd(),

@@ -6,14 +6,13 @@
  *   npm run serve
  */
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync, readdirSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 process.chdir(ROOT);
 const npx = process.platform === "win32" ? "npx.cmd" : "npx";
-const run = (args) => spawnSync(npx, args, { stdio: "inherit", shell: process.platform === "win32" });
 
 function newestMtime(target) {
   if (!existsSync(target)) return 0;
@@ -33,8 +32,19 @@ const sources = Math.max(...["src", "prisma", "public", "package.json", "next.co
 
 if (sources > built) {
   console.log("\n  Code modifié depuis la dernière version : préparation de la version rapide (1 à 2 minutes)…\n");
-  const result = run(["next", "build"]);
-  if (result.status !== 0) {
+  // Built on the side (.next-new) and switched in only when it succeeded: a failed build
+  // (code changed in the middle of an edit, type error…) keeps the previous version running.
+  rmSync(".next-new", { recursive: true, force: true });
+  const result = spawnSync(npx, ["next", "build"], { stdio: "inherit", shell: process.platform === "win32", env: { ...process.env, NEXT_DIST_DIR: ".next-new" } });
+  if (result.status === 0) {
+    rmSync(".next", { recursive: true, force: true });
+    renameSync(".next-new", ".next");
+    // next-env.d.ts was written for .next-new: point it back to .next (type checks use it).
+    if (existsSync("next-env.d.ts")) writeFileSync("next-env.d.ts", readFileSync("next-env.d.ts", "utf8").replaceAll(".next-new/", ".next/"));
+  } else if (existsSync(buildId)) {
+    rmSync(".next-new", { recursive: true, force: true });
+    console.error("\n  !! La nouvelle version n'a pas pu être préparée (message ci-dessus) : la version précédente reste en service.\n");
+  } else {
     console.error("\n  La préparation a échoué. Lisez le message ci-dessus, ou utilisez le mode développement : npm run dev\n");
     process.exit(result.status ?? 1);
   }

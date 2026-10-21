@@ -59,33 +59,23 @@ Source: "{#IconFile}"; DestDir: "{app}"; DestName: "garagepro.ico"; Flags: ignor
 #endif
 
 [Icons]
-Name: "{autoprograms}\GaragePro\GaragePro - hub du garage"; Filename: "{app}\start-hub.cmd"; WorkingDir: "{app}"; IconFilename: "{app}\garagepro.ico"; Check: HasIcon
-Name: "{autoprograms}\GaragePro\GaragePro - hub du garage"; Filename: "{app}\start-hub.cmd"; WorkingDir: "{app}"; Check: not HasIcon
-Name: "{autoprograms}\GaragePro\Ouvrir GaragePro (navigateur)"; Filename: "http://localhost:3000"
-Name: "{autoprograms}\GaragePro\Configuration (setup)"; Filename: "{app}\setup.cmd"; WorkingDir: "{app}"
+; Toutes les icônes portent le logo GaragePro (garagepro.ico, fabriqué depuis public/icons/icon-192.png).
+Name: "{autoprograms}\GaragePro\GaragePro - hub du garage"; Filename: "{app}\start-hub.cmd"; WorkingDir: "{app}"; IconFilename: "{app}\garagepro.ico"
+Name: "{autoprograms}\GaragePro\Ouvrir GaragePro (navigateur)"; Filename: "http://localhost:3000"; IconFilename: "{app}\garagepro.ico"
+Name: "{autoprograms}\GaragePro\Configuration (setup)"; Filename: "{app}\setup.cmd"; WorkingDir: "{app}"; IconFilename: "{app}\garagepro.ico"
 Name: "{autoprograms}\GaragePro\Dossier GaragePro"; Filename: "{app}"
 Name: "{autoprograms}\GaragePro\Désinstaller GaragePro"; Filename: "{uninstallexe}"
-Name: "{autodesktop}\GaragePro - hub"; Filename: "{app}\start-hub.cmd"; WorkingDir: "{app}"; Tasks: desktopicon
-Name: "{autodesktop}\Ouvrir GaragePro"; Filename: "http://localhost:3000"; Tasks: desktopicon
-Name: "{userstartup}\GaragePro - hub"; Filename: "{app}\start-hub.cmd"; WorkingDir: "{app}"; Tasks: autostart
+Name: "{autodesktop}\GaragePro - hub"; Filename: "{app}\start-hub.cmd"; WorkingDir: "{app}"; Tasks: desktopicon; IconFilename: "{app}\garagepro.ico"
+Name: "{autodesktop}\Ouvrir GaragePro"; Filename: "http://localhost:3000"; Tasks: desktopicon; IconFilename: "{app}\garagepro.ico"
+Name: "{userstartup}\GaragePro - hub"; Filename: "{app}\start-hub.cmd"; WorkingDir: "{app}"; Tasks: autostart; IconFilename: "{app}\garagepro.ico"
 
 [Run]
-; Première installation : dépendances, fichier .env, base de données (setup.cmd n'efface aucune donnée).
-Filename: "{cmd}"; Parameters: "/c ""{app}\setup.cmd"""; WorkingDir: "{app}"; Description: "Lancer la configuration maintenant (dépendances, .env, base de données)"; Flags: postinstall nowait skipifsilent; Check: not HasEnv
-Filename: "{cmd}"; Parameters: "/c ""{app}\setup.cmd"""; WorkingDir: "{app}"; Description: "Mettre à jour les dépendances et la base (recommandé après une mise à jour)"; Flags: postinstall nowait skipifsilent unchecked; Check: HasEnv
+; Démarre le hub dès la fin de l'installation. start-hub.cmd lance d'abord setup.cmd si c'est la première
+; fois (dépendances, .env, base) et npm install après une mise à jour ; aucune donnée n'est effacée.
+Filename: "{app}\start-hub.cmd"; WorkingDir: "{app}"; Description: "Démarrer GaragePro maintenant"; Flags: postinstall nowait skipifsilent shellexec
 
 [UninstallDelete]
 ; Fichiers générés par l'application (reconstruits automatiquement). .env, node_modules et les données
 ; restent : supprimez le dossier à la main si vous voulez tout enlever. La base PostgreSQL n'est jamais touchée.
 Type: filesandordirs; Name: "{app}\.next"
 
-[Code]
-function HasEnv: Boolean;
-begin
-  Result := FileExists(ExpandConstant('{app}\.env'));
-end;
-
-function HasIcon: Boolean;
-begin
-  Result := FileExists(ExpandConstant('{app}\garagepro.ico'));
-end;
