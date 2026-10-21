@@ -7,6 +7,7 @@ import { SignOutForm } from "@/components/shell/sign-out-form";
 import { TopNav } from "@/components/shell/top-nav";
 import type { ShellUser } from "@/components/shell/user-menu";
 import type { NavBadges } from "@/components/shell/nav";
+import type { TodoList } from "@/lib/todo";
 
 /**
  * V10 staff frame: grey canvas in a 32 px rounded container, floating pill top
@@ -17,12 +18,14 @@ export function AppShell({
   user,
   garage,
   badges,
+  todo,
   skipLabel,
   children,
 }: {
   user: ShellUser;
   garage: { name: string; logo: string | null };
   badges: NavBadges;
+  todo: TodoList;
   skipLabel: string;
   children: ReactNode;
 }) {
@@ -37,7 +40,7 @@ export function AppShell({
       <SignOutForm />
       <NavProgress />
       <div className="min-h-dvh bg-gp-canvas md:min-h-[calc(100dvh-1.5rem)] md:rounded-[32px] print:min-h-0 print:rounded-none print:bg-white">
-        <TopNav logo={<LogoPill garage={garage} />} user={user} badges={badges} />
+        <TopNav logo={<LogoPill garage={garage} />} user={user} badges={badges} todo={todo} />
         <div className="xl:grid xl:grid-cols-[5rem_minmax(0,1fr)] xl:ps-4 print:block print:ps-0">
           <SideRail role={user.role} badges={badges} />
           <main id="gp-main" tabIndex={-1} className="min-w-0 pb-28 outline-none xl:pb-8 print:pb-0">

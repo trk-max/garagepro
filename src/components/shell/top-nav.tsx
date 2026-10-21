@@ -11,6 +11,7 @@ import { isActive, pick, topLabel, TOP_KEYS, type NavBadges } from "@/components
 import { useI18n } from "@/lib/i18n/client";
 import { can } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
+import type { TodoList } from "@/lib/todo";
 
 const pill = "rounded-full border border-gp-line bg-gp-card shadow-gp";
 
@@ -19,7 +20,7 @@ const pill = "rounded-full border border-gp-line bg-gp-card shadow-gp";
  * notifications and the account pill. Below 1280 px the page pills move to a
  * second row and scroll sideways.
  */
-export function TopNav({ logo, user, badges }: { logo: ReactNode; user: ShellUser; badges: NavBadges }) {
+export function TopNav({ logo, user, badges, todo }: { logo: ReactNode; user: ShellUser; badges: NavBadges; todo: TodoList }) {
   const { t } = useI18n();
   const items = pick(user.role, TOP_KEYS);
   return (
@@ -30,9 +31,9 @@ export function TopNav({ logo, user, badges }: { logo: ReactNode; user: ShellUse
         <div className="ms-auto flex shrink-0 items-center gap-2 sm:gap-3 xl:ms-0">
           <div className={cn(pill, "flex h-14 items-center gap-1 px-1.5")}>
             {can(user.role, "viewWorkOrders") && <SearchButton />}
-            <NotificationsMenu badges={badges} />
+            <NotificationsMenu todo={todo} />
           </div>
-          <UserMenu user={user} />
+          <UserMenu user={user} badges={badges} />
         </div>
       </div>
       <PageNav items={items} className="mt-2 xl:hidden" label={t.v10.nav.main} badges={badges} />

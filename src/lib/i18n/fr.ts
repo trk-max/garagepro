@@ -1,4 +1,5 @@
 import { v10Fr } from "@/lib/i18n/v10-fr";
+import { todoFr } from "@/lib/i18n/todo-fr";
 import { contractsFr } from "@/lib/i18n/contracts-fr";
 import { v7Fr } from "@/lib/i18n/v7-fr";
 import { showroomFr } from "@/lib/i18n/showroom-fr";
@@ -939,6 +940,8 @@ export const fr = {
   showroom: showroomFr,
   /** V10 — refonte du tableau de bord. */
   v10: v10Fr,
+  /** V10.4 — menu du compte (Aide) et liste « À traiter ». */
+  todo: todoFr,
 };
 
 export type Dictionary = typeof fr;

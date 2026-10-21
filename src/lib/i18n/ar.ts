@@ -1,4 +1,5 @@
 import { v10Ar } from "@/lib/i18n/v10-ar";
+import { todoAr } from "@/lib/i18n/todo-ar";
 import { contractsAr } from "@/lib/i18n/contracts-ar";
 import { v7Ar } from "@/lib/i18n/v7-ar";
 import { showroomAr } from "@/lib/i18n/showroom-ar";
@@ -940,4 +941,6 @@ export const ar: Dictionary = {
   showroom: showroomAr,
   /** V10 — refonte du tableau de bord. */
   v10: v10Ar,
+  /** V10.4 — menu du compte (Aide) et liste « À traiter ». */
+  todo: todoAr,
 };
