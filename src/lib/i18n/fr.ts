@@ -310,7 +310,7 @@ export const fr = {
     alreadyVoided: "Déjà annulé.",
     resetLinkInvalid: "Ce lien n'est plus valable (expiré, déjà utilisé ou compte désactivé). Demandez un nouveau lien.",
     reasonRequired: "Indiquez un motif (il est conservé dans l'historique).",
-    hubOnly: "Avec le mode garage, les factures, bons de commande et bons de réception sont créés depuis l'application du garage (PC du garage), pour garder une numérotation sans doublon.",
+    hubOnly: "Avec le mode garage, les factures, bons de commande, bons de réception et attestations de travail sont créés depuis l'application du garage (PC du garage, ex. http://localhost:3000), pour garder une numérotation sans doublon.",
     vehicleIncomplete: "Fiche du véhicule incomplète : VIN (17 caractères), année, carburant, couleur et kilométrage sont obligatoires.",
     alreadyRated: "Vous avez déjà donné votre avis pour cette réparation. Merci !",
     appUrlMissing: "Adresse du site non configurée : indiquez-la dans Paramètres → Garage (« Adresse publique du site ») ou ajoutez APP_URL dans .env / sur Vercel.",

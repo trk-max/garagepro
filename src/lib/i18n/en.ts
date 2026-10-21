@@ -312,7 +312,7 @@ export const en: Dictionary = {
     alreadyVoided: "Already cancelled.",
     resetLinkInvalid: "This link is no longer valid (expired, already used or account disabled). Ask for a new link.",
     reasonRequired: "Give a reason (kept in the history).",
-    hubOnly: "In garage mode, invoices, purchase orders and goods receipts are created from the garage app (garage PC), so numbers never repeat.",
+    hubOnly: "In garage mode, invoices, purchase orders, goods receipts and work certificates are created from the garage's app (the garage PC, e.g. http://localhost:3000), so numbers are never duplicated.",
     vehicleIncomplete: "Vehicle file incomplete: VIN (17 characters), year, fuel, colour and mileage are mandatory.",
     alreadyRated: "You have already rated this repair. Thank you!",
     appUrlMissing: "Site address not configured: set it in Settings → Garage (\"Public site address\") or add APP_URL to .env / Vercel.",
