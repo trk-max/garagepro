@@ -33,6 +33,8 @@ export const v10PagesFr = {
     qr: "QR",
     obd: "OBD",
     maintenance: "Entretien",
+    openRepair: "Ouvrir la réparation {number}",
+    history: "Historique des réparations",
     owner: "Propriétaire : {name}",
     actions: "Actions pour {plate}",
   },

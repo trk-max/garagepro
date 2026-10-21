@@ -35,6 +35,8 @@ export const v10PagesAr: typeof v10PagesFr = {
     qr: "QR",
     obd: "OBD",
     maintenance: "الصيانة",
+    openRepair: "فتح الإصلاح {number}",
+    history: "سجل الإصلاحات",
     owner: "المالك: {name}",
     actions: "إجراءات {plate}",
   },

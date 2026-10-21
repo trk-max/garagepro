@@ -28,7 +28,15 @@ export function VehicleCard({ v, t, lang, rights }: { v: Card; t: Dictionary; la
     <li className="flex flex-col rounded-[24px] border border-gp-line bg-gp-card p-5 shadow-gp">
       <div className="flex items-start justify-between gap-2">
         <PlateChip plate={v.plate} />
-        <CarFront className="size-5 shrink-0 text-gp-muted" aria-hidden />
+        {/* Car icon: the repair in progress if the car is in the workshop, otherwise its repair history. */}
+        <Link
+          href={v.inShop ? `/garage/work-orders/${v.inShop.id}` : `/garage/work-orders?status=all&q=${encodeURIComponent(v.plate)}`}
+          aria-label={v.inShop ? fmt(p.openRepair, { number: woNumber(v.inShop.number) }) : p.history}
+          title={v.inShop ? fmt(p.openRepair, { number: woNumber(v.inShop.number) }) : p.history}
+          className="grid size-9 shrink-0 place-items-center rounded-full text-gp-muted hover:bg-gp-hover hover:text-gp-ink focus-visible:ring-2 focus-visible:ring-gp-accent focus-visible:outline-none"
+        >
+          <CarFront className="size-5" aria-hidden />
+        </Link>
       </div>
       <h3 className="mt-3 line-clamp-2 text-[15px] font-semibold break-words">
         {v.make} {v.model}
