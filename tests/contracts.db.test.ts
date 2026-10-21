@@ -42,6 +42,9 @@ vi.mock("@/server/storage", () => ({
 // Session of the API route tests: the signed-in user (re-read from the real database by getStaff).
 const session = vi.hoisted(() => ({ userId: null as string | null }));
 vi.mock("@/lib/auth", () => ({ auth: async () => (session.userId ? { user: { id: session.userId } } : null) }));
+// Outside Next.js: no request cookies (French messages) and nothing to revalidate.
+vi.mock("next/headers", () => ({ cookies: async () => ({ get: () => undefined }) }));
+vi.mock("next/cache", () => ({ revalidatePath: () => undefined }));
 
 const REPAIR_TPL = templateId("REPAIR", 1);
 const FLEET_TPL = templateId("FLEET", 1);
@@ -179,6 +182,39 @@ describe("routes protégées : PDF et scan", () => {
     expect(pages).toContain(hex("Modèle à valider par un juriste — références".replace("—", "\x97")));
     expect((await call(scan, c.id)).status).toBe(404); // no scan yet
     expect((await call(pdf, "doesnotexist0000000000000")).status).toBe(404);
+    session.userId = null;
+  });
+
+  it("scan upload route: same rules on the server (role, category, file type), audited", async () => {
+    const { POST } = await import("@/app/api/contracts/[id]/scan/route");
+    const reception = await makeUser("RECEPTION");
+    const manager = await makeUser("MANAGER");
+    const { wo } = await makeWorkOrder();
+    const c = await createContract(reception, { templateId: REPAIR_TPL, workOrderId: wo.id, startDay: today(), fields: { authorizationToStart: "YES", warrantyTerms: "3 mois" } });
+    await moveContract(reception, c.id, "VALIDATION");
+    await moveContract(reception, c.id, "LEGAL_REVIEW");
+    await moveContract(manager, c.id, "APPROVED");
+    await moveContract(reception, c.id, "PENDING_SIGNATURE");
+    const post = (bytes: Buffer, name = "scan.pdf") => {
+      const form = new FormData();
+      form.set("file", new File([new Uint8Array(bytes)], name));
+      return POST(new Request(`http://localhost/api/contracts/${c.id}/scan`, { method: "POST", body: form }), { params: Promise.resolve({ id: c.id }) });
+    };
+    session.userId = (await makeUser("MECHANIC")).id;
+    expect((await post(PDF)).status).toBe(403);
+    session.userId = (await makeUser("HR")).id;
+    expect((await post(PDF)).status).toBe(403);
+    session.userId = (await makeUser("ACCOUNTANT")).id; // reads repair contracts, never uploads
+    expect((await post(PDF)).status).toBe(403);
+    session.userId = reception.id;
+    expect((await post(Buffer.from("<svg onload=alert(1)>"), "scan.pdf")).status).toBe(422);
+    expect((await prisma.contract.findUniqueOrThrow({ where: { id: c.id } })).status).toBe("PENDING_SIGNATURE");
+    const ok = await post(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3]), "photo.pdf");
+    expect(ok.status).toBe(201);
+    const row = await prisma.contract.findUniqueOrThrow({ where: { id: c.id } });
+    expect(row).toMatchObject({ status: "SIGNED", signedScanType: "image/png" });
+    expect(row.signedScanKey).toMatch(new RegExp(`^contracts/${c.id}/[0-9a-f-]{36}\\.png$`));
+    expect(await prisma.auditLog.count({ where: { entity: "Contract", entityId: c.id, action: "contract.scan", actorId: reception.id } })).toBe(1);
     session.userId = null;
   });
 });

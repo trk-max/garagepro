@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { canContract, contractCategoriesFor } from "@/lib/contracts";
 import { can, rolesFor } from "@/lib/permissions";
 import { TRANSITIONS, customerSteps } from "@/server/workflow";
 
@@ -42,6 +43,15 @@ describe("permission matrix (server-side source of truth)", () => {
   });
   it("only the admin marks a contract template as reviewed by a lawyer", () => {
     expect(rolesFor("reviewContractTemplates")).toEqual(["ADMIN"]);
+  });
+  it("contracts page: never for mechanics or the storekeeper (no category open to them)", () => {
+    for (const r of ["MECHANIC", "STOREKEEPER"] as const) {
+      expect(can(r, "viewContracts"), r).toBe(false);
+      expect(contractCategoriesFor(r, "view"), r).toEqual([]);
+    }
+    // Every role with the page sees at least one category, and only the admin + HR see employment.
+    for (const r of rolesFor("viewContracts")) expect(contractCategoriesFor(r, "view").length, r).toBeGreaterThan(0);
+    expect((["ADMIN", "MANAGER", "RECEPTION", "MECHANIC", "STOREKEEPER", "HR", "ACCOUNTANT"] as const).filter((r) => canContract(r, "EMPLOYMENT", "view"))).toEqual(["ADMIN", "HR"]);
   });
   it("no role / unknown role = nothing", () => {
     expect(can(null, "viewWorkOrders")).toBe(false);
