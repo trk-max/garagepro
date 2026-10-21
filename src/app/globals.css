@@ -530,6 +530,14 @@ body:has(.gp-app) {
 @keyframes gp-ring {
   from { stroke-dashoffset: var(--gp-ring-from); }
 }
+/* Staff navigation in progress (components/shell/nav-progress.tsx): a segment sliding across the top. */
+@keyframes gp-nav-progress {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(300%); }
+}
+.gp-nav-progress {
+  animation: gp-nav-progress 1.1s ease-in-out infinite;
+}
 /* Page enter: blur-fade up. Cards of a .gp-stagger group follow 40 ms apart. */
 .gp-enter,
 .gp-stagger > * {
@@ -584,7 +592,8 @@ body:has(.gp-app) {
   .gp-stagger > *,
   .gp-grow-y,
   .gp-grow-x,
-  .gp-ring {
+  .gp-ring,
+  .gp-nav-progress {
     animation: none !important;
   }
   .gp-lift:hover {

@@ -212,8 +212,8 @@ export function CinematicFooter({ giantText, marquee, heading, primaryLinks, sec
           </div>
         </div>
 
-        {/* Bottom bar */}
-        <div className="relative z-20 mx-auto flex w-full max-w-6xl flex-col items-center justify-between gap-3 border-t border-border/50 px-4 py-4 md:flex-row">
+        {/* Bottom bar. Extra space below: the floating "Ask the AI" button (bottom corner) never covers "back to top". */}
+        <div className="relative z-20 mx-auto flex w-full max-w-6xl flex-col items-center justify-between gap-3 border-t border-border/50 px-4 pt-4 pb-20 md:flex-row">
           <div className="space-y-1 text-center text-[10px] font-semibold tracking-widest text-muted-foreground uppercase md:text-start">
             <p>{copyright}</p>
             {info && <div className="normal-case tracking-normal">{info}</div>}

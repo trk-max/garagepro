@@ -329,7 +329,11 @@ export async function paySupplierInvoice(id: string, input: { amount: number; me
     if (input.amount > inv.totalTtc - inv.paidAmount) throw new AppError("overpaid", {}, 422);
     const paidAmount = inv.paidAmount + input.amount;
     const status: SupplierInvoiceStatus = paidAmount >= inv.totalTtc ? "PAID" : "PARTIAL";
-    const payment = await tx.supplierPayment.create({ data: { supplierInvoiceId: id, ...input, actorId: actor.id }, select: { id: true } });
+    // Explicit columns: the shared payment form also sends "payer" (customer invoices only).
+    const payment = await tx.supplierPayment.create({
+      data: { supplierInvoiceId: id, amount: input.amount, method: input.method, reference: input.reference, actorId: actor.id },
+      select: { id: true },
+    });
     await tx.supplierInvoice.update({ where: { id }, data: { paidAmount, status } });
     await audit(tx, actor, "supplierPayment.record", "SupplierPayment", payment.id, {
       before: { invoice: inv.number, paidAmount: inv.paidAmount, status: inv.status },

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { saveObdReadingAction } from "@/actions/obd";
@@ -10,11 +10,15 @@ import { ObdError, runDiagnostic, simulatedTransport, type DiagnosticResult } fr
 import { openWebSerial, webSerialAvailable } from "@/lib/obd/web-serial";
 import { cn } from "@/lib/utils";
 
+const noSubscribe = () => () => {};
+
 /** Reads the car through an ELM327 adapter (or the clearly marked simulator), then saves the reading. */
 export function ObdPanel({ vehicleId, workOrderId, recordedKm, fileHasVin }: { vehicleId: string; workOrderId: string | null; recordedKm: number | null; fileHasVin: boolean }) {
   const { t } = useI18n();
   const o = t.v7.obd;
   const router = useRouter();
+  // Known only in the browser: false on the server AND during hydration (no mismatch), then the real value.
+  const serial = useSyncExternalStore(noSubscribe, webSerialAvailable, () => false);
   const [step, setStep] = useState<string | null>(null);
   const [result, setResult] = useState<DiagnosticResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -56,14 +60,14 @@ export function ObdPanel({ vehicleId, workOrderId, recordedKm, fileHasVin }: { v
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-2">
-        <Button onClick={() => read(false)} disabled={!!step || !webSerialAvailable()}>
+        <Button onClick={() => read(false)} disabled={!!step || !serial}>
           {o.readCar}
         </Button>
         <Button variant="outline" onClick={() => read(true)} disabled={!!step}>
           {o.readDemo}
         </Button>
       </div>
-      {!webSerialAvailable() && <p className="text-xs text-amber-700 dark:text-amber-400">{o.noWebSerial}</p>}
+      {!serial && <p className="text-xs text-amber-700 dark:text-amber-400">{o.noWebSerial}</p>}
       {step && <p className="text-sm text-muted-foreground">{o.steps[step as keyof typeof o.steps] ?? step}…</p>}
       {error && <p className="border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm">{error}</p>}
 

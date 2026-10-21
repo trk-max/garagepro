@@ -12,6 +12,7 @@ import { delays } from "@/server/follow-up";
 import { addVehicle, createCustomer, updateCustomer } from "@/server/customers";
 import { createWorkOrder } from "@/server/work-orders";
 import { makeUser, makeWorkOrder, prisma } from "./helpers/db";
+import { paymentSchema } from "@/lib/validators";
 
 beforeAll(async () => {
   await prisma.setting.upsert({ where: { id: "garage" }, update: {}, create: { id: "garage" } });
@@ -92,6 +93,17 @@ describe("journal : stock", () => {
     const pay = await prisma.auditLog.findFirstOrThrow({ where: { action: "supplierPayment.record", actorId: admin.id } });
     expect(pay.after).toMatchObject({ status: "PAID", paidAmount: 142_800 });
     await expect(approvePurchaseOrder(po.id, admin)).rejects.toMatchObject({ code: "poNotEditable" });
+  });
+
+  it("supplier payment from the page form (shared schema with « payer ») is recorded", async () => {
+    const admin = await makeUser("ADMIN");
+    const supplier = await createSupplier({ name: `Fournisseur form ${Date.now()}` });
+    const inv = await createSupplierInvoice({ supplierId: supplier.id, number: `FF-${Date.now()}`, issuedAt: new Date(), totalHt: 100_000, totalTax: 19_000 }, admin);
+    // Exactly what paySupplierInvoiceAction passes: the form parsed by paymentSchema (payer defaults to CUSTOMER).
+    await paySupplierInvoice(inv.id, paymentSchema.parse({ amount: "50", method: "CASH", reference: "Chèque 12" }), admin);
+    const after = await prisma.supplierInvoice.findUniqueOrThrow({ where: { id: inv.id }, include: { payments: true } });
+    expect(after).toMatchObject({ status: "PARTIAL", paidAmount: 50_000 });
+    expect(after.payments).toMatchObject([{ amount: 50_000, method: "CASH", reference: "Chèque 12" }]);
   });
 });
 

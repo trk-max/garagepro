@@ -2,6 +2,7 @@
 
 import { Copy } from "lucide-react";
 import { toast } from "sonner";
+import { copyText } from "@/lib/clipboard";
 import { useI18n } from "@/lib/i18n/client";
 
 /** Copies the address of the current page (the buyer's private link). */
@@ -11,12 +12,8 @@ export function CopyLinkButton() {
     <button
       type="button"
       onClick={async () => {
-        try {
-          await navigator.clipboard.writeText(window.location.href);
-          toast.success(t.showroom.messages.copied);
-        } catch {
-          toast.error(t.errors.generic);
-        }
+        if (await copyText(window.location.href)) toast.success(t.showroom.messages.copied);
+        else toast.error(t.errors.generic);
       }}
       className="f-label inline-flex min-h-10 items-center gap-2 border border-border px-3 hover:border-foreground"
     >
