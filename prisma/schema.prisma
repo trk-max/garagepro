@@ -161,6 +161,7 @@ model User {
   updatedAt       DateTime  @updatedAt
 
   clockEvents             ClockEvent[]      @relation("ClockUser")
+  employmentContracts     Contract[]        @relation("ContractEmployee")
   leaveRequests           LeaveRequest[]    @relation("LeaveUser")
   decidedLeaves           LeaveRequest[]    @relation("LeaveDecidedBy")
   laborEntries            LaborEntry[]      @relation("LaborUser")
@@ -200,6 +201,7 @@ model Customer {
   updatedAt      DateTime @updatedAt
 
   companyUsers CompanyUser[]
+  contracts    Contract[]
   vehicles     Vehicle[]
   workOrders   WorkOrder[]
   invoices     Invoice[]
@@ -232,6 +234,7 @@ model Vehicle {
   updatedAt  DateTime  @updatedAt
 
   customer     Customer             @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  contracts    ContractVehicle[]
   workOrders   WorkOrder[]
   appointments Appointment[]
   maintenance  VehicleMaintenance[]
@@ -279,6 +282,7 @@ model WorkOrder {
   vehicle        Vehicle             @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
   mechanic       User?               @relation("Mechanic", fields: [mechanicId], references: [id], onDelete: SetNull)
   createdBy      User?               @relation("CreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  contracts      Contract[]
   lines          WorkOrderLine[]
   events         WorkOrderEvent[]
   invoice        Invoice?
@@ -573,6 +577,8 @@ model Setting {
   /// livraison promise dans moins de N heures alors que le véhicule n'est pas en fin de travaux.
   alertStuckDays         Int      @default(5)
   alertDeliveryRiskHours Int      @default(24)
+  /// Contrats (V9) : alerte N jours avant la date de fin d'un contrat signé / actif.
+  contractAlertDays      Int      @default(30)
   /// Modèles de message (null = texte par défaut). Variables : {garage} {plate} {item} {date} {km} {time} {phone}.
   tplMaintenance         String?
   tplAppointment         String?
@@ -597,6 +603,7 @@ model Supplier {
   updatedAt DateTime @updatedAt
 
   parts          Part[]
+  contracts      Contract[]
   purchaseOrders PurchaseOrder[]
   receipts       GoodsReceipt[]
   invoices       SupplierInvoice[]
@@ -1373,6 +1380,138 @@ model WarrantyRefund {
 
   @@index([claimId])
   @@index([receivedAt])
+}
+
+// ── Contrats (V9.0) ──────────────────────────────────────────────────────────
+
+/// Modèle de contrat versionné (Tunisie), copié depuis le catalogue du code (src/lib/contract-templates.ts)
+/// avec un id déterministe "tpl-<code>-v<version>" (la même ligne sur le PC du garage et en ligne).
+/// Jamais « conforme » : "NEEDS_LEGAL_REVIEW" tant qu'un administrateur n'a pas enregistré la relecture
+/// d'un juriste pour CETTE version (reviewedById / reviewedAt, journalisé).
+model ContractTemplate {
+  id           String    @id
+  code         String
+  /// "REPAIR", "FLEET", "EMPLOYMENT", "SUPPLIER" ou "BLANK".
+  category     String
+  /// Métier (emploi) ou type de partenaire (fournisseur), ex. "MECHANIC", "PARTS".
+  subtype      String?
+  title        String
+  version      Int
+  jurisdiction String    @default("TN")
+  /// [{ ref, subject, confidence }] — uniquement les références vérifiées (docs/CONTRATS.md).
+  legalRefs    Json      @default("[]")
+  /// Points non vérifiés, à faire valider par un juriste tunisien.
+  unverified   Json      @default("[]")
+  verifiedAt   DateTime  @db.Date
+  /// "NEEDS_LEGAL_REVIEW" (défaut) ou "REVIEWED".
+  reviewStatus String    @default("NEEDS_LEGAL_REVIEW")
+  reviewedById String?
+  reviewedAt   DateTime?
+  reviewNote   String?
+  /// [{ key, type, required, options?, default?, showIf? }]
+  fields       Json      @default("[]")
+  /// [{ key, title, body, required, showIf? }]
+  clauses      Json      @default("[]")
+  active       Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  contracts Contract[]
+
+  @@unique([code, version])
+  @@index([category])
+}
+
+/// Contrat "CTR-2026-0001". Statut : DRAFT → VALIDATION → LEGAL_REVIEW → APPROVED → PENDING_SIGNATURE →
+/// SIGNED (scan signé déposé) → ACTIVE → EXPIRED | TERMINATED → ARCHIVED. Jamais supprimé, jamais
+/// renouvelé automatiquement (renouvellement = nouveau contrat lié, avec son fondement).
+model Contract {
+  id                 String    @id @default(cuid())
+  number             String    @unique
+  templateId         String
+  templateVersion    Int
+  category           String
+  subtype            String?
+  title              String
+  status             String    @default("DRAFT")
+  customerId         String?
+  workOrderId        String?
+  /// Employé (contrat de travail).
+  userId             String?
+  supplierId         String?
+  startDate          DateTime  @db.Date
+  /// Dernier jour inclus ; null = pas de fin (CDI, réparation).
+  endDate            DateTime? @db.Date
+  durationMonths     Int?
+  /// Durée indéterminée (CDI) : jamais de date de fin.
+  indefinite         Boolean   @default(false)
+  /// { fields: {clé: texte}, snapshot: {garage, party, vehicles, repair?}, excluded: [clauses facultatives retirées] }
+  data               Json      @default("{}")
+  /// ["TEMPLATE_NOT_REVIEWED", "CDD", "DISGUISED_EMPLOYMENT_RISK", "RENEWAL"] : revue juridique requise.
+  flags              Json      @default("[]")
+  previousContractId String?
+  /// Fondement écrit du renouvellement (obligatoire pour un contrat de renouvellement).
+  renewalBasis       String?
+  /// Scan du contrat signé à la main (stockage privé, servi par /api/contracts/[id]/scan).
+  signedScanKey      String?
+  signedScanType     String?
+  signedScanSize     Int?
+  signedAt           DateTime?
+  terminatedAt       DateTime?
+  terminationReason  String?
+  createdById        String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  template  ContractTemplate  @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  customer  Customer?         @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  workOrder WorkOrder?        @relation(fields: [workOrderId], references: [id], onDelete: SetNull)
+  user      User?             @relation("ContractEmployee", fields: [userId], references: [id], onDelete: Restrict)
+  supplier  Supplier?         @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  previous  Contract?         @relation("ContractRenewal", fields: [previousContractId], references: [id], onDelete: SetNull)
+  renewals  Contract[]        @relation("ContractRenewal")
+  vehicles  ContractVehicle[]
+  events    ContractEvent[]
+
+  @@index([category, status])
+  @@index([endDate])
+  @@index([customerId])
+  @@index([workOrderId])
+  @@index([userId])
+  @@index([supplierId])
+}
+
+/// Véhicule(s) couvert(s) par un contrat (réparation : 1 ; flotte : plusieurs).
+model ContractVehicle {
+  id         String @id @default(cuid())
+  contractId String
+  vehicleId  String
+
+  contract Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  vehicle  Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
+
+  @@unique([contractId, vehicleId])
+  @@index([vehicleId])
+}
+
+/// Historique d'un contrat : chaque changement, qui, quand, avant / après. Jamais modifié.
+model ContractEvent {
+  id         String   @id @default(cuid())
+  contractId String
+  actorId    String?
+  actorName  String
+  /// "CREATED", "UPDATED", "STATUS", "SCAN", "RENEWED", "REFRESHED".
+  type       String
+  fromStatus String?
+  toStatus   String?
+  before     Json?
+  after      Json?
+  note       String?
+  createdAt  DateTime @default(now())
+
+  contract Contract @relation(fields: [contractId], references: [id], onDelete: Restrict)
+
+  @@index([contractId, createdAt])
 }
 
 // ── Dépenses et échéances, trésorerie (V8.4) ─────────────────────────────────

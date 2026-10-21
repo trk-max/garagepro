@@ -1,11 +1,13 @@
 import "server-only";
 import type { Role } from "@prisma/client";
 import { AppError } from "@/lib/http";
+import { canContract } from "@/lib/contracts";
 import { can } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import type { StaffUser } from "@/lib/session";
 import { audit } from "@/server/audit";
 import { cashLowAlert } from "@/server/cash";
+import { contractCategoryOf, contractExpiryAlerts } from "@/server/contracts";
 import { delays } from "@/server/follow-up";
 import { lowStockParts } from "@/server/parts";
 import { getSettings } from "@/server/settings";
@@ -18,8 +20,9 @@ import { ACTIVE_STATUSES } from "@/server/workflow";
  * assigned, marked as handled, or snoozed; handled/snoozed alerts leave the
  * list (no repeated noise) but stay visible in "Traitées / reportées".
  */
-export type AlertType = "lateOrder" | "latePart" | "insurance" | "stuck" | "deliveryRisk" | "lowStock" | "cashLow";
-export const ALERT_KEY = /^(?:(lateOrder|latePart|insurance|stuck|deliveryRisk|lowStock):[a-z0-9]{20,40}:[0-9TZ:.\-]{1,40}|cashLow:(PRUDENT|NORMAL|OPTIMISTIC):\d{4}-\d{2}-\d{2})$/;
+export type AlertType = "lateOrder" | "latePart" | "insurance" | "stuck" | "deliveryRisk" | "lowStock" | "cashLow" | "contractExpiry";
+export const ALERT_KEY =
+  /^(?:(lateOrder|latePart|insurance|stuck|deliveryRisk|lowStock):[a-z0-9]{20,40}:[0-9TZ:.\-]{1,40}|cashLow:(PRUDENT|NORMAL|OPTIMISTIC):\d{4}-\d{2}-\d{2}|contractExpiry:[a-z0-9]{20,40}:\d{4}-\d{2}-\d{2})$/;
 
 export type AlertItem = {
   key: string;
@@ -31,6 +34,8 @@ export type AlertItem = {
   responsible?: string | null;
   /** cashLow only: first day under the threshold, projected balance that day, lowest point (millimes). */
   cash?: { scenario: string; day: string; balance: number; lowest: number; lowestDay: string; threshold: number } | null;
+  /** contractExpiry only (V9): the contract, its last day and the days left (negative = passed). */
+  contract?: { id: string; number: string; endDay: string; daysLeft: number | null } | null;
   state: { assignedToId: string | null; assignedName: string | null; handledAt: Date | null; snoozedUntil: Date | null; note: string | null } | null;
 };
 
@@ -43,7 +48,7 @@ const NEAR_END = ["QUALITY_CONTROL", "WASHING", "READY"];
  */
 export async function listAlerts(now = new Date(), viewerRole?: Role | null) {
   const settings = await getSettings();
-  const [d, active, low, cash] = await Promise.all([
+  const [d, active, low, cash, contracts] = await Promise.all([
     delays(now, settings),
     prisma.workOrder.findMany({
       where: { status: { in: STUCK_STATUSES } },
@@ -62,6 +67,8 @@ export async function listAlerts(now = new Date(), viewerRole?: Role | null) {
     }),
     lowStockParts(),
     can(viewerRole, "viewCashForecast") ? cashLowAlert(now) : null,
+    // V9: contracts ending soon, only those of the categories this role may see (employment: admin + HR).
+    contractExpiryAlerts(viewerRole, now),
   ]);
   const wo = (w: { id: string; number: number; status: string; vehicle: { plate: string } }) => ({ id: w.id, number: w.number, plate: w.vehicle.plate, status: w.status });
   const items: Omit<AlertItem, "state">[] = [];
@@ -109,6 +116,18 @@ export async function listAlerts(now = new Date(), viewerRole?: Role | null) {
     });
   }
 
+  for (const c of contracts) {
+    const contact = c.customer ?? c.supplier ?? (c.user ? { name: c.user.name, phone: null } : null);
+    items.push({
+      key: `contractExpiry:${c.id}:${c.endDay}`,
+      type: "contractExpiry",
+      since: new Date(`${c.endDay}T12:00:00Z`),
+      label: `${c.number} · ${c.title}`,
+      contact,
+      contract: { id: c.id, number: c.number, endDay: c.endDay, daysLeft: c.expiry.daysLeft },
+    });
+  }
+
   const states = await prisma.alertState.findMany({ where: { key: { in: items.map((i) => i.key) } } });
   const users = await prisma.user.findMany({ where: { id: { in: states.map((s) => s.assignedToId).filter((x): x is string => !!x) } }, select: { id: true, name: true } });
   const nameOf = new Map(users.map((u) => [u.id, u.name]));
@@ -126,6 +145,10 @@ export type AlertChange = { assignTo?: string | null; handled?: boolean; snoozeD
 export async function updateAlert(actor: StaffUser, key: string, change: AlertChange, now = new Date()) {
   if (!ALERT_KEY.test(key)) throw new AppError("invalid", {}, 422);
   if (key.startsWith("cashLow:") && !can(actor.role, "viewCashForecast")) throw new AppError("forbidden", {}, 403);
+  if (key.startsWith("contractExpiry:")) {
+    const category = await contractCategoryOf(key.split(":")[1]!);
+    if (!category || !canContract(actor.role, category, "view")) throw new AppError("forbidden", {}, 403);
+  }
   if (change.assignTo) {
     const u = await prisma.user.findUnique({ where: { id: change.assignTo }, select: { isActive: true } });
     if (!u?.isActive) throw new AppError("invalid", {}, 422);

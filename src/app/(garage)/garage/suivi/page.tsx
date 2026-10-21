@@ -11,9 +11,9 @@ import { prisma } from "@/lib/prisma";
 import { requirePageAccess } from "@/lib/session";
 import { listAlerts, type AlertItem, type AlertType } from "@/server/alerts";
 
-const ORDER: AlertType[] = ["cashLow", "lateOrder", "deliveryRisk", "stuck", "latePart", "insurance", "lowStock"];
+const ORDER: AlertType[] = ["cashLow", "lateOrder", "deliveryRisk", "stuck", "latePart", "insurance", "lowStock", "contractExpiry"];
 /** Alerts without a "late by" duration and timestamp (their own detail line says it all). */
-const NO_DELAY: AlertType[] = ["lowStock", "cashLow"];
+const NO_DELAY: AlertType[] = ["lowStock", "cashLow", "contractExpiry"];
 
 function ago(since: Date, now: Date, lang: "fr" | "ar" | "en") {
   const hours = Math.max(0, Math.round(Math.abs(now.getTime() - since.getTime()) / 3_600_000));
@@ -52,7 +52,12 @@ export default async function DelaysPage() {
         )}
         {x.workOrder && <span>{x.workOrder.plate}</span>}
         {x.workOrder?.status && <StatusBadge status={x.workOrder.status as never} t={t} />}
-        {x.label && <span className="font-medium">{x.label}</span>}
+        {x.label && !x.contract && <span className="font-medium">{x.label}</span>}
+        {x.contract && (
+          <Link href={`/garage/contrats/${x.contract.id}`} className="font-medium underline-offset-4 hover:underline">
+            {x.label} — {formatDay(x.contract.endDay, lang, { day: "numeric", month: "short", year: "numeric" })}
+          </Link>
+        )}
         {x.cash && (
           <Link href={`/garage/tresorerie?s=${x.cash.scenario}&h=90`} className="font-medium underline-offset-4 hover:underline">
             {fmt(al.cashDetail, {

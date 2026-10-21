@@ -464,6 +464,7 @@ export const v7Fr = {
       insurance: "En attente de l'assurance trop longtemps",
       lowStock: "Pièces sous le stock minimal",
       cashLow: "Trésorerie : solde prévu sous le seuil",
+      contractExpiry: "Contrats qui arrivent à échéance",
     },
     actions: {
       lateOrder: "Prévenir le client du nouveau délai et mettre à jour l'heure promise.",
@@ -473,6 +474,7 @@ export const v7Fr = {
       insurance: "Relancer l'assurance (n° de dossier) et informer le client.",
       lowStock: "Commander (Stock → Nouvelle commande).",
       cashLow: "Ouvrir la trésorerie : relancer les factures en retard, décaler une dépense ou prévoir un financement.",
+      contractExpiry: "Décider avant la date de fin : nouveau contrat écrit (jamais de renouvellement automatique) ou fin du contrat. CDD : un travail poursuivi après le terme le transforme en CDI (C. trav. art. 17).",
     },
     dueIn: "dans {d}",
     assign: "Assigner",
