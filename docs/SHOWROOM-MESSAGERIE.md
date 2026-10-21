@@ -124,3 +124,27 @@ Maximum 30 photos et 10 documents par annonce. Le hub du garage synchronise auss
 - `vehicleId`, `sellerId`, `assignedToId` sont des identifiants sans clé étrangère (pour ne modifier aucun modèle
   existant) : leur cohérence est assurée par le code.
 - Contrats de vente, attestation de cession : module Contrats.
+
+## 10. Voitures de démonstration (`scripts/seed-showroom-demo.mjs`)
+
+Pour présenter ou tester le showroom, le script crée **6 annonces publiées de démonstration** (Peugeot 208,
+Volkswagen Golf 7, Kia Picanto, Hyundai i20, Renault Clio 5, Toyota Yaris — années, kilométrages, carburant, boîte,
+puissance, couleurs, équipements et prix en DT plausibles), chacune avec 3 photos prises dans `public/site/`.
+
+```
+node --env-file=.env scripts/seed-showroom-demo.mjs --seller-email=admin@garage.tn
+node --env-file=.env scripts/seed-showroom-demo.mjs --remove
+```
+
+- À lancer **depuis le dossier du projet** (celui du serveur) : les photos passent par le même stockage qu'un envoi
+  depuis le showroom (`./storage/listings/<annonce>/…`, ou le bucket Supabase privé si `SUPABASE_STORAGE_BUCKET`,
+  `NEXT_PUBLIC_SUPABASE_URL` et `SUPABASE_SERVICE_ROLE_KEY` sont réglés). En mode garage, la synchronisation envoie
+  ensuite annonces et photos en ligne comme pour une annonce saisie à la main.
+- `--seller-email` : un compte **actif** Administrateur ou Responsable showroom (il devient le vendeur affiché).
+- **Rejouable** : une voiture déjà présente est ignorée (rien n'est dupliqué).
+- **Marquage** : la description se termine par « Annonce de démonstration — à supprimer » et les caractéristiques
+  contiennent « Annonce : Démonstration (DEMO-1…6) » (visible sur le site). Les deux marques sont exigées pour
+  qu'une annonce soit considérée comme démo.
+- `--remove` supprime **exactement** ces annonces : leurs photos (fichiers et lignes), leur historique et les
+  conversations d'acheteurs ouvertes sur elles (messages compris). Une ligne `listing.demoRemove` est écrite au
+  journal. Aucune autre annonce n'est touchée.
