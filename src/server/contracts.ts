@@ -318,6 +318,14 @@ function checkRules(category: ContractCategory, fields: Record<string, string>, 
   return dates;
 }
 
+/** Typed values are never silently dropped: a value of the wrong type / out of range is an error. */
+function cleanTyped(fields: TemplateField[], raw: Record<string, string>) {
+  const clean = cleanData(fields, raw);
+  const bad = fields.find((f) => (raw[f.key] ?? "").trim() !== "" && clean[f.key] === undefined);
+  if (bad) throw new AppError(bad.key === "probationMonths" || bad.key === "probationRenewable" ? "contractProbation" : "invalid", {}, 422);
+  return clean;
+}
+
 function eventActor(actor: AuditActor) {
   return { actorId: actor?.id ?? null, actorName: actor?.name ?? "Système" };
 }
@@ -356,7 +364,7 @@ export async function createContract(actor: StaffUser, input: NewContract, opts:
   const now = new Date();
   return prisma.$transaction(async (tx) => {
     const parties = await resolveParties(tx, tpl.category, input, now);
-    const typed = cleanData(tpl.fields, input.fields ?? {});
+    const typed = cleanTyped(tpl.fields, input.fields ?? {});
     const fields = cleanData(tpl.fields, withDefaults(tpl.fields, { ...parties.prefill, ...typed }));
     const dates = checkRules(tpl.category, fields, { startDay: input.startDay, endDay: tpl.category === "REPAIR" ? null : input.endDay, durationMonths: tpl.category === "REPAIR" ? null : input.durationMonths });
     const excluded = (input.excluded ?? []).filter((k) => tpl.clauses.some((c) => c.key === k && !c.required));
@@ -415,7 +423,7 @@ export async function updateContract(actor: StaffUser, id: string, input: Contra
     const old = readContractData(c.data);
     const vehicleIds = cat === "FLEET" && input.vehicleIds ? input.vehicleIds : c.vehicles.map((v) => v.vehicleId);
     const parties = await resolveParties(tx, cat, { workOrderId: c.workOrderId, customerId: c.customerId, userId: c.userId, supplierId: c.supplierId, vehicleIds }, new Date());
-    const fields = cleanData(tpl.fields, input.fields);
+    const fields = cleanTyped(tpl.fields, input.fields);
     const dates = checkRules(cat, fields, { startDay: input.startDay, endDay: cat === "REPAIR" ? null : input.endDay, durationMonths: cat === "REPAIR" ? null : input.durationMonths });
     const excluded = (input.excluded ?? []).filter((k) => tpl.clauses.some((cl) => cl.key === k && !cl.required));
     const flags = contractFlags({ category: cat, subtype: c.subtype, templateReviewStatus: tpl.reviewStatus, data: fields, isRenewal: !!c.previousContractId });

@@ -183,6 +183,88 @@ describe("routes protégées : PDF et scan", () => {
   });
 });
 
+describe("contrats de travail : administrateur et RH seulement, CDI par défaut", () => {
+  const MECHANIC_TPL = templateId("EMPLOYMENT_MECHANIC", 1);
+  const fields = { salary: "1500", workHours: "48 heures par semaine", leave: "Selon la législation applicable", workplace: "Atelier de Ben Arous" };
+
+  it("HR creates a CDI without end date; mechanics, reception and the manager are refused everywhere", async () => {
+    const hr = await makeUser("HR");
+    const employee = await makeUser("MECHANIC", { nationalId: "01234567" });
+    const c = await createContract(hr, { templateId: MECHANIC_TPL, userId: employee.id, startDay: "2026-11-01", fields });
+    const row = await prisma.contract.findUniqueOrThrow({ where: { id: c.id } });
+    expect(row).toMatchObject({ category: "EMPLOYMENT", userId: employee.id, endDate: null, indefinite: true, durationMonths: null });
+    const d = readContractData(row.data);
+    expect(d.fields).toMatchObject({ employmentType: "CDI", employeeName: employee.name, nationalId: "01234567", jobTitle: "Mécanicien automobile" });
+
+    for (const role of ["MECHANIC", "RECEPTION", "MANAGER", "ACCOUNTANT", "STOREKEEPER"] as const) {
+      const u = await makeUser(role);
+      expect(await code(getContract(u, c.id)), role).toBe("forbidden");
+      expect(await code(moveContract(u, c.id, "VALIDATION")), role).toBe("forbidden");
+      expect(await code(updateContract(u, c.id, { startDay: "2026-11-01", fields })), role).toBe("forbidden");
+      expect(await code(createContract(u, { templateId: MECHANIC_TPL, userId: employee.id, startDay: "2026-11-01", fields })), role).toBe("forbidden");
+      expect(await code(readSignedScan(u, c.id)), role).toBe("forbidden");
+      if (role === "MANAGER" || role === "RECEPTION" || role === "ACCOUNTANT") {
+        expect((await listContracts(u)).some((x) => x.id === c.id), role).toBe(false);
+        expect(await code(listContracts(u, { category: "EMPLOYMENT" }))).toBe("NO ERROR");
+        expect((await listContracts(u, { userId: employee.id })).length, role).toBe(0);
+      }
+    }
+    const admin = await makeUser("ADMIN");
+    expect((await getContract(admin, c.id))?.id).toBe(c.id);
+    expect((await listContracts(hr)).every((x) => x.category === "EMPLOYMENT")).toBe(true);
+  });
+
+  it("a CDI never gets an end date; CDD blocked without legal reason or end date, and without probation", async () => {
+    const hr = await makeUser("HR");
+    const base = { templateId: MECHANIC_TPL, startDay: "2026-11-01", fields: { ...fields, employeeName: "Sami Trabelsi" } };
+    expect(await code(createContract(hr, { ...base, durationMonths: 12 }))).toBe("contractCdiEnd");
+    expect(await code(createContract(hr, { ...base, endDay: "2027-10-31" }))).toBe("contractCdiEnd");
+    expect(await code(createContract(hr, { ...base, fields: { ...base.fields, probationMonths: "7" } }))).toBe("contractProbation");
+    const cdd = { ...base.fields, employmentType: "CDD" };
+    expect(await code(createContract(hr, { ...base, durationMonths: 6, fields: cdd }))).toBe("contractCddReason");
+    expect(await code(createContract(hr, { ...base, fields: { ...cdd, cddReason: "SURCROIT" } }))).toBe("contractCddEnd");
+    expect(await code(createContract(hr, { ...base, durationMonths: 6, fields: { ...cdd, cddReason: "SURCROIT", probationMonths: "1" } }))).toBe("contractCddProbation");
+    const ok = await createContract(hr, { ...base, durationMonths: 6, fields: { ...cdd, cddReason: "SURCROIT" } });
+    const row = await prisma.contract.findUniqueOrThrow({ where: { id: ok.id } });
+    expect(row.endDate?.toISOString().slice(0, 10)).toBe("2027-04-30");
+    expect(row.flags).toEqual(["TEMPLATE_NOT_REVIEWED", "CDD"]);
+    // Not even through the back door of an update.
+    const d = readContractData(row.data);
+    expect(await code(updateContract(hr, ok.id, { startDay: "2026-11-01", durationMonths: 6, fields: { ...d.fields, cddReason: "" } }))).toBe("contractCddReason");
+  });
+
+  it("HR is alerted before the end of a CDD; repair roles are not", async () => {
+    const hr = await makeUser("HR");
+    const c = await createContract(hr, { templateId: MECHANIC_TPL, startDay: addDaysToDay(today(), -150), endDay: addDaysToDay(today(), 10), fields: { ...fields, employeeName: "Saisonnier", employmentType: "CDD", cddReason: "SAISONNIER" } });
+    await prisma.contract.update({ where: { id: c.id }, data: { status: "ACTIVE" } });
+    expect((await contractExpiryAlerts("HR")).find((a) => a.id === c.id)?.expiry).toEqual({ state: "SOON", daysLeft: 10 });
+    for (const role of ["MANAGER", "RECEPTION", "ACCOUNTANT", "MECHANIC"] as const) expect((await contractExpiryAlerts(role)).some((a) => a.id === c.id), role).toBe(false);
+  });
+});
+
+describe("contrats fournisseurs / partenaires", () => {
+  it("service provider that looks like a job: flagged, legal review required; accountant reads, reception does not", async () => {
+    const manager = await makeUser("MANAGER");
+    const supplier = await prisma.supplier.create({ data: { name: "Atelier Clim Expert" } });
+    const c = await createContract(manager, {
+      templateId: templateId("SUPPLIER_SERVICE_PROVIDER", 1),
+      supplierId: supplier.id,
+      startDay: today(),
+      durationMonths: 12,
+      fields: { prices: "Selon devis", paymentTerms: "30 jours", subordination: "YES", coreActivity: "NO", specializedExpertise: "YES", exclusiveFullTime: "NO" },
+    });
+    const row = await prisma.contract.findUniqueOrThrow({ where: { id: c.id } });
+    expect(row.flags).toContain("DISGUISED_EMPLOYMENT_RISK");
+    await moveContract(manager, c.id, "VALIDATION");
+    expect(await code(moveContract(manager, c.id, "APPROVED"))).toBe("contractLegalReview");
+    const accountant = await makeUser("ACCOUNTANT");
+    expect((await getContract(accountant, c.id))?.id).toBe(c.id);
+    expect(await code(moveContract(accountant, c.id, "LEGAL_REVIEW"))).toBe("forbidden");
+    expect(await code(getContract(await makeUser("RECEPTION"), c.id))).toBe("forbidden");
+    expect((await listContracts(accountant, { supplierId: supplier.id })).map((x) => x.id)).toEqual([c.id]);
+  });
+});
+
 describe("contrat de flotte", () => {
   it("only for a business customer, with ITS vehicles", async () => {
     const manager = await makeUser("MANAGER");

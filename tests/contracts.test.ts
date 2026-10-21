@@ -230,6 +230,65 @@ describe("templates: verified references only, never 'compliant'", () => {
     expect(reviewed.legalNotice).toMatch(/^Modèle relu par un juriste le 02\/11\/2026/);
     expect(reviewed.legalNotice).not.toMatch(/conforme/i);
   });
+  it("employment: 12 job templates (incl. blank), CDI by default, salary / hours / leave required and never pre-filled", () => {
+    const jobs = TEMPLATE_DEFS.filter((x) => x.category === "EMPLOYMENT");
+    expect(jobs.map((x) => x.subtype)).toEqual([
+      "MECHANIC",
+      "BODYWORK_TECHNICIAN",
+      "AUTO_ELECTRICIAN",
+      "DIAGNOSTIC_TECHNICIAN",
+      "STOREKEEPER",
+      "SECTOR_MANAGER",
+      "GARAGE_MANAGER",
+      "HR_EMPLOYEE",
+      "GENERAL_TECHNICIAN",
+      "SALESPERSON",
+      "SHOWROOM_EMPLOYEE",
+      "EMPLOYMENT_BLANK",
+    ]);
+    for (const j of jobs) {
+      const f = (k: string) => j.fields.find((x) => x.key === k)!;
+      expect(f("employmentType").default, j.code).toBe("CDI");
+      for (const k of ["salary", "workHours", "leave", "workplace"]) {
+        expect(f(k).required, `${j.code} ${k}`).toBe(true);
+        expect(f(k).default, `${j.code} ${k}`).toBeUndefined();
+      }
+      expect(j.legalRefs.map((r) => r.ref).join(" ")).toMatch(/art\. 6-2.*art\. 6-3.*art\. 6-4.*art\. 17/);
+    }
+    expect(jobs.find((j) => j.subtype === "MECHANIC")!.fields.find((x) => x.key === "jobTitle")!.default).toBe("Mécanicien automobile");
+    expect(jobs.find((j) => j.subtype === "EMPLOYMENT_BLANK")!.fields.find((x) => x.key === "jobTitle")!.default).toBeUndefined();
+  });
+  it("employment document: CDI prints no end date; CDD prints its reason and end date, no probation clause", () => {
+    const t = TEMPLATE_DEFS.find((x) => x.code === "EMPLOYMENT_MECHANIC")!;
+    const base: DocInput = {
+      number: "CTR-2026-0002",
+      category: "EMPLOYMENT",
+      startDay: "2026-11-01",
+      endDay: null,
+      indefinite: true,
+      data: { fields: { employeeName: "Ali Ben Salah", jobTitle: "Mécanicien automobile", duties: "Réparations", employmentType: "CDI", probationMonths: "3", probationRenewable: "YES", salary: "1200", workHours: "48 h par semaine", leave: "selon la loi", workplace: "Atelier" }, snapshot: null, excluded: [] },
+      template: { ...t, verifiedDay: "2026-10-21", reviewStatus: "NEEDS_LEGAL_REVIEW", reviewedDay: null },
+    };
+    const cdi = buildContractDoc(base).clauses.map((c) => `${c.title}: ${c.text}`).join("\n");
+    expect(cdi).toMatch(/durée indéterminée/);
+    expect(cdi).toMatch(/Période d'essai : 3 mois, renouvelable une seule fois/);
+    expect(cdi).toMatch(/1 200,000 DT/);
+    expect(cdi).not.toMatch(/au \d\d\/\d\d\/\d{4}/);
+    const cdd = buildContractDoc({ ...base, endDay: "2027-04-30", indefinite: false, data: { ...base.data, fields: { ...base.data.fields, employmentType: "CDD", cddReason: "SAISONNIER", probationMonths: "", probationRenewable: "" } } })
+      .clauses.map((c) => c.text)
+      .join("\n");
+    expect(cdd).toMatch(/du 01\/11\/2026 au 30\/04\/2027, pour le motif suivant : travail saisonnier/);
+    expect(cdd).not.toMatch(/Période d'essai/);
+  });
+  it("suppliers: 6 partner kinds; service-type ones ask the disguised-employment questions and cite art. 28-30", () => {
+    const sup = TEMPLATE_DEFS.filter((x) => x.category === "SUPPLIER");
+    expect(sup.map((x) => x.subtype)).toEqual(["PARTS", "BATTERIES_CHARGING", "SPECIALIZED_GARAGE", "BODYWORK_PAINT", "SERVICE_PROVIDER", "OTHER"]);
+    for (const s of sup) {
+      const service = ["SPECIALIZED_GARAGE", "BODYWORK_PAINT", "SERVICE_PROVIDER", "OTHER"].includes(s.subtype!);
+      expect(s.fields.some((f) => f.key === "subordination"), s.code).toBe(service);
+      expect(s.legalRefs.some((r) => r.ref.includes("28-30")), s.code).toBe(service);
+    }
+  });
   it("amounts in dinars with 3 decimals", () => {
     expect(dt(1_234_500)).toBe("1 234,500 DT");
     expect(dt(-500)).toBe("-0,500 DT");
