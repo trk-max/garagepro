@@ -16,7 +16,7 @@ export default function GarageLoading() {
         </div>
         <Skeleton className="hidden h-11 w-36 rounded-full sm:block" />
       </div>
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-[1fr_1fr_1.15fr]">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-[1fr_1.2fr_1.1fr]">
         <div className={`${card} space-y-4`}>
           <Skeleton className="h-4 w-32 rounded-full" />
           <Skeleton className="h-10 w-48 rounded-full" />

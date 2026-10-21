@@ -37,3 +37,6 @@ Thumbs.db
 
 # Windows installer output (npm run installer)
 /dist/
+
+# V10 visual-check scratch files (test credentials, seed scripts)
+/.scratch/

@@ -29,6 +29,7 @@ export const v10Fr = {
     todayRevenue: "Chiffre du jour",
     todayHint: "Paiements reçus aujourd'hui",
     vsLastMonth: "vs même période du mois dernier",
+    vsLastMonthShort: "vs mois dernier",
     vsLastWeek: "vs même moment la semaine dernière",
     vs7Days: "vs il y a 7 jours",
     noCompare: "pas de comparaison",

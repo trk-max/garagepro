@@ -62,6 +62,8 @@ export function BarChartCard({
   const y = (v: number) => (v / max) * plotH;
   const ticks = [0, 0.25, 0.5, 0.75, 1].map((f) => f * max);
   const hp = hover === null ? null : points[hover];
+  // Narrow charts (phones): one month label out of two, the hover and the table still give every month.
+  const every = slot < 38 ? 2 : 1;
 
   return (
     <Surface className={className} aria-labelledby={`${id}-t`}>
@@ -106,7 +108,7 @@ export function BarChartCard({
                     <rect x={cx - barW / 2 + 0.75} y={8 + plotH - hb - gap - ht + 0.75} width={barW - 1.5} height={Math.max(0, ht - 1.5)} rx={rx} fill={`url(#${id}-h)`} stroke="var(--gp-accent)" strokeWidth="1.5" />
                   )}
                   <text x={cx} y={H - 6} fontSize="11" textAnchor="middle" fill={hover === i ? "var(--gp-ink)" : "var(--gp-muted)"}>
-                    {p.label}
+                    {i % every === 0 || hover === i ? p.label : ""}
                   </text>
                   <rect x={axis + slot * i} y={0} width={slot} height={H} fill="transparent" onMouseEnter={() => setHover(i)} />
                 </g>

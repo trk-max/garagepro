@@ -35,7 +35,7 @@ export function KpiGrid({
   if (kpis.revenue) {
     tiles.push(
       <StatCard key="rev" accent={accent()} label={o.revenueMonth} value={kpis.revenue.current} format="money" lang={lang} icon={Coins} href="/garage/invoices"
-        footer={<DeltaChip onAccent change={kpis.revenue.deltaPercent} lang={lang} caption={o.vsLastMonth} noCompare={o.noCompare} />} />,
+        footer={<DeltaChip onAccent change={kpis.revenue.deltaPercent} lang={lang} caption={o.vsLastMonthShort} noCompare={o.noCompare} />} />,
     );
   }
   if (showOrders) {

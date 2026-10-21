@@ -31,6 +31,7 @@ export const v10En: typeof v10Fr = {
     todayRevenue: "Today's takings",
     todayHint: "Payments received today",
     vsLastMonth: "vs same period last month",
+    vsLastMonthShort: "vs last month",
     vsLastWeek: "vs same point last week",
     vs7Days: "vs 7 days ago",
     noCompare: "no comparison",

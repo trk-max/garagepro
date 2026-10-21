@@ -97,7 +97,7 @@ export default async function OverviewPage() {
         )}
       </PageHeader>
 
-      <div className="gp-stagger grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-[1fr_1fr_1.15fr]">
+      <div className="gp-stagger grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-[1fr_1.2fr_1.1fr]">
         {showHero && (
           <HeroCard t={t} lang={lang} today={today} inShop={kpi.openOrders.current} dueToday={d.dueToday} canNewOrder={wo} canInvoice={can(role, "createInvoice")} mechanics={mechanics} showPresence={can(role, "manageTeam")} />
         )}

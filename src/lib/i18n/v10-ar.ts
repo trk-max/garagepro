@@ -31,6 +31,7 @@ export const v10Ar: typeof v10Fr = {
     todayRevenue: "مداخيل اليوم",
     todayHint: "الدفعات المقبوضة اليوم",
     vsLastMonth: "مقارنة بنفس الفترة من الشهر الماضي",
+    vsLastMonthShort: "مقارنة بالشهر الماضي",
     vsLastWeek: "مقارنة بنفس اللحظة من الأسبوع الماضي",
     vs7Days: "مقارنة بما قبل 7 أيام",
     noCompare: "لا مقارنة",

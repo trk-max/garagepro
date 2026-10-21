@@ -5,7 +5,7 @@ import { DataTable, type DataColumn } from "@/components/ui/redesign/data-table"
 import { StatusDot } from "@/components/ui/redesign/chip";
 import { EmptyState, PillLink, Surface, SurfaceHeader } from "@/components/ui/redesign/surface";
 import type { Dictionary } from "@/lib/i18n/fr";
-import { displayPlate, formatDateTime, formatMoney, woNumber, type Lang } from "@/lib/format";
+import { displayPlate, formatDate, formatDateTime, formatMoney, woNumber, type Lang } from "@/lib/format";
 import type { recentOrderRows } from "@/server/overview-orders";
 import { ACTIVE_STATUSES } from "@/server/workflow";
 
@@ -61,7 +61,7 @@ export function RecentOrders({ t, lang, rows, finance }: { t: Dictionary; lang: 
             filter: r.status,
             search: [woNumber(r.number), r.vehicle.plate, displayPlate(r.vehicle.plate), r.vehicle.make, r.vehicle.model, r.customer.name, r.service].join(" "),
             cells: {
-              order: <span className="font-mono text-[13px]">{woNumber(r.number)}</span>,
+              order: <span className="font-mono text-[13px] whitespace-nowrap">{woNumber(r.number)}</span>,
               vehicle: (
                 <span className="flex items-center gap-2 whitespace-nowrap">
                   <PlateChip plate={r.vehicle.plate} />
@@ -72,7 +72,7 @@ export function RecentOrders({ t, lang, rows, finance }: { t: Dictionary; lang: 
               service: <span className="line-clamp-1 text-[13px]" title={r.service}>{r.service}</span>,
               price: r.price === null ? null : <span className="font-medium whitespace-nowrap tabular-nums" dir="ltr">{formatMoney(r.price, lang)}</span>,
               status: <StatusDot color={STATUS_DOT[r.status]}>{t.status[r.status]}</StatusDot>,
-              date: <time dateTime={r.updatedAt.toISOString()} className="text-[13px] whitespace-nowrap text-gp-muted">{formatDateTime(r.updatedAt, lang)}</time>,
+              date: <time dateTime={r.updatedAt.toISOString()} title={formatDateTime(r.updatedAt, lang)} className="text-[13px] whitespace-nowrap text-gp-muted">{formatDate(r.updatedAt, lang)}</time>,
             },
           }))}
         />

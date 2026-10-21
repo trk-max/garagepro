@@ -34,7 +34,7 @@ export function StatCard({
   const body = (
     <>
       <div className="flex items-start justify-between gap-3">
-        <p className={cn("text-[13px] font-medium", accent ? "rounded-full bg-black/25 px-2.5 py-0.5 text-white" : "text-gp-muted")}>{label}</p>
+        <p className={cn("min-w-0 text-[13px] font-medium", accent ? "rounded-xl bg-black/25 px-2.5 py-1 leading-tight text-white" : "text-gp-muted")}>{label}</p>
         <span
           className={cn("grid size-9 shrink-0 place-items-center rounded-full", accent ? "bg-white/20 text-white" : "border border-gp-line bg-gp-card text-gp-ink")}
           aria-hidden
@@ -42,14 +42,14 @@ export function StatCard({
           <Icon className="size-4" />
         </span>
       </div>
-      <p className="mt-5 text-[30px] leading-none font-semibold tracking-tight break-words sm:text-[34px]">
+      <p className="mt-5 leading-none font-semibold tracking-tight whitespace-nowrap" style={{ fontSize: "clamp(20px, 14cqi, 34px)" }}>
         <CountUp value={value} format={format} lang={lang} />
       </p>
       {footer && <div className="mt-4">{footer}</div>}
     </>
   );
   const cls = cn(
-    "block rounded-[20px] p-4 sm:p-5",
+    "@container block min-w-0 rounded-[20px] p-4 sm:p-5",
     accent ? "text-white shadow-[0_12px_28px_-14px_rgb(217_83_46/0.7)]" : "bg-gp-panel text-gp-ink",
     href && "gp-lift",
     className,
