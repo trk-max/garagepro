@@ -46,6 +46,13 @@ describe("Relevés OBD-II", () => {
     expect(rows[0]?.dtcs).toEqual([{ code: "P0133", kind: "stored" }]);
   });
 
+  it("the file has a VIN but the car gave none: mileage never applied", async () => {
+    const mech = await makeUser("MECHANIC");
+    const { vehicle } = await vehicleWith({ vin: VIN, mileage: 100_000 });
+    expect((await saveReading(mech, vehicle.id, { result: read({ vin: null }), applyOdometer: true })).odometerStatus).toBe("NOT_APPLIED");
+    expect((await prisma.vehicle.findUniqueOrThrow({ where: { id: vehicle.id } })).mileage).toBe(100_000);
+  });
+
   it("a LOWER odometer is flagged and never applied, even if confirmation is sent", async () => {
     const mech = await makeUser("MECHANIC");
     const { vehicle } = await vehicleWith({ vin: VIN, mileage: 150_000 });

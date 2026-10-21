@@ -37,8 +37,20 @@ if (sources > built) {
   rmSync(".next-new", { recursive: true, force: true });
   const result = spawnSync(npx, ["next", "build"], { stdio: "inherit", shell: process.platform === "win32", env: { ...process.env, NEXT_DIST_DIR: ".next-new" } });
   if (result.status === 0) {
-    rmSync(".next", { recursive: true, force: true });
-    renameSync(".next-new", ".next");
+    // Old version moved aside first and put back if the switch fails (file locked by antivirus…).
+    rmSync(".next-old", { recursive: true, force: true });
+    try {
+      if (existsSync(".next")) renameSync(".next", ".next-old");
+      renameSync(".next-new", ".next");
+    } catch (error) {
+      if (!existsSync(".next") && existsSync(".next-old")) renameSync(".next-old", ".next");
+      console.error(`\n  !! Impossible d'installer la nouvelle version (${error.code ?? error.message}) : la version précédente reste en service.\n`);
+    }
+    try {
+      rmSync(".next-old", { recursive: true, force: true, maxRetries: 3 });
+    } catch {
+      /* left for the next build to remove */
+    }
     // next-env.d.ts was written for .next-new: point it back to .next (type checks use it).
     if (existsSync("next-env.d.ts")) writeFileSync("next-env.d.ts", readFileSync("next-env.d.ts", "utf8").replaceAll(".next-new/", ".next/"));
   } else if (existsSync(buildId)) {

@@ -54,7 +54,7 @@ export default async function VehicleObdPage({ params, searchParams }: PageProps
 
       <Card>
         <CardTitle>{o.newReading}</CardTitle>
-        <ObdPanel vehicleId={vehicle.id} workOrderId={workOrder?.vehicleId === vehicle.id ? workOrder.id : null} recordedKm={vehicle.mileage} />
+        <ObdPanel vehicleId={vehicle.id} workOrderId={workOrder?.vehicleId === vehicle.id ? workOrder.id : null} recordedKm={vehicle.mileage} fileHasVin={!!vehicle.vin} />
       </Card>
 
       <Card>

@@ -605,6 +605,7 @@ export const v7En: typeof v7Fr = {
     odometerSimulated: "Simulator: the vehicle mileage is not changed.",
     odometerLower: "The odometer read ({read} km) is lower than the last record ({recorded} km): flagged, not applied.",
     applyOdometer: "Update the vehicle mileage: {km} km",
+    odometerNoVin: "Odometer read: {km} km. The car did not give its VIN: it cannot be checked that it is this car, so the vehicle mileage is not changed.",
     odometerStatus: { APPLIED: "applied to the vehicle", NOT_APPLIED: "not applied", LOWER: "lower than last record, not applied", UNSUPPORTED: "not provided", SIMULATED: "simulated" },
     notProvidedList: "Not provided by the car / notes",
     notePlaceholder: "Note (optional)",

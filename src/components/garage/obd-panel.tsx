@@ -11,7 +11,7 @@ import { openWebSerial, webSerialAvailable } from "@/lib/obd/web-serial";
 import { cn } from "@/lib/utils";
 
 /** Reads the car through an ELM327 adapter (or the clearly marked simulator), then saves the reading. */
-export function ObdPanel({ vehicleId, workOrderId, recordedKm }: { vehicleId: string; workOrderId: string | null; recordedKm: number | null }) {
+export function ObdPanel({ vehicleId, workOrderId, recordedKm, fileHasVin }: { vehicleId: string; workOrderId: string | null; recordedKm: number | null; fileHasVin: boolean }) {
   const { t } = useI18n();
   const o = t.v7.obd;
   const router = useRouter();
@@ -109,6 +109,8 @@ export function ObdPanel({ vehicleId, workOrderId, recordedKm }: { vehicleId: st
               <p>{o.odometerUnsupported}</p>
             ) : result.simulated ? (
               <p>{o.odometerSimulated}</p>
+            ) : fileHasVin && !result.vin ? (
+              <p>{o.odometerNoVin.replace("{km}", String(result.odometerKm))}</p>
             ) : lower ? (
               <p className="text-red-600 dark:text-red-400">{o.odometerLower.replace("{read}", String(result.odometerKm)).replace("{recorded}", String(recordedKm))}</p>
             ) : (

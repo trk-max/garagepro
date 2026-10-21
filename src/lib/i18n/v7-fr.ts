@@ -604,6 +604,7 @@ export const v7Fr = {
     odometerSimulated: "Simulateur : le kilométrage de la fiche n'est pas modifié.",
     odometerLower: "Le compteur lu ({read} km) est inférieur au dernier relevé ({recorded} km) : signalé, non appliqué.",
     applyOdometer: "Mettre à jour le kilométrage de la fiche : {km} km",
+    odometerNoVin: "Compteur lu : {km} km. La voiture n'a pas donné son VIN : impossible de vérifier que c'est bien elle, le kilométrage de la fiche n'est pas modifié.",
     odometerStatus: { APPLIED: "appliqué à la fiche", NOT_APPLIED: "non appliqué", LOWER: "inférieur au dernier relevé, non appliqué", UNSUPPORTED: "non fourni", SIMULATED: "simulé" },
     notProvidedList: "Non fourni par la voiture / remarques",
     notePlaceholder: "Remarque (facultatif)",

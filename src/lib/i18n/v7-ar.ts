@@ -605,6 +605,7 @@ export const v7Ar: typeof v7Fr = {
     odometerSimulated: "محاكي: لا يتغيّر عدد كيلومترات البطاقة.",
     odometerLower: "العدّاد المقروء ({read} كم) أقل من آخر قراءة ({recorded} كم): تم التنبيه، لم يُطبَّق.",
     applyOdometer: "تحديث عدد كيلومترات البطاقة: {km} كم",
+    odometerNoVin: "العدّاد المقروء: {km} كم. لم تُعطِ السيارة رقم هيكلها: لا يمكن التأكد أنها السيارة نفسها، لذلك لا يتغيّر عدد كيلومترات البطاقة.",
     odometerStatus: { APPLIED: "طُبّق على البطاقة", NOT_APPLIED: "لم يُطبَّق", LOWER: "أقل من آخر قراءة، لم يُطبَّق", UNSUPPORTED: "غير متوفّر", SIMULATED: "محاكاة" },
     notProvidedList: "ما لا توفّره السيارة / ملاحظات",
     notePlaceholder: "ملاحظة (اختياري)",

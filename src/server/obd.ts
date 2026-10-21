@@ -47,7 +47,8 @@ export async function saveReading(actor: StaffUser, vehicleId: string, input: { 
     if (r.simulated) odometerStatus = "SIMULATED";
     else if (r.odometerKm === null) odometerStatus = "UNSUPPORTED";
     else if (v.mileage !== null && r.odometerKm < v.mileage) odometerStatus = "LOWER";
-    else if (input.applyOdometer) odometerStatus = "APPLIED";
+    // The file has a VIN but the car did not give one: nothing proves it is this car → never applied.
+    else if (input.applyOdometer && !(v.vin && !r.vin)) odometerStatus = "APPLIED";
     else odometerStatus = "NOT_APPLIED";
 
     const reading = await tx.vehicleReading.create({
