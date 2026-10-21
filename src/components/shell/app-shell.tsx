@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { GpMonogram } from "@/components/brand/garagepro-logo";
+import { NavProgress } from "@/components/shell/nav-progress";
 import { SideRail } from "@/components/shell/side-rail";
 import { SignOutForm } from "@/components/shell/sign-out-form";
 import { TopNav } from "@/components/shell/top-nav";
@@ -34,6 +35,7 @@ export function AppShell({
         {skipLabel}
       </a>
       <SignOutForm />
+      <NavProgress />
       <div className="min-h-dvh bg-gp-canvas md:min-h-[calc(100dvh-1.5rem)] md:rounded-[32px] print:min-h-0 print:rounded-none print:bg-white">
         <TopNav logo={<LogoPill garage={garage} />} user={user} badges={badges} />
         <div className="xl:grid xl:grid-cols-[5rem_minmax(0,1fr)] xl:ps-4 print:block print:ps-0">
