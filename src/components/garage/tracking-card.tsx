@@ -5,6 +5,8 @@ import { Check, Copy, KeyRound, MessageCircle, RefreshCw, Send } from "lucide-re
 import { regeneratePinAction, sendTrackingAction } from "@/actions/workshop";
 import { ActionButton } from "@/components/action-form";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import { copyText } from "@/lib/clipboard";
 import { useI18n } from "@/lib/i18n/client";
 
 /** Work-order side card: the customer's 4-digit code, link, and one-tap sharing. */
@@ -40,7 +42,7 @@ export function TrackingCard({
           <button
             type="button"
             onClick={async () => {
-              await navigator.clipboard.writeText(shareText);
+              if (!(await copyText(shareText))) return void toast.error(t.errors.generic);
               setCopied(true);
               setTimeout(() => setCopied(false), 1500);
             }}
