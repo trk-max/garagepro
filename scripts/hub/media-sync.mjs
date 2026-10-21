@@ -29,7 +29,13 @@ const safePath = (root, key) => {
 export async function syncMedia(local, { root = path.join(process.cwd(), "storage"), config = mediaConfig(), fetchImpl = fetch } = {}) {
   if (!config) return { skipped: true, uploaded: 0, downloaded: 0 };
   const done = new Set(await getState(local, "mediaSynced", []));
-  const { rows } = await local.query(`SELECT "storageKey" AS key, "contentType" AS type FROM "WorkOrderMedia" ORDER BY "createdAt" DESC`);
+  // Repair photos/videos and showroom photos/documents (V9) share the same storage.
+  const { rows } = await local.query(
+    `SELECT key, type FROM (
+       SELECT "storageKey" AS key, "contentType" AS type, "createdAt" FROM "WorkOrderMedia"
+       UNION ALL SELECT "storageKey", "contentType", "createdAt" FROM "ListingMedia"
+     ) m ORDER BY "createdAt" DESC`,
+  );
   const headers = { Authorization: `Bearer ${config.key}`, apikey: config.key };
   let uploaded = 0;
   let downloaded = 0;

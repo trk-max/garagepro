@@ -1437,3 +1437,109 @@ model CashBalance {
 
   @@index([asOf(sort: Desc), createdAt(sort: Desc)])
 }
+
+// ── Showroom (V9, Prompt 5/5) ────────────────────────────────────────────────
+// Aucun modèle existant n'est modifié : vehicleId, sellerId, createdById, actorId sont de simples
+// identifiants (sans relation Prisma), contrôlés par le code (src/server/showroom.ts).
+
+/// Annonce d'un véhicule à vendre. Statut (texte) : DRAFT, PUBLISHED, RESERVED, SOLD, UNAVAILABLE, ARCHIVED
+/// (passages autorisés : src/lib/showroom.ts). Publique : PUBLISHED et RESERVED ; SOLD affichée « Vendu »
+/// 14 jours puis masquée. Jamais effacée : archivée. Prix en millimes TTC.
+model Listing {
+  id              String    @id @default(cuid())
+  /// Affiché "ANN-0007" ; l'adresse publique finit par ce numéro (/showroom/peugeot-208-2019-7).
+  number          Int       @unique @default(autoincrement())
+  /// Véhicule déjà connu de l'atelier (évite les doublons ; permet le kilométrage vérifié).
+  vehicleId       String?
+  /// Interne, jamais publié.
+  plate           String?
+  vin             String?
+  make            String
+  model           String
+  version         String?
+  year            Int?
+  mileage         Int?
+  /// "ESSENCE", "DIESEL", "HYBRID", "ELECTRIC" ou "GPL".
+  fuel            String?
+  /// "MANUAL" ou "AUTOMATIC".
+  gearbox         String?
+  engineCc        Int?
+  powerHp         Int?
+  fiscalHp        Int?
+  doors           Int?
+  seats           Int?
+  colorExt        String?
+  colorInt        String?
+  /// "NEW", "EXCELLENT", "GOOD", "FAIR" ou "TO_REPAIR".
+  condition       String?
+  /// null = prix non fixé (publication impossible).
+  price           Int?
+  description     String?
+  /// ["Climatisation", "Caméra de recul", …]
+  equipment       Json      @default("[]")
+  /// [{ "label": "Couple", "value": "250 Nm" }, …]
+  specs           Json      @default("[]")
+  /// Source de chaque fait affiché, calculée par le serveur (jamais saisie) :
+  /// { "mileage": { "source": "GARAGE" | "SELLER", "ref": "OR-0042", "at": "2026-10-01" }, … }
+  facts           Json      @default("{}")
+  /// Résumé de l'historique d'atelier, rédigé et relu par l'équipe (sans nom de client).
+  historySummary  String?
+  /// Le résumé n'est publié que si l'équipe l'a explicitement décidé.
+  historyPublic   Boolean   @default(false)
+  status          String    @default("DRAFT")
+  sellerId        String
+  createdById     String?
+  publishedAt     DateTime?
+  soldAt          DateTime?
+  statusChangedAt DateTime  @default(now())
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  media  ListingMedia[]
+  events ListingEvent[]
+
+  @@index([status, publishedAt(sort: Desc)])
+  @@index([sellerId])
+  @@index([vehicleId])
+  @@index([make])
+}
+
+/// Photo (JPEG, PNG, WEBP) ou document (PDF) d'une annonce, dans le stockage existant (src/server/storage.ts).
+model ListingMedia {
+  id           String   @id @default(cuid())
+  listingId    String
+  /// "PHOTO" ou "DOCUMENT".
+  kind         String
+  storageKey   String   @unique
+  contentType  String
+  size         Int
+  caption      String?
+  position     Int      @default(0)
+  isCover      Boolean  @default(false)
+  /// Visible sur le site. Photos : oui par défaut ; documents : non par défaut (une carte grise
+  /// contient des données personnelles) — l'équipe décide document par document.
+  isPublic     Boolean  @default(true)
+  uploadedById String?
+  createdAt    DateTime @default(now())
+
+  listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@index([listingId, position])
+}
+
+/// Historique d'une annonce : CREATED, UPDATED, PRICE_CHANGED, MILEAGE_CHANGED, STATUS_CHANGED, SELLER_CHANGED,
+/// PHOTO_ADDED, DOCUMENT_ADDED, MEDIA_REMOVED (avant → après, qui, quand). Jamais modifié.
+model ListingEvent {
+  id        String   @id @default(cuid())
+  listingId String
+  type      String
+  before    Json?
+  after     Json?
+  actorId   String?
+  actorName String?
+  createdAt DateTime @default(now())
+
+  listing Listing @relation(fields: [listingId], references: [id], onDelete: Restrict)
+
+  @@index([listingId, createdAt])
+}

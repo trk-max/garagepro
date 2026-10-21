@@ -285,6 +285,14 @@ export const fr = {
     locked: "Trop de tentatives échouées. Réessayez dans 15 minutes.",
   },
   errors: {
+    // Showroom et messagerie (V9)
+    listingDuplicate: "Ce véhicule a déjà une annonce en cours ({number}). Modifiez-la plutôt que d'en créer une seconde.",
+    listingIncomplete: "Publication impossible : il manque {missing}.",
+    listingTransition: "Ce changement de statut n'est pas possible depuis l'état actuel de l'annonce (actualisez la page).",
+    listingMediaLimit: "Nombre maximal atteint pour cette annonce ({max}).",
+    listingFileType: "Fichier refusé : photo JPEG, PNG ou WEBP, ou document PDF ({max} Mo maximum).",
+    listingNotContactable: "Cette annonce n'est plus disponible : le vendeur ne peut plus être contacté depuis le site.",
+    conversationClosed: "Cette conversation est fermée.",
     clockCodeInvalid: "Code de la borne incorrect ou expiré. Tapez le code affiché en ce moment sur l'écran du garage.",
     clockNetwork: "Le pointage n'est possible que depuis le réseau du garage.",
     clockSequence: "Ce pointage ne suit pas le précédent (ex. deux arrivées de suite). Actualisez la page.",

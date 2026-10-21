@@ -287,6 +287,14 @@ export const en: Dictionary = {
     locked: "Too many failed attempts. Try again in 15 minutes.",
   },
   errors: {
+    // Showroom and messaging (V9)
+    listingDuplicate: "This vehicle already has an active listing ({number}). Edit it instead of creating a second one.",
+    listingIncomplete: "Cannot publish: {missing} missing.",
+    listingTransition: "This status change is not possible from the listing's current state (refresh the page).",
+    listingMediaLimit: "Maximum reached for this listing ({max}).",
+    listingFileType: "File refused: JPEG, PNG or WEBP photo, or PDF document ({max} MB max).",
+    listingNotContactable: "This listing is no longer available: the seller can no longer be contacted from the site.",
+    conversationClosed: "This conversation is closed.",
     clockCodeInvalid: "Wrong or expired kiosk code. Type the code shown right now on the garage screen.",
     clockNetwork: "Clocking in is only possible from the garage network.",
     clockSequence: "This punch does not follow the previous one (e.g. two arrivals in a row). Refresh the page.",
