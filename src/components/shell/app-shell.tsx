@@ -47,19 +47,25 @@ export function AppShell({
   );
 }
 
-/** Garage logo (settings) or the GaragePro mark, with the garage's name from the settings. */
+/**
+ * Garage logo (settings) or the GaragePro mark, with the garage's name from the settings.
+ * The logo keeps its proportions at a fixed height inside a white capsule whose width is
+ * capped (wide logos shrink, square ones stay square), so it never pushes the page pills.
+ */
 function LogoPill({ garage }: { garage: { name: string; logo: string | null } }) {
   return (
-    <Link href="/garage" className="flex h-full min-w-0 items-center gap-3 rounded-full p-1.5 sm:pe-5" aria-label={garage.name}>
+    <Link href="/garage" className="flex h-full min-w-0 items-center gap-3 rounded-full p-1.5 sm:pe-5" aria-label={garage.name} title={garage.name}>
       {garage.logo ? (
-        // eslint-disable-next-line @next/next/no-img-element -- data URL from the settings (same as printed documents)
-        <img src={garage.logo} alt="" className="size-11 shrink-0 rounded-full bg-white object-contain p-1" />
+        <span className="flex h-11 max-w-28 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white px-2.5 sm:max-w-32" aria-hidden>
+          {/* eslint-disable-next-line @next/next/no-img-element -- data URL from the settings (same as printed documents) */}
+          <img src={garage.logo} alt="" className="h-8 w-auto max-w-full object-contain" />
+        </span>
       ) : (
         <span className="grid size-11 shrink-0 place-items-center rounded-full bg-gp-primary text-gp-primary-ink" aria-hidden>
           <GpMonogram className="h-6 w-auto" aria-hidden />
         </span>
       )}
-      <span className="hidden max-w-40 truncate text-[15px] font-semibold sm:block">{garage.name}</span>
+      <span className="hidden max-w-40 min-w-0 truncate text-[15px] font-semibold sm:block xl:max-w-36 2xl:max-w-48">{garage.name}</span>
     </Link>
   );
 }
