@@ -13,21 +13,13 @@ import { cn } from "@/lib/utils";
  */
 export function ThemeToggle({ className, withLabel = false }: { className?: string; withLabel?: boolean }) {
   const { t } = useI18n();
-  const router = useRouter();
-  const theme = useSyncExternalStore(subscribe, readTheme, () => "dark" as Theme);
-
-  const toggle = () => {
-    const next: Theme = theme === "dark" ? "light" : "dark";
-    document.documentElement.classList.toggle("dark", next === "dark");
-    document.cookie = `${THEME_COOKIE}=${next}; path=/; max-age=31536000; samesite=lax`;
-    router.refresh();
-  };
+  const [theme, setTheme] = useTheme();
 
   const label = theme === "dark" ? t.common.lightMode : t.common.darkMode;
   return (
     <button
       type="button"
-      onClick={toggle}
+      onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
       aria-label={label}
       title={label}
       className={cn("inline-flex min-h-9 items-center gap-2 rounded-md p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground", className)}
@@ -36,6 +28,19 @@ export function ThemeToggle({ className, withLabel = false }: { className?: stri
       {withLabel && <span className="text-xs font-medium">{label}</span>}
     </button>
   );
+}
+
+/** Current theme + a setter shared by every switch (class on <html> at once, cookie for the server render). */
+export function useTheme(): [Theme, (next: Theme) => void] {
+  const router = useRouter();
+  const theme = useSyncExternalStore(subscribe, readTheme, () => "dark" as Theme);
+  const setTheme = (next: Theme) => {
+    if (next === theme) return;
+    document.documentElement.classList.toggle("dark", next === "dark");
+    document.cookie = `${THEME_COOKIE}=${next}; path=/; max-age=31536000; samesite=lax`;
+    router.refresh();
+  };
+  return [theme, setTheme];
 }
 
 /** Follows the class on <html> (also changes made by another toggle on the page). */

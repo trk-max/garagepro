@@ -10,7 +10,7 @@ import type { Dictionary } from "@/lib/i18n/fr";
 export function SettingsTarget({ t, settings }: { t: Dictionary; settings: Setting }) {
   const v = t.v7.monthlyTarget;
   return (
-    <Card>
+    <Card id="monthly-target" className="scroll-mt-40">
       <CardTitle>{v.title}</CardTitle>
       <p className="mb-3 text-xs text-muted-foreground">{v.intro}</p>
       <ActionForm action={updateMonthlyTargetAction} reset={false} className="grid gap-3 sm:grid-cols-3">

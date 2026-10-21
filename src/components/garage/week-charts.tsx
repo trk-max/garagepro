@@ -13,18 +13,17 @@ export function DailyBars({ days, values, lang, format }: { days: string[]; valu
   return (
     <div className="week-chart" dir="ltr">
       <style>{`
-        .week-chart { --bar-top: #1baf7a; --bar-bottom: rgba(27,175,122,0.08); }
-        .dark .week-chart { --bar-top: #199e70; --bar-bottom: rgba(25,158,112,0.05); }
+        .week-chart { --bar-top: var(--gp-accent, #e2603a); --bar-bottom: var(--gp-accent-tint, #fbe9e2); }
       `}</style>
       <div className="relative flex h-56 items-end gap-3" role="img" aria-label={values.map((v, i) => `${dayLabel(days[i]!, localeOf(lang))} ${show(v)}`).join(", ")}>
         {values.map((v, i) => (
           <div key={days[i]} className="relative flex h-full flex-1 items-end" onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)}>
             <div
-              className="w-full rounded-t-[4px] transition-opacity"
+              className="gp-grow-y w-full rounded-[8px] transition-opacity"
               style={{ height: `${Math.max(v > 0 ? 2 : 0, (v / max) * 100)}%`, background: "linear-gradient(to bottom, var(--bar-top), var(--bar-bottom))", opacity: hover === null || hover === i ? 1 : 0.55 }}
             />
             {hover === i && (
-              <div className="pointer-events-none absolute -top-2 left-1/2 z-10 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-md border bg-popover px-2.5 py-1.5 text-xs text-popover-foreground shadow-md">
+              <div className="pointer-events-none absolute -top-2 left-1/2 z-10 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-2xl border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-md">
                 <span className="text-muted-foreground">{dayLabel(days[i]!, localeOf(lang))}</span> <span className="ms-2 font-mono font-semibold tabular-nums">{show(v)}</span>
               </div>
             )}
@@ -55,8 +54,7 @@ export function StepLines({ days, a, b, labels, lang }: { days: string[]; a: num
   return (
     <div className="step-chart" dir="ltr">
       <style>{`
-        .step-chart { --s1: #1baf7a; --s2: #2a78d6; }
-        .dark .step-chart { --s1: #199e70; --s2: #3987e5; }
+        .step-chart { --s1: var(--gp-primary, #0b0b0c); --s2: var(--gp-accent, #e2603a); }
       `}</style>
       <div className="mb-3 flex flex-wrap gap-4 text-xs text-muted-foreground">
         <span className="flex items-center gap-1.5">
@@ -81,7 +79,7 @@ export function StepLines({ days, a, b, labels, lang }: { days: string[]; a: num
           ))}
         </div>
         {hover !== null && (
-          <div className="pointer-events-none absolute top-0 z-10 rounded-md border bg-popover px-2.5 py-1.5 text-xs text-popover-foreground shadow-md" style={{ left: `${Math.min(70, (hover / days.length) * 100)}%` }}>
+          <div className="pointer-events-none absolute top-0 z-10 rounded-2xl border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-md" style={{ left: `${Math.min(70, (hover / days.length) * 100)}%` }}>
             <p className="capitalize text-muted-foreground">{dayLabel(days[hover]!, localeOf(lang))}</p>
             <p className="tabular-nums">
               {labels[0]} : <b>{a[hover]}</b>

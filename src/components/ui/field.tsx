@@ -31,14 +31,8 @@ export function CardTitle({ className, ...props }: React.ComponentProps<"h2">) {
   return <h2 className={cn("label-tech mb-4", className)} {...props} />;
 }
 
-export function PageHeader({ title, children }: { title: string; children?: React.ReactNode }) {
-  return (
-    <header className="mb-6 flex flex-wrap items-center gap-3 border-b pb-4">
-      <h1 className="f-display text-xl sm:text-2xl">{title}</h1>
-      <div className="ms-auto flex flex-wrap items-center gap-2">{children}</div>
-    </header>
-  );
-}
+/** V10: every page title uses the redesigned header (big H1, optional subtitle, actions at the end). */
+export { PageHeader } from "@/components/ui/redesign/page-header";
 
 /** Data table: a normal table on tablets/computers, stacked cards on phones. */
 export function Table(props: React.ComponentProps<"table">) {

@@ -1,3 +1,4 @@
+import { v10En } from "@/lib/i18n/v10-en";
 import { contractsEn } from "@/lib/i18n/contracts-en";
 import { v7En } from "@/lib/i18n/v7-en";
 import { showroomEn } from "@/lib/i18n/showroom-en";
@@ -937,4 +938,6 @@ export const en: Dictionary = {
   ctr: contractsEn,
   v7: v7En,
   showroom: showroomEn,
+  /** V10 — refonte du tableau de bord. */
+  v10: v10En,
 };

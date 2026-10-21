@@ -37,21 +37,21 @@ export function HubStatus() {
   if (!status) return null;
   const p = t.pwa;
   return (
-    <div className="space-y-1 border border-[#303030] p-2 text-[11px] leading-snug" role="status">
-      <p className="f-label flex items-center gap-1.5 text-[0.625rem] text-white/70">
+    <div className="space-y-1 rounded-2xl border border-gp-line bg-gp-panel p-3 text-[11px] leading-snug" role="status">
+      <p className="flex items-center gap-1.5 text-xs font-semibold text-gp-ink">
         <Server className="size-3.5" aria-hidden /> {p.hub}
       </p>
       {status.online ? (
-        <p className="flex items-center gap-1.5 text-emerald-400">
+        <p className="flex items-center gap-1.5 text-gp-success-ink">
           <RefreshCw className="size-3.5" aria-hidden /> {status.pending > 0 ? fmt(p.hubPending, { n: status.pending }) : p.hubSynced}
         </p>
       ) : (
-        <p className="flex items-center gap-1.5 text-amber-400">
+        <p className="flex items-center gap-1.5 text-gp-accent-ink">
           <CloudOff className="size-3.5" aria-hidden /> {p.hubOffline}
           {status.pending > 0 && ` · ${fmt(p.hubPending, { n: status.pending })}`}
         </p>
       )}
-      {status.lastSyncAt && <p className="text-white/50">{fmt(p.hubLastSync, { time: formatDateTime(status.lastSyncAt, lang) })}</p>}
+      {status.lastSyncAt && <p className="text-gp-muted">{fmt(p.hubLastSync, { time: formatDateTime(status.lastSyncAt, lang) })}</p>}
     </div>
   );
 }

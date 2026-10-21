@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
-import { MobileNav, Sidebar } from "@/components/garage/sidebar";
+import { AppShell } from "@/components/shell/app-shell";
+import type { NavBadges } from "@/components/shell/nav";
+import { getI18n } from "@/lib/i18n/server";
 import { can } from "@/lib/permissions";
 import { getStaff } from "@/lib/session";
 import { countUpcomingToday } from "@/server/booking";
@@ -20,7 +22,8 @@ export default async function GarageLayout({ children }: { children: ReactNode }
   if (!staff) redirect("/login");
 
   // Menu counters: small COUNT queries in parallel (no rows loaded).
-  const [settings, overdue, pendingApprovals, appointmentsToday, openClaims, pendingLeaves, lateRepairs, backupAlert, unreadMessages] = await Promise.all([
+  const [{ t }, settings, overdue, pendingApprovals, appointmentsToday, openClaims, pendingLeaves, lateRepairs, backupAlert, unreadMessages, expiringContracts] = await Promise.all([
+    getI18n(),
     getSettings(),
     can(staff.role, "viewClientInvoices") ? countOverdue() : 0,
     staff.role === "ADMIN" ? prisma.purchaseOrder.count({ where: { status: "PENDING_APPROVAL" } }) : 0,
@@ -34,10 +37,13 @@ export default async function GarageLayout({ children }: { children: ReactNode }
     staff.role === "ADMIN" ? backupProblem() : 0,
     // Showroom (V9): unread buyer messages in this person's conversations only. .catch: menu never breaks before migration 18.
     can(staff.role, "useShowroomMessages") ? unreadForStaff(staff).catch(() => 0) : 0,
+    // V9: contracts ending soon, only for the categories this role may see (.catch: menu never breaks).
+    can(staff.role, "viewContracts") ? countExpiringContracts(staff.role).catch(() => 0) : 0,
   ]);
 
-  // Counters in the menu: today's remaining bookings, late customer invoices, orders waiting for the admin.
-  const badges = {
+  // Counters on the rail, in the "More" panel and behind the bell: today's remaining bookings,
+  // late customer invoices, orders waiting for the admin, unread messages…
+  const badges: NavBadges = {
     appointments: appointmentsToday || undefined,
     clientInvoices: overdue || undefined,
     purchaseOrders: pendingApprovals || undefined,
@@ -46,21 +52,18 @@ export default async function GarageLayout({ children }: { children: ReactNode }
     delays: lateRepairs || undefined,
     backups: backupAlert || undefined,
     messages: unreadMessages || undefined,
+    contracts: expiringContracts || undefined,
   };
-  const user = { name: staff.name, role: staff.role };
-  // V9: contracts ending soon, only for the categories this role may see (.catch: menu never breaks).
-  const expiringContracts = can(staff.role, "viewContracts") ? await countExpiringContracts(staff.role).catch(() => 0) : 0;
-  if (expiringContracts) Object.assign(badges, { contracts: expiringContracts });
 
   return (
-    // Phones/tablets: the whole page scrolls (the browser bar can hide, pull-to-refresh works).
-    // Computers (lg): fixed sidebar, only the content column scrolls.
-    <div className="ferrari min-h-dvh bg-background text-foreground lg:grid lg:h-dvh lg:grid-cols-[250px_minmax(0,1fr)] lg:overflow-hidden print:block print:h-auto">
-      <Sidebar user={user} garageName={settings.garageName} badges={badges} />
-      <main className="min-w-0 lg:h-dvh lg:overflow-y-auto print:h-auto print:overflow-visible">
-        <MobileNav user={user} garageName={settings.garageName} badges={badges} />
-        {children}
-      </main>
-    </div>
+    // V10 shell: pill top bar + icon rail (bottom bar below 1280 px). The whole page scrolls.
+    <AppShell
+      user={{ id: staff.id, name: staff.name, email: staff.email, role: staff.role }}
+      garage={{ name: settings.garageName, logo: settings.logoDataUrl }}
+      badges={badges}
+      skipLabel={t.v10.nav.skip}
+    >
+      {children}
+    </AppShell>
   );
 }

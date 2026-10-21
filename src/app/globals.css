@@ -153,7 +153,128 @@
   color-scheme: dark;
 }
 
+/*
+ * V10 — staff app ("gp-app" scope, set by app/(garage)/garage/layout.tsx).
+ * Soft grey canvas, white rounded cards, black pills, one orange accent.
+ * The --gp-* tokens are the palette; the shadcn tokens below are mapped onto it
+ * so the pages that were not redesigned still match (light AND dark).
+ * Contrast (WCAG AA): muted text is #67676E (4.7:1 on the canvas; the mock-up's
+ * #8A8A90 is only 3.4:1), and chip text uses the darker *-ink shades.
+ */
+.gp-app,
+body:has(.gp-app) {
+  --gp-outer: #e2e2e4;
+  --gp-canvas: #ededee;
+  --gp-card: #ffffff;
+  --gp-panel: #f5f5f6;
+  --gp-hover: #ececee;
+  --gp-line: rgb(0 0 0 / 0.06);
+  --gp-ink: #0b0b0c;
+  --gp-muted: #67676e;
+  --gp-primary: #0b0b0c;
+  --gp-primary-ink: #ffffff;
+  --gp-accent: #e2603a;
+  --gp-accent-from: #f0794f;
+  --gp-accent-to: #d9532e;
+  --gp-accent-tint: #fbe9e2;
+  --gp-accent-ink: #b4431f;
+  --gp-success: #2e9e5b;
+  --gp-success-bg: #e6f5ec;
+  --gp-success-ink: #1f7a44;
+  --gp-danger: #d64545;
+  --gp-danger-bg: #fbe8e8;
+  --gp-danger-ink: #b42f2f;
+  --gp-shadow: 0 1px 2px rgb(0 0 0 / 0.04);
+  color-scheme: light;
+}
+.dark .gp-app,
+.gp-app.dark,
+.gp-app .dark,
+.dark body:has(.gp-app) {
+  --gp-outer: #000000;
+  --gp-canvas: #0b0b0c;
+  --gp-card: #151517;
+  --gp-panel: #1c1c1f;
+  --gp-hover: #232327;
+  --gp-line: rgb(255 255 255 / 0.07);
+  --gp-ink: #f4f4f5;
+  --gp-muted: #a1a1a8;
+  --gp-primary: #f4f4f5;
+  --gp-primary-ink: #0b0b0c;
+  --gp-accent-tint: rgb(226 96 58 / 0.16);
+  --gp-accent-ink: #f59673;
+  --gp-success-bg: rgb(46 158 91 / 0.16);
+  --gp-success-ink: #5bc98a;
+  --gp-danger-bg: rgb(214 69 69 / 0.16);
+  --gp-danger-ink: #f07b7b;
+  --gp-shadow: 0 1px 2px rgb(0 0 0 / 0.3);
+  color-scheme: dark;
+}
+/* shadcn tokens → V10 palette (re-declared on dark islands so they follow). */
+/* body:has(): menus rendered in a portal (outside .gp-app) get the same palette. */
+.gp-app,
+.gp-app .dark,
+body:has(.gp-app) {
+  --radius: 1.5rem;
+  --background: var(--gp-canvas);
+  --foreground: var(--gp-ink);
+  --card: var(--gp-card);
+  --popover: var(--gp-card);
+  --popover-foreground: var(--gp-ink);
+  --primary: var(--gp-primary);
+  --primary-foreground: var(--gp-primary-ink);
+  --secondary: var(--gp-panel);
+  --secondary-foreground: var(--gp-ink);
+  --muted: var(--gp-panel);
+  --muted-foreground: var(--gp-muted);
+  --accent: var(--gp-hover);
+  --accent-foreground: var(--gp-ink);
+  --destructive: var(--gp-danger);
+  --border: var(--gp-line);
+  --input: color-mix(in oklab, var(--gp-ink) 16%, transparent);
+  --ring: var(--gp-accent);
+  --brand-50: #fdf1ec;
+  --brand-100: #fbe9e2;
+  --brand-200: #f6c9b8;
+  --brand-300: #f1a589;
+  --brand-400: #ec8261;
+  --brand-500: #e2603a;
+  --brand-600: #c94a24;
+  --brand-700: #a63b1c;
+  --brand-800: #823019;
+  --brand-900: #5f2415;
+  --brand-navy: var(--gp-ink);
+  --brand-navy-2: var(--gp-panel);
+  --brand-anthracite: var(--gp-panel);
+}
+/* Multi-line fields keep a soft corner instead of the pill radius. */
+.gp-app textarea {
+  border-radius: 1rem;
+}
+
 @theme inline {
+  /* V10 palette as utilities: bg-gp-card, text-gp-muted, … */
+  --color-gp-outer: var(--gp-outer);
+  --color-gp-canvas: var(--gp-canvas);
+  --color-gp-card: var(--gp-card);
+  --color-gp-panel: var(--gp-panel);
+  --color-gp-hover: var(--gp-hover);
+  --color-gp-line: var(--gp-line);
+  --color-gp-ink: var(--gp-ink);
+  --color-gp-muted: var(--gp-muted);
+  --color-gp-primary: var(--gp-primary);
+  --color-gp-primary-ink: var(--gp-primary-ink);
+  --color-gp-accent: var(--gp-accent);
+  --color-gp-accent-tint: var(--gp-accent-tint);
+  --color-gp-accent-ink: var(--gp-accent-ink);
+  --color-gp-success: var(--gp-success);
+  --color-gp-success-bg: var(--gp-success-bg);
+  --color-gp-success-ink: var(--gp-success-ink);
+  --color-gp-danger: var(--gp-danger);
+  --color-gp-danger-bg: var(--gp-danger-bg);
+  --color-gp-danger-ink: var(--gp-danger-ink);
+  --shadow-gp: var(--gp-shadow);
+
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -366,6 +487,111 @@
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+}
+
+/* ── V10 motion (pure CSS; all switched off under "reduce motion") ─────────── */
+@keyframes gp-enter {
+  from { opacity: 0; transform: translateY(8px); filter: blur(6px); }
+}
+@keyframes gp-grow-y {
+  from { transform: scaleY(0); }
+}
+@keyframes gp-grow-x {
+  from { transform: scaleX(0); }
+}
+@keyframes gp-ring {
+  from { stroke-dashoffset: var(--gp-ring-from); }
+}
+/* Page enter: blur-fade up. Cards of a .gp-stagger group follow 40 ms apart. */
+.gp-enter,
+.gp-stagger > * {
+  animation: gp-enter 350ms ease-out both;
+}
+.gp-stagger > :nth-child(2) { animation-delay: 40ms; }
+.gp-stagger > :nth-child(3) { animation-delay: 80ms; }
+.gp-stagger > :nth-child(4) { animation-delay: 120ms; }
+.gp-stagger > :nth-child(5) { animation-delay: 160ms; }
+.gp-stagger > :nth-child(6) { animation-delay: 200ms; }
+.gp-stagger > :nth-child(7) { animation-delay: 240ms; }
+.gp-stagger > :nth-child(n + 8) { animation-delay: 280ms; }
+/* Bars grow from their base, progress fills from the start edge, rings from 0. */
+.gp-grow-y {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: gp-grow-y 600ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.gp-grow-x {
+  transform-origin: left center;
+  animation: gp-grow-x 700ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+[dir="rtl"] .gp-grow-x {
+  transform-origin: right center;
+}
+.gp-ring {
+  animation: gp-ring 800ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+/* Hover: 1 px lift on cards and buttons, 150 ms background changes on pills. */
+.gp-lift {
+  transition: transform 150ms ease-out, background-color 150ms ease-out, color 150ms ease-out;
+}
+.gp-lift:hover {
+  transform: translateY(-1px);
+}
+.gp-pill-t {
+  transition: background-color 150ms ease-out, color 150ms ease-out;
+}
+/* Hatched remainder (progress bars). Charts use an SVG <pattern> instead. */
+.gp-hatch {
+  background-image: repeating-linear-gradient(-45deg, color-mix(in oklab, var(--gp-ink) 16%, transparent) 0 1.5px, transparent 1.5px 6px);
+}
+/* Horizontal pill rows: swipe on phones, no scrollbar. */
+.gp-scroll-x {
+  scrollbar-width: none;
+}
+.gp-scroll-x::-webkit-scrollbar {
+  display: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .gp-enter,
+  .gp-stagger > *,
+  .gp-grow-y,
+  .gp-grow-x,
+  .gp-ring {
+    animation: none !important;
+  }
+  .gp-lift:hover {
+    transform: none;
+  }
+}
+
+@media print {
+  /* V10 staff frame: paper is always light, without the grey canvas or rounded container. */
+  .gp-app,
+  .dark .gp-app,
+  .gp-app .dark,
+  body:has(.gp-app),
+  .dark body:has(.gp-app) {
+    --gp-outer: #ffffff;
+    --gp-canvas: #ffffff;
+    --gp-card: #ffffff;
+    --gp-panel: #f5f5f6;
+    --gp-line: rgb(0 0 0 / 0.12);
+    --gp-ink: #0b0b0c;
+    --gp-muted: #4b4b52;
+    --gp-primary: #0b0b0c;
+    --gp-primary-ink: #ffffff;
+    color-scheme: light;
+  }
+  .gp-app,
+  .gp-app main {
+    background: white !important;
+    min-height: 0 !important;
+    height: auto !important;
+  }
+  .gp-enter,
+  .gp-stagger > * {
+    animation: none !important;
   }
 }
 

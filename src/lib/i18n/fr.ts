@@ -1,3 +1,4 @@
+import { v10Fr } from "@/lib/i18n/v10-fr";
 import { contractsFr } from "@/lib/i18n/contracts-fr";
 import { v7Fr } from "@/lib/i18n/v7-fr";
 import { showroomFr } from "@/lib/i18n/showroom-fr";
@@ -936,6 +937,8 @@ export const fr = {
   v7: v7Fr,
   /** V9 — showroom et messagerie acheteurs. */
   showroom: showroomFr,
+  /** V10 — refonte du tableau de bord. */
+  v10: v10Fr,
 };
 
 export type Dictionary = typeof fr;

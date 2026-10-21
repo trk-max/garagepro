@@ -1,3 +1,4 @@
+import { v10Ar } from "@/lib/i18n/v10-ar";
 import { contractsAr } from "@/lib/i18n/contracts-ar";
 import { v7Ar } from "@/lib/i18n/v7-ar";
 import { showroomAr } from "@/lib/i18n/showroom-ar";
@@ -937,4 +938,6 @@ export const ar: Dictionary = {
   ctr: contractsAr,
   v7: v7Ar,
   showroom: showroomAr,
+  /** V10 — refonte du tableau de bord. */
+  v10: v10Ar,
 };
