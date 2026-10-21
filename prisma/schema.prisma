@@ -202,6 +202,7 @@ model Customer {
   appointments Appointment[]
   claims       CustomerClaim[]
   feedbacks    CustomerFeedback[]
+  warranties   Warranty[]
 
   @@index([phone])
   @@index([name])
@@ -231,6 +232,7 @@ model Vehicle {
   appointments Appointment[]
   maintenance  VehicleMaintenance[]
   readings     VehicleReading[]
+  warranties   Warranty[]
 
   @@index([customerId])
 }
@@ -287,6 +289,7 @@ model WorkOrder {
   reservations   StockReservation[]
   readings       VehicleReading[]
   qualityCheck   QualityCheck?
+  warranties     Warranty[]
 
   @@index([status, updatedAt(sort: Desc)])
   @@index([mechanicId, status])
@@ -359,6 +362,7 @@ model Part {
   receiptLines      GoodsReceiptLine[]
   partNeeds         WorkOrderPartNeed[]
   reservations      StockReservation[]
+  warranties        Warranty[]
   defaultSupplierId String?
   defaultSupplier   Supplier?           @relation(fields: [defaultSupplierId], references: [id], onDelete: SetNull)
 
@@ -550,6 +554,13 @@ model Setting {
   /// ou "PER_LABOR_HOUR" (overheadValue = millimes par heure-personne).
   overheadMode           String   @default("NONE")
   overheadValue          Int      @default(0)
+  /// Garantie automatique des réparations à la livraison : N mois et/ou N km (0 = pas de garantie automatique).
+  warrantyMonths         Int      @default(0)
+  warrantyKm             Int      @default(0)
+  /// Trésorerie : alerte si le solde prévu passe sous ce seuil dans les 90 jours (millimes ; 0 = pas d'alerte),
+  /// selon le scénario "PRUDENT", "NORMAL" ou "OPTIMISTIC".
+  cashAlertThreshold     Int      @default(0)
+  cashAlertScenario      String   @default("PRUDENT")
   /// Rappels : envoyer N jours avant l'échéance d'entretien.
   reminderLeadDays       Int      @default(7)
   /// Alertes : réparation sans changement de statut depuis plus de N jours ;
@@ -586,6 +597,8 @@ model Supplier {
   partNeeds      WorkOrderPartNeed[]
   expenses       WorkOrderExpense[]
   stockMovements StockMovement[]
+  warranties     Warranty[]
+  fixedCosts     RecurringExpense[]
 
   @@index([name])
 }
@@ -1258,4 +1271,162 @@ model VehicleReading {
 
   @@index([vehicleId, recordedAt(sort: Desc)])
   @@index([workOrderId])
+}
+
+// ── Garanties (V8.4) ─────────────────────────────────────────────────────────
+
+/// Garantie sur une réparation ("REPAIR", donnée par le garage au client) ou sur une pièce
+/// ("PART", donnée par le fournisseur). Valable jusqu'à endsAt et/ou endKm : la première limite
+/// atteinte l'emporte. Jamais effacée : une erreur est annulée (voidedAt + motif).
+model Warranty {
+  id              String    @id @default(cuid())
+  /// "REPAIR" ou "PART".
+  kind            String
+  workOrderId     String?
+  vehicleId       String
+  customerId      String
+  supplierId      String?
+  partId          String?
+  /// Ligne de l'ordre concernée (pièce), sans clé étrangère : la ligne peut être retirée de l'ordre.
+  workOrderLineId String?
+  /// Ce qui est couvert, ex. « Embrayage complet ».
+  label           String
+  startsAt        DateTime
+  endsAt          DateTime?
+  startKm         Int?
+  endKm           Int?
+  terms           String?
+  /// Garantie automatique créée à la livraison : = workOrderId (une seule par ordre). null = saisie à la main.
+  autoWorkOrderId String?   @unique
+  createdById     String?
+  createdAt       DateTime  @default(now())
+  voidedAt        DateTime?
+  voidedById      String?
+  voidReason      String?
+
+  workOrder WorkOrder?      @relation(fields: [workOrderId], references: [id], onDelete: SetNull)
+  vehicle   Vehicle         @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
+  customer  Customer        @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  supplier  Supplier?       @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  part      Part?           @relation(fields: [partId], references: [id], onDelete: SetNull)
+  claims    WarrantyClaim[]
+
+  @@index([vehicleId])
+  @@index([workOrderId])
+  @@index([endsAt])
+}
+
+/// Réclamation sous garantie. Statut : OPEN → SUBMITTED → ACCEPTED | PARTIAL | REJECTED → CLOSED
+/// (OPEN → CLOSED si abandonnée). Montants en millimes, visibles des responsables seulement.
+model WarrantyClaim {
+  id             String    @id @default(cuid())
+  /// Affiché "GAR-0007".
+  number         Int       @unique @default(autoincrement())
+  warrantyId     String
+  openedAt       DateTime  @default(now())
+  openedById     String?
+  description    String
+  /// "OPEN", "SUBMITTED", "ACCEPTED", "PARTIAL", "REJECTED" ou "CLOSED".
+  status         String    @default("OPEN")
+  submittedAt    DateTime?
+  /// Réponse du fournisseur / décision du garage (texte).
+  decision       String?
+  decidedAt      DateTime?
+  decidedById    String?
+  closedAt       DateTime?
+  /// Coût de la reprise pour le garage (pièces, main-d'œuvre).
+  costParts      Int       @default(0)
+  costLabor      Int       @default(0)
+  amountClaimed  Int       @default(0)
+  /// null = pas encore de décision ; 0 si refusée.
+  amountAccepted Int?
+  updatedAt      DateTime  @updatedAt
+
+  warranty Warranty         @relation(fields: [warrantyId], references: [id], onDelete: Restrict)
+  refunds  WarrantyRefund[]
+
+  @@index([warrantyId])
+  @@index([status])
+}
+
+/// Remboursement reçu pour une réclamation acceptée (argent réellement encaissé).
+model WarrantyRefund {
+  id          String        @id @default(cuid())
+  claimId     String
+  amount      Int
+  receivedAt  DateTime
+  method      PaymentMethod
+  reference   String?
+  createdById String?
+  createdAt   DateTime      @default(now())
+  voidedAt    DateTime?
+  voidedById  String?
+  voidReason  String?
+
+  claim WarrantyClaim @relation(fields: [claimId], references: [id], onDelete: Restrict)
+
+  @@index([claimId])
+  @@index([receivedAt])
+}
+
+// ── Dépenses et échéances, trésorerie (V8.4) ─────────────────────────────────
+
+/// Charge fixe ou ponctuelle (loyer, salaires, électricité, crédit…). Les échéances sont créées
+/// au fur et à mesure (ExpenseOccurrence), jusqu'à l'horizon de la prévision.
+model RecurringExpense {
+  id           String    @id @default(cuid())
+  label        String
+  /// "RENT", "SALARY", "UTILITIES", "LOAN", "TAX", "INSURANCE" ou "OTHER".
+  category     String
+  /// Montant de chaque échéance (millimes TTC).
+  amount       Int
+  /// "ONCE", "MONTHLY", "QUARTERLY" ou "YEARLY".
+  frequency    String
+  firstDueDate DateTime  @db.Date
+  /// Dernière échéance possible (incluse). null = sans fin.
+  endDate      DateTime? @db.Date
+  supplierId   String?
+  /// false = arrêtée : ses échéances non payées ne sont plus prévues.
+  active       Boolean   @default(true)
+  notes        String?
+  createdById  String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  supplier    Supplier?           @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  occurrences ExpenseOccurrence[]
+}
+
+/// Une échéance d'une charge. Une seule par charge et par date (création idempotente).
+/// Payée = soldée (paidAmount = ce qui a vraiment été payé).
+model ExpenseOccurrence {
+  id         String         @id @default(cuid())
+  expenseId  String
+  dueDate    DateTime       @db.Date
+  amount     Int
+  paidAt     DateTime?
+  paidAmount Int?
+  method     PaymentMethod?
+  reference  String?
+  paidById   String?
+  createdAt  DateTime       @default(now())
+
+  expense RecurringExpense @relation(fields: [expenseId], references: [id], onDelete: Restrict)
+
+  @@unique([expenseId, dueDate])
+  @@index([dueDate])
+}
+
+/// Solde caisse + banque saisi à la main, en fin de journée du asOf. Historique conservé :
+/// la prévision part du plus récent.
+model CashBalance {
+  id          String   @id @default(cuid())
+  /// Millimes (négatif possible : découvert).
+  amount      Int
+  asOf        DateTime @db.Date
+  note        String?
+  createdById String?
+  createdAt   DateTime @default(now())
+
+  @@index([asOf(sort: Desc), createdAt(sort: Desc)])
 }

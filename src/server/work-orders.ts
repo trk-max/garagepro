@@ -3,6 +3,7 @@ import { newToken as newQrToken } from "@/server/vehicle-qr";
 import { consumeReservations, releaseAllFor } from "@/server/parts";
 import { audit } from "@/server/audit";
 import { assertQualityApproved, resetQualityApproval } from "@/server/quality";
+import { createAutoRepairWarranty } from "@/server/warranties";
 import { missingVehicleInfo } from "@/lib/vehicle-info";
 import type { FuelType, LineType, Prisma, Priority, WorkOrderStatus } from "@prisma/client";
 import { normalizePlate } from "@/lib/format";
@@ -328,6 +329,8 @@ export async function changeStatus(workOrderId: string, to: WorkOrderStatus, act
 
     // Delivered or cancelled: parts still reserved for it become available again.
     if (to === "CANCELLED" || to === "DELIVERED") await releaseAllFor(tx, actor, workOrderId, to === "CANCELLED" ? "ordre annulé" : "véhicule livré");
+    // Delivered: automatic repair warranty when set in Paramètres (0 = off), once per order.
+    if (to === "DELIVERED") await createAutoRepairWarranty(tx, actor, workOrderId, now);
 
     // Cancelling puts every consumed part back on the shelf.
     if (to === "CANCELLED") {

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Wrench, QrCode, Plus, Activity } from "lucide-react";
+import { Wrench, QrCode, Plus, Activity, ShieldCheck } from "lucide-react";
 import { addVehicleAction, updateCustomerAction } from "@/actions/catalog";
 import { ActionForm } from "@/components/action-form";
 import { PlateChip, StatusBadge } from "@/components/garage/badges";
@@ -76,6 +76,13 @@ export default async function CustomerPage({ params }: PageProps) {
                       <Button asChild size="sm" variant="outline" className="ms-2 mt-2">
                         <Link href={`/garage/vehicules/${v.id}/qr`}>
                           <QrCode className="size-3.5" aria-hidden /> {t.v7.qr.button}
+                        </Link>
+                      </Button>
+                    )}
+                    {can(staff.role, "manageWarranties") && (
+                      <Button asChild size="sm" variant="outline" className="ms-2 mt-2">
+                        <Link href={`/garage/garanties?f=all&vehicle=${v.id}`}>
+                          <ShieldCheck className="size-3.5" aria-hidden /> {t.v7.warranty.button}
                         </Link>
                       </Button>
                     )}

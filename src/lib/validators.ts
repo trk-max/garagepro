@@ -531,3 +531,91 @@ export const settingsV7Schema = z.object({
   alertPartLateDays: z.coerce.number().int().min(ALERT_LIMITS.alertPartLateDays.min).max(ALERT_LIMITS.alertPartLateDays.max),
   alertInsuranceDays: z.coerce.number().int().min(ALERT_LIMITS.alertInsuranceDays.min).max(ALERT_LIMITS.alertInsuranceDays.max),
 });
+
+// ── Garanties, dépenses et trésorerie (V8.4) ─────────────────────────────────
+
+/** <input type="date"> value "YYYY-MM-DD" (a real calendar day). */
+export const day = z
+  .string()
+  .regex(/^(20\d\d|2100)-\d{2}-\d{2}$/)
+  .refine((d) => new Date(`${d}T12:00:00Z`).toISOString().slice(0, 10) === d);
+export const optionalDay = z.preprocess(emptyToUndefined, day.optional());
+const optionalPositiveInt = (max: number) => z.preprocess(emptyToUndefined, z.coerce.number().int().min(1).max(max).optional());
+
+export const warrantySchema = z.object({
+  kind: z.enum(["REPAIR", "PART"]),
+  label: requiredText(200),
+  months: optionalPositiveInt(240),
+  endDate: optionalDay,
+  km: optionalPositiveInt(1_000_000),
+  supplierId: optionalId,
+  lineId: optionalId,
+  terms: optionalText(1000),
+});
+
+export const claimOpenSchema = z.object({ description: z.string().trim().min(3).max(2000) });
+
+export const claimAmountsSchema = z.object({ costParts: money, costLabor: money, amountClaimed: money });
+
+export const claimMoveSchema = z.object({
+  to: z.enum(["SUBMITTED", "ACCEPTED", "PARTIAL", "REJECTED", "CLOSED"]),
+  decision: optionalText(1000),
+  amountAccepted: optionalMoney,
+});
+
+export const refundSchema = z.object({
+  amount: money.refine((m) => m > 0),
+  receivedDay: day,
+  method: z.nativeEnum(PaymentMethod),
+  reference: optionalText(80),
+});
+
+export const EXPENSE_CATEGORIES = ["RENT", "SALARY", "UTILITIES", "LOAN", "TAX", "INSURANCE", "OTHER"] as const;
+export const EXPENSE_FREQUENCIES = ["ONCE", "MONTHLY", "QUARTERLY", "YEARLY"] as const;
+
+export const recurringExpenseSchema = z.object({
+  label: requiredText(120),
+  category: z.enum(EXPENSE_CATEGORIES),
+  amount: money.refine((m) => m > 0),
+  frequency: z.enum(EXPENSE_FREQUENCIES),
+  firstDueDate: day,
+  endDate: optionalDay,
+  supplierId: optionalId,
+  notes: optionalText(500),
+});
+
+export const recurringExpenseUpdateSchema = z.object({
+  label: requiredText(120),
+  category: z.enum(EXPENSE_CATEGORIES),
+  amount: money.refine((m) => m > 0),
+  endDate: optionalDay,
+  supplierId: optionalId,
+  notes: optionalText(500),
+});
+
+export const occurrencePaySchema = z.object({
+  paidDay: day,
+  paidAmount: money.refine((m) => m > 0),
+  method: z.nativeEnum(PaymentMethod),
+  reference: optionalText(80),
+});
+
+/** Cash + bank balance typed by hand (negative = overdraft). */
+export const cashBalanceSchema = z.object({
+  amount: z.preprocess(
+    (v) => (typeof v === "string" ? (v.replace(/\s/g, "").replace(",", ".") === "" ? Number.NaN : Number(v.replace(/\s/g, "").replace(",", "."))) : v),
+    z.number().finite().min(-100_000_000).max(100_000_000).transform((dt) => Math.round(dt * 1000)),
+  ),
+  asOf: day,
+  note: optionalText(300),
+});
+
+export const warrantySettingsSchema = z.object({
+  warrantyMonths: z.coerce.number().int().min(0).max(120),
+  warrantyKm: z.coerce.number().int().min(0).max(1_000_000),
+});
+
+export const cashAlertSettingsSchema = z.object({
+  cashAlertThreshold: money,
+  cashAlertScenario: z.enum(["PRUDENT", "NORMAL", "OPTIMISTIC"]),
+});

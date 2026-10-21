@@ -17,6 +17,7 @@ import { ActionButton, ActionForm, ActionSelect } from "@/components/action-form
 import { MediaUploader } from "@/components/garage/media-uploader";
 import { RepairPanels } from "@/components/garage/repair-panels";
 import { ProfitPanel } from "@/components/garage/profit-panel";
+import { WarrantyCard } from "@/components/garage/warranty";
 import { ReservationsCard } from "@/components/garage/reservations-card";
 import { VehicleQrCard } from "@/components/garage/vehicle-qr-card";
 import { TrackingCard } from "@/components/garage/tracking-card";
@@ -283,6 +284,9 @@ export default async function WorkOrderPage({ params }: PageProps) {
 
         {/* ── Parts put aside for this repair (Prompt 2/5, step B) ── */}
         <ReservationsCard workOrderId={wo.id} closed={isFinal(wo.status)} staff={staff} t={t} lang={lang} />
+
+        {/* ── Warranties on this repair and its parts (Prompt 4/5) ── */}
+        <WarrantyCard workOrderId={wo.id} staff={staff} t={t} lang={lang} />
 
         {/* ── Direct expenses and real profit (Prompt 2/5) ── */}
         <ProfitPanel workOrderId={wo.id} staff={staff} t={t} lang={lang} />

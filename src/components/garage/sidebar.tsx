@@ -28,6 +28,7 @@ import {
   PackageCheck,
   ReceiptText,
   Settings,
+  ShieldCheck,
   ShoppingCart,
   Truck,
 } from "lucide-react";
@@ -62,10 +63,11 @@ type NavKey =
   | "companies"
   | "profitability"
   | "notifications"
-  | "backups";
+  | "backups"
+  | "warranties";
 
-type V7Key = "timeClock" | "team" | "calendar" | "delays" | "audit" | "companies" | "profitability" | "notifications" | "backups";
-const V7_KEYS: V7Key[] = ["timeClock", "team", "calendar", "delays", "audit", "companies", "profitability", "notifications", "backups"];
+type V7Key = "timeClock" | "team" | "calendar" | "delays" | "audit" | "companies" | "profitability" | "notifications" | "backups" | "warranties";
+const V7_KEYS: V7Key[] = ["timeClock", "team", "calendar", "delays", "audit", "companies", "profitability", "notifications", "backups", "warranties"];
 
 type Item = { key: NavKey; href: string; icon: LucideIcon; permission?: Permission };
 type Group = { title?: "clientSpace" | "supplierSpace" | "teamSpace"; items: Item[] };
@@ -84,6 +86,7 @@ const GROUPS: Group[] = [
       { key: "companies", href: "/garage/entreprises", icon: Building2, permission: "manageCompanyAccess" },
       { key: "clientInvoices", href: "/garage/invoices", icon: FileText, permission: "viewClientInvoices" },
       { key: "claims", href: "/garage/reclamations", icon: MessageSquareWarning, permission: "manageClaims" },
+      { key: "warranties", href: "/garage/garanties", icon: ShieldCheck, permission: "manageWarranties" },
     ],
   },
   {

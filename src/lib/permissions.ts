@@ -72,8 +72,14 @@ const MATRIX = {
   viewReports: ["ADMIN"],
   /// Rentabilité (coûts, main-d'œuvre, marges) : données sensibles, administrateur seulement.
   viewProfit: ["ADMIN"],
-  /// Saisir / annuler une dépense directe sur une réparation.
+  /// Saisir / annuler une dépense directe sur une réparation ; charges fixes et échéances (page « Dépenses et échéances »).
   manageExpenses: ["ADMIN", "MANAGER"],
+  /// Garanties : consulter, ajouter une garantie à une réparation, ouvrir une réclamation (sans montants).
+  manageWarranties: ["ADMIN", "MANAGER", "RECEPTION", "MECHANIC"],
+  /// Garanties : voir et saisir les montants (coûts, montant réclamé / accepté, remboursements), décider, annuler.
+  viewWarrantyMoney: ["ADMIN", "MANAGER"],
+  /// Prévision de trésorerie, solde saisi, alerte de trésorerie.
+  viewCashForecast: ["ADMIN", "MANAGER"],
   viewAuditLog: ["ADMIN"],
 } as const satisfies Record<string, readonly Role[]>;
 
