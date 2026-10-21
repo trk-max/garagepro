@@ -75,10 +75,13 @@ export async function contractPdf(doc: ContractDoc, garage: GarageSnap | null, o
   const ensure = (h: number) => {
     if (y - h < BOTTOM) newPage();
   };
+  // Logo in the top-right corner of page 1: header lines beside it stop before it (never under it).
+  let logoBand: { width: number; bottom: number } | null = null;
   const text = (s: string, o: { size?: number; f?: PDFFont; color?: ReturnType<typeof rgb>; indent?: number; gap?: number } = {}) => {
     const size = o.size ?? 10;
     const f = o.f ?? font;
-    for (const line of wrap(safe(s), WIDTH - (o.indent ?? 0), size, f)) {
+    const beside = logoBand && pages.length === 1 && y + size > logoBand.bottom ? logoBand.width : 0;
+    for (const line of wrap(safe(s), WIDTH - (o.indent ?? 0) - beside, size, f)) {
       ensure(size + 4);
       if (line) page.drawText(line, { x: LEFT + (o.indent ?? 0), y, size, font: f, color: o.color ?? txt });
       y -= size + (o.gap ?? 4);
@@ -89,6 +92,7 @@ export async function contractPdf(doc: ContractDoc, garage: GarageSnap | null, o
   if (logo) {
     const scale = Math.min(140 / logo.width, 48 / logo.height, 1);
     page.drawImage(logo, { x: W - LEFT - logo.width * scale, y: H - 44 - logo.height * scale, width: logo.width * scale, height: logo.height * scale });
+    logoBand = { width: logo.width * scale + 12, bottom: H - 44 - logo.height * scale };
   }
   text(doc.title.toUpperCase(), { size: 15, f: bold, gap: 6 });
   text(`N° ${doc.number}`, { size: 9, color: grey });

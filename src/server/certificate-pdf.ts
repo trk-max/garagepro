@@ -19,6 +19,13 @@ function wrap(text: string, width: number, size: number, measure: (t: string, s:
   return lines;
 }
 
+/** Largest font size from `max` down to `min` (half points) at which the text fits in `width`. */
+export function fitSize(widthAt: (size: number) => number, width: number, max: number, min: number): number {
+  let size = max;
+  while (size > min && widthAt(size) > width) size -= 0.5;
+  return size;
+}
+
 /** Justified paragraph (last line left-aligned), first line indented. Returns the new y. */
 function paragraph(page: PDFPage, text: string, opts: { x: number; y: number; width: number; size: number; lead: number; font: PDFFont; indent?: number; color: ReturnType<typeof rgb> }) {
   const { x, width, size, lead, font, color } = opts;
@@ -76,17 +83,21 @@ export async function certificatePdf(s: CertificateSnapshot, opts: { logo?: stri
 
   // ── Header: logo (Paramètres → Logo des documents; PNG/JPEG only in a PDF) + company name.
   const logo = opts.logo?.match(/^data:image\/(png|jpeg);base64,(.+)$/);
+  let logoRight = 0;
   if (logo) {
     try {
       const bytes = Buffer.from(logo[2]!, "base64");
       const img = logo[1] === "png" ? await pdf.embedPng(bytes) : await pdf.embedJpg(bytes);
       const scale = Math.min(90 / img.width, 70 / img.height, 1);
       page.drawImage(img, { x: left - 10, y: 800 - img.height * scale, width: img.width * scale, height: img.height * scale });
+      logoRight = left - 10 + img.width * scale + 8;
     } catch {
       /* unreadable image: the certificate is still produced, without logo */
     }
   }
-  centred(s.company.legalName.toUpperCase(), 772, 17, bold);
+  // Centred company name, never over the logo: a long name gets a smaller size (down to 10 pt).
+  const company = safe(s.company.legalName.toUpperCase());
+  centred(company, 772, fitSize((size) => bold.widthOfTextAtSize(company, size), logoRight ? W - 2 * logoRight : width, 17, 10), bold);
 
   // Recipient (optional): on the right, under the header.
   let y = 700;
