@@ -162,6 +162,7 @@
  * #8A8A90 is only 3.4:1), and chip text uses the darker *-ink shades.
  */
 .gp-app,
+.gp-scope,
 body:has(.gp-app) {
   --gp-outer: #e2e2e4;
   --gp-canvas: #ededee;
@@ -190,6 +191,7 @@ body:has(.gp-app) {
 .dark .gp-app,
 .gp-app.dark,
 .gp-app .dark,
+.dark .gp-scope,
 .dark body:has(.gp-app) {
   --gp-outer: #000000;
   --gp-canvas: #0b0b0c;
@@ -214,6 +216,7 @@ body:has(.gp-app) {
 /* body:has(): menus rendered in a portal (outside .gp-app) get the same palette. */
 .gp-app,
 .gp-app .dark,
+.gp-scope,
 body:has(.gp-app) {
   --radius: 1.5rem;
   --background: var(--gp-canvas);
@@ -246,6 +249,28 @@ body:has(.gp-app) {
   --brand-navy: var(--gp-ink);
   --brand-navy-2: var(--gp-panel);
   --brand-anthracite: var(--gp-panel);
+}
+/* Card titles of the pages not redesigned yet: sentence case, like the V10 cards (was the uppercase "label-tech"). */
+.gp-app [data-slot="card-title"] {
+  font-size: 1.0625rem;
+  line-height: 1.4;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  text-transform: none;
+  color: var(--gp-ink);
+}
+/* V10 look inside the customer site (.gp-scope, e.g. live repair tracking): the site's
+   uppercase headings and buttons are not applied to that content. */
+.ferrari .gp-scope h1,
+.ferrari .gp-scope h2 {
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: -0.01em;
+}
+.ferrari .gp-scope [data-slot="button"] {
+  text-transform: none;
+  letter-spacing: normal;
+  font-size: 0.875rem;
 }
 /* Multi-line fields keep a soft corner instead of the pill radius. */
 .gp-app textarea {

@@ -87,8 +87,8 @@ export function MissingVehicleFields({ missing, prefix, vinDefault }: { missing:
 export function VehicleCompletionCard({ workOrderId, missing, vinDefault }: { workOrderId: string; missing: string[]; vinDefault?: string }) {
   const { t } = useI18n();
   return (
-    <ActionForm action={completeVehicleAction.bind(null, workOrderId)} reset={false} className="space-y-3 border border-brand-500/60 p-4">
-      <p className="f-label text-brand-500">{t.customers.completeInfo}</p>
+    <ActionForm action={completeVehicleAction.bind(null, workOrderId)} reset={false} className="space-y-3 rounded-[18px] border border-brand-500/60 bg-gp-accent-tint/40 p-4">
+      <p className="f-label text-gp-accent-ink">{t.customers.completeInfo}</p>
       <MissingVehicleFields missing={missing} prefix="f_" vinDefault={vinDefault} />
       <Button type="submit" size="sm">
         {t.common.save}

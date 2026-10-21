@@ -28,7 +28,7 @@ export function Card({ className, ...props }: React.ComponentProps<"section">) {
 }
 
 export function CardTitle({ className, ...props }: React.ComponentProps<"h2">) {
-  return <h2 className={cn("label-tech mb-4", className)} {...props} />;
+  return <h2 data-slot="card-title" className={cn("label-tech mb-4", className)} {...props} />;
 }
 
 /** V10: every page title uses the redesigned header (big H1, optional subtitle, actions at the end). */

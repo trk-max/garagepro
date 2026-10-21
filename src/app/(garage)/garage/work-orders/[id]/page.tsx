@@ -27,7 +27,10 @@ import { LiveRefresh } from "@/components/live-refresh";
 import { getBaseUrl } from "@/lib/base-url";
 import { missingVehicleInfo } from "@/lib/vehicle-info";
 import { VehicleCompletionCard } from "@/components/garage/vehicle-completion";
-import { InvoiceBadge, PlateChip, PriorityBadge, StatusBadge } from "@/components/garage/badges";
+import { InvoiceBadge, PlateChip, PriorityBadge } from "@/components/garage/badges";
+import { StatusStepper } from "@/components/garage/status-stepper";
+import { STATUS_DOT } from "@/components/overview/recent-orders";
+import { StatusDot } from "@/components/ui/redesign/chip";
 import { LineAdder } from "@/components/garage/line-adder";
 import { Timeline } from "@/components/garage/timeline";
 import { Button } from "@/components/ui/button";
@@ -81,30 +84,33 @@ export default async function WorkOrderPage({ params }: PageProps) {
   const vehicleMissing: string[] = [...missingVehicleInfo(wo.vehicle), ...(wo.mileageIn === null ? ["mileage"] : [])];
 
   return (
-    <div className="grid min-h-full grid-cols-1 xl:grid-cols-[minmax(0,1fr)_340px]">
+    <div className="mx-auto grid min-h-full max-w-[1440px] grid-cols-1 gap-5 px-3 pt-4 pb-6 sm:px-5 xl:grid-cols-[minmax(0,1fr)_360px] xl:ps-2 xl:pe-5">
       {/* ── Center: header, works, diagnosis, history ── */}
-      <section className="min-w-0 space-y-5 p-6">
-        <header className="space-y-3">
+      <section className="min-w-0 space-y-5">
+        <header className="space-y-4 rounded-[24px] border border-gp-line bg-gp-card p-5 shadow-gp">
           <div className="flex flex-wrap items-center gap-3">
-            <span className="font-mono text-sm text-muted-foreground">{woNumber(wo.number)}</span>
+            <span className="font-mono text-sm text-gp-muted">{woNumber(wo.number)}</span>
             <PlateChip plate={wo.vehicle.plate} />
-            <h1 className="text-xl font-semibold">
+            <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
               {wo.vehicle.make} {wo.vehicle.model}
             </h1>
-            <StatusBadge status={wo.status} t={t} />
+            <span className="rounded-full bg-gp-panel px-3 py-1">
+              <StatusDot color={STATUS_DOT[wo.status]}>{t.status[wo.status]}</StatusDot>
+            </span>
             <PriorityBadge priority={wo.priority} t={t} />
             <LiveRefresh url={`/api/staff/live?topic=wo:${wo.id}`} liveLabel={t.portal.live} reconnectingLabel={t.portal.reconnecting} className="ms-auto" />
           </div>
+          <StatusStepper status={wo.status} t={t} className="rounded-[18px] bg-gp-panel px-2 py-4" />
           {customerApproval && wo.status !== "DELIVERED" && (
-            <p className="flex items-center gap-2 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-300">
+            <p className="flex items-center gap-2 rounded-[14px] bg-gp-success-bg px-3 py-2 text-sm text-gp-success-ink">
               <CheckCircle2 className="size-4" aria-hidden /> {fmt(t.tracking.customerApproved, { date: formatDateTime(customerApproval.createdAt, lang) })}
             </p>
           )}
           {unreadCustomerMessages.length > 0 && !final && (
             <ul className="space-y-1">
               {unreadCustomerMessages.map((m) => (
-                <li key={m.id} className="flex items-start gap-2 rounded-md border border-blue-500/30 bg-blue-500/10 px-3 py-2 text-sm">
-                  <MessageCircle className="mt-0.5 size-4 shrink-0 text-blue-700 dark:text-blue-400" aria-hidden />
+                <li key={m.id} className="flex items-start gap-2 rounded-[14px] bg-gp-accent-tint px-3 py-2 text-sm">
+                  <MessageCircle className="mt-0.5 size-4 shrink-0 text-gp-accent-ink" aria-hidden />
                   <span className="flex-1 whitespace-pre-line">{m.body}</span>
                   <time className="shrink-0 text-xs text-muted-foreground">{formatDateTime(m.createdAt, lang)}</time>
                 </li>
@@ -312,7 +318,7 @@ export default async function WorkOrderPage({ params }: PageProps) {
           ) : (
             <ul className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
               {wo.media.map((m) => (
-                <li key={m.id} className="overflow-hidden rounded-md border">
+                <li key={m.id} className="overflow-hidden rounded-[18px] border border-gp-line bg-gp-panel">
                   <a href={`/api/media/${m.id}`} target="_blank" rel="noopener" className="block aspect-video bg-muted">
                     {m.kind === "PHOTO" ? (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -395,7 +401,7 @@ export default async function WorkOrderPage({ params }: PageProps) {
       </section>
 
       {/* ── Right: customer, vehicle, history, invoice ── */}
-      <aside className="space-y-4 border-s bg-muted/20 p-5">
+      <aside className="space-y-4">
         {!final && can(staff.role, "manageTracking") && (
           <TrackingCard
             workOrderId={wo.id}
@@ -417,7 +423,7 @@ export default async function WorkOrderPage({ params }: PageProps) {
           />
         )}
         {wo.appointment && (
-          <p className="rounded-md border bg-background px-3 py-2 text-xs text-muted-foreground">
+          <p className="rounded-full bg-gp-card px-4 py-2.5 text-xs text-gp-muted">
             {t.nav.appointments} <span className="font-mono">{wo.appointment.reference}</span> · {formatDateTime(wo.appointment.startAt, lang)}
           </p>
         )}
@@ -491,7 +497,7 @@ export default async function WorkOrderPage({ params }: PageProps) {
             <ul className="space-y-2">
               {history.map((h) => (
                 <li key={h.id}>
-                  <Link href={`/garage/work-orders/${h.id}`} className="block rounded-md px-2 py-1.5 hover:bg-accent">
+                  <Link href={`/garage/work-orders/${h.id}`} className="block rounded-[14px] px-3 py-2 hover:bg-gp-hover">
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <span className="font-mono">{woNumber(h.number)}</span>
                       <span>{formatDate(h.createdAt, lang)}</span>

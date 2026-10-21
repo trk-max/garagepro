@@ -27,9 +27,9 @@ export function TrackingCard({
   if (wa.length === 8) wa = `216${wa}`;
 
   return (
-    <section className="rounded-lg border border-brand-500/30 bg-brand-500/5 p-4">
+    <section className="rounded-[24px] border border-brand-500/30 bg-gp-accent-tint p-4">
       <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold">
-        <KeyRound className="size-4 text-brand-400" aria-hidden /> {t.tracking.title}
+        <KeyRound className="size-4 text-gp-accent-ink" aria-hidden /> {t.tracking.title}
       </h2>
       {pin ? (
         <>
