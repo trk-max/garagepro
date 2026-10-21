@@ -7,7 +7,7 @@ import { LangSwitch } from "@/components/garage/lang-switch";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { GpMonogram, GpWordmark } from "@/components/brand/garagepro-logo";
 
-type Labels = { tagline: string; about: string; assistant: string; track: string; book: string; staff: string; claims: string };
+type Labels = { tagline: string; about: string; assistant: string; track: string; book: string; staff: string; claims: string; showroom: string };
 
 const NAV_LINK =
   "f-label inline-flex min-h-11 shrink-0 items-center whitespace-nowrap px-3 text-white/70 transition-colors hover:text-white focus-visible:text-white";
@@ -34,6 +34,7 @@ export function PortalShell({
   children: ReactNode;
 }) {
   const links = [
+    { href: "/showroom", label: labels.showroom },
     { href: "/a-propos", label: labels.about },
     { href: "/assistant", label: labels.assistant },
     { href: "/suivi", label: labels.track },
@@ -78,7 +79,7 @@ export function PortalShell({
             {labels.book}
             <ArrowRight className="size-3.5 rtl:rotate-180" aria-hidden />
           </Link>
-          {["/suivi", "/assistant", "/a-propos", "/reclamation"].flatMap((href) => links.filter((l) => l.href === href)).map((l) => (
+          {["/suivi", "/showroom", "/assistant", "/a-propos", "/reclamation"].flatMap((href) => links.filter((l) => l.href === href)).map((l) => (
             <Link key={l.href} href={l.href} className={NAV_LINK}>
               {l.label}
             </Link>
@@ -99,6 +100,7 @@ export function PortalShell({
           ...(phone ? [{ href: `tel:${phone.replace(/\s/g, "")}`, label: footer.call, icon: <Phone aria-hidden />, external: true }] : []),
         ]}
         secondaryLinks={[
+          { href: "/showroom", label: labels.showroom },
           { href: "/a-propos", label: labels.about },
           { href: "/assistant", label: labels.assistant },
           { href: "/reclamation", label: labels.claims },

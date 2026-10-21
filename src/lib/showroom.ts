@@ -273,3 +273,10 @@ export function parseShowroomQuery(params: Params): ShowroomQuery {
 
 /** Prices are typed in dinars and stored in millimes; the public price is shown without millimes. */
 export const priceDt = (millimes: number) => Math.round(millimes / 1000);
+
+const LOCALES = { fr: "fr-TN", ar: "ar-TN", en: "en-GB" } as const;
+
+/** "32 500 DT" (car prices are shown in whole dinars). */
+export function formatPriceDt(millimes: number, lang: keyof typeof LOCALES): string {
+  return `${new Intl.NumberFormat(LOCALES[lang], { maximumFractionDigits: 0, numberingSystem: "latn" }).format(priceDt(millimes))} DT`;
+}

@@ -1,4 +1,5 @@
 import { v7En } from "@/lib/i18n/v7-en";
+import { showroomEn } from "@/lib/i18n/showroom-en";
 import type { Dictionary } from "@/lib/i18n/fr";
 
 export const en: Dictionary = {
@@ -914,4 +915,5 @@ export const en: Dictionary = {
     hubLastSync: "Last sync: {time}",
   },
   v7: v7En,
+  showroom: showroomEn,
 };

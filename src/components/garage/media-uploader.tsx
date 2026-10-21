@@ -10,7 +10,7 @@ import { useI18n } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
 
 /** Phone photos are 3–8 MB; resize to 1920 px JPEG before upload (fast on 4G, plenty for the customer). */
-async function shrinkImage(file: File): Promise<Blob> {
+export async function shrinkImage(file: File): Promise<Blob> {
   if (!file.type.startsWith("image/") || file.size < 1.5 * 1024 * 1024) return file;
   try {
     const bitmap = await createImageBitmap(file);

@@ -27,6 +27,7 @@ export default async function PublicLayout({ children }: { children: ReactNode }
         book: t.portal.bookCta,
         staff: t.portal.staffLink,
         claims: t.claims.navLink,
+        showroom: t.showroom.nav.publicLink,
       }}
       footer={t.footer}
     >

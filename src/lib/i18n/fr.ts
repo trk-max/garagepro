@@ -1,4 +1,5 @@
 import { v7Fr } from "@/lib/i18n/v7-fr";
+import { showroomFr } from "@/lib/i18n/showroom-fr";
 export const fr = {
   common: {
     appName: "GaragePro",
@@ -912,6 +913,8 @@ export const fr = {
     hubLastSync: "Dernière synchro : {time}",
   },
   v7: v7Fr,
+  /** V9 — showroom et messagerie acheteurs. */
+  showroom: showroomFr,
 };
 
 export type Dictionary = typeof fr;

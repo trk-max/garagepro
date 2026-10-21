@@ -21,6 +21,7 @@ import {
   Boxes,
   CalendarDays,
   Car,
+  CarFront,
   Menu,
   Smartphone,
   ClipboardList,
@@ -68,13 +69,19 @@ type NavKey =
   | "backups"
   | "warranties"
   | "expenses"
-  | "cash";
+  | "cash"
+  // Showroom (V9)
+  | "showroom";
+
+/** Showroom (V9) menu entries, labelled from t.showroom.nav. */
+type ShowroomKey = "showroom";
+const SHOWROOM_KEYS: ShowroomKey[] = ["showroom"];
 
 type V7Key = "timeClock" | "team" | "calendar" | "delays" | "audit" | "companies" | "profitability" | "notifications" | "backups" | "warranties" | "expenses" | "cash";
 const V7_KEYS: V7Key[] = ["timeClock", "team", "calendar", "delays", "audit", "companies", "profitability", "notifications", "backups", "warranties", "expenses", "cash"];
 
 type Item = { key: NavKey; href: string; icon: LucideIcon; permission?: Permission };
-type Group = { title?: "clientSpace" | "supplierSpace" | "teamSpace"; items: Item[] };
+type Group = { title?: "clientSpace" | "supplierSpace" | "teamSpace" | "showroomSpace"; items: Item[] };
 
 const GROUPS: Group[] = [
   { items: [{ key: "dashboard", href: "/garage", icon: LayoutDashboard }] },
@@ -110,6 +117,10 @@ const GROUPS: Group[] = [
       { key: "calendar", href: "/garage/calendrier", icon: CalendarRange, permission: "useTimeClock" },
       { key: "team", href: "/garage/equipe", icon: Users, permission: "manageTeam" },
     ],
+  },
+  {
+    title: "showroomSpace",
+    items: [{ key: "showroom", href: "/garage/showroom", icon: CarFront, permission: "viewShowroom" }],
   },
   {
     items: [
@@ -187,7 +198,9 @@ function NavLinks({ role, badges, className, onNavigate }: { role: Role; badges:
           return (
             <div key={gi} className="space-y-0.5">
               {group.title && (
-                <p className="f-label px-3 pb-2 text-[0.625rem] text-muted-foreground">{group.title === "teamSpace" ? t.v7.team.title : t.nav[group.title]}</p>
+                <p className="f-label px-3 pb-2 text-[0.625rem] text-muted-foreground">
+                  {group.title === "teamSpace" ? t.v7.team.title : group.title === "showroomSpace" ? t.showroom.nav.group : t.nav[group.title]}
+                </p>
               )}
               {items.map(({ key, href, icon: Icon }) => {
                 const active = href === "/garage" ? pathname === href : pathname.startsWith(href);
@@ -206,7 +219,13 @@ function NavLinks({ role, badges, className, onNavigate }: { role: Role; badges:
                     )}
                   >
                     <Icon className="size-4 shrink-0" strokeWidth={1.5} aria-hidden />
-                    <span className="flex-1">{(V7_KEYS as string[]).includes(key) ? t.v7.nav[key as V7Key] : t.nav[key as Exclude<NavKey, V7Key>]}</span>
+                    <span className="flex-1">
+                      {(SHOWROOM_KEYS as string[]).includes(key)
+                        ? t.showroom.nav[key as ShowroomKey]
+                        : (V7_KEYS as string[]).includes(key)
+                          ? t.v7.nav[key as V7Key]
+                          : t.nav[key as Exclude<NavKey, V7Key | ShowroomKey>]}
+                    </span>
                     {badge ? <span className="min-w-5 bg-brand-500 px-1.5 text-center text-[0.6875rem] font-semibold tracking-normal text-white">{badge}</span> : null}
                   </Link>
                 );
