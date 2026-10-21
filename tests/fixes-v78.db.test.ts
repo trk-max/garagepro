@@ -97,3 +97,21 @@ describe("assurance : l'alerte s'arrête à la réponse", () => {
     expect(d.insurance.map((w) => w.id)).toContain(wo.id); // still listed until its status changes
   });
 });
+
+describe("adresse du site sans APP_URL (PC du garage)", () => {
+  it("uses APP_URL first, then the address typed in Paramètres; never the visitor's Host", async () => {
+    const { getBaseUrl } = await import("@/lib/base-url");
+    const { vi } = await import("vitest");
+    vi.stubEnv("APP_URL", "");
+    vi.stubEnv("NODE_ENV", "production");
+    await prisma.setting.update({ where: { id: "garage" }, data: { siteUrl: null } });
+    await expect(getBaseUrl()).rejects.toMatchObject({ code: "appUrlMissing" });
+    await prisma.setting.update({ where: { id: "garage" }, data: { siteUrl: "https://garageprotest-beta.vercel.app" } });
+    // getSettings() is cached per request in the app; in tests each call reads again.
+    expect(await getBaseUrl()).toBe("https://garageprotest-beta.vercel.app");
+    vi.stubEnv("APP_URL", "https://other.example.com");
+    expect(await getBaseUrl()).toBe("https://other.example.com");
+    vi.unstubAllEnvs();
+    await prisma.setting.update({ where: { id: "garage" }, data: { siteUrl: null } });
+  });
+});

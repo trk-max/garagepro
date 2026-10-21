@@ -120,6 +120,11 @@ export const v7Fr = {
     recipientName: "Destinataire (nom)",
     recipientAddress: "Adresse du destinataire",
     notResigning: "Je confirme que l'employé n'est ni démissionnaire, ni en procédure de licenciement (sinon cette phrase n'est pas écrite).",
+    notReady: "L'attestation ne peut pas encore être générée :",
+    missingCompanyList: "Entreprise",
+    missingEmployeeList: "Fiche de l'employé",
+    fillCompany: "compléter dans Équipe → Entreprise",
+    fillEmployee: "à remplir dans « Fiche employé » ci-contre, puis Enregistrer",
   },
   calendar: {
     title: "Calendrier",
@@ -563,5 +568,9 @@ export const v7Fr = {
     size: "Taille",
     rows: "Lignes",
     procedure: "Restaurer : npm run backup:restore -- <fichier.gpbk> <url d'une base NEUVE et vide>, vérifier, puis pointer DATABASE_URL vers elle. Jamais par-dessus la base en service.",
+  },
+  siteUrl: {
+    label: "Adresse publique du site",
+    hint: "Utilisée pour les liens envoyés aux clients et les QR Codes quand APP_URL n'est pas réglé (PC du garage). Ex. https://garageprotest-beta.vercel.app",
   },
 };

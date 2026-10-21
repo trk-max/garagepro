@@ -25,6 +25,7 @@ import { listPunches } from "@/server/timeclock";
 import { LeaveBalanceLine } from "@/components/team/leave-balance";
 import { getLeaveBalance } from "@/server/leaves";
 import { setHourlyCostAction } from "@/actions/profit";
+import { missingCertificateFields } from "@/lib/certificate";
 
 type PageProps = { params: Promise<{ id: string }>; searchParams: Promise<{ from?: string; to?: string }> };
 
@@ -52,7 +53,10 @@ export default async function EmployeePage({ params, searchParams }: PageProps) 
   const v = t.v7;
   const last = monthRange(tz, -1);
   const year = yearRange(tz);
-  const companyReady = settings.legalName || settings.garageName;
+  // What still blocks a certificate (same rule as the server), shown before anyone clicks.
+  const missingCompany = missingCertificateFields({ company: { ...settings }, employee: { name: employee.name, jobTitle: "x", hireDate: new Date(), isActive: true } });
+  const missingEmployee = missingCertificateFields({ company: { legalName: "x", legalAddress: "x", legalRepName: "x", legalRepTitle: "x", city: "x" }, employee: { ...employee, isActive: true } });
+  const certificateReady = missingCompany.length === 0 && missingEmployee.length === 0;
   const canFix = employee.id !== staff.id || staff.role === "ADMIN";
   const nowLocal = utcToZoned(new Date(), tz);
 
@@ -314,7 +318,24 @@ export default async function EmployeePage({ params, searchParams }: PageProps) 
         {can(staff.role, "issueCertificates") && (
           <Card>
             <CardTitle>{v.team.certificates}</CardTitle>
-            {!companyReady && <p className="mb-3 text-sm text-amber-700 dark:text-amber-400">{v.team.missingCompany}</p>}
+            {!certificateReady && (
+              <div className="mb-3 border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+                <p className="font-medium">{v.team.notReady}</p>
+                {missingCompany.length > 0 && (
+                  <p className="mt-1">
+                    • {v.team.missingCompanyList} : <strong>{missingCompany.join(", ")}</strong> —{" "}
+                    <Link href="/garage/equipe#entreprise" className="underline underline-offset-4">
+                      {v.team.fillCompany}
+                    </Link>
+                  </p>
+                )}
+                {missingEmployee.length > 0 && (
+                  <p className="mt-1">
+                    • {v.team.missingEmployeeList} : <strong>{missingEmployee.join(", ")}</strong> — {v.team.fillEmployee}
+                  </p>
+                )}
+              </div>
+            )}
             <ActionForm action={issueCertificateAction.bind(null, employee.id)} className="grid gap-3 sm:grid-cols-2">
               <Field label={v.team.purpose}>
                 <Input name="purpose" maxLength={120} />
@@ -337,7 +358,7 @@ export default async function EmployeePage({ params, searchParams }: PageProps) 
                 </Field>
               )}
               <div className="sm:col-span-2">
-                <Button type="submit">
+                <Button type="submit" disabled={!certificateReady}>
                   <FileText className="size-4" aria-hidden /> {v.team.issue}
                 </Button>
               </div>

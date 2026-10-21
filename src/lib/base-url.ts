@@ -27,6 +27,15 @@ export function resolveBaseUrl(env: Record<string, string | undefined> = process
   return `http://localhost:${env.PORT || "3000"}`;
 }
 
+/**
+ * Same rule, plus a fallback for installations without APP_URL (the garage PC):
+ * the site address typed in Paramètres → Garage (Setting.siteUrl).
+ * Never the request's Host header.
+ */
 export async function getBaseUrl(): Promise<string> {
+  if (process.env.APP_URL?.trim()) return resolveBaseUrl();
+  const { getSettings } = await import("@/server/settings");
+  const typed = (await getSettings()).siteUrl?.trim();
+  if (typed) return resolveBaseUrl({ ...process.env, APP_URL: typed });
   return resolveBaseUrl();
 }

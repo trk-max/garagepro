@@ -200,6 +200,8 @@ export const settingsSchema = z.object({
   stampDuty: money,
   invoiceFooter: optionalText(500),
   paymentTermsDays: z.coerce.number().int().min(0).max(365).default(15),
+  /** Public address of the site (links and QR Codes) when APP_URL is not set. */
+  siteUrl: z.preprocess(emptyToUndefined, z.string().trim().url().regex(/^https?:\/\//).max(200).optional()),
 });
 
 export const packageSchema = z.object({ name: requiredText(120), description: optionalText(300) });

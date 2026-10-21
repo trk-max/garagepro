@@ -121,6 +121,11 @@ export const v7Ar: typeof v7Fr = {
     recipientName: "المرسل إليه (الاسم)",
     recipientAddress: "عنوان المرسل إليه",
     notResigning: "أؤكد أن الموظف ليس مستقيلاً ولا في إجراءات طرد (وإلا لا تُكتب هذه الجملة).",
+    notReady: "لا يمكن إصدار الشهادة بعد:",
+    missingCompanyList: "المؤسسة",
+    missingEmployeeList: "بطاقة الموظف",
+    fillCompany: "أكمل في الفريق ← المؤسسة",
+    fillEmployee: "أكمل « بطاقة الموظف » المقابلة ثم احفظ",
   },
   calendar: {
     title: "الرزنامة",
@@ -564,5 +569,9 @@ export const v7Ar: typeof v7Fr = {
     size: "الحجم",
     rows: "الأسطر",
     procedure: "الاسترجاع: npm run backup:restore -- <ملف.gpbk> <عنوان قاعدة جديدة وفارغة>، ثم التحقق ثم توجيه DATABASE_URL إليها. أبداً فوق القاعدة المستعملة.",
+  },
+  siteUrl: {
+    label: "العنوان العمومي للموقع",
+    hint: "يُستعمل للروابط المرسلة للحرفاء ولرموز QR عندما لا يكون APP_URL مضبوطاً (حاسوب الورشة). مثلاً https://garageprotest-beta.vercel.app",
   },
 };

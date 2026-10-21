@@ -121,6 +121,11 @@ export const v7En: typeof v7Fr = {
     recipientName: "Recipient (name)",
     recipientAddress: "Recipient's address",
     notResigning: "I confirm the employee is neither resigning nor being dismissed (otherwise this sentence is not written).",
+    notReady: "The certificate cannot be generated yet:",
+    missingCompanyList: "Company",
+    missingEmployeeList: "Employee file",
+    fillCompany: "fill in under Team → Company",
+    fillEmployee: "fill in \"Employee file\" opposite, then Save",
   },
   calendar: {
     title: "Calendar",
@@ -564,5 +569,9 @@ export const v7En: typeof v7Fr = {
     size: "Size",
     rows: "Rows",
     procedure: "Restore: npm run backup:restore -- <file.gpbk> <url of a NEW empty database>, check, then point DATABASE_URL to it. Never over the live database.",
+  },
+  siteUrl: {
+    label: "Public site address",
+    hint: "Used for links sent to customers and for QR Codes when APP_URL is not set (garage PC). E.g. https://garageprotest-beta.vercel.app",
   },
 };

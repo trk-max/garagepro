@@ -161,11 +161,12 @@ export async function updateSettingsAction(form: FormData): Promise<Result> {
       stampDuty: data.stampDuty,
       invoiceFooter: data.invoiceFooter ?? null,
       paymentTermsDays: data.paymentTermsDays,
+      siteUrl: data.siteUrl?.replace(/\/+$/, "") ?? null,
     };
     await prisma.$transaction(async (tx) => {
       const before = await tx.setting.findUnique({
         where: { id: "garage" },
-        select: { garageName: true, address: true, phone: true, email: true, taxId: true, laborRate: true, defaultTaxBp: true, stampDuty: true, invoiceFooter: true, paymentTermsDays: true },
+        select: { garageName: true, address: true, phone: true, email: true, taxId: true, laborRate: true, defaultTaxBp: true, stampDuty: true, invoiceFooter: true, paymentTermsDays: true, siteUrl: true },
       });
       await tx.setting.upsert({ where: { id: "garage" }, update: values, create: { id: "garage", ...values } });
       await audit(tx, actor, "settings.general", "Setting", "garage", { before, after: values });

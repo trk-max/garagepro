@@ -36,7 +36,7 @@ export default async function TeamPage() {
     <div className="mx-auto max-w-6xl space-y-6 p-4 sm:p-6">
       <PageHeader title={v.team.title} />
       {can(staff.role, "issueCertificates") && (
-        <details className="border p-0 [&[open]]:pb-0">
+        <details id="entreprise" open={!settings.legalRepName || !settings.legalRepTitle || !settings.city} className="scroll-mt-20 border p-0 [&[open]]:pb-0">
           <summary className="cursor-pointer px-4 py-3 text-sm font-medium">{v.settingsV7.legalTitle}</summary>
           <div className="px-1 pb-1">
             <CompanyLegalCard t={t} settings={settings} />

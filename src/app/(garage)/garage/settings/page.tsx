@@ -58,6 +58,9 @@ export default async function SettingsPage() {
             <Field label={t.common.taxId} className="sm:col-span-2">
               <Input name="taxId" defaultValue={settings.taxId ?? ""} dir="ltr" />
             </Field>
+            <Field label={t.v7.siteUrl.label} hint={t.v7.siteUrl.hint} className="sm:col-span-2">
+              <Input name="siteUrl" type="url" defaultValue={settings.siteUrl ?? ""} placeholder="https://garageprotest-beta.vercel.app" dir="ltr" />
+            </Field>
             <Field label={`${t.settings.laborRate} (DT)`}>
               <Input name="laborRate" required inputMode="decimal" defaultValue={(settings.laborRate / 1000).toFixed(3)} dir="ltr" />
             </Field>

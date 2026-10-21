@@ -6,7 +6,7 @@ import { ActionButton } from "@/components/action-form";
 import { PlateChip } from "@/components/garage/badges";
 import { PrintButton } from "@/components/garage/print-button";
 import { Card, PageHeader } from "@/components/ui/field";
-import { resolveBaseUrl } from "@/lib/base-url";
+import { getBaseUrl } from "@/lib/base-url";
 import { formatDateTime } from "@/lib/format";
 import { getI18n } from "@/lib/i18n/server";
 import { prisma } from "@/lib/prisma";
@@ -26,12 +26,7 @@ export default async function VehicleQrAdminPage({ params }: PageProps) {
   ]);
   if (!vehicle) notFound();
   const q = t.v7.qr;
-  let base: string | null = null;
-  try {
-    base = resolveBaseUrl();
-  } catch {
-    base = null;
-  }
+  const base: string | null = await getBaseUrl().catch(() => null);
   const link = vehicle.qrToken && base ? `${base}/v/${vehicle.qrToken}` : null;
   const svg = link ? await QRCode.toString(link, { type: "svg", margin: 1, errorCorrectionLevel: "M" }) : null;
 
