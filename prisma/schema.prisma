@@ -230,6 +230,7 @@ model Vehicle {
   workOrders   WorkOrder[]
   appointments Appointment[]
   maintenance  VehicleMaintenance[]
+  readings     VehicleReading[]
 
   @@index([customerId])
 }
@@ -284,6 +285,7 @@ model WorkOrder {
   partNeeds      WorkOrderPartNeed[]
   expenses       WorkOrderExpense[]
   reservations   StockReservation[]
+  readings       VehicleReading[]
   qualityCheck   QualityCheck?
 
   @@index([status, updatedAt(sort: Desc)])
@@ -1223,4 +1225,37 @@ model AlertState {
   snoozedUntil DateTime?
   note         String?
   updatedAt    DateTime  @updatedAt
+}
+
+/// Relevé OBD-II d'un véhicule. "source" dit d'où vient chaque donnée : ADAPTER (lu sur la
+/// voiture) ou SIMULATED (démonstration — jamais utilisé pour le kilométrage ni les rappels).
+/// Ce que la voiture ne fournit pas est listé dans "unsupported", jamais estimé.
+model VehicleReading {
+  id             String   @id @default(cuid())
+  vehicleId      String
+  workOrderId    String?
+  /// "ADAPTER" ou "SIMULATED".
+  source         String
+  adapter        String?
+  protocol       String?
+  vin            String?
+  odometerKm     Int?
+  /// "APPLIED" (kilométrage du véhicule mis à jour, confirmé), "NOT_APPLIED", "LOWER" (inférieur au
+  /// dernier relevé : signalé, jamais appliqué), "UNSUPPORTED" (la voiture ne le fournit pas), "SIMULATED".
+  odometerStatus String
+  /// [{ code: "P0133", kind: "stored" | "pending" | "permanent" }]
+  dtcs           Json     @default("[]")
+  /// [{ pid, name, value, unit }]
+  live           Json     @default("[]")
+  unsupported    Json     @default("[]")
+  warnings       Json     @default("[]")
+  note           String?
+  recordedById   String?
+  recordedAt     DateTime @default(now())
+
+  vehicle   Vehicle    @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
+  workOrder WorkOrder? @relation(fields: [workOrderId], references: [id], onDelete: SetNull)
+
+  @@index([vehicleId, recordedAt(sort: Desc)])
+  @@index([workOrderId])
 }

@@ -304,6 +304,7 @@ export const en: Dictionary = {
     qcNotApproved: "Cannot set “Ready”: quality control must be complete and validated by a manager.",
     certificateMissing: "Missing information for the certificate: {fields}. Fill them in (Team → Company, and the employee's file): nothing is made up.",
     companyLogin: "Wrong e-mail or password.",
+    obdVinMismatch: "Wrong car connected: the VIN read ({read}) does not match the vehicle file ({file}). Nothing was saved.",
     maintenanceInterval: "Give an interval in days and/or kilometres.",
     supplierReturnInvalid: "Return to supplier: choose the supplier and a quantity leaving the stock.",
     notCorrectable: "This movement is corrected from its document (work order or goods receipt).",

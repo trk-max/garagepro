@@ -18,6 +18,8 @@ const MATRIX = {
   manageTracking: ["ADMIN", "MANAGER", "RECEPTION"],
   /// Plans d'entretien des véhicules (rappels vidange, filtres…).
   manageMaintenance: ["ADMIN", "MANAGER", "RECEPTION"],
+  /// Diagnostic OBD-II (lecture des codes défauts, jamais d'effacement).
+  obdDiagnose: ["ADMIN", "MANAGER", "RECEPTION", "MECHANIC"],
   /// Historique des rappels envoyés aux clients.
   viewNotifications: ["ADMIN", "MANAGER"],
   /// Créer, imprimer, renouveler ou révoquer le QR Code d'un véhicule.

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CheckCircle2, Eye, EyeOff, FileText, MessageCircle, Printer, Trash2 } from "lucide-react";
+import { Activity, CheckCircle2, Eye, EyeOff, FileText, MessageCircle, Printer, Trash2 } from "lucide-react";
 import { Priority } from "@prisma/client";
 import {
   addLineAction,
@@ -268,6 +268,18 @@ export default async function WorkOrderPage({ params }: PageProps) {
 
         {/* ── Vehicle QR Code (created at check-in) ── */}
         {can(staff.role, "manageVehicleQr") && <VehicleQrCard vehicle={{ id: wo.vehicle.id, qrToken: wo.vehicle.qrToken ?? null }} t={t} />}
+
+        {/* ── OBD-II diagnostic (Prompt 3/5) ── */}
+        {can(staff.role, "obdDiagnose") && (
+          <Card>
+            <CardTitle>{t.v7.obd.title}</CardTitle>
+            <Button asChild size="sm" variant="outline">
+              <Link href={`/garage/vehicules/${wo.vehicle.id}/obd?wo=${wo.id}`}>
+                <Activity className="size-3.5" aria-hidden /> {t.v7.obd.button}
+              </Link>
+            </Button>
+          </Card>
+        )}
 
         {/* ── Parts put aside for this repair (Prompt 2/5, step B) ── */}
         <ReservationsCard workOrderId={wo.id} closed={isFinal(wo.status)} staff={staff} t={t} lang={lang} />

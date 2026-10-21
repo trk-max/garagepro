@@ -302,6 +302,7 @@ export const fr = {
     qcNotApproved: "Impossible de passer à « Prêt » : le contrôle qualité doit être complet et validé par un responsable.",
     certificateMissing: "Informations manquantes pour l'attestation : {fields}. Complétez-les (Équipe → Entreprise, et la fiche de l'employé) : rien n'est inventé.",
     companyLogin: "E-mail ou mot de passe incorrect.",
+    obdVinMismatch: "Mauvaise voiture branchée : le VIN lu ({read}) ne correspond pas à celui de la fiche ({file}). Rien n'a été enregistré.",
     maintenanceInterval: "Indiquez un intervalle en jours et/ou en kilomètres.",
     supplierReturnInvalid: "Retour fournisseur : indiquez le fournisseur et une quantité qui sort du stock.",
     notCorrectable: "Ce mouvement se corrige depuis son document (ordre de réparation ou bon de réception).",
