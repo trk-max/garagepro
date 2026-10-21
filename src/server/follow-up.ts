@@ -1,9 +1,11 @@
 import "server-only";
 import type { PartNeedStatus } from "@prisma/client";
+import { alertCutoffs, type AlertSettings } from "@/lib/alerts";
 import { AppError } from "@/lib/http";
 import { prisma } from "@/lib/prisma";
 import type { StaffUser } from "@/lib/session";
 import { audit } from "@/server/audit";
+import { getSettings } from "@/server/settings";
 import { ACTIVE_STATUSES } from "@/server/workflow";
 
 // ── Insurance ────────────────────────────────────────────────────────────────
@@ -96,20 +98,27 @@ export async function listPartNeeds(workOrderId: string) {
 
 // ── Delays ───────────────────────────────────────────────────────────────────
 
-export const INSURANCE_WAIT_ALERT_DAYS = 3;
+/** Menu counter: same rule as the "Livraisons promises dépassées" list. */
+export async function countLateRepairs(now = new Date()) {
+  const cut = alertCutoffs(await getSettings(), now);
+  return prisma.workOrder.count({ where: { status: { in: ACTIVE_STATUSES.filter((s) => s !== "READY") }, promisedAt: { lt: cut.order } } });
+}
 
-/** Repairs late or blocked: promised time passed, parts late, insurance waiting too long. */
-export async function delays(now = new Date()) {
-  const insuranceSince = new Date(now.getTime() - INSURANCE_WAIT_ALERT_DAYS * 86_400_000);
+/**
+ * Repairs late or blocked: promised time passed, parts late, insurance waiting too long.
+ * The tolerances come from Paramètres → Alertes (pass them to skip the settings read).
+ */
+export async function delays(now = new Date(), thresholds?: AlertSettings) {
+  const cut = alertCutoffs(thresholds ?? (await getSettings()), now);
   const [lateOrders, lateParts, waitingParts, insurance] = await Promise.all([
     prisma.workOrder.findMany({
-      where: { status: { in: ACTIVE_STATUSES.filter((s) => s !== "READY") }, promisedAt: { lt: now } },
+      where: { status: { in: ACTIVE_STATUSES.filter((s) => s !== "READY") }, promisedAt: { lt: cut.order } },
       orderBy: { promisedAt: "asc" },
       take: 100,
       select: { id: true, number: true, status: true, promisedAt: true, vehicle: { select: { plate: true, make: true, model: true } }, customer: { select: { name: true, phone: true } }, mechanic: { select: { name: true } } },
     }),
     prisma.workOrderPartNeed.findMany({
-      where: { status: { in: ["NEEDED", "ORDERED"] }, expectedAt: { lt: now }, workOrder: { status: { in: ACTIVE_STATUSES } } },
+      where: { status: { in: ["NEEDED", "ORDERED"] }, expectedAt: { lt: cut.part }, workOrder: { status: { in: ACTIVE_STATUSES } } },
       orderBy: { expectedAt: "asc" },
       take: 100,
       include: { supplier: { select: { name: true, phone: true } }, workOrder: { select: { id: true, number: true, vehicle: { select: { plate: true } } } } },
@@ -127,6 +136,6 @@ export async function delays(now = new Date()) {
       select: { id: true, number: true, insurerName: true, insuranceClaimRef: true, insuranceRequestedAt: true, updatedAt: true, vehicle: { select: { plate: true } }, customer: { select: { name: true, phone: true } } },
     }),
   ]);
-  const insuranceLate = insurance.filter((w) => (w.insuranceRequestedAt ?? w.updatedAt) < insuranceSince);
-  return { lateOrders, lateParts, waitingParts, insurance, insuranceLate };
+  const insuranceLate = insurance.filter((w) => (w.insuranceRequestedAt ?? w.updatedAt) < cut.insurance);
+  return { lateOrders, lateParts, waitingParts, insurance, insuranceLate, cutoffs: cut };
 }

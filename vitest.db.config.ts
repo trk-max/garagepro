@@ -24,6 +24,7 @@ export default defineConfig({
     fileParallelism: false,
     testTimeout: 30_000,
     hookTimeout: 60_000,
-    env: { AUTH_SECRET: "test-secret-not-used-in-production", TZ: "UTC" },
+    // GARAGE_HUB_LOCAL off: the garage PC's own .env must not change the results (tests turn it on when needed).
+    env: { AUTH_SECRET: "test-secret-not-used-in-production", TZ: "UTC", GARAGE_HUB_LOCAL: "0" },
   },
 });

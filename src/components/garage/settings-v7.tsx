@@ -4,9 +4,10 @@ import { ActionForm } from "@/components/action-form";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle, Field, NativeSelect } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { ALERT_LIMITS } from "@/lib/alerts";
 import type { Dictionary } from "@/lib/i18n/fr";
 
-/** Settings added in V7: legal identity (certificates), time clock proof, labour billing basis. */
+/** Settings added in V7: legal identity (certificates), time clock proof, labour billing basis, delay alerts. */
 export function SettingsV7({ t, settings }: { t: Dictionary; settings: Setting }) {
   const s = t.v7.settingsV7;
   return (
@@ -53,6 +54,17 @@ export function SettingsV7({ t, settings }: { t: Dictionary; settings: Setting }
               ))}
             </NativeSelect>
           </Field>
+        </div>
+        <div className="space-y-3 lg:col-span-3">
+          <CardTitle>{s.alertsTitle}</CardTitle>
+          <p className="text-xs text-muted-foreground">{s.alertsHint}</p>
+          <div className="grid gap-3 sm:grid-cols-3">
+            {(["alertOrderLateHours", "alertPartLateDays", "alertInsuranceDays"] as const).map((k) => (
+              <Field key={k} label={s[k]}>
+                <Input name={k} type="number" inputMode="numeric" required min={ALERT_LIMITS[k].min} max={ALERT_LIMITS[k].max} step={1} defaultValue={settings[k]} />
+              </Field>
+            ))}
+          </div>
         </div>
         <div className="lg:col-span-3">
           <Button type="submit">{t.common.save}</Button>

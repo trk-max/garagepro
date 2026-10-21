@@ -4,6 +4,7 @@ import type { PaymentMethod, Prisma, PurchaseOrderStatus, SupplierInvoiceStatus 
 import { AppError } from "@/lib/http";
 import { prisma } from "@/lib/prisma";
 import type { StaffUser } from "@/lib/session";
+import { audit } from "@/server/audit";
 
 type Tx = Prisma.TransactionClient;
 
@@ -92,9 +93,10 @@ export async function createPurchaseOrder(
     if (parts.length !== new Set(input.lines.map((l) => l.partId)).size) throw new AppError("invalid");
 
     const autoApprove = actor.role === "ADMIN";
+    const number = await nextNumber(tx, "BC");
     const po = await tx.purchaseOrder.create({
       data: {
-        number: await nextNumber(tx, "BC"),
+        number,
         supplierId: input.supplierId,
         notes: input.notes,
         expectedAt: input.expectedAt,
@@ -110,14 +112,17 @@ export async function createPurchaseOrder(
           })),
         },
       },
-      select: { id: true },
+      select: { id: true, status: true, lines: { select: { partId: true, quantityX100: true, unitCost: true } } },
     });
-    return po;
+    await audit(tx, actor, "purchaseOrder.create", "PurchaseOrder", po.id, {
+      after: { number, supplierId: input.supplierId, status: po.status, expectedAt: input.expectedAt ?? null, lines: po.lines },
+    });
+    return { id: po.id };
   });
 }
 
 async function loadPo(tx: Tx, id: string) {
-  const po = await tx.purchaseOrder.findUnique({ where: { id }, select: { id: true, status: true } });
+  const po = await tx.purchaseOrder.findUnique({ where: { id }, select: { id: true, number: true, status: true } });
   if (!po) throw new AppError("notFound", {}, 404);
   return po;
 }
@@ -127,6 +132,7 @@ export async function approvePurchaseOrder(id: string, actor: StaffUser) {
     const po = await loadPo(tx, id);
     if (po.status !== "PENDING_APPROVAL") throw new AppError("poNotEditable", {}, 409);
     await tx.purchaseOrder.update({ where: { id }, data: { status: "APPROVED", approvedById: actor.id, approvedAt: new Date(), rejectionReason: null } });
+    await audit(tx, actor, "purchaseOrder.approve", "PurchaseOrder", id, { before: { number: po.number, status: po.status }, after: { status: "APPROVED" } });
   });
 }
 
@@ -135,14 +141,16 @@ export async function rejectPurchaseOrder(id: string, reason: string, actor: Sta
     const po = await loadPo(tx, id);
     if (po.status !== "PENDING_APPROVAL") throw new AppError("poNotEditable", {}, 409);
     await tx.purchaseOrder.update({ where: { id }, data: { status: "REJECTED", approvedById: actor.id, approvedAt: new Date(), rejectionReason: reason } });
+    await audit(tx, actor, "purchaseOrder.reject", "PurchaseOrder", id, { before: { number: po.number, status: po.status }, after: { status: "REJECTED", reason } });
   });
 }
 
-export async function cancelPurchaseOrder(id: string) {
+export async function cancelPurchaseOrder(id: string, actor: StaffUser) {
   await prisma.$transaction(async (tx) => {
     const po = await loadPo(tx, id);
     if (po.status !== "PENDING_APPROVAL" && po.status !== "APPROVED") throw new AppError("poNotEditable", {}, 409);
     await tx.purchaseOrder.update({ where: { id }, data: { status: "CANCELLED" } });
+    await audit(tx, actor, "purchaseOrder.cancel", "PurchaseOrder", id, { before: { number: po.number, status: po.status }, after: { status: "CANCELLED" } });
   });
 }
 
@@ -221,9 +229,10 @@ export async function createReceipt(
       }
     }
 
+    const number = await nextNumber(tx, "BR");
     const receipt = await tx.goodsReceipt.create({
       data: {
-        number: await nextNumber(tx, "BR"),
+        number,
         supplierId,
         purchaseOrderId: input.purchaseOrderId,
         deliveryNoteRef: input.deliveryNoteRef,
@@ -233,14 +242,17 @@ export async function createReceipt(
       select: { id: true },
     });
 
+    const audited: { partId: string; quantityX100: number; unitCost: number; stockX100: number }[] = [];
     for (const l of lines) {
       const pl = poLines.find((p) => p.partId === l.partId);
       const unitCost = l.unitCost ?? pl?.unitCost ?? 0;
       await tx.goodsReceiptLine.create({ data: { receiptId: receipt.id, partId: l.partId, quantityX100: l.quantityX100, unitCost } });
-      await tx.part.update({
+      const part = await tx.part.update({
         where: { id: l.partId },
         data: { stockX100: { increment: l.quantityX100 }, ...(unitCost > 0 ? { costPrice: unitCost } : {}), defaultSupplierId: supplierId },
+        select: { stockX100: true },
       });
+      audited.push({ partId: l.partId, quantityX100: l.quantityX100, unitCost, stockX100: part.stockX100 });
       await tx.stockMovement.create({
         data: { partId: l.partId, deltaX100: l.quantityX100, reason: "GOODS_RECEIPT", receiptId: receipt.id, actorId: actor.id },
       });
@@ -252,6 +264,10 @@ export async function createReceipt(
       const complete = updated.every((l) => l.receivedX100 >= l.quantityX100);
       await tx.purchaseOrder.update({ where: { id: input.purchaseOrderId }, data: { status: complete ? "RECEIVED" : "PARTIAL" } });
     }
+    // One journal line for the whole receipt; the stock of each part after entry is in "lines".
+    await audit(tx, actor, "receipt.create", "GoodsReceipt", receipt.id, {
+      after: { number, supplierId, purchaseOrderId: input.purchaseOrderId ?? null, deliveryNoteRef: input.deliveryNoteRef ?? null, lines: audited },
+    });
     return receipt;
   });
 }
@@ -283,19 +299,24 @@ export async function getSupplierInvoice(id: string) {
   });
 }
 
-export async function createSupplierInvoice(input: {
-  supplierId: string;
-  purchaseOrderId?: string;
-  number: string;
-  issuedAt: Date;
-  dueDate?: Date;
-  totalHt: number;
-  totalTax: number;
-  notes?: string;
-}) {
-  return prisma.supplierInvoice.create({
-    data: { ...input, totalTtc: input.totalHt + input.totalTax },
-    select: { id: true },
+export async function createSupplierInvoice(
+  input: {
+    supplierId: string;
+    purchaseOrderId?: string;
+    number: string;
+    issuedAt: Date;
+    dueDate?: Date;
+    totalHt: number;
+    totalTax: number;
+    notes?: string;
+  },
+  actor: StaffUser,
+) {
+  return prisma.$transaction(async (tx) => {
+    const data = { ...input, totalTtc: input.totalHt + input.totalTax };
+    const inv = await tx.supplierInvoice.create({ data, select: { id: true } });
+    await audit(tx, actor, "supplierInvoice.create", "SupplierInvoice", inv.id, { after: data });
+    return inv;
   });
 }
 
@@ -303,13 +324,17 @@ export async function paySupplierInvoice(id: string, input: { amount: number; me
   await prisma.$transaction(async (tx) => {
     // Row lock (see recordPayment): concurrent payments are applied one after the other.
     await tx.$queryRaw`SELECT id FROM "SupplierInvoice" WHERE id = ${id} FOR UPDATE`;
-    const inv = await tx.supplierInvoice.findUnique({ where: { id }, select: { totalTtc: true, paidAmount: true } });
+    const inv = await tx.supplierInvoice.findUnique({ where: { id }, select: { number: true, totalTtc: true, paidAmount: true, status: true } });
     if (!inv) throw new AppError("notFound", {}, 404);
     if (input.amount > inv.totalTtc - inv.paidAmount) throw new AppError("overpaid", {}, 422);
     const paidAmount = inv.paidAmount + input.amount;
     const status: SupplierInvoiceStatus = paidAmount >= inv.totalTtc ? "PAID" : "PARTIAL";
-    await tx.supplierPayment.create({ data: { supplierInvoiceId: id, ...input, actorId: actor.id } });
+    const payment = await tx.supplierPayment.create({ data: { supplierInvoiceId: id, ...input, actorId: actor.id }, select: { id: true } });
     await tx.supplierInvoice.update({ where: { id }, data: { paidAmount, status } });
+    await audit(tx, actor, "supplierPayment.record", "SupplierPayment", payment.id, {
+      before: { invoice: inv.number, paidAmount: inv.paidAmount, status: inv.status },
+      after: { invoice: inv.number, amount: input.amount, method: input.method, reference: input.reference ?? null, paidAmount, status },
+    });
   });
 }
 

@@ -162,14 +162,19 @@ function event(
 
 async function moveStock(
   tx: Tx,
-  input: { partId: string; deltaX100: number; reason: "WORK_ORDER" | "WORK_ORDER_RETURN"; workOrderId: string; actorId: string },
+  actor: StaffUser,
+  input: { partId: string; deltaX100: number; reason: "WORK_ORDER" | "WORK_ORDER_RETURN"; workOrderId: string },
 ) {
   const updated = await tx.part.update({
     where: { id: input.partId },
     data: { stockX100: { increment: input.deltaX100 } },
     select: { stockX100: true },
   });
-  await tx.stockMovement.create({ data: input });
+  const movement = await tx.stockMovement.create({ data: { ...input, actorId: actor.id }, select: { id: true } });
+  await audit(tx, actor, "stock.workOrder", "StockMovement", movement.id, {
+    before: { stockX100: updated.stockX100 - input.deltaX100 },
+    after: { ...input, stockX100: updated.stockX100 },
+  });
   return updated.stockX100;
 }
 
@@ -300,12 +305,11 @@ export async function changeStatus(workOrderId: string, to: WorkOrderStatus, act
     if (to === "CANCELLED") {
       for (const line of wo.lines) {
         if (!line.partId) continue;
-        await moveStock(tx, {
+        await moveStock(tx, actor, {
           partId: line.partId,
           deltaX100: line.quantityX100,
           reason: "WORK_ORDER_RETURN",
           workOrderId,
-          actorId: actor.id,
         });
       }
     }
@@ -388,7 +392,7 @@ async function insertLine(tx: Tx, workOrderId: string, line: NewLine, actor: Sta
       unitPrice ??= part.salePrice;
       // Business rule (unchanged): a part may be used even if the recorded stock is short
       // (it can be physically on the shelf); the user gets a warning instead of a block.
-      const remaining = await moveStock(tx, { partId: part.id, deltaX100: -line.quantityX100, reason: "WORK_ORDER", workOrderId, actorId: actor.id });
+      const remaining = await moveStock(tx, actor, { partId: part.id, deltaX100: -line.quantityX100, reason: "WORK_ORDER", workOrderId });
       if (remaining < 0) warning = { name: part.name, stockX100: remaining };
     }
   } else {
@@ -430,12 +434,11 @@ export async function removeLine(lineId: string, actor: StaffUser) {
     await loadEditable(tx, line.workOrderId);
     await tx.workOrderLine.delete({ where: { id: lineId } });
     if (line.partId) {
-      await moveStock(tx, {
+      await moveStock(tx, actor, {
         partId: line.partId,
         deltaX100: line.quantityX100,
         reason: "WORK_ORDER_RETURN",
         workOrderId: line.workOrderId,
-        actorId: actor.id,
       });
     }
     await event(tx, line.workOrderId, actor.id, "LINE_REMOVED", { description: line.description });

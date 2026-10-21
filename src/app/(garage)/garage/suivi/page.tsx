@@ -4,7 +4,7 @@ import { StatusBadge } from "@/components/garage/badges";
 import { fmt, formatDate, formatDateTime, woNumber } from "@/lib/format";
 import { getI18n } from "@/lib/i18n/server";
 import { requirePageAccess } from "@/lib/session";
-import { delays, INSURANCE_WAIT_ALERT_DAYS } from "@/server/follow-up";
+import { delays } from "@/server/follow-up";
 import { getSettings } from "@/server/settings";
 
 function lateLabel(since: Date, now: Date, lang: "fr" | "ar" | "en") {
@@ -18,7 +18,8 @@ function lateLabel(since: Date, now: Date, lang: "fr" | "ar" | "en") {
 /** Repairs late or blocked, with who to call and what to do. */
 export default async function DelaysPage() {
   await requirePageAccess("manageRepairFollowUp");
-  const [{ t, lang }, d, settings] = await Promise.all([getI18n(), delays(), getSettings()]);
+  const [{ t, lang }, settings] = await Promise.all([getI18n(), getSettings()]);
+  const d = await delays(new Date(), settings);
   const v = t.v7.delays;
   const tz = settings.timezone;
   const now = new Date();
@@ -73,7 +74,7 @@ export default async function DelaysPage() {
           </p>
           <ul className="divide-y text-sm">
             {d.waitingParts.map((p) => {
-              const late = p.expectedAt && p.expectedAt < now;
+              const late = p.expectedAt && p.expectedAt < d.cutoffs.part;
               return (
                 <li key={p.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2">
                   <Link href={`/garage/work-orders/${p.workOrder.id}`} className="font-mono underline-offset-4 hover:underline">
@@ -122,7 +123,7 @@ export default async function DelaysPage() {
                   {w.insuranceClaimRef && <span className="font-mono text-xs">{w.insuranceClaimRef}</span>}
                   <span className={late ? "font-semibold text-red-600 dark:text-red-400" : "text-muted-foreground"}>
                     {fmt(t.v7.insurance.waitingSince, { n: Math.floor((now.getTime() - since.getTime()) / 86_400_000) })}
-                    {late && ` (${fmt(v.insuranceLate, { n: INSURANCE_WAIT_ALERT_DAYS })})`}
+                    {late && ` (${fmt(v.insuranceLate, { n: d.cutoffs.values.alertInsuranceDays })})`}
                   </span>
                   <span className="ms-auto text-xs">
                     {v.contact} : {w.customer.name} {tel(w.customer.phone)}

@@ -106,8 +106,8 @@ export async function rejectPurchaseOrderAction(poId: string, form: FormData): P
 
 export async function cancelPurchaseOrderAction(poId: string): Promise<Result> {
   try {
-    await requirePermission("requestPurchase");
-    await cancelPurchaseOrder(id.parse(poId));
+    const actor = await requirePermission("requestPurchase");
+    await cancelPurchaseOrder(id.parse(poId), actor);
     return done();
   } catch (error) {
     return toActionError(error);
@@ -141,8 +141,8 @@ export async function createReceiptAction(form: FormData): Promise<Result> {
 
 export async function createSupplierInvoiceAction(form: FormData): Promise<Result> {
   try {
-    await requirePermission("manageSupplierInvoices");
-    const inv = await createSupplierInvoice(supplierInvoiceSchema.parse(formToObject(form)));
+    const actor = await requirePermission("manageSupplierInvoices");
+    const inv = await createSupplierInvoice(supplierInvoiceSchema.parse(formToObject(form)), actor);
     return done(`/garage/supplier-invoices/${inv.id}`);
   } catch (error) {
     return toActionError(error);

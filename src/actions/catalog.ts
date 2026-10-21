@@ -93,17 +93,21 @@ export async function createPartAction(form: FormData): Promise<Result> {
 
 export async function updatePartAction(partId: string, form: FormData): Promise<Result> {
   try {
-    await requirePermission("manageStock");
+    const actor = await requirePermission("manageStock");
     const data = partSchema.parse(formToObject(form));
-    await updatePart(id.parse(partId), {
-      sku: data.sku,
-      name: data.name,
-      brand: data.brand ?? null,
-      unit: data.unit,
-      costPrice: data.costPrice ?? 0,
-      salePrice: data.salePrice,
-      ...(data.minStock !== undefined ? { minStockX100: data.minStock } : {}),
-    });
+    await updatePart(
+      id.parse(partId),
+      {
+        sku: data.sku,
+        name: data.name,
+        brand: data.brand ?? null,
+        unit: data.unit,
+        costPrice: data.costPrice ?? 0,
+        salePrice: data.salePrice,
+        ...(data.minStock !== undefined ? { minStockX100: data.minStock } : {}),
+      },
+      actor,
+    );
     return done();
   } catch (error) {
     return toActionError(error);

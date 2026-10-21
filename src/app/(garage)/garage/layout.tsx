@@ -8,6 +8,7 @@ import { countOverdue } from "@/server/invoices";
 import { countOpenClaims } from "@/server/claims";
 import { prisma } from "@/lib/prisma";
 import { getSettings } from "@/server/settings";
+import { countLateRepairs } from "@/server/follow-up";
 
 export const dynamic = "force-dynamic";
 
@@ -25,11 +26,7 @@ export default async function GarageLayout({ children }: { children: ReactNode }
     can(staff.role, "manageClaims") ? countOpenClaims().catch(() => 0) : 0,
     // V7 counters: also .catch, so the menu works before migration 4 is applied.
     can(staff.role, "manageTeam") ? prisma.leaveRequest.count({ where: { status: "PENDING" } }).catch(() => 0) : 0,
-    can(staff.role, "manageRepairFollowUp")
-      ? prisma.workOrder
-          .count({ where: { status: { notIn: ["READY", "DELIVERED", "CANCELLED"] }, promisedAt: { lt: new Date() } } })
-          .catch(() => 0)
-      : 0,
+    can(staff.role, "manageRepairFollowUp") ? countLateRepairs().catch(() => 0) : 0,
   ]);
 
   // Counters in the menu: today's remaining bookings, late customer invoices, orders waiting for the admin.

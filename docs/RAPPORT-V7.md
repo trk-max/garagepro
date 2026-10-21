@@ -41,8 +41,8 @@ Non testé ici : Supabase réel, Windows réel, impression physique.
 - Le code est dérivé de `AUTH_SECRET` : le PC du garage et Vercel doivent avoir la **même** valeur (c'est le cas si le `.env` a été copié).
 - Les rapports s'exportent en **CSV** (s'ouvre dans Excel) et en PDF par l'impression du navigateur ; pas de fichier `.xlsx` natif. L'attestation est un vrai PDF.
 - Pas de calcul de **soldes de congés** : aucune règle légale n'a été inventée ; le rapport donne les jours pris.
-- L'alerte assurance est fixée à 3 jours (seuils configurables prévus au Prompt 2).
-- Le journal couvre les nouvelles fonctions et les changements de statut ; les factures, paiements et stock seront ajoutés au journal au Prompt 2.
+- ~~L'alerte assurance est fixée à 3 jours~~ → **fait en V7.1 (Prompt 2)** : seuils réglables dans Paramètres (voir README).
+- ~~Les factures, paiements et stock ne sont pas encore dans le journal~~ → **fait en V7.1 (Prompt 2)** : factures, paiements, relances, pièces, mouvements de stock, bons de commande, bons de réception, factures et paiements fournisseurs.
 - Portail entreprise : consultation seulement (l'accord de devis reste dans le suivi client existant) ; mot de passe oublié → le garage en donne un nouveau.
 
 ## 4. Fichiers principaux

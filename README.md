@@ -4,7 +4,7 @@
 
 <h1 align="center">GaragePro</h1>
 <p align="center"><b>Gestion d'atelier mécanique + site client + espace équipe + portail entreprises</b> · Français / العربية / English</p>
-<p align="center">Version <b>7.0</b> — application PC / téléphone, fonctionne aussi <b>sans internet</b> (hub du garage)</p>
+<p align="center">Version <b>7.1</b> — application PC / téléphone, fonctionne aussi <b>sans internet</b> (hub du garage)</p>
 <p align="center">Next.js 15 · TypeScript · Tailwind v4 · PostgreSQL (Supabase) + Prisma 6 · Auth.js v5 · Vercel</p>
 
 <p align="center">
@@ -21,6 +21,27 @@
 | ![Version mobile en arabe](docs/media/08-mobile-arabe.jpg) **Mobile + arabe (RTL)** | ![Connexion de l'équipe](docs/media/03-connexion-equipe.jpg) **Connexion de l'équipe** |
 
 > Photos et vidéos du site : dossier `public/site/` (voir « Photos et vidéos du site » plus bas). Pour mettre une **vidéo** dans ce README sur GitHub : modifiez le fichier sur github.com et glissez-déposez un `.mp4` (moins de 10 Mo) dans l'éditeur, GitHub crée le lien tout seul.
+
+## Nouveautés V7.1 — journal de l'argent et du stock, alertes réglables
+
+| | |
+|---|---|
+| **Journal : argent** | *Journal* enregistre maintenant chaque **facture** créée (numéro, montants), chaque **paiement** (montant, mode, payé avant → après, statut), chaque **relance**, ainsi que les **factures et paiements fournisseurs**. |
+| **Journal : stock** | Création et modification d'une pièce (prix avant → après), **entrée / sortie manuelle** (stock avant → après, motif), pièce **utilisée ou rendue** sur un ordre, **bons de commande** (création, validation, refus, annulation) et **bons de réception** (stock de chaque pièce après l'entrée). |
+| **Filtres du journal** | Boutons *Factures*, *Paiements*, *Mouvements de stock*, *Pièces*, *Bons de commande*… en haut de la page. Chaque ligne est écrite **dans la même transaction** que l'opération : l'une ne peut pas exister sans l'autre. |
+| **Alertes réglables** | **Paramètres → Alertes de retard** : tolérance avant qu'une livraison promise (heures), une pièce attendue (jours) ou une assurance sans réponse (jours) soit signalée en retard sur *Suivi & retards* et dans le compteur du menu. Par défaut : 0 h, 0 j, 3 j (comme avant). |
+
+### Mise à jour vers la V7.1 (base de données)
+
+Une seule migration, qui **ajoute** 3 colonnes aux paramètres (rien n'est supprimé). Avec le hub, internet branché, **avant** le `git push` :
+
+```
+npm run db:cloud
+```
+
+Le PC du garage se met à jour tout seul au prochain `start-hub.cmd`. **Sans hub** : `npx prisma db execute --file prisma/migrations/5_alert_settings/migration.sql --schema prisma/schema.prisma`
+
+Tests sur une base PostgreSQL **de test** : `npm run test:db` (fichier `tests/journal.db.test.ts`).
 
 ## Nouveautés V7 — gestion complète du garage (équipe, atelier, entreprises)
 

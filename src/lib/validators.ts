@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ALERT_LIMITS } from "@/lib/alerts";
 import {
   ClaimCategory,
   ClaimStatus,
@@ -480,4 +481,7 @@ export const settingsV7Schema = z.object({
   clockMode: z.enum(["CODE", "NETWORK", "CODE_AND_NETWORK"]),
   clockNetworks: optionalText(500),
   laborBillingMode: z.enum(["ELAPSED", "PERSON"]),
+  alertOrderLateHours: z.coerce.number().int().min(ALERT_LIMITS.alertOrderLateHours.min).max(ALERT_LIMITS.alertOrderLateHours.max),
+  alertPartLateDays: z.coerce.number().int().min(ALERT_LIMITS.alertPartLateDays.min).max(ALERT_LIMITS.alertPartLateDays.max),
+  alertInsuranceDays: z.coerce.number().int().min(ALERT_LIMITS.alertInsuranceDays.min).max(ALERT_LIMITS.alertInsuranceDays.max),
 });

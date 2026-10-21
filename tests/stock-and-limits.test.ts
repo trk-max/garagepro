@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const db = vi.hoisted(() => ({
   parts: new Map<string, { stockX100: number }>(),
   movements: [] as { partId: string; deltaX100: number }[],
+  audits: [] as { action: string; actorId: string | null; entityId: string | null; before?: unknown; after?: unknown }[],
   attempts: [] as { key: string; ok: boolean; createdAt: Date }[],
 }));
 
@@ -20,14 +21,17 @@ vi.mock("@/lib/prisma", () => {
     },
     findUnique: async ({ where }: { where: { id: string } }) => db.parts.get(where.id) ?? null,
   };
-  const stockMovement = { create: async ({ data }: { data: { partId: string; deltaX100: number } }) => db.movements.push(data) };
+  const stockMovement = {
+    create: async ({ data }: { data: { partId: string; deltaX100: number } }) => ({ id: `m${db.movements.push(data)}` }),
+  };
+  const auditLog = { create: async ({ data }: { data: (typeof db.audits)[number] }) => db.audits.push(data) };
   const portalAttempt = {
     count: async ({ where }: { where: { key: string; createdAt: { gte: Date }; ok?: boolean } }) =>
       db.attempts.filter((a) => a.key === where.key && a.createdAt >= where.createdAt.gte && (where.ok === undefined || a.ok === where.ok)).length,
     create: async ({ data }: { data: { key: string; ok: boolean } }) => db.attempts.push({ ...data, createdAt: new Date() }),
     deleteMany: async () => ({ count: 0 }),
   };
-  const tx = { part, stockMovement };
+  const tx = { part, stockMovement, auditLog };
   return { prisma: { part, stockMovement, portalAttempt, $transaction: async (fn: (t: typeof tx) => unknown) => fn(tx) } };
 });
 
@@ -40,6 +44,7 @@ const stock = () => db.parts.get("p1")!.stockX100 / 100;
 beforeEach(() => {
   db.parts.clear();
   db.movements.length = 0;
+  db.audits.length = 0;
   db.attempts.length = 0;
 });
 
@@ -81,6 +86,23 @@ describe("manual stock movement", () => {
   });
   it("unknown part = not found", async () => {
     await expect(exit(1)).rejects.toMatchObject({ code: "notFound", status: 404 });
+  });
+  it("each movement writes one journal line (who, before → after)", async () => {
+    db.parts.set("p1", { stockX100: 1_000 });
+    await moveStock("p1", { delta: -300, reason: "ADJUSTMENT", note: "casse" }, actor);
+    expect(db.audits).toHaveLength(1);
+    expect(db.audits[0]).toMatchObject({
+      action: "stock.manual",
+      actorId: "u1",
+      entityId: "m1",
+      before: { stockX100: 1_000 },
+      after: { deltaX100: -300, reason: "ADJUSTMENT", note: "casse", stockX100: 700 },
+    });
+  });
+  it("a refused exit writes nothing in the journal", async () => {
+    db.parts.set("p1", { stockX100: 100 });
+    await expect(exit(5)).rejects.toMatchObject({ code: "insufficientStock" });
+    expect(db.audits).toHaveLength(0);
   });
   it("two simultaneous exits of the last unit: only one succeeds", async () => {
     db.parts.set("p1", { stockX100: 100 });

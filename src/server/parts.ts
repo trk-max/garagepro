@@ -3,6 +3,7 @@ import type { Prisma } from "@prisma/client";
 import { AppError } from "@/lib/http";
 import { prisma } from "@/lib/prisma";
 import type { StaffUser } from "@/lib/session";
+import { audit } from "@/server/audit";
 
 export async function listParts(q?: string, lowOnly = false) {
   const query = q?.trim();
@@ -75,12 +76,20 @@ export async function createPart(
     if (input.stock) {
       await tx.stockMovement.create({ data: { partId: part.id, deltaX100: input.stock, reason: "PURCHASE", actorId: actor.id, note: "Stock initial" } });
     }
+    await audit(tx, actor, "part.create", "Part", part.id, { after: input });
     return part;
   });
 }
 
-export async function updatePart(id: string, data: Prisma.PartUpdateInput) {
-  await prisma.part.update({ where: { id }, data });
+const PART_AUDIT = { sku: true, name: true, brand: true, unit: true, costPrice: true, salePrice: true, minStockX100: true } as const;
+
+export async function updatePart(id: string, data: Prisma.PartUpdateInput, actor: StaffUser) {
+  await prisma.$transaction(async (tx) => {
+    const before = await tx.part.findUnique({ where: { id }, select: PART_AUDIT });
+    if (!before) throw new AppError("notFound", {}, 404);
+    const after = await tx.part.update({ where: { id }, data, select: PART_AUDIT });
+    await audit(tx, actor, "part.update", "Part", id, { before, after });
+  });
 }
 
 export async function moveStock(
@@ -101,6 +110,14 @@ export async function moveStock(
       if (!part) throw new AppError("notFound", {}, 404);
       throw new AppError("insufficientStock", { stock: part.stockX100 / 100 }, 409);
     }
-    await tx.stockMovement.create({ data: { partId, deltaX100: input.delta, reason: input.reason, note: input.note, actorId: actor.id } });
+    const movement = await tx.stockMovement.create({
+      data: { partId, deltaX100: input.delta, reason: input.reason, note: input.note, actorId: actor.id },
+      select: { id: true },
+    });
+    const part = await tx.part.findUnique({ where: { id: partId }, select: { sku: true, stockX100: true } });
+    await audit(tx, actor, "stock.manual", "StockMovement", movement.id, {
+      before: { partId, sku: part?.sku, stockX100: part ? part.stockX100 - input.delta : null },
+      after: { partId, sku: part?.sku, deltaX100: input.delta, reason: input.reason, note: input.note ?? null, stockX100: part?.stockX100 ?? null },
+    });
   });
 }

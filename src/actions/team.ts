@@ -158,7 +158,18 @@ export async function updateSettingsV7Action(form: FormData): Promise<ActionResu
     await prisma.$transaction(async (tx) => {
       const before = await tx.setting.findUnique({
         where: { id: "garage" },
-        select: { legalName: true, legalRepName: true, legalRepTitle: true, city: true, clockMode: true, clockNetworks: true, laborBillingMode: true },
+        select: {
+          legalName: true,
+          legalRepName: true,
+          legalRepTitle: true,
+          city: true,
+          clockMode: true,
+          clockNetworks: true,
+          laborBillingMode: true,
+          alertOrderLateHours: true,
+          alertPartLateDays: true,
+          alertInsuranceDays: true,
+        },
       });
       const data = {
         legalName: v.legalName ?? null,
@@ -168,6 +179,9 @@ export async function updateSettingsV7Action(form: FormData): Promise<ActionResu
         clockMode: v.clockMode,
         clockNetworks: v.clockNetworks ?? null,
         laborBillingMode: v.laborBillingMode,
+        alertOrderLateHours: v.alertOrderLateHours,
+        alertPartLateDays: v.alertPartLateDays,
+        alertInsuranceDays: v.alertInsuranceDays,
       };
       await tx.setting.upsert({ where: { id: "garage" }, update: data, create: { id: "garage", ...data } });
       await audit(tx, actor, "settings.v7", "Setting", "garage", { before, after: data });

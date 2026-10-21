@@ -5,6 +5,7 @@ import { computeTotals, lineTotalHt, normalizePlate } from "@/lib/format";
 import { AppError } from "@/lib/http";
 import { prisma } from "@/lib/prisma";
 import type { StaffUser } from "@/lib/session";
+import { audit } from "@/server/audit";
 import { getSettings } from "@/server/settings";
 
 /** Frozen copy stored on the invoice so later edits never change a legal document. */
@@ -81,6 +82,9 @@ export async function createInvoice(workOrderId: string, actor: StaffUser) {
       select: { id: true, number: true },
     });
     await tx.workOrderEvent.create({ data: { workOrderId, actorId: actor.id, type: "INVOICED", data: { number } } });
+    await audit(tx, actor, "invoice.create", "Invoice", invoice.id, {
+      after: { number, workOrderNumber: wo.number, customer: wo.customer.name, totalHt: totals.totalHt, totalTax: totals.totalTax, stampDuty: totals.stampDuty, totalTtc: totals.totalTtc, dueDate },
+    });
     return invoice;
   });
 }
@@ -94,15 +98,22 @@ export async function recordPayment(
     // Row lock: a second payment on the same invoice waits here until this one commits,
     // then reads the updated paidAmount (prevents double payment / lost update).
     await tx.$queryRaw`SELECT id FROM "Invoice" WHERE id = ${invoiceId} FOR UPDATE`;
-    const invoice = await tx.invoice.findUnique({ where: { id: invoiceId }, select: { totalTtc: true, paidAmount: true, workOrderId: true } });
+    const invoice = await tx.invoice.findUnique({ where: { id: invoiceId }, select: { number: true, totalTtc: true, paidAmount: true, status: true, workOrderId: true } });
     if (!invoice) throw new AppError("notFound", {}, 404);
     const balance = invoice.totalTtc - invoice.paidAmount;
     if (input.amount > balance) throw new AppError("overpaid", {}, 422);
 
     const paidAmount = invoice.paidAmount + input.amount;
     const status: InvoiceStatus = paidAmount >= invoice.totalTtc ? "PAID" : "PARTIAL";
-    await tx.payment.create({ data: { invoiceId, amount: input.amount, method: input.method, reference: input.reference, actorId: actor.id } });
+    const payment = await tx.payment.create({
+      data: { invoiceId, amount: input.amount, method: input.method, reference: input.reference, actorId: actor.id },
+      select: { id: true },
+    });
     await tx.invoice.update({ where: { id: invoiceId }, data: { paidAmount, status } });
+    await audit(tx, actor, "payment.record", "Payment", payment.id, {
+      before: { invoice: invoice.number, paidAmount: invoice.paidAmount, status: invoice.status },
+      after: { invoice: invoice.number, amount: input.amount, method: input.method, reference: input.reference ?? null, paidAmount, status },
+    });
     await tx.workOrderEvent.create({
       data: { workOrderId: invoice.workOrderId, actorId: actor.id, type: "PAYMENT", data: { amount: input.amount, method: input.method } },
     });
@@ -198,11 +209,16 @@ export async function overdueSummary() {
 }
 
 export async function recordReminder(invoiceId: string, channel: ReminderChannel, message: string, actor: StaffUser) {
-  const invoice = await prisma.invoice.findUnique({ where: { id: invoiceId }, select: { workOrderId: true, status: true } });
-  if (!invoice) throw new AppError("notFound", {}, 404);
-  await prisma.invoiceReminder.create({ data: { invoiceId, channel, message, actorId: actor.id } });
-  await prisma.workOrderEvent.create({
-    data: { workOrderId: invoice.workOrderId, actorId: actor.id, type: "NOTE", body: `[${channel}] ${message}` },
+  await prisma.$transaction(async (tx) => {
+    const invoice = await tx.invoice.findUnique({ where: { id: invoiceId }, select: { number: true, workOrderId: true, totalTtc: true, paidAmount: true } });
+    if (!invoice) throw new AppError("notFound", {}, 404);
+    const reminder = await tx.invoiceReminder.create({ data: { invoiceId, channel, message, actorId: actor.id }, select: { id: true } });
+    await tx.workOrderEvent.create({
+      data: { workOrderId: invoice.workOrderId, actorId: actor.id, type: "NOTE", body: `[${channel}] ${message}` },
+    });
+    await audit(tx, actor, "invoice.reminder", "InvoiceReminder", reminder.id, {
+      after: { invoice: invoice.number, channel, balance: invoice.totalTtc - invoice.paidAmount },
+    });
   });
 }
 
