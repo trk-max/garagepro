@@ -45,6 +45,11 @@ Il n'y a **qu'une seule base de données** (Supabase en ligne + sa copie sur le 
 
 - **Showroom** : annonces de véhicules (photos, documents PDF, fiche technique, équipements, prix, historique prix / km / statut), pages publiques `/showroom` avec recherche, filtres, tri et favoris (sans compte). Chaque information indique sa source : « vérifié par le garage » ou « déclaré par le vendeur ». Rôles **Vendeur** (ses annonces seulement) et **Responsable showroom** ; **messagerie** acheteur ↔ vendeur par lien privé, non-lus et mises à jour en direct. Voir [docs/SHOWROOM-MESSAGERIE.md](docs/SHOWROOM-MESSAGERIE.md).
 
+## Nouveautés V9 — contrats (Tunisie) et rôles RH / comptable
+
+- **Contrats** (menu *Contrats*) : réparation pré-remplie depuis l'ordre de réparation (prix TTC en dinars, accord du devis, acompte, garantie, remise du véhicule), flotte pour les entreprises, contrats de travail (CDI par défaut, CDD seulement avec un motif légal, période d'essai limitée), fournisseurs et partenaires (alerte « sous-traitance de main-d'œuvre déguisée »), modèle vierge. PDF avec logo, signés et cachetés **à la main** puis scan archivé (pas de signature électronique), alerte avant échéance, jamais de renouvellement automatique. Chaque modèle reste « à valider par un juriste » tant qu'un administrateur n'a pas enregistré la relecture. Contrats de travail visibles par l'administrateur et les RH seulement. Détails, références et limites : [docs/CONTRATS.md](docs/CONTRATS.md).
+- **Nouveaux rôles** : *Ressources humaines* (équipe, congés, attestations, contrats de travail) et *Comptable* (factures, factures fournisseurs, trésorerie en lecture, contrats en lecture).
+
 ## Nouveautés V8.4 — garanties, dépenses et trésorerie prévisionnelle
 
 - **Garanties** sur réparations et pièces (date et/ou km, la première limite atteinte), réclamations, décisions, coûts et remboursements reçus. Garantie automatique à la livraison (Paramètres, désactivée par défaut). Les montants ne sont visibles que de l'administrateur et du responsable.

@@ -26,6 +26,8 @@ import { LeaveBalanceLine } from "@/components/team/leave-balance";
 import { getLeaveBalance } from "@/server/leaves";
 import { setHourlyCostAction } from "@/actions/profit";
 import { missingCertificateFields } from "@/lib/certificate";
+import { RelatedContracts } from "@/components/garage/contracts";
+import { canContract } from "@/lib/contracts";
 
 type PageProps = { params: Promise<{ id: string }>; searchParams: Promise<{ from?: string; to?: string }> };
 
@@ -272,6 +274,20 @@ export default async function EmployeePage({ params, searchParams }: PageProps) 
           )}
         </Card>
       </div>
+
+      {/* V9: employment contracts — administrator and HR only (the manager sees nothing here). */}
+      {canContract(staff.role, "EMPLOYMENT", "view") && (
+        <div className="print:hidden">
+          <RelatedContracts
+            staff={staff}
+            filter={{ userId: employee.id, category: "EMPLOYMENT" }}
+            t={t}
+            lang={lang}
+            newHref={canContract(staff.role, "EMPLOYMENT", "manage") ? `/garage/contrats/nouveau?category=EMPLOYMENT&user=${employee.id}` : null}
+            newLabel={t.ctr.createEmployment}
+          />
+        </div>
+      )}
 
       {/* Profile & certificates */}
       <div className="grid gap-6 print:hidden lg:grid-cols-2">

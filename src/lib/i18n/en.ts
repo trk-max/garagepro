@@ -1,3 +1,4 @@
+import { contractsEn } from "@/lib/i18n/contracts-en";
 import { v7En } from "@/lib/i18n/v7-en";
 import { showroomEn } from "@/lib/i18n/showroom-en";
 import type { Dictionary } from "@/lib/i18n/fr";
@@ -60,7 +61,7 @@ export const en: Dictionary = {
     appointments: "Appointments",
     workshop: "Workshop (mobile)",
   },
-  roles: { ADMIN: "Administrator", MANAGER: "Manager", RECEPTION: "Reception", MECHANIC: "Mechanic", STOREKEEPER: "Storekeeper", SELLER: "Salesperson", SHOWROOM_MANAGER: "Showroom manager" },
+  roles: { ADMIN: "Administrator", MANAGER: "Manager", RECEPTION: "Reception", MECHANIC: "Mechanic", STOREKEEPER: "Storekeeper", SELLER: "Salesperson", SHOWROOM_MANAGER: "Showroom manager", HR: "Human resources", ACCOUNTANT: "Accountant" },
   status: {
     RECEIVED: "Received",
     DIAGNOSIS: "Diagnosis",
@@ -329,6 +330,25 @@ export const en: Dictionary = {
     occurrencePaid: "This due date is already marked as paid.",
     balanceFuture: "The balance date cannot be in the future.",
     obdVinMismatch: "Wrong car connected: the VIN read ({read}) does not match the vehicle file ({file}). Nothing was saved.",
+    contractTransition: "This change is not possible from the contract's current status (refresh the page).",
+    contractNotDraft: "Only a draft contract can be edited. Move it back to draft first.",
+    contractMissingFields: "Required fields to complete before validation: {fields}.",
+    contractLegalReview: "This contract must go through the legal / HR review before approval (template not reviewed by a lawyer, fixed-term contract, or point to check).",
+    contractScanMissing: "\"Signed\" requires uploading the contract signed by hand (PDF, JPEG or PNG scan).",
+    contractScanType: "Signed contract: PDF, JPEG or PNG file, {max} MB maximum.",
+    contractScanStatus: "The signed scan is uploaded when the contract is \"Awaiting signature\" (or already signed / active).",
+    contractNotEnded: "This contract has not reached its end date yet.",
+    contractDates: "Wrong dates: the end must be on or after the start.",
+    contractCdiEnd: "A permanent contract (CDI) has no end date and no duration.",
+    contractCddReason: "A fixed-term contract (CDD) needs one of the 3 reasons of article 6-4 (Law 2025-9): exceptional extra work, temporary replacement of a permanent employee, seasonal or customary work.",
+    contractCddEnd: "Fixed-term contract: the end date (or duration) is required.",
+    contractCddProbation: "No probation period in a fixed-term contract (article 6-4).",
+    contractReplaced: "Replacement contract: enter the employee being replaced.",
+    contractProbation: "Probation: 6 months at most, renewable only once (permanent contract only).",
+    contractParty: "Missing or wrong contract party (work order, customer, vehicle, employee or supplier depending on the template).",
+    contractFleetCompany: "Fleet contract: the customer must be a business customer and the vehicles must belong to it.",
+    contractRenewBasis: "Enter the basis of the renewal (it is never automatic).",
+    contractRenewStatus: "Only a signed, active or expired contract can be renewed.",
     maintenanceInterval: "Give an interval in days and/or kilometres.",
     supplierReturnInvalid: "Return to supplier: choose the supplier and a quantity leaving the stock.",
     notCorrectable: "This movement is corrected from its document (work order or goods receipt).",
@@ -914,6 +934,7 @@ export const en: Dictionary = {
     hubOffline: "Internet down: the garage keeps working locally",
     hubLastSync: "Last sync: {time}",
   },
+  ctr: contractsEn,
   v7: v7En,
   showroom: showroomEn,
 };

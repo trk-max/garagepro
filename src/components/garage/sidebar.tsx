@@ -26,6 +26,7 @@ import {
   Menu,
   Smartphone,
   ClipboardList,
+  FileSignature,
   FileText,
   LayoutDashboard,
   LogOut,
@@ -45,6 +46,7 @@ import { can, type Permission } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 
 type NavKey =
+  | "contracts"
   | "dashboard"
   | "appointments"
   | "workshop"
@@ -129,10 +131,12 @@ const GROUPS: Group[] = [
   },
   {
     items: [
+      // V9: contracts (what each role sees inside depends on the category — employment: admin + HR).
+      { key: "contracts", href: "/garage/contrats", icon: FileSignature, permission: "viewContracts" },
       { key: "reports", href: "/garage/rapports", icon: BarChart3, permission: "viewReports" },
       { key: "profitability", href: "/garage/rentabilite", icon: TrendingUp, permission: "viewProfit" },
       { key: "expenses", href: "/garage/depenses", icon: CalendarClock, permission: "manageExpenses" },
-      { key: "cash", href: "/garage/tresorerie", icon: Landmark, permission: "viewCashForecast" },
+      { key: "cash", href: "/garage/tresorerie", icon: Landmark, permission: "readCashForecast" },
       { key: "audit", href: "/garage/journal", icon: History, permission: "viewAuditLog" },
       { key: "backups", href: "/garage/sauvegardes", icon: DatabaseBackup, permission: "manageSettings" },
       { key: "settings", href: "/garage/settings", icon: Settings, permission: "manageSettings" },
@@ -225,11 +229,13 @@ function NavLinks({ role, badges, className, onNavigate }: { role: Role; badges:
                   >
                     <Icon className="size-4 shrink-0" strokeWidth={1.5} aria-hidden />
                     <span className="flex-1">
-                      {(SHOWROOM_KEYS as string[]).includes(key)
-                        ? t.showroom.nav[key as ShowroomKey]
-                        : (V7_KEYS as string[]).includes(key)
-                          ? t.v7.nav[key as V7Key]
-                          : t.nav[key as Exclude<NavKey, V7Key | ShowroomKey>]}
+                      {key === "contracts"
+                        ? t.ctr.nav
+                        : (SHOWROOM_KEYS as string[]).includes(key)
+                          ? t.showroom.nav[key as ShowroomKey]
+                          : (V7_KEYS as string[]).includes(key)
+                            ? t.v7.nav[key as V7Key]
+                            : t.nav[key as Exclude<NavKey, V7Key | ShowroomKey | "contracts">]}
                     </span>
                     {badge ? <span className="min-w-5 bg-brand-500 px-1.5 text-center text-[0.6875rem] font-semibold tracking-normal text-white">{badge}</span> : null}
                   </Link>

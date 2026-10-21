@@ -465,6 +465,7 @@ export const v7En: typeof v7Fr = {
       insurance: "Waiting for insurance too long",
       lowStock: "Parts under minimum stock",
       cashLow: "Cash: projected balance under the threshold",
+      contractExpiry: "Contracts reaching their end date",
     },
     actions: {
       lateOrder: "Tell the customer the new time and update the promised time.",
@@ -474,6 +475,7 @@ export const v7En: typeof v7Fr = {
       insurance: "Chase the insurer (claim number) and inform the customer.",
       lowStock: "Order (Stock → New order).",
       cashLow: "Open the cash forecast: chase late invoices, postpone an expense or arrange financing.",
+      contractExpiry: "Decide before the end date: a new written contract (never an automatic renewal) or end of contract. Fixed-term: work continued after the term turns it into a permanent contract (Labour Code art. 17).",
     },
     dueIn: "in {d}",
     assign: "Assign",

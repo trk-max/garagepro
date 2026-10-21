@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { canContract, contractCategoriesFor } from "@/lib/contracts";
 import { can, rolesFor } from "@/lib/permissions";
 import { TRANSITIONS, customerSteps } from "@/server/workflow";
 
@@ -25,6 +26,32 @@ describe("permission matrix (server-side source of truth)", () => {
   it("reception: cashes in but cannot invoice", () => {
     expect(can("RECEPTION", "recordPayment")).toBe(true);
     expect(can("RECEPTION", "createInvoice")).toBe(false);
+  });
+  it("HR (V9): team, leave, certificates and contracts page — no money, no settings, no repairs", () => {
+    for (const p of ["useTimeClock", "manageTeam", "issueCertificates", "showClockKiosk", "viewContracts"] as const) expect(can("HR", p), p).toBe(true);
+    for (const p of ["manageSettings", "viewFinance", "viewClientInvoices", "viewWorkOrders", "viewCustomers", "viewSupplierInvoices", "readCashForecast", "viewProfit", "reviewContractTemplates", "viewAuditLog"] as const) {
+      expect(can("HR", p), p).toBe(false);
+    }
+  });
+  it("accountant (V9): invoices, supplier invoices, cash forecast READ — no settings, no team, no balance typing", () => {
+    for (const p of ["viewFinance", "viewClientInvoices", "viewSupplierInvoices", "manageSupplierInvoices", "viewSuppliers", "readCashForecast", "viewContracts", "useTimeClock"] as const) {
+      expect(can("ACCOUNTANT", p), p).toBe(true);
+    }
+    for (const p of ["manageSettings", "viewCashForecast", "createInvoice", "paySupplier", "manageTeam", "issueCertificates", "viewWorkOrders", "manageStock", "reviewContractTemplates"] as const) {
+      expect(can("ACCOUNTANT", p), p).toBe(false);
+    }
+  });
+  it("only the admin marks a contract template as reviewed by a lawyer", () => {
+    expect(rolesFor("reviewContractTemplates")).toEqual(["ADMIN"]);
+  });
+  it("contracts page: never for mechanics or the storekeeper (no category open to them)", () => {
+    for (const r of ["MECHANIC", "STOREKEEPER"] as const) {
+      expect(can(r, "viewContracts"), r).toBe(false);
+      expect(contractCategoriesFor(r, "view"), r).toEqual([]);
+    }
+    // Every role with the page sees at least one category, and only the admin + HR see employment.
+    for (const r of rolesFor("viewContracts")) expect(contractCategoriesFor(r, "view").length, r).toBeGreaterThan(0);
+    expect((["ADMIN", "MANAGER", "RECEPTION", "MECHANIC", "STOREKEEPER", "HR", "ACCOUNTANT"] as const).filter((r) => canContract(r, "EMPLOYMENT", "view"))).toEqual(["ADMIN", "HR"]);
   });
   it("no role / unknown role = nothing", () => {
     expect(can(null, "viewWorkOrders")).toBe(false);

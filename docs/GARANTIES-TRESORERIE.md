@@ -6,7 +6,7 @@ Trois pages, toutes dans le menu :
 | --- | --- | --- |
 | Garanties (+ fiche garantie, fiche réclamation) | `/garage/garanties` | Admin, Responsable, Réception, Mécanicien — **montants : Admin et Responsable seulement** |
 | Dépenses et échéances | `/garage/depenses` | Admin, Responsable |
-| Trésorerie prévisionnelle | `/garage/tresorerie` | Admin, Responsable |
+| Trésorerie prévisionnelle | `/garage/tresorerie` | Admin, Responsable ; Comptable en lecture (V9, `readCashForecast` : sans saisie du solde) |
 | Réglages (garantie automatique, alerte de trésorerie) | Paramètres | Admin |
 
 Les droits sont vérifiés **sur le serveur** (pas seulement cachés dans la page) : un mécanicien qui appelle

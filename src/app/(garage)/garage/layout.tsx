@@ -11,6 +11,7 @@ import { getSettings } from "@/server/settings";
 import { countLateRepairs } from "@/server/follow-up";
 import { backupProblem } from "@/server/backups";
 import { unreadForStaff } from "@/server/messaging";
+import { countExpiringContracts } from "@/server/contracts";
 
 export const dynamic = "force-dynamic";
 
@@ -47,6 +48,9 @@ export default async function GarageLayout({ children }: { children: ReactNode }
     messages: unreadMessages || undefined,
   };
   const user = { name: staff.name, role: staff.role };
+  // V9: contracts ending soon, only for the categories this role may see (.catch: menu never breaks).
+  const expiringContracts = can(staff.role, "viewContracts") ? await countExpiringContracts(staff.role).catch(() => 0) : 0;
+  if (expiringContracts) Object.assign(badges, { contracts: expiringContracts });
 
   return (
     // Phones/tablets: the whole page scrolls (the browser bar can hide, pull-to-refresh works).

@@ -5,6 +5,7 @@ import { SearchForm } from "@/components/garage/search-form";
 import { SupplierFields } from "@/components/garage/supplier-fields";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle, PageHeader, Table, Td, Th } from "@/components/ui/field";
+import { canContract } from "@/lib/contracts";
 import { formatMoney } from "@/lib/format";
 import { getI18n } from "@/lib/i18n/server";
 import { requirePageAccess } from "@/lib/session";
@@ -13,7 +14,8 @@ import { listSuppliers } from "@/server/purchasing";
 type PageProps = { searchParams: Promise<{ q?: string }> };
 
 export default async function SuppliersPage({ searchParams }: PageProps) {
-  await requirePageAccess("viewSuppliers");
+  const staff = await requirePageAccess("viewSuppliers");
+  const showContracts = canContract(staff.role, "SUPPLIER", "view");
   const { q } = await searchParams;
   const [{ t, lang }, suppliers] = await Promise.all([getI18n(), listSuppliers(q)]);
 
@@ -42,6 +44,12 @@ export default async function SuppliersPage({ searchParams }: PageProps) {
                   <Td>
                     <div className="font-medium">{s.name}</div>
                     {s.taxId && <div className="font-mono text-xs text-muted-foreground" dir="ltr">{s.taxId}</div>}
+                    {/* V9: supplier / partner contracts (administrator, manager; accountant reads). */}
+                    {showContracts && (
+                      <Link href={`/garage/contrats?c=SUPPLIER&supplier=${s.id}`} className="text-xs text-primary hover:underline">
+                        {t.ctr.nav}
+                      </Link>
+                    )}
                   </Td>
                   <Td className="text-muted-foreground">
                     {s.contact && <div>{s.contact}</div>}

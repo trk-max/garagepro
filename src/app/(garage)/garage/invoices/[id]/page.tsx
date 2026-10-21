@@ -14,6 +14,7 @@ import { getI18n } from "@/lib/i18n/server";
 import { can } from "@/lib/permissions";
 import { requirePageAccess } from "@/lib/session";
 import { ReminderPanel } from "@/components/garage/reminder-panel";
+import { RelatedContracts } from "@/components/garage/contracts";
 import { emailConfigured } from "@/server/email";
 import { daysLate, getInvoice, isOverdue } from "@/server/invoices";
 import { getSettings } from "@/server/settings";
@@ -178,6 +179,8 @@ export default async function InvoicePage({ params }: PageProps) {
             </ActionForm>
           </Card>
         )}
+        {/* V9: contract of the repair invoiced here (its page shows the payment status too). */}
+        <RelatedContracts staff={staff} filter={{ workOrderId: invoice.workOrder.id }} t={t} lang={lang} />
       </aside>
     </div>
   );

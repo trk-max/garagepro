@@ -55,6 +55,15 @@ describe("Trésorerie — données incomplètes et droits", () => {
     }
   });
 
+  it("V9: the accountant READS the forecast but cannot type a balance; HR sees nothing", async () => {
+    const accountant = await makeUser("ACCOUNTANT");
+    const f = await cashForecast(accountant, { scenario: "NORMAL", horizon: 30 });
+    expect(f.result).toBeTruthy();
+    await expect(recordCashBalance(accountant, { amount: 1, asOf: today() })).rejects.toMatchObject({ code: "forbidden" });
+    const hr = await makeUser("HR");
+    await expect(cashForecast(hr, { scenario: "NORMAL", horizon: 30 })).rejects.toMatchObject({ code: "forbidden" });
+  });
+
   it("a balance dated in the future is refused; history is kept and the latest date is used", async () => {
     const manager = await makeUser("MANAGER");
     await expect(recordCashBalance(manager, { amount: 1, asOf: addDaysToDay(today(), 1) })).rejects.toMatchObject({ code: "balanceFuture" });
