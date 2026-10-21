@@ -19,10 +19,19 @@
   <main>
     <img src="/icons/icon-192.png" alt="GaragePro">
     <h1>Pas de connexion</h1>
+    <p><strong>Le PC du garage redémarre peut-être — réessayez dans une minute.</strong> Pendant une mise à jour, il ne répond pas pendant quelques secondes.</p>
+    <p>Sinon : vérifiez que cet appareil est sur le Wi-Fi du garage et que le PC du garage est allumé (l'application fonctionne sans internet grâce à lui).</p>
     <p>Cette page n'a pas encore été ouverte sur cet appareil, elle n'est donc pas disponible hors ligne.</p>
-    <p>Au garage : connectez-vous au Wi-Fi du garage, l'application fonctionne sans internet grâce au PC du garage.</p>
-    <p dir="rtl">لا يوجد اتصال. في الورشة: اتصل بشبكة Wi-Fi الخاصة بالورشة، التطبيق يعمل دون إنترنت عبر حاسوب الورشة.</p>
+    <p dir="rtl">لا يوجد اتصال. ربما يُعاد تشغيل حاسوب الورشة — أعد المحاولة بعد دقيقة. تحقق أيضًا من الاتصال بشبكة Wi-Fi الخاصة بالورشة.</p>
+    <p lang="en">No connection. The garage PC may be restarting — try again in a minute.</p>
     <button type="button" onclick="location.reload()">Réessayer</button>
+    <p id="auto" style="font-size:12px;margin-top:14px">Nouvel essai automatique toutes les 15 secondes…</p>
   </main>
+  <script>
+    // The hub comes back by itself after a restart: try again quietly, reload as soon as it answers.
+    setInterval(function () {
+      fetch("/sw.js", { cache: "no-store" }).then(function (r) { if (r.ok) location.reload(); }, function () {});
+    }, 15000);
+  </script>
 </body>
 </html>

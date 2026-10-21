@@ -6,14 +6,8 @@ import { getI18n } from "@/lib/i18n/server";
 import { can } from "@/lib/permissions";
 import { getStaff } from "@/lib/session";
 import { countUpcomingToday } from "@/server/booking";
-import { countOverdue } from "@/server/invoices";
-import { countOpenClaims } from "@/server/claims";
-import { prisma } from "@/lib/prisma";
 import { getSettings } from "@/server/settings";
-import { countLateRepairs } from "@/server/follow-up";
-import { backupProblem } from "@/server/backups";
-import { unreadForStaff } from "@/server/messaging";
-import { countExpiringContracts } from "@/server/contracts";
+import { getTodo } from "@/server/todo";
 
 export const dynamic = "force-dynamic";
 
@@ -21,38 +15,28 @@ export default async function GarageLayout({ children }: { children: ReactNode }
   const staff = await getStaff();
   if (!staff) redirect("/login");
 
-  // Menu counters: small COUNT queries in parallel (no rows loaded).
-  const [{ t }, settings, overdue, pendingApprovals, appointmentsToday, openClaims, pendingLeaves, lateRepairs, backupAlert, unreadMessages, expiringContracts] = await Promise.all([
+  // Menu counters: small COUNT queries in parallel (no rows loaded). The "À traiter" counts
+  // (bell) are filtered on the server by role + per-user access and shared with the /garage/a-traiter page.
+  const [{ t }, settings, appointmentsToday, todo] = await Promise.all([
     getI18n(),
     getSettings(),
-    can(staff, "viewClientInvoices") ? countOverdue() : 0,
-    can(staff, "approvePurchase") ? prisma.purchaseOrder.count({ where: { status: "PENDING_APPROVAL" } }) : 0,
-    can(staff, "viewAppointments") ? countUpcomingToday() : 0,
-    // .catch: the menu must never break, even before the complaints table exists.
-    can(staff, "manageClaims") ? countOpenClaims().catch(() => 0) : 0,
-    // V7 counters: also .catch, so the menu works before migration 4 is applied.
-    can(staff, "manageTeam") ? prisma.leaveRequest.count({ where: { status: "PENDING" } }).catch(() => 0) : 0,
-    can(staff, "manageRepairFollowUp") ? countLateRepairs().catch(() => 0) : 0,
-    // Backups run on the garage PC: warn the administrator when the last one failed, is too old or was not restore-tested.
-    can(staff, "manageSettings") ? backupProblem() : 0,
-    // Showroom (V9): unread buyer messages in this person's conversations only. .catch: menu never breaks before migration 18.
-    can(staff, "useShowroomMessages") ? unreadForStaff(staff).catch(() => 0) : 0,
-    // V9: contracts ending soon, only for the categories this role may see (.catch: menu never breaks).
-    can(staff, "viewContracts") ? countExpiringContracts(staff).catch(() => 0) : 0,
+    can(staff, "viewAppointments") ? countUpcomingToday().catch(() => 0) : 0,
+    getTodo(staff),
   ]);
 
-  // Counters on the rail, in the "More" panel and behind the bell: today's remaining bookings,
+  // Counters on the rail, in the "More" panel and in the account menu: today's remaining bookings,
   // late customer invoices, orders waiting for the admin, unread messages…
+  const c = todo.counts;
   const badges: NavBadges = {
     appointments: appointmentsToday || undefined,
-    clientInvoices: overdue || undefined,
-    purchaseOrders: pendingApprovals || undefined,
-    claims: openClaims || undefined,
-    team: pendingLeaves || undefined,
-    delays: lateRepairs || undefined,
-    backups: backupAlert || undefined,
-    messages: unreadMessages || undefined,
-    contracts: expiringContracts || undefined,
+    clientInvoices: c.overdueInvoices || undefined,
+    purchaseOrders: c.purchaseOrders || undefined,
+    claims: c.openClaims || undefined,
+    team: c.leaves || undefined,
+    delays: c.lateRepairs || undefined,
+    backups: c.backup || undefined,
+    messages: c.unreadMessages || undefined,
+    contracts: c.contractsExpiring || undefined,
   };
 
   return (
@@ -61,6 +45,7 @@ export default async function GarageLayout({ children }: { children: ReactNode }
       user={{ id: staff.id, name: staff.name, email: staff.email, role: staff.role, perms: staff.perms }}
       garage={{ name: settings.garageName, logo: settings.logoDataUrl }}
       badges={badges}
+      todo={todo.list}
       skipLabel={t.v10.nav.skip}
     >
       {children}

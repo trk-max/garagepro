@@ -13,14 +13,25 @@ describe("V10.2 navigation", () => {
     const placed = [...TOP_KEYS, ...RAIL_KEYS, ...MENU_KEYS, ...more];
     expect(new Set(placed).size).toBe(placed.length);
     expect([...placed].sort()).toEqual([...ALL].sort());
-    expect(more).not.toContain("settings");
+    for (const k of ["settings", "team", "contracts", "help"] as const) expect(more).not.toContain(k);
+    expect(MENU_KEYS).toEqual(["team", "contracts", "help", "settings"]);
   });
 
   it("finance on top, garage work on the left, vehicles next to customers", () => {
     expect(TOP_KEYS).toEqual(["dashboard", "parts", "clientInvoices", "cash", "profitability", "reports"]);
-    expect(RAIL_KEYS).toEqual(["workOrders", "workshop", "appointments", "customers", "vehicles", "delays", "messages", "contracts"]);
+    expect(RAIL_KEYS).toEqual(["workOrders", "workshop", "appointments", "customers", "vehicles", "delays", "messages"]);
     const client = NAV_GROUPS.find((g) => g.title === "clientSpace")!.items.map((i) => i.key);
     expect(client.indexOf("vehicles")).toBe(client.indexOf("customers") + 1);
+  });
+
+  it("V10.4 account menu: help for everyone, team / contracts / settings by role", () => {
+    const menu = (role: Role) => pick(role, MENU_KEYS).map((i) => i.key);
+    for (const role of ROLES) expect(menu(role)).toContain("help");
+    expect(menu("ADMIN")).toEqual(["team", "contracts", "help", "settings"]);
+    expect(menu("MANAGER")).toEqual(["team", "contracts", "help"]);
+    expect(menu("HR")).toEqual(["team", "contracts", "help"]);
+    expect(menu("ACCOUNTANT")).toEqual(["contracts", "help"]);
+    expect(menu("MECHANIC")).toEqual(["help"]);
   });
 
   it("a mechanic sees only the overview and the stock on top", () => {

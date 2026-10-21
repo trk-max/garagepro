@@ -9,6 +9,8 @@
  * The private page cache is cleared on sign-out (message "clear-private").
  */
 const VERSION = "gp-v6-1";
+// V10.4: offline.html text changed ("le PC du garage redémarre peut-être") — this line changes the
+// worker, so phones install it again and re-cache /offline.html (same cache names, pages kept).
 const STATIC = `${VERSION}-static`;
 const PAGES = `${VERSION}-pages`;
 const PRECACHE = ["/offline.html", "/icons/icon-192.png", "/icons/icon-512.png", "/manifest.webmanifest"];

@@ -1,5 +1,6 @@
 import { v10En } from "@/lib/i18n/v10-en";
 import { v103En } from "@/lib/i18n/v103-en";
+import { todoEn } from "@/lib/i18n/todo-en";
 import { contractsEn } from "@/lib/i18n/contracts-en";
 import { v7En } from "@/lib/i18n/v7-en";
 import { showroomEn } from "@/lib/i18n/showroom-en";
@@ -945,4 +946,6 @@ export const en: Dictionary = {
   v10: v10En,
   /** V10.3 — accès sur mesure, tableau de bord personnalisé. */
   v103: v103En,
+  /** V10.4 — menu du compte (Aide) et liste « À traiter ». */
+  todo: todoEn,
 };

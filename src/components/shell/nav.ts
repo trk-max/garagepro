@@ -1,7 +1,7 @@
 import {
   BarChart3, BellRing, Boxes, Building2, CalendarClock, CalendarDays, CalendarRange, Car, CarFront, ClipboardList, Clock3,
   DatabaseBackup, FileSignature, FileText, History, Landmark, LayoutGrid, Mail, MessageSquareWarning, PackageCheck, ReceiptText,
-  Settings, ShieldCheck, ShoppingCart, Smartphone, TrendingUp, TriangleAlert, Truck, UserRound, Users,
+  CircleHelp, Settings, ShieldCheck, ShoppingCart, Smartphone, TrendingUp, TriangleAlert, Truck, UserRound, Users,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { Dictionary } from "@/lib/i18n/fr";
@@ -16,7 +16,7 @@ export type NavKey =
   | "dashboard" | "appointments" | "workshop" | "workOrders" | "delays" | "notifications" | "customers" | "vehicles" | "companies"
   | "clientInvoices" | "claims" | "warranties" | "parts" | "suppliers" | "purchaseOrders" | "receipts" | "supplierInvoices"
   | "timeClock" | "calendar" | "team" | "showroom" | "messages" | "contracts" | "reports" | "profitability" | "expenses"
-  | "cash" | "audit" | "backups" | "settings";
+  | "cash" | "audit" | "backups" | "settings" | "help";
 
 export type NavBadges = Partial<Record<NavKey, number>>;
 export type NavItem = { key: NavKey; href: string; icon: LucideIcon; permission?: Permission };
@@ -77,6 +77,8 @@ export const NAV_GROUPS: NavGroup[] = [
       { key: "audit", href: "/garage/journal", icon: History, permission: "viewAuditLog" },
       { key: "backups", href: "/garage/sauvegardes", icon: DatabaseBackup, permission: "manageSettings" },
       { key: "settings", href: "/garage/settings", icon: Settings, permission: "manageSettings" },
+      // V10.4: the help guide, open to everyone (account menu).
+      { key: "help", href: "/garage/aide", icon: CircleHelp },
     ],
   },
 ];
@@ -85,13 +87,13 @@ const ALL = new Map(NAV_GROUPS.flatMap((g) => g.items).map((i) => [i.key, i]));
 
 /**
  * Top pill bar (short labels): overview, stock and the money pages. Left rail: the
- * garage's daily work. "More" lists every other page; settings and sign-out live only
- * in the account menu. Each page therefore appears in exactly one place.
+ * garage's daily work. "More" lists every other page; the team, contracts, help and
+ * settings pages and sign-out live only in the account menu (V10.4). Each page therefore appears in exactly one place.
  */
 export const TOP_KEYS: NavKey[] = ["dashboard", "parts", "clientInvoices", "cash", "profitability", "reports"];
-export const RAIL_KEYS: NavKey[] = ["workOrders", "workshop", "appointments", "customers", "vehicles", "delays", "messages", "contracts"];
-/** Pages reached from the account menu only (never in the bar, the rail or "More"). */
-export const MENU_KEYS: NavKey[] = ["settings"];
+export const RAIL_KEYS: NavKey[] = ["workOrders", "workshop", "appointments", "customers", "vehicles", "delays", "messages"];
+/** Pages reached from the account menu only (never in the bar, the rail or "More"), in menu order. */
+export const MENU_KEYS: NavKey[] = ["team", "contracts", "help", "settings"];
 const PLACED = new Set<NavKey>([...TOP_KEYS, ...RAIL_KEYS, ...MENU_KEYS]);
 /** True when a page belongs in the "More" panel (not already in the bar, the rail or the account menu). */
 export const inMore = (key: NavKey) => !PLACED.has(key);
@@ -108,8 +110,9 @@ export function navLabel(t: Dictionary, key: NavKey): string {
   if (key === "contracts") return t.ctr.nav;
   if (key === "showroom" || key === "messages") return t.showroom.nav[key];
   if (key === "vehicles") return t.v10.nav.vehicles;
+  if (key === "help") return t.todo.help;
   if ((V7 as readonly string[]).includes(key)) return t.v7.nav[key as (typeof V7)[number]];
-  return t.nav[key as Exclude<NavKey, (typeof V7)[number] | "contracts" | "showroom" | "messages" | "vehicles">];
+  return t.nav[key as Exclude<NavKey, (typeof V7)[number] | "contracts" | "showroom" | "messages" | "vehicles" | "help">];
 }
 
 /** Short label for the top pill bar. */
