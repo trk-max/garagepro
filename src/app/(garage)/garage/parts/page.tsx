@@ -16,7 +16,7 @@ import { getI18n } from "@/lib/i18n/server";
 import { can } from "@/lib/permissions";
 import { requirePageAccess } from "@/lib/session";
 import { cn } from "@/lib/utils";
-import { monthlyPurchases, partCards, stockOverview, type PartCard as Card } from "@/server/dashboard-v10-stock";
+import { monthlyPurchases, partCards, stockCounts, stockOverview, type PartCard as Card } from "@/server/dashboard-v10-stock";
 import { isLow, listParts, recentMovements } from "@/server/parts";
 import { supplierOptions } from "@/server/purchasing";
 
@@ -29,9 +29,11 @@ export default async function PartsPage({ searchParams }: PageProps) {
   const table = view === "table";
   const lowOnly = low === "1";
   // Cards: one page of partCards; "low only" (or the table view) uses the former list, which can filter.
-  const [{ t, lang }, overview, purchases, cards, parts, movements, suppliers, lowParts] = await Promise.all([
+  const [{ t, lang }, overview, counts, purchases, cards, parts, movements, suppliers, lowParts] = await Promise.all([
     getI18n(),
-    stockOverview(staff),
+    // Stock value is money: finance roles only (the others get the counts).
+    can(staff.role, "viewFinance") ? stockOverview(staff) : null,
+    stockCounts(staff),
     can(staff.role, "viewSuppliers") ? monthlyPurchases(staff, 6) : null,
     !table && !lowOnly ? partCards({ q, take: 20, cursor: cursor ?? null }) : null,
     table || lowOnly ? listParts(q, lowOnly) : null,
@@ -70,7 +72,7 @@ export default async function PartsPage({ searchParams }: PageProps) {
 
       <div className="gp-stagger space-y-5">
         <div className="grid gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-          <StockValueCard t={t} lang={lang} overview={overview} purchases={purchases} />
+          <StockValueCard t={t} lang={lang} overview={overview} counts={counts} purchases={purchases} />
           <StockAlertsCard t={t} lowCount={lowParts.length} canFollowUp={can(staff.role, "manageRepairFollowUp")} />
         </div>
 

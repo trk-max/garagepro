@@ -29,6 +29,7 @@ export const v10PagesEn: typeof v10PagesFr = {
   stock: {
     subtitle: "What the stock is worth, what is missing, and every part at a glance.",
     value: "Stock value",
+    items: "Items in stock",
     valueHint: "Quantities × current purchase price of active parts",
     vsMonthStart: "vs start of the month",
     inStock: "{x} of {y} items in stock",
@@ -61,5 +62,11 @@ export const v10PagesEn: typeof v10PagesFr = {
     readOnly: "Only an administrator can change these settings (Settings).",
     perSlot: "{n} vehicle(s) per {m}-min slot",
     servicesLink: "Services offered (Settings)",
+  },
+  invoice: {
+    incomplete: "This invoice's frozen copy is incomplete (old invoice): the missing parts are taken from current data.",
+  },
+  tracking: {
+    noHistory: "No events yet: they will show here as soon as the workshop moves on.",
   },
 };

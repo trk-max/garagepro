@@ -24,9 +24,25 @@ export type StockOverview = {
   totalParts: number;
 };
 
-/** Stock value and items in stock (viewStock). */
+export type StockCounts = { itemsInStock: number; totalParts: number };
+
+/** Parts in stock / active parts — no money (viewStock: mechanics and storekeepers too). */
+export async function stockCounts(viewer: Viewer): Promise<StockCounts> {
+  assertCan(viewer, "viewStock");
+  const [itemsInStock, totalParts] = await Promise.all([
+    prisma.part.count({ where: { isActive: true, stockX100: { gt: 0 } } }),
+    prisma.part.count({ where: { isActive: true } }),
+  ]);
+  return { itemsInStock, totalParts };
+}
+
+/**
+ * Stock value (money) and items in stock: viewStock AND viewFinance — the amount never
+ * reaches roles without finance access (they use stockCounts).
+ */
 export async function stockOverview(viewer: Viewer, now = new Date()): Promise<StockOverview> {
   assertCan(viewer, "viewStock");
+  assertCan(viewer, "viewFinance");
   const timeZone = (await getSettings()).timezone;
   const monthStart = garageMidnight(`${utcToZoned(now, timeZone).date.slice(0, 7)}-01`, timeZone);
   const [parts, moves] = await Promise.all([

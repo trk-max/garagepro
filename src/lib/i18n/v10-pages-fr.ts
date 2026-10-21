@@ -27,6 +27,7 @@ export const v10PagesFr = {
   stock: {
     subtitle: "Ce que vaut le stock, ce qui manque, et chaque pièce d'un coup d'œil.",
     value: "Valeur du stock",
+    items: "Articles en stock",
     valueHint: "Quantités × prix d'achat actuel des pièces actives",
     vsMonthStart: "vs début du mois",
     inStock: "{x} sur {y} articles en stock",
@@ -59,5 +60,11 @@ export const v10PagesFr = {
     readOnly: "Seul un administrateur peut modifier ces réglages (Paramètres).",
     perSlot: "{n} véhicule(s) par créneau de {m} min",
     servicesLink: "Prestations proposées (Paramètres)",
+  },
+  invoice: {
+    incomplete: "Copie figée de cette facture incomplète (ancienne facture) : les parties manquantes sont reprises des données actuelles.",
+  },
+  tracking: {
+    noHistory: "Aucun événement pour le moment : il apparaîtra ici dès que l'atelier avance.",
   },
 };

@@ -228,8 +228,17 @@ export async function getInvoice(id: string) {
     where: { id },
     include: {
       payments: { orderBy: { paidAt: "asc" } },
-      workOrder: { select: { id: true } },
-      customer: { select: { name: true, phone: true, email: true } },
+      // V10: live data too, so an old invoice with an incomplete snapshot still opens (lib/invoice-snapshot).
+      workOrder: {
+        select: {
+          id: true,
+          number: true,
+          mileageIn: true,
+          vehicle: { select: { plate: true, make: true, model: true, mileage: true } },
+          lines: { orderBy: { position: "asc" }, select: { type: true, description: true, quantityX100: true, unitPrice: true, taxRateBp: true } },
+        },
+      },
+      customer: { select: { name: true, phone: true, email: true, address: true, taxId: true } },
       reminders: { orderBy: { sentAt: "desc" }, include: { actor: { select: { name: true } } } },
     },
   });

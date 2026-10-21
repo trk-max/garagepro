@@ -1,4 +1,4 @@
-import type { StockOverview } from "@/server/dashboard-v10-stock";
+import type { StockCounts, StockOverview } from "@/server/dashboard-v10-stock";
 import { CountUp } from "@/components/ui/redesign/count-up";
 import { DeltaChip } from "@/components/ui/redesign/chip";
 import { ProgressBar } from "@/components/ui/redesign/progress";
@@ -10,24 +10,38 @@ const loc = (lang: Lang) => (lang === "en" ? "en-GB" : lang === "ar" ? "ar-TN" :
 
 /**
  * "Stock value" (reference "Total saved"): big amount, change since the start of the
- * month, share of parts in stock; on the right the monthly purchases as small bars
- * (the current month orange hatched) — only for roles that see the suppliers.
+ * month (finance roles only: `overview` is null for the others, who see the counts
+ * without any money), share of parts in stock; on the right the monthly purchases as
+ * small bars (the current month orange hatched) — only for roles that see the suppliers.
  */
-export function StockValueCard({ t, lang, overview, purchases }: { t: Dictionary; lang: Lang; overview: StockOverview; purchases: { month: string; amount: number }[] | null }) {
+export function StockValueCard({ t, lang, overview: money, counts, purchases }: { t: Dictionary; lang: Lang; overview: StockOverview | null; counts: StockCounts; purchases: { month: string; amount: number }[] | null }) {
+  const overview = money ?? counts;
   const s = t.v10.pages.stock;
   const max = Math.max(1, ...(purchases ?? []).map((p) => p.amount));
   const share = overview.totalParts ? (overview.itemsInStock / overview.totalParts) * 100 : 0;
   return (
     <Surface className="grid gap-6 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]" aria-labelledby="st-value">
       <div className="flex flex-col">
-        <h2 id="st-value" className="text-[15px] font-medium">{s.value}</h2>
-        <p className="text-[13px] text-gp-muted">{s.valueHint}</p>
-        <p className="mt-4 text-[36px] leading-none font-semibold tracking-tight sm:text-[40px]">
-          <CountUp value={overview.value} format="money" lang={lang} />
-        </p>
-        <div className="mt-3">
-          <DeltaChip change={overview.deltaPercent} lang={lang} caption={s.vsMonthStart} noCompare={t.v10.overview.noCompare} />
-        </div>
+        {money ? (
+          <>
+            <h2 id="st-value" className="text-[15px] font-medium">{s.value}</h2>
+            <p className="text-[13px] text-gp-muted">{s.valueHint}</p>
+            <p className="mt-4 text-[36px] leading-none font-semibold tracking-tight sm:text-[40px]">
+              <CountUp value={money.value} format="money" lang={lang} />
+            </p>
+            <div className="mt-3">
+              <DeltaChip change={money.deltaPercent} lang={lang} caption={s.vsMonthStart} noCompare={t.v10.overview.noCompare} />
+            </div>
+          </>
+        ) : (
+          <>
+            <h2 id="st-value" className="text-[15px] font-medium">{s.items}</h2>
+            <p className="mt-4 text-[36px] leading-none font-semibold tracking-tight sm:text-[40px]">
+              <CountUp value={counts.itemsInStock} lang={lang} />
+              <span className="ms-2 text-lg font-medium text-gp-muted">/ {counts.totalParts}</span>
+            </p>
+          </>
+        )}
         <div className="mt-auto pt-6">
           <ProgressBar value={share} label={fmt(s.inStock, { x: overview.itemsInStock, y: overview.totalParts })} />
           <p className="mt-2 text-xs text-gp-muted">{fmt(s.inStock, { x: overview.itemsInStock, y: overview.totalParts })}</p>

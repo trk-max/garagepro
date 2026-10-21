@@ -9,7 +9,7 @@ import { setAppointmentStatus } from "@/server/booking";
 import { kpis, mechanicsNow, monthlyTarget, openOrdersAt, revenueByMonth, setMonthlyTarget, todayRevenue } from "@/server/dashboard-v10";
 import { customerCards, recentCustomers, toggleFavoriteCustomer } from "@/server/dashboard-v10-customers";
 import { todaySchedule } from "@/server/dashboard-v10-schedule";
-import { monthlyPurchases, partCards, stockAlertSettings, stockOverview } from "@/server/dashboard-v10-stock";
+import { monthlyPurchases, partCards, stockAlertSettings, stockCounts, stockOverview } from "@/server/dashboard-v10-stock";
 import { createPart } from "@/server/parts";
 import { makeUser, makeWorkOrder, prisma } from "./helpers/db";
 
@@ -157,14 +157,23 @@ describe("V10 — stock and schedule", () => {
     const keeper = await makeUser("STOREKEEPER");
     await expect(monthlyPurchases(await makeUser("MECHANIC"))).rejects.toMatchObject({ code: "forbidden" });
     await expect(stockOverview(await makeUser("HR"))).rejects.toMatchObject({ code: "forbidden" });
-    const before = await stockOverview(keeper);
+    // Stock value is money: storekeepers and mechanics get the counts only.
+    const admin = await makeUser("ADMIN");
+    await expect(stockOverview(keeper)).rejects.toMatchObject({ code: "forbidden" });
+    await expect(stockOverview(await makeUser("MECHANIC"))).rejects.toMatchObject({ code: "forbidden" });
+    const countsBefore = await stockCounts(await makeUser("MECHANIC"));
+    expect(Object.keys(countsBefore).sort()).toEqual(["itemsInStock", "totalParts"]);
+    const before = await stockOverview(admin);
     const buysBefore = await monthlyPurchases(keeper);
     const t = tag();
     const supplier = await prisma.supplier.create({ data: { name: `Fournisseur ${t}` } });
     const part = await createPart({ sku: `SKU-${t}`, name: `Filtre ${t}`, unit: "pce", costPrice: 2_000, salePrice: 3_000, stock: 300, minStock: 600 }, keeper);
     await prisma.part.update({ where: { id: part.id }, data: { defaultSupplierId: supplier.id } });
     await prisma.goodsReceipt.create({ data: { number: `BR-${t}`, supplierId: supplier.id, lines: { create: [{ partId: part.id, quantityX100: 250, unitCost: 2_000 }] } } });
-    const after = await stockOverview(keeper);
+    const after = await stockOverview(admin);
+    const countsAfter = await stockCounts(keeper);
+    expect(countsAfter.itemsInStock - countsBefore.itemsInStock).toBe(1);
+    expect(countsAfter.totalParts - countsBefore.totalParts).toBe(1);
     expect(after.value - before.value).toBe(6_000);
     expect(after.previousValue).toBe(before.previousValue); // the stock arrived this month
     expect(after.itemsInStock - before.itemsInStock).toBe(1);

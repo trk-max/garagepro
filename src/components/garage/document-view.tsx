@@ -21,7 +21,7 @@ export function DocumentView({ doc, t, lang, logo }: { doc: DocumentData; t: Dic
   const money = (m: number) => formatMoney(m, lang);
 
   return (
-    <article className="paper mx-auto max-w-[210mm] bg-white p-10 text-sm text-zinc-900 shadow-sm print:max-w-none print:p-0 print:shadow-none">
+    <article className="paper mx-auto max-w-[210mm] bg-white p-10 text-sm text-zinc-900 max-sm:p-4 shadow-sm print:max-w-none print:p-0 print:shadow-none">
       <header className="flex flex-wrap items-start justify-between gap-6 border-b pb-6">
         <div>
           <DocLogo logo={logo} name={doc.garage.name} />
@@ -69,7 +69,9 @@ export function DocumentView({ doc, t, lang, logo }: { doc: DocumentData; t: Dic
         </div>
       </section>
 
-      <table className="w-full border-collapse">
+      {/* Phones: the lines scroll inside the paper, the page never scrolls sideways (print unchanged). */}
+      <div className="overflow-x-auto print:overflow-visible">
+      <table className="w-full min-w-[30rem] border-collapse print:min-w-0">
         <thead>
           <tr className="border-y bg-zinc-50 text-xs uppercase text-zinc-600">
             <th className="px-2 py-2 text-start">{t.invoices.designation}</th>
@@ -92,6 +94,7 @@ export function DocumentView({ doc, t, lang, logo }: { doc: DocumentData; t: Dic
           ))}
         </tbody>
       </table>
+      </div>
 
       <dl className="ms-auto mt-4 w-full max-w-xs space-y-1">
         <div className="flex justify-between">

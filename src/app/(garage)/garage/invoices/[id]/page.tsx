@@ -18,6 +18,7 @@ import { RelatedContracts } from "@/components/garage/contracts";
 import { emailConfigured } from "@/server/email";
 import { daysLate, getInvoice, isOverdue } from "@/server/invoices";
 import { getSettings } from "@/server/settings";
+import { completeSnapshot } from "@/lib/invoice-snapshot";
 
 type PageProps = { params: Promise<{ id: string }> };
 
@@ -29,7 +30,15 @@ export default async function InvoicePage({ params }: PageProps) {
   if (!invoice) notFound();
 
   const balance = invoice.totalTtc - invoice.paidAmount;
-  const s = invoice.snapshot;
+  // Old invoices may lack part of the frozen copy: complete it from live data and say so (never a 500).
+  const s = completeSnapshot(invoice.snapshot, {
+    garage: { name: settings.garageName, address: settings.address ?? null, phone: settings.phone ?? null, email: settings.email ?? null, taxId: settings.taxId ?? null, footer: settings.invoiceFooter ?? null },
+    customer: { name: invoice.customer.name, phone: invoice.customer.phone, address: invoice.customer.address, taxId: invoice.customer.taxId },
+    vehicle: { ...invoice.workOrder.vehicle, mileage: invoice.workOrder.mileageIn ?? invoice.workOrder.vehicle.mileage },
+    workOrderNumber: invoice.workOrder.number,
+    lines: invoice.workOrder.lines,
+    stampDuty: invoice.stampDuty,
+  });
   const late = isOverdue(invoice);
   const dueDate = invoice.dueDate ?? invoice.issuedAt;
   const reminderText = fmt(t.reminders.message, {
@@ -42,8 +51,8 @@ export default async function InvoicePage({ params }: PageProps) {
   }).trim();
 
   return (
-    <div className="grid min-h-full grid-cols-1 gap-6 bg-muted/30 p-6 xl:grid-cols-[minmax(0,1fr)_320px] print:block print:bg-white print:p-0">
-      <div className="space-y-4">
+    <div className="grid min-h-full grid-cols-1 gap-6 p-3 sm:p-6 xl:grid-cols-[minmax(0,1fr)_320px] print:block print:bg-white print:p-0">
+      <div className="min-w-0 space-y-4">
         <div className="flex gap-2 print:hidden">
           <Button asChild variant="ghost">
             <Link href={`/garage/work-orders/${invoice.workOrder.id}`}>{t.common.back}</Link>
@@ -51,6 +60,9 @@ export default async function InvoicePage({ params }: PageProps) {
           <span className="ms-auto" />
           <PrintButton />
         </div>
+        {s.incomplete && (
+          <p role="status" className="rounded-[14px] bg-gp-accent-tint px-4 py-2.5 text-sm text-gp-accent-ink print:hidden">{t.v10.pages.invoice.incomplete}</p>
+        )}
         <DocumentView
           t={t}
           lang={lang}
