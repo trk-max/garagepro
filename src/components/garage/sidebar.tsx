@@ -116,7 +116,7 @@ const GROUPS: Group[] = [
       { key: "reports", href: "/garage/rapports", icon: BarChart3, permission: "viewReports" },
       { key: "profitability", href: "/garage/rentabilite", icon: TrendingUp, permission: "viewProfit" },
       { key: "expenses", href: "/garage/depenses", icon: CalendarClock, permission: "manageExpenses" },
-      { key: "cash", href: "/garage/tresorerie", icon: Landmark, permission: "viewCashForecast" },
+      { key: "cash", href: "/garage/tresorerie", icon: Landmark, permission: "readCashForecast" },
       { key: "audit", href: "/garage/journal", icon: History, permission: "viewAuditLog" },
       { key: "backups", href: "/garage/sauvegardes", icon: DatabaseBackup, permission: "manageSettings" },
       { key: "settings", href: "/garage/settings", icon: Settings, permission: "manageSettings" },

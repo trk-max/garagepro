@@ -14,15 +14,16 @@ import { getSettings } from "@/server/settings";
 
 /**
  * Cash forecast (V8.4): loads plain data from the database and hands it to the pure
- * forecastCash() (src/lib/cash-forecast.ts). Administrator + manager only (viewCashForecast).
+ * forecastCash() (src/lib/cash-forecast.ts). Read: administrator, manager, accountant (readCashForecast); typed balance: administrator + manager.
  * Single garage: there is no branch in GaragePro, every figure is the whole garage's.
  */
 
 /** Longest horizon offered (days): data is always loaded for it, pages slice 30 / 60 / 90. */
 export const MAX_HORIZON = 90;
 
-function assertCan(actor: StaffUser) {
-  if (!can(actor.role, "viewCashForecast")) throw new AppError("forbidden", {}, 403);
+/** Reading: readCashForecast (V9: + accountant). Typing the balance: viewCashForecast (administrator + manager). */
+function assertCan(actor: StaffUser, permission: "readCashForecast" | "viewCashForecast" = "readCashForecast") {
+  if (!can(actor.role, permission)) throw new AppError("forbidden", {}, 403);
 }
 
 export const isScenario = (s: unknown): s is Scenario => typeof s === "string" && (SCENARIO_LIST as string[]).includes(s);
@@ -107,7 +108,7 @@ export async function cashLowAlert(now = new Date()) {
 
 /** Cash + bank balance typed by hand (history kept; the most recent date is used). */
 export async function recordCashBalance(actor: StaffUser, input: { amount: number; asOf: string; note?: string | null }, now = new Date()) {
-  assertCan(actor);
+  assertCan(actor, "viewCashForecast");
   const settings = await getSettings();
   const today = utcToZoned(now, settings.timezone || GARAGE_TZ).date;
   if (input.asOf > today) throw new AppError("balanceFuture", {}, 422);

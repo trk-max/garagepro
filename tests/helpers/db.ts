@@ -1,10 +1,11 @@
+import type { Role } from "@prisma/client";
 import { prisma } from "./test-prisma";
 
 let n = 0;
 const uid = () => `${Date.now().toString(36)}${(n++).toString(36)}`;
 
 /** Small factories for the database tests. */
-export async function makeUser(role: "ADMIN" | "MANAGER" | "RECEPTION" | "MECHANIC" | "STOREKEEPER" = "MECHANIC", extra: Record<string, unknown> = {}) {
+export async function makeUser(role: Role = "MECHANIC", extra: Record<string, unknown> = {}) {
   const u = await prisma.user.create({ data: { email: `${uid()}@test.tn`, name: `${role} ${uid()}`, role, passwordHash: "x", ...extra } });
   return { id: u.id, name: u.name, email: u.email, role: u.role };
 }

@@ -25,6 +25,10 @@ enum Role {
   RECEPTION
   MECHANIC
   STOREKEEPER // magasinier
+  /// Ressources humaines : équipe, congés, attestations, contrats de travail (V9).
+  HR
+  /// Comptable : factures, factures fournisseurs, prévision de trésorerie en lecture (V9).
+  ACCOUNTANT
 }
 
 enum WorkOrderStatus {

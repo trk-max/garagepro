@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { HORIZONS, SCENARIO_LIST, SCENARIOS, type Scenario } from "@/lib/cash-forecast";
 import { fmt, formatDay, formatMoney } from "@/lib/format";
 import { getI18n } from "@/lib/i18n/server";
+import { can } from "@/lib/permissions";
 import { requirePageAccess } from "@/lib/session";
 import { cn } from "@/lib/utils";
 import { cashForecast, isScenario, listCashBalances } from "@/server/cash";
@@ -19,7 +20,7 @@ const STALE_DAYS = 14;
 
 /** Cash forecast: typed balance + real money since + expected flows, 3 scenarios (administrator + manager). */
 export default async function CashForecastPage({ searchParams }: PageProps) {
-  const staff = await requirePageAccess("viewCashForecast");
+  const staff = await requirePageAccess("readCashForecast");
   const sp = await searchParams;
   const scenario: Scenario = isScenario(sp.s) ? sp.s : "NORMAL";
   const horizon = (HORIZONS as readonly number[]).includes(Number(sp.h)) ? Number(sp.h) : 30;
@@ -169,20 +170,23 @@ export default async function CashForecastPage({ searchParams }: PageProps) {
         <Card>
           <CardTitle>{v.balanceTitle}</CardTitle>
           <p className="mb-3 text-xs text-muted-foreground">{v.balanceHint}</p>
-          <ActionForm action={recordCashBalanceAction} className="grid gap-3 sm:grid-cols-2">
-            <Field label={v.amount}>
-              <Input name="amount" inputMode="decimal" required dir="ltr" />
-            </Field>
-            <Field label={v.asOf}>
-              <Input name="asOf" type="date" required dir="ltr" defaultValue={r.today} max={r.today} />
-            </Field>
-            <Field label={v.note} className="sm:col-span-2">
-              <Input name="note" maxLength={300} />
-            </Field>
-            <div className="sm:col-span-2">
-              <Button type="submit">{v.save}</Button>
-            </div>
-          </ActionForm>
+          {/* Read-only for the accountant (readCashForecast): typing the balance stays administrator + manager. */}
+          {can(staff.role, "viewCashForecast") && (
+            <ActionForm action={recordCashBalanceAction} className="grid gap-3 sm:grid-cols-2">
+              <Field label={v.amount}>
+                <Input name="amount" inputMode="decimal" required dir="ltr" />
+              </Field>
+              <Field label={v.asOf}>
+                <Input name="asOf" type="date" required dir="ltr" defaultValue={r.today} max={r.today} />
+              </Field>
+              <Field label={v.note} className="sm:col-span-2">
+                <Input name="note" maxLength={300} />
+              </Field>
+              <div className="sm:col-span-2">
+                <Button type="submit">{v.save}</Button>
+              </div>
+            </ActionForm>
+          )}
           {balances.length > 0 && (
             <>
               <p className="label-tech mt-5 mb-2">{v.history}</p>

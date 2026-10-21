@@ -59,7 +59,7 @@ export const ar: Dictionary = {
     appointments: "المواعيد",
     workshop: "الورشة (الهاتف)",
   },
-  roles: { ADMIN: "مدير", MANAGER: "مسؤول الورشة", RECEPTION: "استقبال", MECHANIC: "ميكانيكي", STOREKEEPER: "أمين المخزن" },
+  roles: { ADMIN: "مدير", MANAGER: "مسؤول الورشة", RECEPTION: "استقبال", MECHANIC: "ميكانيكي", STOREKEEPER: "أمين المخزن", HR: "الموارد البشرية", ACCOUNTANT: "محاسب" },
   status: {
     RECEIVED: "تم الاستلام",
     DIAGNOSIS: "تشخيص",

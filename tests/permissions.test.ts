@@ -26,6 +26,23 @@ describe("permission matrix (server-side source of truth)", () => {
     expect(can("RECEPTION", "recordPayment")).toBe(true);
     expect(can("RECEPTION", "createInvoice")).toBe(false);
   });
+  it("HR (V9): team, leave, certificates and contracts page — no money, no settings, no repairs", () => {
+    for (const p of ["useTimeClock", "manageTeam", "issueCertificates", "showClockKiosk", "viewContracts"] as const) expect(can("HR", p), p).toBe(true);
+    for (const p of ["manageSettings", "viewFinance", "viewClientInvoices", "viewWorkOrders", "viewCustomers", "viewSupplierInvoices", "readCashForecast", "viewProfit", "reviewContractTemplates", "viewAuditLog"] as const) {
+      expect(can("HR", p), p).toBe(false);
+    }
+  });
+  it("accountant (V9): invoices, supplier invoices, cash forecast READ — no settings, no team, no balance typing", () => {
+    for (const p of ["viewFinance", "viewClientInvoices", "viewSupplierInvoices", "manageSupplierInvoices", "viewSuppliers", "readCashForecast", "viewContracts", "useTimeClock"] as const) {
+      expect(can("ACCOUNTANT", p), p).toBe(true);
+    }
+    for (const p of ["manageSettings", "viewCashForecast", "createInvoice", "paySupplier", "manageTeam", "issueCertificates", "viewWorkOrders", "manageStock", "reviewContractTemplates"] as const) {
+      expect(can("ACCOUNTANT", p), p).toBe(false);
+    }
+  });
+  it("only the admin marks a contract template as reviewed by a lawyer", () => {
+    expect(rolesFor("reviewContractTemplates")).toEqual(["ADMIN"]);
+  });
   it("no role / unknown role = nothing", () => {
     expect(can(null, "viewWorkOrders")).toBe(false);
     expect(can(undefined, "viewStock")).toBe(false);

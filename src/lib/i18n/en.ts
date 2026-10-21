@@ -59,7 +59,7 @@ export const en: Dictionary = {
     appointments: "Appointments",
     workshop: "Workshop (mobile)",
   },
-  roles: { ADMIN: "Administrator", MANAGER: "Manager", RECEPTION: "Reception", MECHANIC: "Mechanic", STOREKEEPER: "Storekeeper" },
+  roles: { ADMIN: "Administrator", MANAGER: "Manager", RECEPTION: "Reception", MECHANIC: "Mechanic", STOREKEEPER: "Storekeeper", HR: "Human resources", ACCOUNTANT: "Accountant" },
   status: {
     RECEIVED: "Received",
     DIAGNOSIS: "Diagnosis",

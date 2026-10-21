@@ -57,7 +57,7 @@ export const fr = {
     appointments: "Rendez-vous",
     workshop: "Atelier (mobile)",
   },
-  roles: { ADMIN: "Administrateur", MANAGER: "Responsable", RECEPTION: "Réception", MECHANIC: "Mécanicien", STOREKEEPER: "Magasinier" },
+  roles: { ADMIN: "Administrateur", MANAGER: "Responsable", RECEPTION: "Réception", MECHANIC: "Mécanicien", STOREKEEPER: "Magasinier", HR: "Ressources humaines", ACCOUNTANT: "Comptable" },
   status: {
     RECEIVED: "Réceptionné",
     DIAGNOSIS: "Diagnostic",
