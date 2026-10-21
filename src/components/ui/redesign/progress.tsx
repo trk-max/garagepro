@@ -25,14 +25,33 @@ export function ProgressBar({ value, label, className }: { value: number; label:
   );
 }
 
-/** Ring gauge (SVG), drawn from 0 to `value` %; the centre shows the percentage. */
-export function ProgressRing({ value, label, size = 120, stroke = 12, caption }: { value: number; label: string; size?: number; stroke?: number; caption?: string }) {
+/**
+ * Ring gauge (SVG), drawn from 0 to `value` % (orange on grey, red when `tone="danger"`).
+ * The centre shows `display` (default: the percentage) and an optional caption.
+ */
+export function ProgressRing({
+  value,
+  label,
+  size = 120,
+  stroke = 12,
+  caption,
+  display,
+  tone = "accent",
+}: {
+  value: number;
+  label: string;
+  size?: number;
+  stroke?: number;
+  caption?: string;
+  display?: string;
+  tone?: "accent" | "danger";
+}) {
   const v = clamp(value);
   const r = (size - stroke) / 2;
   const len = 2 * Math.PI * r;
   const offset = len * (1 - v / 100);
   return (
-    <div className="relative inline-grid place-items-center" style={{ width: size, height: size }} role="img" aria-label={`${label}: ${Math.round(v)} %`}>
+    <div className="relative inline-grid place-items-center" style={{ width: size, height: size }} role="img" aria-label={`${label}: ${display ?? `${Math.round(v)} %`}`}>
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90" aria-hidden>
         <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--gp-panel)" strokeWidth={stroke} />
         <circle
@@ -40,7 +59,7 @@ export function ProgressRing({ value, label, size = 120, stroke = 12, caption }:
           cy={size / 2}
           r={r}
           fill="none"
-          stroke="var(--gp-accent)"
+          stroke={tone === "danger" ? "var(--gp-danger)" : "var(--gp-accent)"}
           strokeWidth={stroke}
           strokeLinecap="round"
           strokeDasharray={len}
@@ -50,7 +69,7 @@ export function ProgressRing({ value, label, size = 120, stroke = 12, caption }:
         />
       </svg>
       <span className="absolute text-center" aria-hidden>
-        <span className="block text-xl font-semibold tabular-nums" dir="ltr">{Math.round(v)}%</span>
+        <span className="block text-xl font-semibold tabular-nums" dir="ltr">{display ?? `${Math.round(v)}%`}</span>
         {caption && <span className="block text-xs text-gp-muted">{caption}</span>}
       </span>
     </div>

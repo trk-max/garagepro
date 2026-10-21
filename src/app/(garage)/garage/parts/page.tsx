@@ -1,218 +1,120 @@
 import Link from "next/link";
-import { createPartAction, moveStockAction, updatePartAction } from "@/actions/catalog";
-import { correctMovementAction } from "@/actions/stock";
-import { ReasonButton } from "@/components/team/prompt-action";
-import { supplierOptions } from "@/server/purchasing";
-import { ActionForm } from "@/components/action-form";
+import { ChevronRight, Package, Plus, ShoppingCart } from "lucide-react";
+import { CreatePartForm } from "@/components/stock/create-part-form";
+import { MovementsCard } from "@/components/stock/movements-card";
+import { PartCard } from "@/components/stock/part-card";
+import { PartsTable } from "@/components/stock/parts-table";
+import { StockAlertsCard } from "@/components/stock/stock-alerts-card";
+import { StockValueCard } from "@/components/stock/stock-value-card";
 import { SearchForm } from "@/components/garage/search-form";
-import { Button } from "@/components/ui/button";
-import { Card, CardTitle, Field, NativeSelect, PageHeader, Table, Td, Th } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
-import { formatDateTime, formatMoney, formatQty, woNumber } from "@/lib/format";
 import { LiveRefresh } from "@/components/live-refresh";
+import { DialogButton } from "@/components/ui/redesign/dialog";
+import { PageHeader } from "@/components/ui/redesign/page-header";
+import { EmptyState, PillLink } from "@/components/ui/redesign/surface";
+import { percentOfMinimum } from "@/lib/dashboard-v10";
 import { getI18n } from "@/lib/i18n/server";
 import { can } from "@/lib/permissions";
 import { requirePageAccess } from "@/lib/session";
 import { cn } from "@/lib/utils";
+import { monthlyPurchases, partCards, stockOverview, type PartCard as Card } from "@/server/dashboard-v10-stock";
 import { isLow, listParts, recentMovements } from "@/server/parts";
+import { supplierOptions } from "@/server/purchasing";
 
-type PageProps = { searchParams: Promise<{ q?: string; low?: string }> };
-
-const dt = (millimes: number) => (millimes / 1000).toFixed(3);
-const qty = (x100: number) => String(x100 / 100);
+type PageProps = { searchParams: Promise<{ q?: string; low?: string; view?: string; cursor?: string }> };
 
 export default async function PartsPage({ searchParams }: PageProps) {
-  const { q, low } = await searchParams;
+  const { q, low, view, cursor } = await searchParams;
   const staff = await requirePageAccess("viewStock");
   const canEdit = can(staff.role, "manageStock");
-  const [{ t, lang }, parts, movements, suppliers] = await Promise.all([getI18n(), listParts(q, low === "1"), recentMovements(30), canEdit ? supplierOptions() : []]);
-  const v = t.v7.stock;
-  const canRequest = can(staff.role, "requestPurchase");
+  const table = view === "table";
+  const lowOnly = low === "1";
+  // Cards: one page of partCards; "low only" (or the table view) uses the former list, which can filter.
+  const [{ t, lang }, overview, purchases, cards, parts, movements, suppliers, lowParts] = await Promise.all([
+    getI18n(),
+    stockOverview(staff),
+    can(staff.role, "viewSuppliers") ? monthlyPurchases(staff, 6) : null,
+    !table && !lowOnly ? partCards({ q, take: 20, cursor: cursor ?? null }) : null,
+    table || lowOnly ? listParts(q, lowOnly) : null,
+    recentMovements(30),
+    canEdit ? supplierOptions() : [],
+    listParts(undefined, true),
+  ]);
+  const s = t.v10.pages.stock;
+  const items: Card[] =
+    cards?.items ??
+    (parts ?? []).map((p) => ({ id: p.id, name: p.name, sku: p.sku, supplier: null, stockX100: p.stockX100, minStockX100: p.minStockX100, percentOfMin: percentOfMinimum(p.stockX100, p.minStockX100), isLow: isLow(p), unit: p.unit }));
+
+  const href = (patch: Record<string, string | undefined>) => {
+    const params = new URLSearchParams();
+    for (const [k, v] of Object.entries({ q, low, view, ...patch })) if (v) params.set(k, v);
+    const str = params.toString();
+    return str ? `/garage/parts?${str}` : "/garage/parts";
+  };
+  const pill = (on: boolean) => cn("gp-pill-t flex h-10 items-center rounded-full px-4 text-sm font-medium", on ? "bg-gp-primary text-gp-primary-ink" : "hover:bg-gp-hover");
 
   return (
-    <div className="mx-auto grid max-w-7xl gap-6 p-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-      <div className="min-w-0">
-        <PageHeader title={t.parts.title}>
-          <LiveRefresh url="/api/staff/live?topic=stock" liveLabel={t.portal.live} reconnectingLabel={t.portal.reconnecting} />
-          <SearchForm placeholder={t.parts.searchPlaceholder} defaultValue={q} hidden={{ low }} />
-          {canRequest && (
-            <Button asChild size="sm">
-              <Link href="/garage/purchase-orders/new?prefill=low">{t.purchase.new}</Link>
-            </Button>
-          )}
-          <Link
-            href={low === "1" ? "/garage/parts" : "/garage/parts?low=1"}
-            className={cn("chip-tap rounded-full border px-3 py-1 text-xs", low === "1" ? "border-primary bg-primary text-primary-foreground" : "hover:bg-accent")}
-          >
+    <div className="mx-auto max-w-[1440px] px-3 pt-4 pb-6 sm:px-5 xl:ps-2 xl:pe-5">
+      <PageHeader title={t.parts.title} subtitle={s.subtitle}>
+        <LiveRefresh url="/api/staff/live?topic=stock" liveLabel={t.portal.live} reconnectingLabel={t.portal.reconnecting} />
+        {can(staff.role, "requestPurchase") && (
+          <PillLink href="/garage/purchase-orders/new?prefill=low" variant="outline" icon={ShoppingCart}>
+            {t.purchase.new}
+          </PillLink>
+        )}
+        {canEdit && (
+          <DialogButton id="new-part" label={t.parts.new} title={t.parts.new} closeLabel={t.v10.shell.close} icon={<Plus className="size-4" aria-hidden />}>
+            <CreatePartForm t={t} />
+          </DialogButton>
+        )}
+      </PageHeader>
+
+      <div className="gp-stagger space-y-5">
+        <div className="grid gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+          <StockValueCard t={t} lang={lang} overview={overview} purchases={purchases} />
+          <StockAlertsCard t={t} lowCount={lowParts.length} canFollowUp={can(staff.role, "manageRepairFollowUp")} />
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <nav aria-label={t.parts.title} className="flex rounded-full border border-gp-line bg-gp-card p-1 shadow-gp">
+            <Link href={href({ view: undefined, cursor: undefined })} aria-current={!table ? "page" : undefined} className={pill(!table)}>
+              {s.views.cards}
+            </Link>
+            <Link href={href({ view: "table", cursor: undefined })} aria-current={table ? "page" : undefined} className={pill(table)}>
+              {s.views.table}
+            </Link>
+          </nav>
+          <Link href={href({ low: lowOnly ? undefined : "1", cursor: undefined })} aria-pressed={lowOnly} className={cn(pill(lowOnly), "border border-gp-line bg-gp-card")}>
             {t.parts.lowOnly}
           </Link>
-        </PageHeader>
+          <div className="ms-auto w-full sm:w-80 [&_form]:max-w-none [&_input]:h-11 [&_input]:bg-gp-card [&_input]:ps-9">
+            <SearchForm placeholder={t.parts.searchPlaceholder} defaultValue={q} hidden={{ low, view }} />
+          </div>
+        </div>
 
-        {parts.length === 0 ? (
-          <p className="rounded-lg border border-dashed p-10 text-center text-sm text-muted-foreground">{t.parts.empty}</p>
+        {table ? (
+          (parts ?? []).length === 0 ? (
+            <EmptyState icon={Package} title={t.parts.empty} />
+          ) : (
+            <PartsTable t={t} lang={lang} parts={parts ?? []} canEdit={canEdit} suppliers={suppliers} />
+          )
+        ) : items.length === 0 ? (
+          <EmptyState icon={Package} title={t.parts.empty} />
         ) : (
-          <Table>
-            <thead>
-              <tr>
-                <Th>{t.parts.sku}</Th>
-                <Th>{t.parts.name}</Th>
-                <Th className="text-end">{t.parts.stock}</Th>
-                <Th className="text-end">{v.reserved}</Th>
-                <Th className="text-end">{v.available}</Th>
-                <Th className="text-end">{t.parts.costPrice}</Th>
-                <Th className="text-end">{t.parts.salePrice}</Th>
-                {canEdit && <Th />}
-              </tr>
-            </thead>
-            <tbody>
-              {parts.map((p) => (
-                <tr key={p.id} className="align-top">
-                  <Td className="font-mono text-xs">{p.sku}</Td>
-                  <Td>
-                    {p.name}
-                    {p.brand && <span className="text-xs text-muted-foreground"> · {p.brand}</span>}
-                  </Td>
-                  <Td className="text-end tabular-nums">
-                    <span className={cn(p.stockX100 <= 0 ? "font-semibold text-red-700 dark:text-red-400" : isLow(p) ? "font-semibold text-amber-700 dark:text-amber-400" : "")}>
-                      {formatQty(p.stockX100, lang)}
-                    </span>{" "}
-                    <span className="text-xs text-muted-foreground">{p.unit}</span>
-                    {isLow(p) && <div className="text-xs text-amber-700 dark:text-amber-400">{t.parts.low}</div>}
-                  </Td>
-                  <Td className="text-end tabular-nums text-muted-foreground">{p.reservedX100 ? formatQty(p.reservedX100, lang) : "—"}</Td>
-                  <Td className={cn("text-end tabular-nums", p.stockX100 - p.reservedX100 <= 0 && "font-semibold text-red-700 dark:text-red-400")}>{formatQty(p.stockX100 - p.reservedX100, lang)}</Td>
-                  <Td className="text-end tabular-nums text-muted-foreground" dir="ltr">{formatMoney(p.costPrice, lang)}</Td>
-                  <Td className="text-end tabular-nums" dir="ltr">{formatMoney(p.salePrice, lang)}</Td>
-                  {canEdit && (
-                    <Td className="w-48">
-                      <details>
-                        <summary className="cursor-pointer text-xs text-primary">{t.parts.adjust}</summary>
-                        <ActionForm action={moveStockAction.bind(null, p.id)} className="mt-2 space-y-2">
-                          <Input name="delta" required inputMode="decimal" placeholder="+10 / -2" dir="ltr" aria-label={t.parts.delta} />
-                          <NativeSelect name="reason" defaultValue="PURCHASE" aria-label={t.parts.reason}>
-                            <option value="PURCHASE">{t.parts.reasons.PURCHASE}</option>
-                            <option value="ADJUSTMENT">{t.parts.reasons.ADJUSTMENT}</option>
-                            <option value="SUPPLIER_RETURN">{t.parts.reasons.SUPPLIER_RETURN}</option>
-                          </NativeSelect>
-                          <NativeSelect name="supplierId" defaultValue="" aria-label={v.returnSupplier}>
-                            <option value="">{v.returnSupplier} —</option>
-                            {suppliers.map((sup) => (
-                              <option key={sup.id} value={sup.id}>
-                                {sup.name}
-                              </option>
-                            ))}
-                          </NativeSelect>
-                          <Input name="note" placeholder={t.common.notes} />
-                          <Button type="submit" size="sm" className="w-full">
-                            {t.common.save}
-                          </Button>
-                        </ActionForm>
-                      </details>
-                      <details className="mt-1">
-                        <summary className="cursor-pointer text-xs text-muted-foreground">{t.common.edit}</summary>
-                        <ActionForm action={updatePartAction.bind(null, p.id)} reset={false} className="mt-2 space-y-2">
-                          <Input name="sku" defaultValue={p.sku} required dir="ltr" aria-label={t.parts.sku} />
-                          <Input name="name" defaultValue={p.name} required aria-label={t.parts.name} />
-                          <Input name="brand" defaultValue={p.brand ?? ""} placeholder={t.parts.brand} />
-                          <Input name="unit" defaultValue={p.unit} aria-label={t.parts.unit} />
-                          <Input name="costPrice" defaultValue={dt(p.costPrice)} inputMode="decimal" dir="ltr" aria-label={t.parts.costPrice} />
-                          <Input name="salePrice" defaultValue={dt(p.salePrice)} inputMode="decimal" required dir="ltr" aria-label={t.parts.salePrice} />
-                          <Input name="minStock" defaultValue={qty(p.minStockX100)} inputMode="decimal" dir="ltr" aria-label={t.parts.minStock} />
-                          <Button type="submit" size="sm" variant="secondary" className="w-full">
-                            {t.common.save}
-                          </Button>
-                        </ActionForm>
-                      </details>
-                    </Td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </Table>
-        )}
-      </div>
-
-      <div className="space-y-6">
-        {canEdit && (
-          <Card>
-            <CardTitle>{t.parts.new}</CardTitle>
-            <ActionForm action={createPartAction} className="grid grid-cols-2 gap-3">
-              <Field label={t.parts.sku}>
-                <Input name="sku" required dir="ltr" className="uppercase" />
-              </Field>
-              <Field label={t.parts.brand}>
-                <Input name="brand" />
-              </Field>
-              <Field label={t.parts.name} className="col-span-2">
-                <Input name="name" required />
-              </Field>
-              <Field label={`${t.parts.costPrice} (DT)`}>
-                <Input name="costPrice" inputMode="decimal" dir="ltr" />
-              </Field>
-              <Field label={`${t.parts.salePrice} (DT)`}>
-                <Input name="salePrice" inputMode="decimal" required dir="ltr" />
-              </Field>
-              <Field label={t.parts.stock}>
-                <Input name="stock" inputMode="decimal" dir="ltr" />
-              </Field>
-              <Field label={t.parts.minStock}>
-                <Input name="minStock" inputMode="decimal" dir="ltr" />
-              </Field>
-              <Field label={t.parts.unit}>
-                <Input name="unit" placeholder="pce, L, kit" />
-              </Field>
-              <div className="col-span-2">
-                <Button type="submit" className="w-full">
-                  {t.common.create}
-                </Button>
-              </div>
-            </ActionForm>
-          </Card>
-        )}
-
-        <Card>
-          <CardTitle>{t.parts.movements}</CardTitle>
-          <ul className="space-y-2 text-sm">
-            {movements.map((m) => (
-              <li key={m.id} className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="truncate">
-                    <span className="font-mono text-xs text-muted-foreground">{m.part.sku}</span> {m.part.name}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {t.parts.reasons[m.reason]}
-                    {m.workOrder && (
-                      <>
-                        {" · "}
-                        <Link href={`/garage/work-orders/${m.workOrder.id}`} className="hover:underline">
-                          {woNumber(m.workOrder.number)}
-                        </Link>
-                      </>
-                    )}
-                    {m.supplier && ` · ${m.supplier.name}`}
-                    {" · "}
-                    {formatDateTime(m.createdAt, lang)}
-                  </p>
-                  {m.note && <p className="text-xs text-muted-foreground">{m.note}</p>}
-                  {m.correctedBy ? (
-                    <p className="text-xs text-amber-700 dark:text-amber-400">{v.corrected}</p>
-                  ) : (
-                    canEdit &&
-                    ["PURCHASE", "ADJUSTMENT", "SUPPLIER_RETURN"].includes(m.reason) && (
-                      <ReasonButton className="mt-1 h-6" question={v.correctReason} action={correctMovementAction.bind(null, m.id)}>
-                        {v.correct}
-                      </ReasonButton>
-                    )
-                  )}
-                </div>
-                <span dir="ltr" className={cn("shrink-0 font-medium tabular-nums", m.deltaX100 > 0 ? "text-emerald-700 dark:text-emerald-400" : "text-red-700 dark:text-red-400")}>
-                  {m.deltaX100 > 0 ? "+" : ""}
-                  {formatQty(m.deltaX100, lang)}
-                </span>
-              </li>
+          <ul className="grid grid-cols-1 gap-4 min-[480px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+            {items.map((p) => (
+              <PartCard key={p.id} p={p} t={t} lang={lang} canEdit={canEdit} suppliers={suppliers} />
             ))}
           </ul>
-        </Card>
+        )}
+
+        {cards && (cursor || cards.nextCursor) && (
+          <nav className="flex justify-center gap-2" aria-label={t.parts.title}>
+            {cursor && <PillLink href={href({ cursor: undefined })} variant="outline">{s.first}</PillLink>}
+            {cards.nextCursor && <PillLink href={href({ cursor: cards.nextCursor })} icon={ChevronRight}>{s.next}</PillLink>}
+          </nav>
+        )}
+
+        <MovementsCard t={t} lang={lang} movements={movements} canEdit={canEdit} />
       </div>
     </div>
   );
