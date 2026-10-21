@@ -244,14 +244,26 @@ export async function countUpcomingToday(): Promise<number> {
   });
 }
 
-export async function assignAppointmentMechanic(id: string, mechanicId: string | null) {
-  await prisma.appointment.update({ where: { id }, data: { mechanicId } });
+/** V10: audited when an actor is given (staff actions always pass it). */
+export async function assignAppointmentMechanic(id: string, mechanicId: string | null, actor: AuditActor = null) {
+  await prisma.$transaction(async (tx) => {
+    const before = await tx.appointment.findUnique({ where: { id }, select: { mechanicId: true } });
+    if (!before) throw new AppError("notFound", {}, 404);
+    await tx.appointment.update({ where: { id }, data: { mechanicId } });
+    if (actor) await audit(tx, actor, "appointment.mechanic", "Appointment", id, { before, after: { mechanicId } });
+  });
 }
 
-export async function setAppointmentStatus(id: string, status: "CANCELLED" | "NO_SHOW") {
-  const appt = await prisma.appointment.findUnique({ where: { id }, select: { status: true } });
-  if (!appt || appt.status !== "CONFIRMED") throw new AppError("invalid", {}, 409);
-  await prisma.appointment.update({ where: { id }, data: { status, ...(status === "CANCELLED" ? { cancelledAt: new Date() } : {}) } });
+/** Staff cancels (declines) or marks a no-show; only a CONFIRMED appointment. Audited when an actor is given. */
+export async function setAppointmentStatus(id: string, status: "CANCELLED" | "NO_SHOW", actor: AuditActor = null) {
+  await prisma.$transaction(async (tx) => {
+    const appt = await tx.appointment.findUnique({ where: { id }, select: { status: true } });
+    if (!appt || appt.status !== "CONFIRMED") throw new AppError("invalid", {}, 409);
+    // Guarded update: a concurrent check-in / cancel in between makes this one fail instead of overwriting it.
+    const done = await tx.appointment.updateMany({ where: { id, status: "CONFIRMED" }, data: { status, ...(status === "CANCELLED" ? { cancelledAt: new Date() } : {}) } });
+    if (done.count !== 1) throw new AppError("invalid", {}, 409);
+    if (actor) await audit(tx, actor, "appointment.status", "Appointment", id, { before: { status: appt.status }, after: { status } });
+  });
 }
 
 /**

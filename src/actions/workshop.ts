@@ -122,8 +122,8 @@ export async function checkInAppointmentAction(appointmentId: string): Promise<R
 
 export async function appointmentStatusAction(appointmentId: string, status: "CANCELLED" | "NO_SHOW"): Promise<Result> {
   try {
-    await requirePermission("manageAppointments");
-    await setAppointmentStatus(id.parse(appointmentId), status === "NO_SHOW" ? "NO_SHOW" : "CANCELLED");
+    const actor = await requirePermission("manageAppointments");
+    await setAppointmentStatus(id.parse(appointmentId), status === "NO_SHOW" ? "NO_SHOW" : "CANCELLED", actor);
     return done();
   } catch (error) {
     return toActionError(error);
@@ -132,8 +132,8 @@ export async function appointmentStatusAction(appointmentId: string, status: "CA
 
 export async function appointmentMechanicAction(appointmentId: string, mechanicId: string): Promise<Result> {
   try {
-    await requirePermission("manageAppointments");
-    await assignAppointmentMechanic(id.parse(appointmentId), optionalId.parse(mechanicId) ?? null);
+    const actor = await requirePermission("manageAppointments");
+    await assignAppointmentMechanic(id.parse(appointmentId), optionalId.parse(mechanicId) ?? null, actor);
     return done();
   } catch (error) {
     return toActionError(error);

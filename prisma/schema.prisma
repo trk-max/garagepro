@@ -202,6 +202,8 @@ model Customer {
   /// Le client refuse les rappels d'entretien (SMS / e-mail). Les messages de service
   /// (RDV, voiture prête, livraison prévue) restent envoyés.
   reminderOptOut Boolean  @default(false)
+  /// Client favori (V10, tableau de bord) : épinglé dans l'onglet « Favoris ».
+  isFavorite     Boolean  @default(false)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -584,6 +586,8 @@ model Setting {
   alertDeliveryRiskHours Int      @default(24)
   /// Contrats (V9) : alerte N jours avant la date de fin d'un contrat signé / actif.
   contractAlertDays      Int      @default(30)
+  /// Tableau de bord (V10) : objectif d'encaissements du mois (millimes ; 0 = pas d'objectif).
+  monthlyRevenueTarget   Int      @default(0)
   /// Modèles de message (null = texte par défaut). Variables : {garage} {plate} {item} {date} {km} {time} {phone}.
   tplMaintenance         String?
   tplAppointment         String?
