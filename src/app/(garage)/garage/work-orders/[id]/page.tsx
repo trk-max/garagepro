@@ -18,6 +18,7 @@ import { MediaUploader } from "@/components/garage/media-uploader";
 import { RepairPanels } from "@/components/garage/repair-panels";
 import { ProfitPanel } from "@/components/garage/profit-panel";
 import { ReservationsCard } from "@/components/garage/reservations-card";
+import { VehicleQrCard } from "@/components/garage/vehicle-qr-card";
 import { TrackingCard } from "@/components/garage/tracking-card";
 import { LiveRefresh } from "@/components/live-refresh";
 import { getBaseUrl } from "@/lib/base-url";
@@ -264,6 +265,9 @@ export default async function WorkOrderPage({ params }: PageProps) {
 
         {/* ── Time per mechanic, quality control, missing parts, insurance (V7) ── */}
         <RepairPanels wo={wo} staff={staff} t={t} lang={lang} tz={settings.timezone} />
+
+        {/* ── Vehicle QR Code (created at check-in) ── */}
+        {can(staff.role, "manageVehicleQr") && <VehicleQrCard vehicle={{ id: wo.vehicle.id, qrToken: wo.vehicle.qrToken ?? null }} t={t} />}
 
         {/* ── Parts put aside for this repair (Prompt 2/5, step B) ── */}
         <ReservationsCard workOrderId={wo.id} closed={isFinal(wo.status)} staff={staff} t={t} lang={lang} />

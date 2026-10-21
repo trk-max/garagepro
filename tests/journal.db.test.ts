@@ -117,7 +117,8 @@ describe("journal : clients et véhicules", () => {
     );
     const order = await prisma.workOrder.findUniqueOrThrow({ where: { id: wo.id } });
     expect((await lines(order.customerId)).map((l) => l.action)).toEqual(["customer.create"]);
-    expect((await lines(order.vehicleId)).map((l) => l.action)).toEqual(["vehicle.create"]);
+    // Check-in also gives the car its QR Code (V7.8).
+    expect((await lines(order.vehicleId)).map((l) => l.action)).toEqual(["vehicle.create", "vehicle.qrIssue"]);
   });
 });
 

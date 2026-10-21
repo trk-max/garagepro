@@ -67,13 +67,18 @@ export async function voidLaborEntryAction(entryId: string, workOrderId: string,
   }
 }
 
-/** Adds the SUGGESTED labour line (the user clicks; never automatic). */
-export async function addSuggestedLaborLineAction(workOrderId: string): Promise<ActionResult> {
+/**
+ * Adds the SUGGESTED labour line (the user clicks; never automatic). With several
+ * mechanics, the user chooses the basis: duration of the job (elapsed) or the
+ * sum of everyone's hours (person-hours).
+ */
+export async function addSuggestedLaborLineAction(workOrderId: string, mode: "ELAPSED" | "PERSON" = "ELAPSED"): Promise<ActionResult> {
   try {
     const actor = await requirePermission("viewWorkOrders");
     const woId = id.parse(workOrderId);
     const [summary, settings] = await Promise.all([laborSummary(woId), getSettings()]);
-    const missing = summary.suggestedX100 - summary.billedX100;
+    const basis = mode === "PERSON" ? summary.suggestedPersonX100 : summary.suggestedElapsedX100;
+    const missing = basis - summary.billedX100;
     if (missing <= 0) throw new AppError("invalid", {}, 409);
     await addLine(woId, { type: "LABOR", description: "Main d'œuvre", quantityX100: missing, unitPrice: settings.laborRate }, actor);
     refresh(workOrderId);

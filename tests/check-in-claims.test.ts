@@ -21,6 +21,7 @@ vi.mock("@/lib/prisma", () => {
         return {};
       },
       create: async () => ({ id: "v-new" }),
+      updateMany: async () => ({ count: 0 }), // QR at check-in: this car already has one
     },
     workOrder: { create: async () => (db.createdOrders++, { id: "wo-new" }) },
     workOrderEvent: { create: async () => ({}) },

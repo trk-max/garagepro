@@ -15,6 +15,9 @@ export default async function CompanyLoginPage() {
       <Link href="/entreprise/mot-de-passe" className="block text-sm underline-offset-4 hover:underline">
         {t.v7.company.forgot}
       </Link>
+      <Link href="/" className="f-label mt-4 inline-flex items-center gap-2 border px-4 py-2 text-xs hover:border-foreground">
+        ← {t.v7.company.backToSite}
+      </Link>
     </div>
   );
 }

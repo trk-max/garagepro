@@ -116,6 +116,11 @@ export const v7En: typeof v7Fr = {
     noData: "No data for the period.",
     annualLeaveDays: "Paid leave per year (days)",
     annualLeaveHint: "From 1 January to 31 December, no carry-over. Empty = not set.",
+    contractType: "Contract type",
+    contractTypes: { CDI: "Permanent (CDI)", CDD: "Fixed-term (CDD)", SIVP: "SIVP", OTHER: "Other (not mentioned)" },
+    recipientName: "Recipient (name)",
+    recipientAddress: "Recipient's address",
+    notResigning: "I confirm the employee is neither resigning nor being dismissed (otherwise this sentence is not written).",
   },
   calendar: {
     title: "Calendar",
@@ -154,6 +159,11 @@ export const v7En: typeof v7Fr = {
     none: "No time recorded.",
     entries: "Timer entries ({n})",
     runningOn: "Timer running: {n}",
+    askBasis: "{n} mechanics worked on this repair: which labour should be billed?",
+    billElapsed: "Duration of the job: {h} h",
+    billPerson: "Sum of everyone's hours: {h} h",
+    askHint: "Example: 2 mechanics together for 2 h = 2 h of job time, 4 person-hours. Employee reports always count each person's hours.",
+    recorded: "Recorded time",
   },
   insurance: {
     title: "Insurance",
@@ -163,6 +173,7 @@ export const v7En: typeof v7Fr = {
     decision: "Decision",
     decisions: { "": "Pending", APPROVED: "Approved", PARTIAL: "Partly approved", REJECTED: "Rejected" },
     waitingSince: "Waiting for {n} day(s)",
+    answeredAfter: "Insurer's answer: {decision}, received after {n} day(s). The waiting alert has stopped.",
   },
   parts: {
     title: "Missing parts",
@@ -303,6 +314,7 @@ export const v7En: typeof v7Fr = {
     noCompanies: "No company has access yet. Search for a customer above to start.",
     accountsCount: "{n} account(s)",
     vehiclesCount: "{n} vehicle(s)",
+    backToSite: "Back to the site",
   },
   settingsV7: {
     legalTitle: "Company (work certificates)",
@@ -325,6 +337,15 @@ export const v7En: typeof v7Fr = {
     alertOrderLateHours: "Promised delivery overdue by more than (hours)",
     alertPartLateDays: "Expected part late by more than (days)",
     alertInsuranceDays: "Insurance without answer for more than (days)",
+    legalIntro: "Printed on work certificates. Nothing is invented: an empty field is simply left out (except the mandatory ones).",
+    legalAddress: "Registered office address",
+    legalAddressHint: "Empty = the garage's address (Settings).",
+    legalCapital: "Share capital",
+    registryNumber: "Registration number (RNE / trade register)",
+    registryCity: "Trade register city",
+    registryCityHint: "Empty = \"Registre National des Entreprises\".",
+    optionalHint: "Optional.",
+    taxIdHint: "Tax ID, phone and e-mail come from Settings → Garage.",
   },
   profit: {
     title: "Repair profitability",
@@ -423,6 +444,8 @@ export const v7En: typeof v7Fr = {
     publicIntro: "Vehicle looked after by our garage.",
     trackHint: "With the 4-digit code received when the vehicle was dropped off",
     staffHint: "Garage staff or business customer: sign in to see the history.",
+    cardHint: "Created automatically when the vehicle comes in. Stick the label in the car.",
+    printLabel: "Print the label",
   },
   alerts: {
     types: {

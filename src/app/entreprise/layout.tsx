@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { GpMonogram, GpWordmark } from "@/components/brand/garagepro-logo";
 import { LangSwitch } from "@/components/garage/lang-switch";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -15,11 +16,13 @@ export default async function CompanyLayout({ children }: { children: React.Reac
     <div className="min-h-dvh bg-background">
       <header className="dark border-b border-[#303030] bg-black text-white">
         <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-3">
-          <GpMonogram className="h-8 w-auto" aria-hidden />
-          <span className="min-w-0">
-            <GpWordmark className="h-2.5 w-auto" aria-hidden />
-            <span className="f-label block text-[0.625rem] text-white/60">{t.v7.company.portalTitle}</span>
-          </span>
+          <Link href="/" className="flex items-center gap-3" aria-label={t.v7.company.backToSite}>
+            <GpMonogram className="h-8 w-auto" aria-hidden />
+            <span className="min-w-0">
+              <GpWordmark className="h-2.5 w-auto" aria-hidden />
+              <span className="f-label block text-[0.625rem] text-white/60">{t.v7.company.portalTitle}</span>
+            </span>
+          </Link>
           <div className="ms-auto flex items-center gap-2">
             <LangSwitch />
             <ThemeToggle />

@@ -7,7 +7,7 @@ import { PrintButton } from "@/components/garage/print-button";
 import { LeaveBadge } from "@/components/team/badges";
 import { ReasonButton } from "@/components/team/prompt-action";
 import { Button } from "@/components/ui/button";
-import { Card, CardTitle, Field, NativeSelect, PageHeader, Table, Td, Th } from "@/components/ui/field";
+import { Textarea, Card, CardTitle, Field, NativeSelect, PageHeader, Table, Td, Th } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { utcToZoned, zonedToUtc, addDays } from "@/lib/booking";
 import { minutesToHours } from "@/lib/attendance";
@@ -42,7 +42,7 @@ export default async function EmployeePage({ params, searchParams }: PageProps) 
   const to = zonedToUtc(addDays(toDay, 1), "00:00", tz);
 
   const [employee, report, punches, certificates, balance] = await Promise.all([
-    prisma.user.findUnique({ where: { id }, select: { id: true, name: true, role: true, isActive: true, jobTitle: true, hireDate: true, nationalId: true, annualLeaveDays: true, hourlyCost: true } }),
+    prisma.user.findUnique({ where: { id }, select: { id: true, name: true, role: true, isActive: true, jobTitle: true, hireDate: true, nationalId: true, annualLeaveDays: true, hourlyCost: true, contractType: true } }),
     employeeReport(id, from, to),
     listPunches(id, from, to),
     listCertificates(id),
@@ -283,6 +283,16 @@ export default async function EmployeePage({ params, searchParams }: PageProps) 
             <Field label={v.team.nationalId}>
               <Input name="nationalId" maxLength={12} defaultValue={employee.nationalId ?? ""} autoComplete="off" dir="ltr" />
             </Field>
+            <Field label={v.team.contractType}>
+              <NativeSelect name="contractType" defaultValue={employee.contractType ?? ""}>
+                <option value="">—</option>
+                {(["CDI", "CDD", "SIVP", "OTHER"] as const).map((c) => (
+                  <option key={c} value={c}>
+                    {v.team.contractTypes[c]}
+                  </option>
+                ))}
+              </NativeSelect>
+            </Field>
             <Field label={v.team.annualLeaveDays} hint={v.team.annualLeaveHint}>
               <Input type="number" name="annualLeaveDays" min={0} max={60} step={1} inputMode="numeric" defaultValue={employee.annualLeaveDays ?? ""} />
             </Field>
@@ -309,6 +319,18 @@ export default async function EmployeePage({ params, searchParams }: PageProps) 
               <Field label={v.team.purpose}>
                 <Input name="purpose" maxLength={120} />
               </Field>
+              <Field label={v.team.recipientName} hint={t.v7.settingsV7.optionalHint}>
+                <Input name="recipientName" maxLength={150} />
+              </Field>
+              <Field label={v.team.recipientAddress} className="sm:col-span-2">
+                <Textarea name="recipientAddress" rows={2} maxLength={300} />
+              </Field>
+              {employee.isActive && (
+                <label className="flex items-start gap-2 text-sm sm:col-span-2">
+                  <input type="checkbox" name="notResigning" className="mt-0.5 size-4" />
+                  {v.team.notResigning}
+                </label>
+              )}
               {!employee.isActive && (
                 <Field label={v.team.endDate}>
                   <Input type="date" name="endDate" required />

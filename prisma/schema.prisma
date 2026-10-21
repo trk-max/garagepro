@@ -149,6 +149,8 @@ model User {
   nationalId      String?
   /// Jours de congé payé par an (année civile, du 1er janvier au 31 décembre). null = non défini.
   annualLeaveDays Int?
+  /// Type de contrat (attestation de travail) : "CDI", "CDD", "SIVP" ou "OTHER". null = non renseigné.
+  contractType    String?
   /// Coût horaire de l'employé pour le garage (millimes / heure). null = coût horaire du garage.
   hourlyCost      Int?
   createdAt       DateTime  @default(now())
@@ -518,6 +520,12 @@ model Setting {
   legalName              String?
   legalRepName           String?
   legalRepTitle          String?
+  /// Attestations : capital social (texte, ex. « 50 000 DT »), adresse du siège si différente
+  /// de l'adresse du garage, n° et ville du registre (RNE / registre du commerce). Tous facultatifs.
+  legalCapital           String?
+  legalAddress           String?
+  registryNumber         String?
+  registryCity           String?
   city                   String?
   /// Pointage : "CODE" (code de la borne), "NETWORK" (réseau du garage) ou "CODE_AND_NETWORK".
   clockMode              String   @default("CODE")

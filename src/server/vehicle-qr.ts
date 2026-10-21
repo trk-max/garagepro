@@ -17,7 +17,7 @@ import { reserveAttempt } from "@/server/rate-limit";
  * login, the company account of that vehicle, or the customer's tracking code.
  */
 export const QR_TOKEN = /^[A-Za-z0-9_-]{32}$/;
-const newToken = () => randomBytes(24).toString("base64url");
+export const newToken = () => randomBytes(24).toString("base64url");
 
 /** Creates the vehicle's QR, or renews it (the previous label stops working at once). */
 export async function issueVehicleQr(actor: StaffUser, vehicleId: string) {

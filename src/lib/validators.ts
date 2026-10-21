@@ -448,6 +448,7 @@ export const employeeProfileSchema = z.object({
   hireDate: z.preprocess(emptyToUndefined, isoDay.optional()),
   nationalId: z.preprocess(emptyToUndefined, z.string().trim().regex(/^[A-Z0-9]{6,12}$/i).optional()),
   annualLeaveDays: z.preprocess(emptyToUndefined, z.coerce.number().int().min(0).max(60).optional()),
+  contractType: z.preprocess(emptyToUndefined, z.enum(["CDI", "CDD", "SIVP", "OTHER"]).optional()),
 });
 
 export const laborManualSchema = z.object({ userId: id, from: localDateTime, to: localDateTime, note: optionalText(300) });
@@ -484,7 +485,25 @@ export const partNeedUpdateSchema = z.object({
   supplierId: optionalId,
 });
 
-export const certificateSchema = z.object({ purpose: optionalText(120), endDate: z.preprocess(emptyToUndefined, isoDay.optional()) });
+export const certificateSchema = z.object({
+  purpose: optionalText(120),
+  endDate: z.preprocess(emptyToUndefined, isoDay.optional()),
+  /** Checkbox: the issuer confirms the employee is neither resigning nor being dismissed. */
+  notResigning: z.preprocess((v) => v === "on" || v === "true", z.boolean()).default(false),
+  recipientName: optionalText(150),
+  recipientAddress: optionalText(300),
+});
+
+export const companyLegalSchema = z.object({
+  legalName: optionalText(200),
+  legalAddress: optionalText(300),
+  city: optionalText(80),
+  legalRepName: optionalText(120),
+  legalRepTitle: optionalText(80),
+  legalCapital: optionalText(60),
+  registryNumber: optionalText(60),
+  registryCity: optionalText(80),
+});
 
 export const companyUserSchema = z.object({
   email: z.string().trim().toLowerCase().email().max(200),
@@ -504,13 +523,8 @@ export const companyResetSchema = z.object({
 });
 
 export const settingsV7Schema = z.object({
-  legalName: optionalText(200),
-  legalRepName: optionalText(120),
-  legalRepTitle: optionalText(80),
-  city: optionalText(80),
   clockMode: z.enum(["CODE", "NETWORK", "CODE_AND_NETWORK"]),
   clockNetworks: optionalText(500),
-  laborBillingMode: z.enum(["ELAPSED", "PERSON"]),
   alertOrderLateHours: z.coerce.number().int().min(ALERT_LIMITS.alertOrderLateHours.min).max(ALERT_LIMITS.alertOrderLateHours.max),
   alertPartLateDays: z.coerce.number().int().min(ALERT_LIMITS.alertPartLateDays.min).max(ALERT_LIMITS.alertPartLateDays.max),
   alertInsuranceDays: z.coerce.number().int().min(ALERT_LIMITS.alertInsuranceDays.min).max(ALERT_LIMITS.alertInsuranceDays.max),

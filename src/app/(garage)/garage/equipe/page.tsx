@@ -16,6 +16,8 @@ import { prisma } from "@/lib/prisma";
 import { listLeaves } from "@/server/leaves";
 import { getSettings } from "@/server/settings";
 import { teamPresence } from "@/server/timeclock";
+import { can } from "@/lib/permissions";
+import { CompanyLegalCard } from "@/components/team/company-legal-card";
 
 /** Managers: who is here, requests to decide, employees' files. */
 export default async function TeamPage() {
@@ -33,6 +35,14 @@ export default async function TeamPage() {
   return (
     <div className="mx-auto max-w-6xl space-y-6 p-4 sm:p-6">
       <PageHeader title={v.team.title} />
+      {can(staff.role, "issueCertificates") && (
+        <details className="border p-0 [&[open]]:pb-0">
+          <summary className="cursor-pointer px-4 py-3 text-sm font-medium">{v.settingsV7.legalTitle}</summary>
+          <div className="px-1 pb-1">
+            <CompanyLegalCard t={t} settings={settings} />
+          </div>
+        </details>
+      )}
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardTitle>{v.team.presence}</CardTitle>

@@ -116,6 +116,11 @@ export const v7Ar: typeof v7Fr = {
     noData: "لا توجد بيانات في هذه الفترة.",
     annualLeaveDays: "العطل خالصة الأجر في السنة (أيام)",
     annualLeaveHint: "من 1 جانفي إلى 31 ديسمبر، بدون ترحيل. فارغ = غير محدد.",
+    contractType: "نوع العقد",
+    contractTypes: { CDI: "عقد غير محدد المدة (CDI)", CDD: "عقد محدد المدة (CDD)", SIVP: "SIVP", OTHER: "آخر (لا يُذكر)" },
+    recipientName: "المرسل إليه (الاسم)",
+    recipientAddress: "عنوان المرسل إليه",
+    notResigning: "أؤكد أن الموظف ليس مستقيلاً ولا في إجراءات طرد (وإلا لا تُكتب هذه الجملة).",
   },
   calendar: {
     title: "الرزنامة",
@@ -154,6 +159,11 @@ export const v7Ar: typeof v7Fr = {
     none: "لا يوجد وقت مسجّل.",
     entries: "تفاصيل المؤقتات ({n})",
     runningOn: "مؤقت يعمل: {n}",
+    askBasis: "عمل {n} ميكانيكيين في هذا الإصلاح: أي يد عاملة تُفوتر؟",
+    billElapsed: "مدة التدخل: {h} س",
+    billPerson: "مجموع ساعات كل واحد: {h} س",
+    askHint: "مثال: ميكانيكيان معاً لمدة ساعتين = ساعتا تدخل، 4 ساعات-أشخاص. تقارير الموظفين تحسب دائماً ساعات كل واحد.",
+    recorded: "الوقت المسجل",
   },
   insurance: {
     title: "التأمين",
@@ -163,6 +173,7 @@ export const v7Ar: typeof v7Fr = {
     decision: "القرار",
     decisions: { "": "قيد الانتظار", APPROVED: "موافقة", PARTIAL: "موافقة جزئية", REJECTED: "رفض" },
     waitingSince: "في الانتظار منذ {n} يوم",
+    answeredAfter: "رد التأمين: {decision}، وصل بعد {n} يوم. توقف تنبيه الانتظار.",
   },
   parts: {
     title: "قطع ناقصة",
@@ -303,6 +314,7 @@ export const v7Ar: typeof v7Fr = {
     noCompanies: "لا توجد أي مؤسسة لها دخول بعد. ابحث عن حريف أعلاه للبدء.",
     accountsCount: "{n} حساب",
     vehiclesCount: "{n} سيارة",
+    backToSite: "العودة إلى الموقع",
   },
   settingsV7: {
     legalTitle: "المؤسسة (شهادات العمل)",
@@ -325,6 +337,15 @@ export const v7Ar: typeof v7Fr = {
     alertOrderLateHours: "تجاوز موعد التسليم بأكثر من (ساعات)",
     alertPartLateDays: "تأخر القطعة المنتظرة بأكثر من (أيام)",
     alertInsuranceDays: "التأمين بدون رد منذ أكثر من (أيام)",
+    legalIntro: "تُطبع على شهادات العمل. لا شيء مختلق: الحقل الفارغ يُحذف ببساطة (ما عدا الحقول الإجبارية).",
+    legalAddress: "عنوان المقر الاجتماعي",
+    legalAddressHint: "فارغ = عنوان الورشة (الإعدادات).",
+    legalCapital: "رأس المال",
+    registryNumber: "رقم التسجيل (RNE / السجل التجاري)",
+    registryCity: "مدينة السجل التجاري",
+    registryCityHint: "فارغ = « السجل الوطني للمؤسسات ».",
+    optionalHint: "اختياري.",
+    taxIdHint: "المعرف الجبائي والهاتف والبريد من الإعدادات ← الورشة.",
   },
   profit: {
     title: "مردودية الإصلاح",
@@ -423,6 +444,8 @@ export const v7Ar: typeof v7Fr = {
     publicIntro: "سيارة تتابعها ورشتنا.",
     trackHint: "بالرمز ذي 4 أرقام المسلَّم عند استقبال السيارة",
     staffHint: "فريق الورشة أو حريف مهني: سجّل الدخول لرؤية السجل.",
+    cardHint: "أُنشئ آلياً عند دخول السيارة. ألصق الملصق في السيارة.",
+    printLabel: "طباعة الملصق",
   },
   alerts: {
     types: {

@@ -115,6 +115,11 @@ export const v7Fr = {
     noData: "Aucune donnée sur la période.",
     annualLeaveDays: "Congés payés par an (jours)",
     annualLeaveHint: "Du 1er janvier au 31 décembre, sans report. Vide = non défini.",
+    contractType: "Type de contrat",
+    contractTypes: { CDI: "CDI (durée indéterminée)", CDD: "CDD (durée déterminée)", SIVP: "SIVP", OTHER: "Autre (non mentionné)" },
+    recipientName: "Destinataire (nom)",
+    recipientAddress: "Adresse du destinataire",
+    notResigning: "Je confirme que l'employé n'est ni démissionnaire, ni en procédure de licenciement (sinon cette phrase n'est pas écrite).",
   },
   calendar: {
     title: "Calendrier",
@@ -153,6 +158,11 @@ export const v7Fr = {
     none: "Aucun temps enregistré.",
     entries: "Détail des chronos ({n})",
     runningOn: "Chrono en cours : {n}",
+    askBasis: "{n} mécaniciens ont travaillé sur cette réparation : quelle main-d'œuvre facturer ?",
+    billElapsed: "Durée de l'intervention : {h} h",
+    billPerson: "Somme des heures de chacun : {h} h",
+    askHint: "Exemple : 2 mécaniciens ensemble pendant 2 h = 2 h d'intervention, 4 h-personnes. Les rapports des employés comptent toujours les heures de chacun.",
+    recorded: "Temps enregistré",
   },
   insurance: {
     title: "Assurance",
@@ -162,6 +172,7 @@ export const v7Fr = {
     decision: "Décision",
     decisions: { "": "En attente", APPROVED: "Accord", PARTIAL: "Accord partiel", REJECTED: "Refus" },
     waitingSince: "En attente depuis {n} jour(s)",
+    answeredAfter: "Réponse de l'assurance : {decision}, reçue après {n} jour(s). L'alerte d'attente est arrêtée.",
   },
   parts: {
     title: "Pièces manquantes",
@@ -302,6 +313,7 @@ export const v7Fr = {
     noCompanies: "Aucune entreprise n'a encore d'accès. Cherchez un client ci-dessus pour commencer.",
     accountsCount: "{n} compte(s)",
     vehiclesCount: "{n} véhicule(s)",
+    backToSite: "Retour au site",
   },
   settingsV7: {
     legalTitle: "Entreprise (attestations de travail)",
@@ -324,6 +336,15 @@ export const v7Fr = {
     alertOrderLateHours: "Livraison promise dépassée depuis plus de (heures)",
     alertPartLateDays: "Pièce attendue en retard depuis plus de (jours)",
     alertInsuranceDays: "Assurance sans réponse depuis plus de (jours)",
+    legalIntro: "Ces informations sont imprimées sur les attestations de travail. Rien n'est inventé : un champ vide est simplement omis (sauf les champs obligatoires).",
+    legalAddress: "Adresse du siège social",
+    legalAddressHint: "Vide = adresse du garage (Paramètres).",
+    legalCapital: "Capital social",
+    registryNumber: "N° d'immatriculation (RNE / registre du commerce)",
+    registryCity: "Ville du registre du commerce",
+    registryCityHint: "Vide = « Registre National des Entreprises ».",
+    optionalHint: "Facultatif.",
+    taxIdHint: "Le matricule fiscal, le téléphone et l'e-mail viennent de Paramètres → Garage.",
   },
   profit: {
     title: "Rentabilité de la réparation",
@@ -422,6 +443,8 @@ export const v7Fr = {
     publicIntro: "Véhicule suivi par notre garage.",
     trackHint: "Avec le code à 4 chiffres reçu à la réception du véhicule",
     staffHint: "Équipe du garage ou client professionnel : connectez-vous pour voir l'historique.",
+    cardHint: "Créé automatiquement à l'entrée du véhicule. Collez l'étiquette dans la voiture.",
+    printLabel: "Imprimer l'étiquette",
   },
   alerts: {
     types: {

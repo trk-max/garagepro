@@ -1,4 +1,5 @@
 import "server-only";
+import { newToken as newQrToken } from "@/server/vehicle-qr";
 import { consumeReservations, releaseAllFor } from "@/server/parts";
 import { audit } from "@/server/audit";
 import { assertQualityApproved, resetQualityApproval } from "@/server/quality";
@@ -267,6 +268,10 @@ export async function createWorkOrder(input: CreateWorkOrderInput, actor: StaffU
     if (input.mileageIn !== undefined) {
       await tx.vehicle.update({ where: { id: vehicleId }, data: { mileage: input.mileageIn } });
     }
+
+    // The car enters the garage: give it its QR Code if it has none yet (never replaces an existing one).
+    const { count: qrIssued } = await tx.vehicle.updateMany({ where: { id: vehicleId, qrToken: null }, data: { qrToken: newQrToken(), qrIssuedAt: new Date() } });
+    if (qrIssued) await audit(tx, actor, "vehicle.qrIssue", "Vehicle", vehicleId, { before: { hadQr: false }, after: { hasQr: true, atCheckIn: true } });
 
     const wo = await tx.workOrder.create({
       data: {

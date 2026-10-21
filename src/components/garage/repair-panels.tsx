@@ -59,7 +59,9 @@ export async function RepairPanels({ wo, staff, t, lang, tz }: { wo: Wo; staff: 
   const v = t.v7;
   const final = isFinal(wo.status);
   const mine = labor.running.find((e) => e.userId === staff.id);
-  const missingHours = labor.suggestedX100 - labor.billedX100;
+  const missingElapsed = labor.suggestedElapsedX100 - labor.billedX100;
+  const missingPerson = labor.suggestedPersonX100 - labor.billedX100;
+  const twoBases = labor.mechanics >= 2 && labor.suggestedPersonX100 !== labor.suggestedElapsedX100;
   const qcDone = !!qc && qc.roadTest !== null && QC_KEYS.every((k) => qc[k]);
   const nowLocal = utcToZoned(new Date(), tz);
   const nowInput = `${nowLocal.date}T${nowLocal.time}`;
@@ -109,11 +111,27 @@ export async function RepairPanels({ wo, staff, t, lang, tz }: { wo: Wo; staff: 
           </div>
         </dl>
         <p className="mt-2 text-xs text-muted-foreground">{v.labor.explain}</p>
-        {missingHours > 0 && !final && (
+        {!final && twoBases && missingElapsed > 0 && (
+          <div className="mt-3 border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+            <p className="font-medium">{fmt(v.labor.askBasis, { n: labor.mechanics })}</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <ActionButton size="sm" variant="outline" action={addSuggestedLaborLineAction.bind(null, wo.id, "ELAPSED")}>
+                {fmt(v.labor.billElapsed, { h: formatQty(missingElapsed, lang) })}
+              </ActionButton>
+              {missingPerson > 0 && (
+                <ActionButton size="sm" variant="outline" action={addSuggestedLaborLineAction.bind(null, wo.id, "PERSON")}>
+                  {fmt(v.labor.billPerson, { h: formatQty(missingPerson, lang) })}
+                </ActionButton>
+              )}
+            </div>
+            <p className="mt-2 text-xs text-muted-foreground">{v.labor.askHint}</p>
+          </div>
+        )}
+        {!final && !twoBases && missingElapsed > 0 && (
           <p className="mt-2 flex flex-wrap items-center gap-2 text-sm">
-            {fmt(v.labor.suggested, { mode: v.labor.mode[labor.mode] })} : <strong>{formatQty(labor.suggestedX100, lang)} h</strong>
-            <ActionButton size="sm" variant="outline" action={addSuggestedLaborLineAction.bind(null, wo.id)}>
-              {fmt(v.labor.addLine, { h: formatQty(missingHours, lang) })}
+            {v.labor.recorded} : <strong>{formatQty(labor.suggestedElapsedX100, lang)} h</strong>
+            <ActionButton size="sm" variant="outline" action={addSuggestedLaborLineAction.bind(null, wo.id, "ELAPSED")}>
+              {fmt(v.labor.addLine, { h: formatQty(missingElapsed, lang) })}
             </ActionButton>
           </p>
         )}
@@ -335,8 +353,15 @@ export async function RepairPanels({ wo, staff, t, lang, tz }: { wo: Wo; staff: 
       {(wo.status === "WAITING_INSURANCE" || wo.insurerName || can(staff.role, "manageRepairFollowUp")) && (
         <Card className={cn(wo.status === "WAITING_INSURANCE" && "border-fuchsia-500")}>
           <CardTitle>{v.insurance.title}</CardTitle>
-          {wo.status === "WAITING_INSURANCE" && wo.insuranceRequestedAt && (
-            <p className="mb-2 text-sm text-fuchsia-700 dark:text-fuchsia-300">{fmt(v.insurance.waitingSince, { n: Math.floor((Date.now() - wo.insuranceRequestedAt.getTime()) / 86_400_000) })}</p>
+          {wo.insuranceDecision && wo.insuranceRequestedAt && wo.insuranceDecidedAt ? (
+            <p className="mb-2 text-sm text-emerald-700 dark:text-emerald-400">
+              {fmt(v.insurance.answeredAfter, { decision: v.insurance.decisions[wo.insuranceDecision as keyof typeof v.insurance.decisions] ?? wo.insuranceDecision, n: Math.max(0, Math.round((wo.insuranceDecidedAt.getTime() - wo.insuranceRequestedAt.getTime()) / 86_400_000)) })}
+            </p>
+          ) : (
+            wo.status === "WAITING_INSURANCE" &&
+            wo.insuranceRequestedAt && (
+              <p className="mb-2 text-sm text-fuchsia-700 dark:text-fuchsia-300">{fmt(v.insurance.waitingSince, { n: Math.floor((Date.now() - wo.insuranceRequestedAt.getTime()) / 86_400_000) })}</p>
+            )
           )}
           {can(staff.role, "manageRepairFollowUp") && !final ? (
             <ActionForm action={updateInsuranceAction.bind(null, wo.id)} reset={false} className="grid gap-2 sm:grid-cols-2">

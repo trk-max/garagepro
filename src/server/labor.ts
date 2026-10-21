@@ -95,6 +95,10 @@ export async function laborSummary(workOrderId: string, now = new Date()) {
     running: valid.filter((e) => !e.endedAt),
     billedX100: billed._sum.quantityX100 ?? 0,
     suggestedX100: suggestedBilledX100(intervals, mode),
+    // Both bases, so the team chooses on each repair when several mechanics worked.
+    suggestedElapsedX100: suggestedBilledX100(intervals, "ELAPSED"),
+    suggestedPersonX100: suggestedBilledX100(intervals, "PERSON"),
+    mechanics: byUser.size,
   };
 }
 

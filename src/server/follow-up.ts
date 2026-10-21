@@ -133,9 +133,10 @@ export async function delays(now = new Date(), thresholds?: AlertSettings) {
       where: { status: "WAITING_INSURANCE" },
       orderBy: { insuranceRequestedAt: "asc" },
       take: 100,
-      select: { id: true, number: true, insurerName: true, insuranceClaimRef: true, insuranceRequestedAt: true, updatedAt: true, vehicle: { select: { plate: true } }, customer: { select: { name: true, phone: true } } },
+      select: { id: true, number: true, insurerName: true, insuranceClaimRef: true, insuranceRequestedAt: true, insuranceDecision: true, updatedAt: true, vehicle: { select: { plate: true } }, customer: { select: { name: true, phone: true } } },
     }),
   ]);
-  const insuranceLate = insurance.filter((w) => (w.insuranceRequestedAt ?? w.updatedAt) < cut.insurance);
+  // The counter stops as soon as the insurer's answer is recorded (accord, partiel or refus).
+  const insuranceLate = insurance.filter((w) => !w.insuranceDecision && (w.insuranceRequestedAt ?? w.updatedAt) < cut.insurance);
   return { lateOrders, lateParts, waitingParts, insurance, insuranceLate, cutoffs: cut };
 }

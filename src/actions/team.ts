@@ -8,7 +8,7 @@ import { wholeDaysSpan } from "@/lib/leaves";
 import { requirePermission } from "@/lib/session";
 import { validNetworks } from "@/lib/timeclock";
 import {
-  certificateSchema,
+  companyLegalSchema, certificateSchema,
   employeeProfileSchema,
   formToObject,
   id,
@@ -120,19 +120,20 @@ export async function updateEmployeeProfileAction(userId: string, form: FormData
     const v = employeeProfileSchema.parse(formToObject(form));
     const uid = id.parse(userId);
     await prisma.$transaction(async (tx) => {
-      const before = await tx.user.findUnique({ where: { id: uid }, select: { jobTitle: true, hireDate: true, nationalId: true, annualLeaveDays: true } });
+      const before = await tx.user.findUnique({ where: { id: uid }, select: { jobTitle: true, hireDate: true, nationalId: true, annualLeaveDays: true, contractType: true } });
       if (!before) throw new AppError("notFound", {}, 404);
       const data = {
         jobTitle: v.jobTitle ?? null,
         hireDate: v.hireDate ? new Date(`${v.hireDate}T00:00:00Z`) : null,
         nationalId: v.nationalId?.toUpperCase() ?? null,
         annualLeaveDays: v.annualLeaveDays ?? null,
+        contractType: v.contractType ?? null,
       };
       await tx.user.update({ where: { id: uid }, data });
       // The ID number is personal: the journal only says it changed.
       await audit(tx, actor, "employee.profile", "User", uid, {
-        before: { jobTitle: before.jobTitle, hireDate: before.hireDate, nationalIdSet: !!before.nationalId, annualLeaveDays: before.annualLeaveDays },
-        after: { jobTitle: data.jobTitle, hireDate: data.hireDate, nationalIdSet: !!data.nationalId, annualLeaveDays: data.annualLeaveDays },
+        before: { jobTitle: before.jobTitle, hireDate: before.hireDate, nationalIdSet: !!before.nationalId, annualLeaveDays: before.annualLeaveDays, contractType: before.contractType },
+        after: { jobTitle: data.jobTitle, hireDate: data.hireDate, nationalIdSet: !!data.nationalId, annualLeaveDays: data.annualLeaveDays, contractType: data.contractType },
       });
     });
     revalidatePath(`/garage/equipe/${uid}`);
@@ -146,7 +147,12 @@ export async function issueCertificateAction(userId: string, form: FormData): Pr
   try {
     const actor = await requirePermission("issueCertificates");
     const v = certificateSchema.parse(formToObject(form));
-    await issueCertificate(actor, id.parse(userId), { purpose: v.purpose, endDate: v.endDate ? new Date(`${v.endDate}T00:00:00Z`) : null });
+    await issueCertificate(actor, id.parse(userId), {
+      purpose: v.purpose,
+      endDate: v.endDate ? new Date(`${v.endDate}T00:00:00Z`) : null,
+      notResigning: v.notResigning,
+      recipient: v.recipientName ? { name: v.recipientName, address: v.recipientAddress ?? null } : null,
+    });
     revalidatePath(`/garage/equipe/${userId}`);
     const { t } = await getI18n();
     return { ok: true, data: { message: t.v7.team.issued } };
@@ -164,26 +170,16 @@ export async function updateSettingsV7Action(form: FormData): Promise<ActionResu
       const before = await tx.setting.findUnique({
         where: { id: "garage" },
         select: {
-          legalName: true,
-          legalRepName: true,
-          legalRepTitle: true,
-          city: true,
           clockMode: true,
           clockNetworks: true,
-          laborBillingMode: true,
           alertOrderLateHours: true,
           alertPartLateDays: true,
           alertInsuranceDays: true,
         },
       });
       const data = {
-        legalName: v.legalName ?? null,
-        legalRepName: v.legalRepName ?? null,
-        legalRepTitle: v.legalRepTitle ?? null,
-        city: v.city ?? null,
         clockMode: v.clockMode,
         clockNetworks: v.clockNetworks ?? null,
-        laborBillingMode: v.laborBillingMode,
         alertOrderLateHours: v.alertOrderLateHours,
         alertPartLateDays: v.alertPartLateDays,
         alertInsuranceDays: v.alertInsuranceDays,
@@ -192,6 +188,36 @@ export async function updateSettingsV7Action(form: FormData): Promise<ActionResu
       await audit(tx, actor, "settings.v7", "Setting", "garage", { before, after: data });
     });
     revalidatePath("/garage", "layout");
+    return { ok: true, data: null };
+  } catch (error) {
+    return toActionError(error);
+  }
+}
+
+/** Équipe → Entreprise (attestations de travail): the company's legal identity. */
+export async function updateCompanyLegalAction(form: FormData): Promise<ActionResult> {
+  try {
+    const actor = await requirePermission("issueCertificates");
+    const v = companyLegalSchema.parse(formToObject(form));
+    const data = {
+      legalName: v.legalName ?? null,
+      legalAddress: v.legalAddress ?? null,
+      city: v.city ?? null,
+      legalRepName: v.legalRepName ?? null,
+      legalRepTitle: v.legalRepTitle ?? null,
+      legalCapital: v.legalCapital ?? null,
+      registryNumber: v.registryNumber ?? null,
+      registryCity: v.registryCity ?? null,
+    };
+    await prisma.$transaction(async (tx) => {
+      const before = await tx.setting.findUnique({
+        where: { id: "garage" },
+        select: { legalName: true, legalAddress: true, city: true, legalRepName: true, legalRepTitle: true, legalCapital: true, registryNumber: true, registryCity: true },
+      });
+      await tx.setting.upsert({ where: { id: "garage" }, update: data, create: { id: "garage", ...data } });
+      await audit(tx, actor, "settings.legal", "Setting", "garage", { before, after: data });
+    });
+    revalidatePath("/garage/equipe", "layout");
     return { ok: true, data: null };
   } catch (error) {
     return toActionError(error);
