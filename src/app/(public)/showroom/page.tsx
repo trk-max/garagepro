@@ -113,11 +113,12 @@ export default async function ShowroomPage({ searchParams }: PageProps) {
                 <input name={name} type="number" min={0} inputMode="numeric" dir="ltr" placeholder={label} defaultValue={value ?? ""} className={control} />
               </label>
             ))}
-            <div className="flex gap-2 bg-background p-2">
+            {/* Narrow cell (1024 px): the two buttons stack instead of spilling out of the form. */}
+            <div className="flex flex-wrap gap-2 bg-background p-2">
               <button type="submit" className="f-label min-h-11 flex-1 bg-foreground px-4 text-background hover:bg-brand-500 hover:text-white">
                 {p.apply}
               </button>
-              <Link href="/showroom" className="f-label grid min-h-11 place-items-center border border-border px-3 text-muted-foreground hover:text-foreground">
+              <Link href="/showroom" className="f-label grid min-h-11 flex-1 place-items-center border border-border px-3 text-muted-foreground hover:text-foreground">
                 {p.reset}
               </Link>
             </div>
