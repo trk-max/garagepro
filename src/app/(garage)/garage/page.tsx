@@ -33,7 +33,7 @@ export default async function DashboardPage() {
     can(role, "viewFinance") ? moneySeries() : null,
     can(role, "viewAppointments") ? todayAppointments() : null,
     can(role, "manageTeam") ? presentNow() : null,
-    can(role, "manageRepairFollowUp") ? listAlerts() : null,
+    can(role, "manageRepairFollowUp") ? listAlerts(undefined, role) : null,
   ]);
   const db = t.v7.dash;
   const media = siteMedia();

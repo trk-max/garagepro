@@ -5,13 +5,15 @@ import { StatusBadge } from "@/components/garage/badges";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle, NativeSelect } from "@/components/ui/field";
 import { PageHeader } from "@/components/ui/field";
-import { fmt, formatDate, formatDateTime, woNumber } from "@/lib/format";
+import { fmt, formatDate, formatDateTime, formatDay, formatMoney, woNumber } from "@/lib/format";
 import { getI18n } from "@/lib/i18n/server";
 import { prisma } from "@/lib/prisma";
 import { requirePageAccess } from "@/lib/session";
 import { listAlerts, type AlertItem, type AlertType } from "@/server/alerts";
 
-const ORDER: AlertType[] = ["lateOrder", "deliveryRisk", "stuck", "latePart", "insurance", "lowStock"];
+const ORDER: AlertType[] = ["cashLow", "lateOrder", "deliveryRisk", "stuck", "latePart", "insurance", "lowStock"];
+/** Alerts without a "late by" duration and timestamp (their own detail line says it all). */
+const NO_DELAY: AlertType[] = ["lowStock", "cashLow"];
 
 function ago(since: Date, now: Date, lang: "fr" | "ar" | "en") {
   const hours = Math.max(0, Math.round(Math.abs(now.getTime() - since.getTime()) / 3_600_000));
@@ -23,10 +25,10 @@ function ago(since: Date, now: Date, lang: "fr" | "ar" | "en") {
 
 /** Repairs late or blocked, with who to call, what to do, and who handles it. */
 export default async function DelaysPage() {
-  await requirePageAccess("manageRepairFollowUp");
+  const me = await requirePageAccess("manageRepairFollowUp");
   const [{ t, lang }, a, staff] = await Promise.all([
     getI18n(),
-    listAlerts(),
+    listAlerts(undefined, me.role),
     prisma.user.findMany({ where: { isActive: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
   ]);
   const v = t.v7.delays;
@@ -51,10 +53,22 @@ export default async function DelaysPage() {
         {x.workOrder && <span>{x.workOrder.plate}</span>}
         {x.workOrder?.status && <StatusBadge status={x.workOrder.status as never} t={t} />}
         {x.label && <span className="font-medium">{x.label}</span>}
+        {x.cash && (
+          <Link href={`/garage/tresorerie?s=${x.cash.scenario}&h=90`} className="font-medium underline-offset-4 hover:underline">
+            {fmt(al.cashDetail, {
+              balance: formatMoney(x.cash.balance, lang),
+              date: formatDay(x.cash.day, lang, { day: "numeric", month: "short" }),
+              threshold: formatMoney(x.cash.threshold, lang),
+              scenario: t.v7.cash.scenarios[x.cash.scenario as keyof typeof t.v7.cash.scenarios] ?? x.cash.scenario,
+              lowest: formatMoney(x.cash.lowest, lang),
+              lowestDate: formatDay(x.cash.lowestDay, lang, { day: "numeric", month: "short" }),
+            })}
+          </Link>
+        )}
         <span className={quiet ? "text-muted-foreground" : "font-semibold text-red-600 dark:text-red-400"}>
-          {x.type === "deliveryRisk" ? fmt(al.dueIn, { d: ago(x.since, now, lang) }) : x.type === "lowStock" ? "" : fmt(v.lateBy, { d: ago(x.since, now, lang) })}
+          {x.type === "deliveryRisk" ? fmt(al.dueIn, { d: ago(x.since, now, lang) }) : NO_DELAY.includes(x.type) ? "" : fmt(v.lateBy, { d: ago(x.since, now, lang) })}
         </span>
-        {x.type !== "lowStock" && <span className="text-xs text-muted-foreground">{formatDateTime(x.since, lang, tz)}</span>}
+        {!NO_DELAY.includes(x.type) && <span className="text-xs text-muted-foreground">{formatDateTime(x.since, lang, tz)}</span>}
         <span className="ms-auto text-xs">
           {x.contact && (
             <>

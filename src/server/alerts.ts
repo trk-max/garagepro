@@ -1,8 +1,11 @@
 import "server-only";
+import type { Role } from "@prisma/client";
 import { AppError } from "@/lib/http";
+import { can } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import type { StaffUser } from "@/lib/session";
 import { audit } from "@/server/audit";
+import { cashLowAlert } from "@/server/cash";
 import { delays } from "@/server/follow-up";
 import { lowStockParts } from "@/server/parts";
 import { getSettings } from "@/server/settings";
@@ -15,8 +18,8 @@ import { ACTIVE_STATUSES } from "@/server/workflow";
  * assigned, marked as handled, or snoozed; handled/snoozed alerts leave the
  * list (no repeated noise) but stay visible in "Traitées / reportées".
  */
-export type AlertType = "lateOrder" | "latePart" | "insurance" | "stuck" | "deliveryRisk" | "lowStock";
-export const ALERT_KEY = /^(lateOrder|latePart|insurance|stuck|deliveryRisk|lowStock):[a-z0-9]{20,40}:[0-9TZ:.\-]{1,40}$/;
+export type AlertType = "lateOrder" | "latePart" | "insurance" | "stuck" | "deliveryRisk" | "lowStock" | "cashLow";
+export const ALERT_KEY = /^(?:(lateOrder|latePart|insurance|stuck|deliveryRisk|lowStock):[a-z0-9]{20,40}:[0-9TZ:.\-]{1,40}|cashLow:(PRUDENT|NORMAL|OPTIMISTIC):\d{4}-\d{2}-\d{2})$/;
 
 export type AlertItem = {
   key: string;
@@ -26,15 +29,21 @@ export type AlertItem = {
   label: string;
   contact?: { name: string; phone: string | null } | null;
   responsible?: string | null;
+  /** cashLow only: first day under the threshold, projected balance that day, lowest point (millimes). */
+  cash?: { scenario: string; day: string; balance: number; lowest: number; lowestDay: string; threshold: number } | null;
   state: { assignedToId: string | null; assignedName: string | null; handledAt: Date | null; snoozedUntil: Date | null; note: string | null } | null;
 };
 
 const STUCK_STATUSES = ACTIVE_STATUSES.filter((s) => s !== "READY");
 const NEAR_END = ["QUALITY_CONTROL", "WASHING", "READY"];
 
-export async function listAlerts(now = new Date()) {
+/**
+ * `viewerRole`: the cash alert (V8.4) is added only for roles allowed to see the forecast
+ * (administrator, manager) — never computed, never shown, for the others.
+ */
+export async function listAlerts(now = new Date(), viewerRole?: Role | null) {
   const settings = await getSettings();
-  const [d, active, low] = await Promise.all([
+  const [d, active, low, cash] = await Promise.all([
     delays(now, settings),
     prisma.workOrder.findMany({
       where: { status: { in: STUCK_STATUSES } },
@@ -52,6 +61,7 @@ export async function listAlerts(now = new Date()) {
       take: 500,
     }),
     lowStockParts(),
+    can(viewerRole, "viewCashForecast") ? cashLowAlert(now) : null,
   ]);
   const wo = (w: { id: string; number: number; status: string; vehicle: { plate: string } }) => ({ id: w.id, number: w.number, plate: w.vehicle.plate, status: w.status });
   const items: Omit<AlertItem, "state">[] = [];
@@ -88,6 +98,17 @@ export async function listAlerts(now = new Date()) {
     items.push({ key: `lowStock:${p.id}:${p.stockX100}`, type: "lowStock", since: p.updatedAt, label: `${p.sku} · ${p.name} (${p.stockX100 / 100} / min ${p.minStockX100 / 100} ${p.unit})`, contact: null });
   }
 
+  if (cash) {
+    items.push({
+      key: `cashLow:${cash.scenario}:${cash.day}`,
+      type: "cashLow",
+      since: new Date(`${cash.day}T12:00:00Z`),
+      label: "",
+      contact: null,
+      cash: { scenario: cash.scenario, day: cash.day, balance: cash.balance, lowest: cash.lowest.amount, lowestDay: cash.lowest.day, threshold: cash.threshold },
+    });
+  }
+
   const states = await prisma.alertState.findMany({ where: { key: { in: items.map((i) => i.key) } } });
   const users = await prisma.user.findMany({ where: { id: { in: states.map((s) => s.assignedToId).filter((x): x is string => !!x) } }, select: { id: true, name: true } });
   const nameOf = new Map(users.map((u) => [u.id, u.name]));
@@ -104,6 +125,7 @@ export type AlertChange = { assignTo?: string | null; handled?: boolean; snoozeD
 
 export async function updateAlert(actor: StaffUser, key: string, change: AlertChange, now = new Date()) {
   if (!ALERT_KEY.test(key)) throw new AppError("invalid", {}, 422);
+  if (key.startsWith("cashLow:") && !can(actor.role, "viewCashForecast")) throw new AppError("forbidden", {}, 403);
   if (change.assignTo) {
     const u = await prisma.user.findUnique({ where: { id: change.assignTo }, select: { isActive: true } });
     if (!u?.isActive) throw new AppError("invalid", {}, 422);
