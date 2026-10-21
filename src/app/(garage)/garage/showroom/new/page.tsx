@@ -9,7 +9,7 @@ import { listSellers } from "@/server/showroom";
 /** New listing, saved as a draft. A seller's listing is always theirs; managers may pick the seller. */
 export default async function NewListingPage() {
   const staff = await requirePageAccess("createListing");
-  const [{ t }, sellers] = await Promise.all([getI18n(), can(staff.role, "manageAllListings") ? listSellers() : null]);
+  const [{ t }, sellers] = await Promise.all([getI18n(), can(staff, "manageAllListings") ? listSellers() : null]);
   return (
     <div className="mx-auto max-w-4xl space-y-4 p-6">
       <PageHeader title={t.showroom.staff.new} />

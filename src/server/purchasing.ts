@@ -2,6 +2,7 @@ import "server-only";
 import { assertCanNumberDocuments } from "@/server/hub";
 import type { PaymentMethod, Prisma, PurchaseOrderStatus, SupplierInvoiceStatus } from "@prisma/client";
 import { AppError } from "@/lib/http";
+import { can } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import type { StaffUser } from "@/lib/session";
 import { audit } from "@/server/audit";
@@ -92,7 +93,7 @@ export async function createPurchaseOrder(
     const cost = new Map(parts.map((p) => [p.id, p.costPrice]));
     if (parts.length !== new Set(input.lines.map((l) => l.partId)).size) throw new AppError("invalid");
 
-    const autoApprove = actor.role === "ADMIN";
+    const autoApprove = can(actor, "approvePurchase");
     const number = await nextNumber(tx, "BC");
     const po = await tx.purchaseOrder.create({
       data: {

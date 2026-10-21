@@ -70,30 +70,51 @@ export function HeroCard({
       )}
       {mechanics && (
         <Panel className="mt-5 flex-1 p-3">
-          <h3 className="px-1 pb-2 text-[13px] font-medium">
-            {o.mechanics} <span className="text-gp-muted">· {mechanics.length}</span>
-          </h3>
-          {mechanics.length === 0 ? (
-            <p className="px-1 py-3 text-[13px] text-gp-muted">{o.noMechanics}</p>
-          ) : (
-            <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-              {mechanics.slice(0, 3).map((m) => (
-                <li key={m.id} className="min-w-0 rounded-[14px] bg-gp-card p-3">
-                  <p className="line-clamp-2 text-[13px] leading-snug font-semibold break-words" title={m.name}>{m.name}</p>
-                  <p className="mt-1 text-xs text-gp-muted">{fmt(o.jobs, { n: m.activeOrders })}</p>
-                  {showPresence && (
-                    <p
-                      className={`mt-2 text-xs font-medium ${m.presence === "ACTIVE" ? "text-gp-success-ink" : m.presence === "ON_BREAK" ? "text-gp-accent-ink" : "text-gp-danger-ink"}`}
-                    >
-                      {m.presence === "ACTIVE" ? o.active : m.presence === "ON_BREAK" ? o.onBreak : o.off}
-                    </p>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
+          <MechanicsList t={t} mechanics={mechanics} showPresence={showPresence} />
         </Panel>
       )}
+    </Surface>
+  );
+}
+
+/** Mechanics now: jobs in progress and (team managers only) presence from the time clock. */
+function MechanicsList({ t, mechanics, showPresence }: { t: Dictionary; mechanics: MechanicNow[]; showPresence: boolean }) {
+  const o = t.v10.overview;
+  return (
+    <>
+      <h3 className="px-1 pb-2 text-[13px] font-medium">
+        {o.mechanics} <span className="text-gp-muted">· {mechanics.length}</span>
+      </h3>
+      {mechanics.length === 0 ? (
+        <p className="px-1 py-3 text-[13px] text-gp-muted">{o.noMechanics}</p>
+      ) : (
+        <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          {mechanics.slice(0, 3).map((m) => (
+            <li key={m.id} className="min-w-0 rounded-[14px] bg-gp-card p-3">
+              <p className="line-clamp-2 text-[13px] leading-snug font-semibold break-words" title={m.name}>{m.name}</p>
+              <p className="mt-1 text-xs text-gp-muted">{fmt(o.jobs, { n: m.activeOrders })}</p>
+              {showPresence && (
+                <p
+                  className={`mt-2 text-xs font-medium ${m.presence === "ACTIVE" ? "text-gp-success-ink" : m.presence === "ON_BREAK" ? "text-gp-accent-ink" : "text-gp-danger-ink"}`}
+                >
+                  {m.presence === "ACTIVE" ? o.active : m.presence === "ON_BREAK" ? o.onBreak : o.off}
+                </p>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </>
+  );
+}
+
+/** V10.3 — the mechanics panel on its own (when the user moved it away from the first card). */
+export function MechanicsCard({ t, mechanics, showPresence }: { t: Dictionary; mechanics: MechanicNow[]; showPresence: boolean }) {
+  return (
+    <Surface className="p-4" aria-label={t.v10.overview.mechanics}>
+      <Panel className="h-full p-3">
+        <MechanicsList t={t} mechanics={mechanics} showPresence={showPresence} />
+      </Panel>
     </Surface>
   );
 }

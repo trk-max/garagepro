@@ -19,7 +19,7 @@ import { dayToInstant } from "@/server/warranties";
  */
 
 function assertCan(actor: StaffUser) {
-  if (!can(actor.role, "manageExpenses")) throw new AppError("forbidden", {}, 403);
+  if (!can(actor, "manageExpenses")) throw new AppError("forbidden", {}, 403);
 }
 
 export async function garageToday(now = new Date()) {

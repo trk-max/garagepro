@@ -9,7 +9,7 @@ import { isFinal } from "@/server/workflow";
 
 /** Starts the chronometer of `userId` (himself, or by a manager) on a work order. */
 export async function startLabor(actor: StaffUser, workOrderId: string, userId = actor.id, now = new Date()) {
-  if (userId !== actor.id && !can(actor.role, "manageLabor")) throw new AppError("forbidden", {}, 403);
+  if (userId !== actor.id && !can(actor, "manageLabor")) throw new AppError("forbidden", {}, 403);
   return prisma.$transaction(async (tx) => {
     const wo = await tx.workOrder.findUnique({ where: { id: workOrderId }, select: { status: true } });
     if (!wo) throw new AppError("notFound", {}, 404);
@@ -35,7 +35,7 @@ export async function stopLabor(actor: StaffUser, entryId: string, now = new Dat
   return prisma.$transaction(async (tx) => {
     const entry = await tx.laborEntry.findUnique({ where: { id: entryId } });
     if (!entry || entry.voidedAt) throw new AppError("notFound", {}, 404);
-    if (entry.userId !== actor.id && !can(actor.role, "manageLabor")) throw new AppError("forbidden", {}, 403);
+    if (entry.userId !== actor.id && !can(actor, "manageLabor")) throw new AppError("forbidden", {}, 403);
     const { count } = await tx.laborEntry.updateMany({ where: { id: entryId, endedAt: null }, data: { endedAt: now } });
     if (count === 0) throw new AppError("laborNotRunning", {}, 409);
     await audit(tx, actor, "labor.stop", "LaborEntry", entryId, { after: { endedAt: now } });
@@ -44,7 +44,7 @@ export async function stopLabor(actor: StaffUser, entryId: string, now = new Dat
 
 /** Manager records time after the fact (forgotten chronometer). */
 export async function addLaborEntry(actor: StaffUser, input: { workOrderId: string; userId: string; startedAt: Date; endedAt: Date; note?: string }) {
-  if (!can(actor.role, "manageLabor")) throw new AppError("forbidden", {}, 403);
+  if (!can(actor, "manageLabor")) throw new AppError("forbidden", {}, 403);
   if (!(input.endedAt > input.startedAt) || input.endedAt.getTime() - input.startedAt.getTime() > 16 * 3_600_000 || input.endedAt.getTime() > Date.now() + 60_000) {
     throw new AppError("laborDates", {}, 422);
   }
@@ -59,7 +59,7 @@ export async function addLaborEntry(actor: StaffUser, input: { workOrderId: stri
 
 /** Wrong entry: voided with a reason (kept in the history), never deleted. */
 export async function voidLaborEntry(actor: StaffUser, entryId: string, reason: string) {
-  if (!can(actor.role, "manageLabor")) throw new AppError("forbidden", {}, 403);
+  if (!can(actor, "manageLabor")) throw new AppError("forbidden", {}, 403);
   return prisma.$transaction(async (tx) => {
     const entry = await tx.laborEntry.findUnique({ where: { id: entryId } });
     if (!entry || entry.voidedAt) throw new AppError("notFound", {}, 404);

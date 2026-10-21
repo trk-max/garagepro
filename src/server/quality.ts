@@ -29,7 +29,7 @@ export async function getQualityCheck(workOrderId: string) {
 
 /** Saves the checklist. Any change after the final validation cancels that validation. */
 export async function saveQualityCheck(actor: StaffUser, workOrderId: string, items: QualityItems) {
-  if (!can(actor.role, "fillQualityCheck")) throw new AppError("forbidden", {}, 403);
+  if (!can(actor, "fillQualityCheck")) throw new AppError("forbidden", {}, 403);
   return prisma.$transaction(async (tx) => {
     const wo = await tx.workOrder.findUnique({ where: { id: workOrderId }, select: { status: true } });
     if (!wo) throw new AppError("notFound", {}, 404);
@@ -65,7 +65,7 @@ const pickQc = (q: Omit<QualityItems, "roadTest"> & { roadTest: string | null; a
 
 /** Final validation by a manager: only when every point is checked. */
 export async function approveQualityCheck(actor: StaffUser, workOrderId: string) {
-  if (!can(actor.role, "approveQualityCheck")) throw new AppError("forbidden", {}, 403);
+  if (!can(actor, "approveQualityCheck")) throw new AppError("forbidden", {}, 403);
   return prisma.$transaction(async (tx) => {
     const qc = await tx.qualityCheck.findUnique({ where: { workOrderId } });
     if (!qcComplete(qc as QualityItems | null)) throw new AppError("qcIncomplete", {}, 409);

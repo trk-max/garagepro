@@ -18,7 +18,7 @@ import { ACTIVE_STATUSES } from "@/server/workflow";
 export type Viewer = { role: Role };
 
 export function assertCan(viewer: Viewer, permission: Permission): void {
-  if (!can(viewer.role, permission)) throw new AppError("forbidden", {}, 403);
+  if (!can(viewer, permission)) throw new AppError("forbidden", {}, 403);
 }
 
 const tz = async () => (await getSettings()).timezone;
@@ -81,7 +81,7 @@ export async function kpis(viewer: Viewer, now = new Date()): Promise<Kpis> {
   const zone = await tz();
   const week = weekWindows(now, zone);
   const [revenue, openNow, openBefore, delivered, low] = await Promise.all([
-    can(viewer.role, "viewFinance") ? received(monthToDateWindows(now, zone)) : null,
+    can(viewer, "viewFinance") ? received(monthToDateWindows(now, zone)) : null,
     prisma.workOrder.count({ where: { status: { in: ACTIVE_STATUSES } } }),
     openOrdersAt(new Date(now.getTime() - 7 * 86_400_000)),
     prisma.workOrder.findMany({ where: { status: "DELIVERED", deliveredAt: { gte: week.previous.from, lt: now } }, select: { deliveredAt: true } }),

@@ -106,7 +106,7 @@ export default async function SupplierInvoicesPage({ searchParams }: PageProps) 
         )}
       </div>
 
-      {can(staff.role, "manageSupplierInvoices") && (
+      {can(staff, "manageSupplierInvoices") && (
         <Card className="h-fit">
           <CardTitle>{t.supplierInvoices.new}</CardTitle>
           <ActionForm action={createSupplierInvoiceAction} reset={false} silent className="grid grid-cols-2 gap-3">

@@ -29,7 +29,7 @@ export default async function CustomersPage({ searchParams }: PageProps) {
   const q = sp.q?.trim() || undefined;
   const [{ t, lang }, recent, page] = await Promise.all([getI18n(), recentCustomers(5), customerCards({ tab, q, take: 20, cursor: sp.cursor ?? null })]);
   const selected = recent.find((c) => c.id === sp.sel) ?? recent[0] ?? null;
-  const canSeeInvoices = can(staff.role, "viewClientInvoices");
+  const canSeeInvoices = can(staff, "viewClientInvoices");
   const unpaid = selected && canSeeInvoices ? await oldestUnpaidInvoice(selected.id) : null;
   const p = t.v10.pages.customers;
 
@@ -62,7 +62,7 @@ export default async function CustomersPage({ searchParams }: PageProps) {
           selected={selected}
           hrefFor={(id) => href({ sel: id, cursor: undefined })}
           createDialogId={CREATE}
-          canCreateOrder={can(staff.role, "viewWorkOrders")}
+          canCreateOrder={can(staff, "viewWorkOrders")}
           unpaid={unpaid}
           canSeeInvoices={canSeeInvoices}
         />

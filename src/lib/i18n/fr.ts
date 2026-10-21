@@ -1,4 +1,5 @@
 import { v10Fr } from "@/lib/i18n/v10-fr";
+import { v103Fr } from "@/lib/i18n/v103-fr";
 import { contractsFr } from "@/lib/i18n/contracts-fr";
 import { v7Fr } from "@/lib/i18n/v7-fr";
 import { showroomFr } from "@/lib/i18n/showroom-fr";
@@ -379,6 +380,8 @@ export const fr = {
     lastAdmin: "Impossible : le garage doit garder au moins un administrateur actif.",
     ownRole: "Vous ne pouvez pas changer votre propre rôle. Demandez à un autre administrateur.",
     ownDelete: "Vous ne pouvez pas supprimer votre propre compte. Demandez à un autre administrateur.",
+    ownAccess: "Vous ne pouvez pas vous retirer la gestion de l’équipe ni les paramètres. Demandez à un autre administrateur.",
+    lastAdminAccess: "Impossible : au moins un administrateur actif doit garder la gestion de l’équipe.",
     passwordMismatch: "Les deux mots de passe ne sont pas identiques.",
     passwordTooShort: "Le mot de passe doit contenir au moins 8 caractères.",
     insufficientStock: "Stock insuffisant : {stock} en stock.",
@@ -939,6 +942,8 @@ export const fr = {
   showroom: showroomFr,
   /** V10 — refonte du tableau de bord. */
   v10: v10Fr,
+  /** V10.3 — accès sur mesure, tableau de bord personnalisé. */
+  v103: v103Fr,
 };
 
 export type Dictionary = typeof fr;

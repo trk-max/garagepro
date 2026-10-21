@@ -162,6 +162,8 @@ model User {
   contractType    String?
   /// Coût horaire de l'employé pour le garage (millimes / heure). null = coût horaire du garage.
   hourlyCost      Int?
+  /// V10.3 — tableau de bord personnalisé : [{ id, visible }] dans l’ordre. null = disposition par défaut.
+  dashboardLayout Json?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
@@ -184,6 +186,25 @@ model User {
   uploadedMedia           WorkOrderMedia[]
   appointments            Appointment[]
   handledClaims           CustomerClaim[]
+  permissionOverrides     UserPermission[]  @relation("PermUser")
+  grantedPermissions      UserPermission[]  @relation("PermGrantedBy")
+}
+
+/// V10.3 — accès sur mesure : exception par employé à la matrice des rôles (src/lib/permissions.ts).
+/// Règle : DENY > GRANT > rôle. Une seule ligne par (employé, permission).
+model UserPermission {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation("PermUser", fields: [userId], references: [id], onDelete: Cascade)
+  /// Nom de la permission (clé de MATRIX).
+  permission  String
+  /// "GRANT" ou "DENY".
+  effect      String
+  grantedById String?
+  grantedBy   User?    @relation("PermGrantedBy", fields: [grantedById], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+
+  @@unique([userId, permission])
 }
 
 // ── Clients & véhicules ──────────────────────────────────────────────────────

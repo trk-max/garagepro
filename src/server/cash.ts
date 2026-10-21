@@ -23,7 +23,7 @@ export const MAX_HORIZON = 90;
 
 /** Reading: readCashForecast (V9: + accountant). Typing the balance: viewCashForecast (administrator + manager). */
 function assertCan(actor: StaffUser, permission: "readCashForecast" | "viewCashForecast" = "readCashForecast") {
-  if (!can(actor.role, permission)) throw new AppError("forbidden", {}, 403);
+  if (!can(actor, permission)) throw new AppError("forbidden", {}, 403);
 }
 
 export const isScenario = (s: unknown): s is Scenario => typeof s === "string" && (SCENARIO_LIST as string[]).includes(s);

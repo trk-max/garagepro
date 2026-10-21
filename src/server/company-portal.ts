@@ -117,7 +117,7 @@ export async function listCompanyUsers(customerId: string) {
 }
 
 export async function createCompanyUser(actor: StaffUser, customerId: string, input: { email: string; name: string; role: CompanyRole; password: string }) {
-  if (!can(actor.role, "manageCompanyAccess")) throw new AppError("forbidden", {}, 403);
+  if (!can(actor, "manageCompanyAccess")) throw new AppError("forbidden", {}, 403);
   return prisma.$transaction(async (tx) => {
     const customer = await tx.customer.findUnique({ where: { id: customerId }, select: { id: true } });
     if (!customer) throw new AppError("notFound", {}, 404);
@@ -132,7 +132,7 @@ export async function createCompanyUser(actor: StaffUser, customerId: string, in
 }
 
 export async function updateCompanyUser(actor: StaffUser, companyUserId: string, input: { isActive?: boolean; role?: CompanyRole; password?: string }) {
-  if (!can(actor.role, "manageCompanyAccess")) throw new AppError("forbidden", {}, 403);
+  if (!can(actor, "manageCompanyAccess")) throw new AppError("forbidden", {}, 403);
   return prisma.$transaction(async (tx) => {
     const old = await tx.companyUser.findUnique({ where: { id: companyUserId }, select: { isActive: true, role: true, customerId: true } });
     if (!old) throw new AppError("notFound", {}, 404);

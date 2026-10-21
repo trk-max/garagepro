@@ -25,16 +25,16 @@ type PageProps = { searchParams: Promise<{ q?: string; low?: string; view?: stri
 export default async function PartsPage({ searchParams }: PageProps) {
   const { q, low, view, cursor } = await searchParams;
   const staff = await requirePageAccess("viewStock");
-  const canEdit = can(staff.role, "manageStock");
+  const canEdit = can(staff, "manageStock");
   const table = view === "table";
   const lowOnly = low === "1";
   // Cards: one page of partCards; "low only" (or the table view) uses the former list, which can filter.
   const [{ t, lang }, overview, counts, purchases, cards, parts, movements, suppliers, lowParts] = await Promise.all([
     getI18n(),
     // Stock value is money: finance roles only (the others get the counts).
-    can(staff.role, "viewFinance") ? stockOverview(staff) : null,
+    can(staff, "viewFinance") ? stockOverview(staff) : null,
     stockCounts(staff),
-    can(staff.role, "viewSuppliers") ? monthlyPurchases(staff, 6) : null,
+    can(staff, "viewSuppliers") ? monthlyPurchases(staff, 6) : null,
     !table && !lowOnly ? partCards({ q, take: 20, cursor: cursor ?? null }) : null,
     table || lowOnly ? listParts(q, lowOnly) : null,
     recentMovements(30),
@@ -58,7 +58,7 @@ export default async function PartsPage({ searchParams }: PageProps) {
     <div className="mx-auto max-w-[1440px] px-3 pt-4 pb-6 sm:px-5 xl:ps-2 xl:pe-5">
       <PageHeader title={t.parts.title} subtitle={s.subtitle}>
         <LiveRefresh url="/api/staff/live?topic=stock" liveLabel={t.portal.live} reconnectingLabel={t.portal.reconnecting} />
-        {can(staff.role, "requestPurchase") && (
+        {can(staff, "requestPurchase") && (
           <PillLink href="/garage/purchase-orders/new?prefill=low" variant="outline" icon={ShoppingCart}>
             {t.purchase.new}
           </PillLink>
@@ -73,7 +73,7 @@ export default async function PartsPage({ searchParams }: PageProps) {
       <div className="gp-stagger space-y-5">
         <div className="grid gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
           <StockValueCard t={t} lang={lang} overview={overview} counts={counts} purchases={purchases} />
-          <StockAlertsCard t={t} lowCount={lowParts.length} canFollowUp={can(staff.role, "manageRepairFollowUp")} />
+          <StockAlertsCard t={t} lowCount={lowParts.length} canFollowUp={can(staff, "manageRepairFollowUp")} />
         </div>
 
         <div className="flex flex-wrap items-center gap-3">

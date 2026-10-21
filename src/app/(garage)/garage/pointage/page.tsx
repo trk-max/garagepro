@@ -39,7 +39,7 @@ export default async function TimeClockPage({ searchParams }: PageProps) {
   return (
     <div className="mx-auto max-w-5xl space-y-6 p-4 sm:p-6">
       <PageHeader title={t.v7.nav.timeClock}>
-        {can(staff.role, "showClockKiosk") && (
+        {can(staff, "showClockKiosk") && (
           <Link href="/garage/pointage/borne" className="f-label inline-flex items-center gap-2 border px-3 py-2 hover:border-foreground">
             <MonitorSmartphone className="size-4" aria-hidden /> {c.kioskOpen}
           </Link>

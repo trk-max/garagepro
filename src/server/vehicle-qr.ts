@@ -21,7 +21,7 @@ export const newToken = () => randomBytes(24).toString("base64url");
 
 /** Creates the vehicle's QR, or renews it (the previous label stops working at once). */
 export async function issueVehicleQr(actor: StaffUser, vehicleId: string) {
-  if (!can(actor.role, "manageVehicleQr")) throw new AppError("forbidden", {}, 403);
+  if (!can(actor, "manageVehicleQr")) throw new AppError("forbidden", {}, 403);
   return prisma.$transaction(async (tx) => {
     const v = await tx.vehicle.findUnique({ where: { id: vehicleId }, select: { qrToken: true, plate: true } });
     if (!v) throw new AppError("notFound", {}, 404);
@@ -33,7 +33,7 @@ export async function issueVehicleQr(actor: StaffUser, vehicleId: string) {
 }
 
 export async function revokeVehicleQr(actor: StaffUser, vehicleId: string) {
-  if (!can(actor.role, "manageVehicleQr")) throw new AppError("forbidden", {}, 403);
+  if (!can(actor, "manageVehicleQr")) throw new AppError("forbidden", {}, 403);
   return prisma.$transaction(async (tx) => {
     const v = await tx.vehicle.findUnique({ where: { id: vehicleId }, select: { qrToken: true, plate: true } });
     if (!v) throw new AppError("notFound", {}, 404);
@@ -64,7 +64,7 @@ export async function resolveVehicleQr(token: string, who: { staff: StaffUser | 
     const reserved = await reserveAttempt([{ key: `qr-ip:${who.ip}`, max: 30 }], 15, true);
     return reserved ? { kind: "invalid" } : { kind: "tooMany" };
   }
-  if (who.staff && can(who.staff.role, "viewCustomers")) return { kind: "staff", customerId: vehicle.customerId, vehicleId: vehicle.id };
+  if (who.staff && can(who.staff, "viewCustomers")) return { kind: "staff", customerId: vehicle.customerId, vehicleId: vehicle.id };
   if (who.company && who.company.customerId === vehicle.customerId) return { kind: "company", vehicleId: vehicle.id };
   return { kind: "public", plate: vehicle.plate, make: vehicle.make, model: vehicle.model };
 }

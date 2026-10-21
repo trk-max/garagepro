@@ -4,10 +4,14 @@ import { cache } from "react";
 import type { Role } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { AppError } from "@/lib/http";
-import { can, type Permission } from "@/lib/permissions";
+import { can, overridesFrom, type Permission, type PermOverrides } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 
-export type StaffUser = { id: string; name: string; email: string; role: Role };
+/**
+ * `perms` = the user's own overrides (V10.3, table UserPermission). Pass the whole StaffUser to
+ * `can(staff, …)` so they apply; `can(staff, …)` keeps the role-only answer.
+ */
+export type StaffUser = { id: string; name: string; email: string; role: Role; perms?: PermOverrides };
 
 /**
  * Signed-in team member, re-checked against the database on every request:
@@ -20,10 +24,10 @@ export const getStaff = cache(async (): Promise<StaffUser | null> => {
   if (!id) return null;
   const user = await prisma.user.findUnique({
     where: { id },
-    select: { id: true, name: true, email: true, role: true, isActive: true },
+    select: { id: true, name: true, email: true, role: true, isActive: true, permissionOverrides: { select: { permission: true, effect: true } } },
   });
   if (!user || !user.isActive) return null;
-  return { id: user.id, name: user.name, email: user.email, role: user.role };
+  return { id: user.id, name: user.name, email: user.email, role: user.role, perms: overridesFrom(user.permissionOverrides) };
 });
 
 /** Any signed-in team member. */
@@ -43,7 +47,7 @@ export async function requireRole(...roles: Role[]): Promise<StaffUser> {
 /** Throws 403 unless the signed-in user holds `permission` (see lib/permissions.ts). */
 export async function requirePermission(permission: Permission): Promise<StaffUser> {
   const staff = await requireStaff();
-  if (!can(staff.role, permission)) throw new AppError("forbidden", {}, 403);
+  if (!can(staff, permission)) throw new AppError("forbidden", {}, 403);
   return staff;
 }
 
@@ -51,6 +55,6 @@ export async function requirePermission(permission: Permission): Promise<StaffUs
 export async function requirePageAccess(permission: Permission): Promise<StaffUser> {
   const staff = await getStaff();
   if (!staff) redirect("/login");
-  if (!can(staff.role, permission)) redirect("/garage");
+  if (!can(staff, permission)) redirect("/garage");
   return staff;
 }

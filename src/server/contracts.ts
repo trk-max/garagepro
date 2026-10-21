@@ -1,6 +1,6 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
-import type { Prisma, Role } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
 import { utcToZoned } from "@/lib/booking";
 import { buildContractDoc, readContractData, type ContractDataJson, type ContractSnapshot, type GarageSnap, type PartySnap, type RepairSnap, type VehicleSnap } from "@/lib/contract-document";
 import { templateRows, type LegalRef } from "@/lib/contract-templates";
@@ -29,7 +29,7 @@ import {
 import { dayToDbDate, dbDay } from "@/lib/expense-schedule";
 import { computeTotals, GARAGE_TZ, lineTotalHt } from "@/lib/format";
 import { AppError } from "@/lib/http";
-import { can } from "@/lib/permissions";
+import { can, type PermSubject } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import type { StaffUser } from "@/lib/session";
 import { audit, type AuditActor } from "@/server/audit";
@@ -49,7 +49,7 @@ type Db = Prisma.TransactionClient;
 const todayIn = (tz: string, now = new Date()) => utcToZoned(now, tz).date;
 
 function assertAccess(actor: StaffUser, category: string, access: "view" | "manage" | "approve") {
-  if (!canContract(actor.role, category, access)) throw new AppError("forbidden", {}, 403);
+  if (!canContract(actor, category, access)) throw new AppError("forbidden", {}, 403);
 }
 
 // ── Templates ────────────────────────────────────────────────────────────────
@@ -104,7 +104,7 @@ function toTemplate(t: Prisma.ContractTemplateGetPayload<object>): TemplateRow {
 /** Templates of the categories the actor may create (latest active version of each code). */
 export async function listTemplates(actor: StaffUser, opts: { category?: string } = {}) {
   await ensureTemplates();
-  const cats = contractCategoriesFor(actor.role, "manage").filter((c) => !opts.category || c === opts.category);
+  const cats = contractCategoriesFor(actor, "manage").filter((c) => !opts.category || c === opts.category);
   const rows = await prisma.contractTemplate.findMany({ where: { category: { in: cats }, active: true }, orderBy: [{ category: "asc" }, { code: "asc" }, { version: "desc" }] });
   const seen = new Set<string>();
   return rows.filter((r) => !seen.has(r.code) && seen.add(r.code)).map(toTemplate);
@@ -112,7 +112,7 @@ export async function listTemplates(actor: StaffUser, opts: { category?: string 
 
 /** All template versions with their review state (administrator page). */
 export async function listAllTemplates(actor: StaffUser) {
-  if (!can(actor.role, "reviewContractTemplates")) throw new AppError("forbidden", {}, 403);
+  if (!can(actor, "reviewContractTemplates")) throw new AppError("forbidden", {}, 403);
   await ensureTemplates();
   const rows = await prisma.contractTemplate.findMany({ orderBy: [{ category: "asc" }, { code: "asc" }, { version: "desc" }] });
   const reviewers = await prisma.user.findMany({ where: { id: { in: rows.map((r) => r.reviewedById).filter((x): x is string => !!x) } }, select: { id: true, name: true } });
@@ -123,7 +123,7 @@ export async function getTemplate(actor: StaffUser, id: string) {
   await ensureTemplates();
   const t = await prisma.contractTemplate.findUnique({ where: { id } });
   if (!t) return null;
-  if (!canContract(actor.role, t.category, "manage") && !can(actor.role, "reviewContractTemplates")) throw new AppError("forbidden", {}, 403);
+  if (!canContract(actor, t.category, "manage") && !can(actor, "reviewContractTemplates")) throw new AppError("forbidden", {}, 403);
   return toTemplate(t);
 }
 
@@ -132,7 +132,7 @@ export async function getTemplate(actor: StaffUser, id: string) {
  * `reviewed: false` puts it back to "to be validated by a lawyer". Never automatic.
  */
 export async function setTemplateReview(actor: StaffUser, id: string, reviewed: boolean, note: string | null) {
-  if (!can(actor.role, "reviewContractTemplates")) throw new AppError("forbidden", {}, 403);
+  if (!can(actor, "reviewContractTemplates")) throw new AppError("forbidden", {}, 403);
   return prisma.$transaction(async (tx) => {
     const before = await tx.contractTemplate.findUnique({ where: { id }, select: { reviewStatus: true, reviewedById: true, reviewedAt: true, reviewNote: true, code: true, version: true } });
     if (!before) throw new AppError("notFound", {}, 404);
@@ -604,7 +604,7 @@ const listSelect = {
 
 /** Contracts of the categories the actor may see (employment ones only for administrator + HR). */
 export async function listContracts(actor: StaffUser, filter: ContractFilter = {}, now = new Date()) {
-  const visible = contractCategoriesFor(actor.role, "view");
+  const visible = contractCategoriesFor(actor, "view");
   if (visible.length === 0) throw new AppError("forbidden", {}, 403);
   const categories = filter.category ? visible.filter((c) => c === filter.category) : visible;
   const settings = await getSettings();
@@ -663,8 +663,8 @@ export async function getContract(actor: StaffUser, id: string) {
     expiry: expiryOf({ status: c.status, endDay }, today, settings.contractAlertDays),
     today,
     can: {
-      manage: canContract(actor.role, c.category, "manage"),
-      approve: canContract(actor.role, c.category, "approve"),
+      manage: canContract(actor, c.category, "manage"),
+      approve: canContract(actor, c.category, "approve"),
     },
   };
 }
@@ -720,8 +720,8 @@ export async function partyOptions(actor: StaffUser, category: ContractCategory,
  * Signed / active contracts whose end date is within Setting.contractAlertDays (or already passed
  * while still marked running), for the categories the role may see. Nothing for other roles.
  */
-export async function contractExpiryAlerts(role: Role | null | undefined, now = new Date()) {
-  const cats = contractCategoriesFor(role, "view");
+export async function contractExpiryAlerts(who: PermSubject, now = new Date()) {
+  const cats = contractCategoriesFor(who, "view");
   if (cats.length === 0) return [];
   const settings = await getSettings();
   const today = todayIn(settings.timezone || GARAGE_TZ, now);
@@ -735,8 +735,8 @@ export async function contractExpiryAlerts(role: Role | null | undefined, now = 
   return rows.map((r) => ({ ...r, endDay: dbDay(r.endDate!), expiry: expiryOf({ status: r.status, endDay: dbDay(r.endDate!) }, today, settings.contractAlertDays) }));
 }
 
-export async function countExpiringContracts(role: Role | null | undefined) {
-  return (await contractExpiryAlerts(role)).length;
+export async function countExpiringContracts(who: PermSubject) {
+  return (await contractExpiryAlerts(who)).length;
 }
 
 /** Category of a contract (alerts: the key gives the id, the access is checked on the category). */
@@ -746,7 +746,7 @@ export async function contractCategoryOf(id: string): Promise<string | null> {
 
 /** Paramètres : alerte N jours avant la fin d'un contrat (administrateur). */
 export async function setContractAlertDays(actor: StaffUser, days: number) {
-  if (!can(actor.role, "manageSettings")) throw new AppError("forbidden", {}, 403);
+  if (!can(actor, "manageSettings")) throw new AppError("forbidden", {}, 403);
   return prisma.$transaction(async (tx) => {
     const before = await tx.setting.findUnique({ where: { id: "garage" }, select: { contractAlertDays: true } });
     await tx.setting.upsert({ where: { id: "garage" }, update: { contractAlertDays: days }, create: { id: "garage", contractAlertDays: days } });

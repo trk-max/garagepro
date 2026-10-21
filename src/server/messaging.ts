@@ -31,8 +31,8 @@ export const isTokenShape = (token: string) => /^[A-Za-z0-9_-]{32}$/.test(token)
 
 /** Conversations this team member may see (and answer). */
 export function conversationScope(actor: Pick<StaffUser, "id" | "role">): Prisma.ConversationWhereInput {
-  if (can(actor.role, "readAllShowroomMessages")) return {};
-  if (!can(actor.role, "useShowroomMessages")) return { id: "__none__" };
+  if (can(actor, "readAllShowroomMessages")) return {};
+  if (!can(actor, "useShowroomMessages")) return { id: "__none__" };
   return { OR: [{ listing: { sellerId: actor.id } }, { listingId: null, assignedToId: actor.id }] };
 }
 
@@ -183,7 +183,7 @@ export async function markReadByStaff(actor: StaffUser, id: string) {
 
 /** Team answer. Returns the buyer's contact when they should be told (all earlier answers were read). */
 export async function staffReply(actor: StaffUser, id: string, body: string) {
-  if (!can(actor.role, "useShowroomMessages")) throw new AppError("forbidden", {}, 403);
+  if (!can(actor, "useShowroomMessages")) throw new AppError("forbidden", {}, 403);
   return prisma.$transaction(async (tx) => {
     const c = await tx.conversation.findFirst({
       where: { AND: [{ id }, conversationScope(actor)] },
@@ -201,14 +201,14 @@ export async function staffReply(actor: StaffUser, id: string, body: string) {
 }
 
 export async function setConversationStatus(actor: StaffUser, id: string, status: "OPEN" | "CLOSED") {
-  if (!can(actor.role, "useShowroomMessages")) throw new AppError("forbidden", {}, 403);
+  if (!can(actor, "useShowroomMessages")) throw new AppError("forbidden", {}, 403);
   const r = await prisma.conversation.updateMany({ where: { AND: [{ id }, conversationScope(actor)] }, data: { status } });
   if (r.count !== 1) throw new AppError("notFound", {}, 404);
 }
 
 /** Unread buyer messages for the menu badge. */
 export async function unreadForStaff(actor: Pick<StaffUser, "id" | "role">): Promise<number> {
-  if (!can(actor.role, "useShowroomMessages")) return 0;
+  if (!can(actor, "useShowroomMessages")) return 0;
   return prisma.message.count({ where: { authorKind: "BUYER", readByStaffAt: null, conversation: conversationScope(actor) } });
 }
 

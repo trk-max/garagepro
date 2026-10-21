@@ -39,7 +39,7 @@ export function AppShell({
       <div className="min-h-dvh bg-gp-canvas md:min-h-[calc(100dvh-1.5rem)] md:rounded-[32px] print:min-h-0 print:rounded-none print:bg-white">
         <TopNav logo={<LogoPill garage={garage} />} user={user} badges={badges} />
         <div className="xl:grid xl:grid-cols-[5rem_minmax(0,1fr)] xl:ps-4 print:block print:ps-0">
-          <SideRail role={user.role} badges={badges} />
+          <SideRail who={user} badges={badges} />
           <main id="gp-main" tabIndex={-1} className="min-w-0 pb-28 outline-none xl:pb-8 print:pb-0">
             {children}
           </main>

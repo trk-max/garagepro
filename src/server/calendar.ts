@@ -16,7 +16,7 @@ export type CalendarItem =
  * - appointments and promised delivery times to those who can see them.
  */
 export async function calendarItems(viewer: StaffUser, from: Date, to: Date): Promise<CalendarItem[]> {
-  const manager = can(viewer.role, "manageTeam");
+  const manager = can(viewer, "manageTeam");
   const [leaves, appointments, promised] = await Promise.all([
     prisma.leaveRequest.findMany({
       where: {
@@ -27,14 +27,14 @@ export async function calendarItems(viewer: StaffUser, from: Date, to: Date): Pr
       include: { user: { select: { name: true } } },
       orderBy: { startAt: "asc" },
     }),
-    can(viewer.role, "viewAppointments")
+    can(viewer, "viewAppointments")
       ? prisma.appointment.findMany({
           where: { startAt: { lt: to }, endAt: { gt: from }, status: { in: ["CONFIRMED", "CHECKED_IN"] } },
           select: { id: true, reference: true, startAt: true, endAt: true, plate: true, service: { select: { name: true } } },
           orderBy: { startAt: "asc" },
         })
       : [],
-    can(viewer.role, "viewWorkOrders")
+    can(viewer, "viewWorkOrders")
       ? prisma.workOrder.findMany({
           where: { promisedAt: { gte: from, lt: to }, status: { notIn: ["DELIVERED", "CANCELLED"] } },
           select: { id: true, number: true, promisedAt: true, vehicle: { select: { plate: true } } },

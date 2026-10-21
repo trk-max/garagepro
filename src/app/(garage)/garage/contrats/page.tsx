@@ -22,7 +22,7 @@ const CUID = /^[a-z0-9]{20,40}$/;
 export default async function ContractsPage({ searchParams }: PageProps) {
   const staff = await requirePageAccess("viewContracts");
   const sp = await searchParams;
-  const visible = contractCategoriesFor(staff.role, "view");
+  const visible = contractCategoriesFor(staff, "view");
   const category = isContractCategory(sp.c) && visible.includes(sp.c) ? sp.c : undefined;
   const status = isContractStatus(sp.s) ? sp.s : undefined;
   const expiring = sp.e === "1";
@@ -39,7 +39,7 @@ export default async function ContractsPage({ searchParams }: PageProps) {
     getSettings(),
   ]);
   const v = t.ctr;
-  const canCreate = contractCategoriesFor(staff.role, "manage").length > 0;
+  const canCreate = contractCategoriesFor(staff, "manage").length > 0;
   const qs = (o: { c?: string; s?: string; e?: string }) => {
     const p = new URLSearchParams();
     const c = "c" in o ? o.c : category;
@@ -59,7 +59,7 @@ export default async function ContractsPage({ searchParams }: PageProps) {
   return (
     <div className="mx-auto max-w-6xl space-y-4 p-4 sm:p-6">
       <PageHeader title={v.title}>
-        {can(staff.role, "reviewContractTemplates") && (
+        {can(staff, "reviewContractTemplates") && (
           <Link href="/garage/contrats/modeles" className="text-sm underline-offset-4 hover:underline">
             {v.templates}
           </Link>
@@ -169,7 +169,7 @@ export default async function ContractsPage({ searchParams }: PageProps) {
         </Card>
       )}
 
-      {can(staff.role, "manageSettings") && (
+      {can(staff, "manageSettings") && (
         <Card>
           <CardTitle>{v.alertDays}</CardTitle>
           <ActionForm action={contractAlertDaysAction} reset={false} className="flex flex-wrap items-end gap-3">

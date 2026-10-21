@@ -4,9 +4,8 @@ import {
   Settings, ShieldCheck, ShoppingCart, Smartphone, TrendingUp, TriangleAlert, Truck, UserRound, Users,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import type { Role } from "@prisma/client";
 import type { Dictionary } from "@/lib/i18n/fr";
-import { can, type Permission } from "@/lib/permissions";
+import { can, type Permission, type PermSubject } from "@/lib/permissions";
 
 /**
  * Every staff page of the menu, with the permission that shows it. Single list
@@ -97,8 +96,9 @@ const PLACED = new Set<NavKey>([...TOP_KEYS, ...RAIL_KEYS, ...MENU_KEYS]);
 /** True when a page belongs in the "More" panel (not already in the bar, the rail or the account menu). */
 export const inMore = (key: NavKey) => !PLACED.has(key);
 
-export const allowed = (role: Role, item: NavItem) => !item.permission || can(role, item.permission);
-export const pick = (role: Role, keys: NavKey[]) => keys.map((k) => ALL.get(k)!).filter((i) => allowed(role, i));
+/** `who`: the signed-in user (role + V10.3 overrides) — a bare role keeps the role-only answer. */
+export const allowed = (who: PermSubject, item: NavItem) => !item.permission || can(who, item.permission);
+export const pick = (who: PermSubject, keys: NavKey[]) => keys.map((k) => ALL.get(k)!).filter((i) => allowed(who, i));
 export const isActive = (pathname: string, href: string) => (href === "/garage" ? pathname === href : pathname === href || pathname.startsWith(`${href}/`));
 
 const V7 = ["timeClock", "team", "calendar", "delays", "audit", "companies", "profitability", "notifications", "backups", "warranties", "expenses", "cash"] as const;

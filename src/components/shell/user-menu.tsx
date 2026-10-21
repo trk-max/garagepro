@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ChevronDown, Languages, LogOut, Settings, UserRound } from "lucide-react";
 import type { Role } from "@prisma/client";
+import type { PermOverrides } from "@/lib/permissions";
 import { HubStatus } from "@/components/pwa/hub-status";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { LANGS, type Lang } from "@/lib/format";
@@ -10,7 +11,7 @@ import { useI18n } from "@/lib/i18n/client";
 import { can } from "@/lib/permissions";
 import { initials } from "@/components/shell/initials";
 
-export type ShellUser = { id: string; name: string; email: string; role: Role };
+export type ShellUser = { id: string; name: string; email: string; role: Role; perms?: PermOverrides };
 
 export const SIGN_OUT_FORM = "gp-sign-out";
 const LANG_NAMES: Record<Lang, string> = { fr: "Français", ar: "العربية", en: "English" };
@@ -51,14 +52,14 @@ export function UserMenu({ user }: { user: ShellUser }) {
           <span className="block text-xs font-normal">{t.roles[user.role]}</span>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        {can(user.role, "manageTeam") && (
+        {can(user, "manageTeam") && (
           <DropdownMenuItem asChild className="rounded-full px-3 py-2.5">
             <Link href={`/garage/equipe/${user.id}`}>
               <UserRound aria-hidden /> {t.v10.shell.account}
             </Link>
           </DropdownMenuItem>
         )}
-        {can(user.role, "manageSettings") && (
+        {can(user, "manageSettings") && (
           <DropdownMenuItem asChild className="rounded-full px-3 py-2.5">
             <Link href="/garage/settings">
               <Settings aria-hidden /> {t.v10.shell.settings}

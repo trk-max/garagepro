@@ -16,9 +16,9 @@ type PageProps = { searchParams: Promise<{ q?: string }> };
 
 export default async function SuppliersPage({ searchParams }: PageProps) {
   const staff = await requirePageAccess("viewSuppliers");
-  const showContracts = canContract(staff.role, "SUPPLIER", "view");
+  const showContracts = canContract(staff, "SUPPLIER", "view");
   // Manager and accountant only read the list (the server refuses their changes): no forms for them.
-  const canManage = can(staff.role, "manageSuppliers");
+  const canManage = can(staff, "manageSuppliers");
   const { q } = await searchParams;
   const [{ t, lang }, suppliers] = await Promise.all([getI18n(), listSuppliers(q)]);
 

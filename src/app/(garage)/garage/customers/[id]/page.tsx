@@ -26,7 +26,7 @@ type PageProps = { params: Promise<{ id: string }> };
 
 export default async function CustomerPage({ params }: PageProps) {
   const staff = await requirePageAccess("viewCustomers");
-  const showMoney = can(staff.role, "viewFinance");
+  const showMoney = can(staff, "viewFinance");
   const { id } = await params;
   const [customer, { t, lang }] = await Promise.all([getCustomer(id), getI18n()]);
   if (!customer) notFound();
@@ -60,7 +60,7 @@ export default async function CustomerPage({ params }: PageProps) {
 
       <div className="gp-stagger grid gap-5 xl:grid-cols-[minmax(0,1fr)_400px]">
         <div className="min-w-0 space-y-5">
-          <VehicleTiles customer={customer} role={staff.role} t={t} lang={lang} />
+          <VehicleTiles customer={customer} who={staff} t={t} lang={lang} />
 
           <Surface aria-labelledby="cu-orders">
             <SurfaceHeader id="cu-orders" title={t.workOrders.title} />
@@ -116,7 +116,7 @@ export default async function CustomerPage({ params }: PageProps) {
             filter={{ customerId: customer.id }}
             t={t}
             lang={lang}
-            newHref={customer.isCompany && canContract(staff.role, "FLEET", "manage") ? `/garage/contrats/nouveau?category=FLEET&customer=${customer.id}` : null}
+            newHref={customer.isCompany && canContract(staff, "FLEET", "manage") ? `/garage/contrats/nouveau?category=FLEET&customer=${customer.id}` : null}
             newLabel={t.ctr.createFleet}
           />
           <Surface aria-labelledby="cu-edit">
@@ -128,7 +128,7 @@ export default async function CustomerPage({ params }: PageProps) {
               </Button>
             </ActionForm>
           </Surface>
-          {can(staff.role, "manageCompanyAccess") && <CompanyAccess customerId={customer.id} t={t} lang={lang} />}
+          {can(staff, "manageCompanyAccess") && <CompanyAccess customerId={customer.id} t={t} lang={lang} />}
         </div>
       </div>
     </div>

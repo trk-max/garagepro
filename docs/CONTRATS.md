@@ -10,6 +10,12 @@ RH, comptable. Ce que chacun y voit dépend ensuite de la **catégorie** du cont
 (`CONTRACT_ACCESS` dans `src/lib/contracts.ts`), contrôlée à nouveau dans chaque fonction serveur,
 action, page et route (`/api/contracts/[id]/pdf`, `/api/contracts/[id]/scan`).
 
+**Accès sur mesure (V10.3).** Une exception posée par l’administrateur sur la fiche d’un employé
+(*Équipe → employé → Accès*) s’applique ainsi aux contrats : « Refusé » sur *Voir les contrats* retire
+tous les contrats, quelle que soit la catégorie ; « Autorisé » (pour un rôle qui ne l’a pas) ouvre la
+**lecture** des catégories réparation, flotte, fournisseur et vierge. Créer, modifier, valider et les
+contrats de travail restent liés au rôle (salaires et n° CIN ne sont jamais ouverts par une exception).
+
 | Catégorie | Voir (liste, fiche, PDF, scan) | Créer / modifier le brouillon / faire signer / renouveler | Approuver, résilier, archiver |
 | --- | --- | --- | --- |
 | Réparation, flotte | Admin, responsable, réception, comptable | Admin, responsable, réception | Admin, responsable |

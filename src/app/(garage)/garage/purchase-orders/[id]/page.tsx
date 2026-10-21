@@ -22,8 +22,8 @@ export default async function PurchaseOrderPage({ params }: PageProps) {
   if (!po) notFound();
 
   const total = po.lines.reduce((s, l) => s + Math.round((l.quantityX100 * l.unitCost) / 100), 0);
-  const canApprove = can(staff.role, "approvePurchase") && po.status === "PENDING_APPROVAL";
-  const canReceive = can(staff.role, "receiveGoods") && (po.status === "APPROVED" || po.status === "PARTIAL");
+  const canApprove = can(staff, "approvePurchase") && po.status === "PENDING_APPROVAL";
+  const canReceive = can(staff, "receiveGoods") && (po.status === "APPROVED" || po.status === "PARTIAL");
   const canCancel = po.status === "PENDING_APPROVAL" || po.status === "APPROVED";
 
   return (
@@ -168,7 +168,7 @@ export default async function PurchaseOrderPage({ params }: PageProps) {
           )}
         </Card>
 
-        {can(staff.role, "viewSupplierInvoices") && (
+        {can(staff, "viewSupplierInvoices") && (
           <Card>
             <CardTitle>{t.supplierInvoices.title}</CardTitle>
             {po.invoices.length === 0 ? (

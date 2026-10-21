@@ -20,14 +20,14 @@ type Filter = (typeof FILTERS)[number];
 export default async function ShowroomStaffPage({ searchParams }: PageProps) {
   const staff = await requirePageAccess("viewShowroom");
   const sp = await searchParams;
-  const filter: Filter = (FILTERS as readonly string[]).includes(sp.f ?? "") ? (sp.f as Filter) : can(staff.role, "manageAllListings") ? "active" : can(staff.role, "createListing") ? "mine" : "active";
+  const filter: Filter = (FILTERS as readonly string[]).includes(sp.f ?? "") ? (sp.f as Filter) : can(staff, "manageAllListings") ? "active" : can(staff, "createListing") ? "mine" : "active";
   const q = sp.q?.trim().slice(0, 60) || undefined;
   const [{ t, lang }, rows] = await Promise.all([
     getI18n(),
     listStaffListings(staff, { mine: filter === "mine", status: filter === "archived" ? "ARCHIVED" : undefined, q }),
   ]);
   const s = t.showroom.staff;
-  const visibleFilters = FILTERS.filter((f) => f !== "mine" || can(staff.role, "createListing"));
+  const visibleFilters = FILTERS.filter((f) => f !== "mine" || can(staff, "createListing"));
 
   return (
     <div className="mx-auto max-w-6xl space-y-4 p-6">
@@ -35,7 +35,7 @@ export default async function ShowroomStaffPage({ searchParams }: PageProps) {
         <Link href="/showroom" className="text-sm underline-offset-4 hover:underline" target="_blank">
           {s.viewPublic}
         </Link>
-        {can(staff.role, "createListing") && (
+        {can(staff, "createListing") && (
           <Link href="/garage/showroom/new" className={buttonVariants({ size: "sm" })}>
             <Plus aria-hidden /> {s.new}
           </Link>

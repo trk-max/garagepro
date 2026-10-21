@@ -47,12 +47,12 @@ const ACTIVE: ListingStatus[] = ["DRAFT", "PUBLISHED", "RESERVED", "UNAVAILABLE"
 
 /** May this team member change this listing? Admin / showroom manager: all; seller: their own only. */
 export function canEditListing(actor: Pick<StaffUser, "id" | "role">, listing: { sellerId: string }): boolean {
-  if (can(actor.role, "manageAllListings")) return true;
-  return can(actor.role, "createListing") && listing.sellerId === actor.id;
+  if (can(actor, "manageAllListings")) return true;
+  return can(actor, "createListing") && listing.sellerId === actor.id;
 }
 
 function assertView(actor: StaffUser) {
-  if (!can(actor.role, "viewShowroom")) throw new AppError("forbidden", {}, 403);
+  if (!can(actor, "viewShowroom")) throw new AppError("forbidden", {}, 403);
 }
 
 async function loadForEdit(db: Db, actor: StaffUser, listingId: string) {
@@ -133,7 +133,7 @@ async function assertNoDuplicate(db: Db, exceptId: string | null, vehicleId: str
 }
 
 async function resolveSeller(db: Db, actor: StaffUser, requested: string | undefined, current: string | null): Promise<string> {
-  if (!requested || !can(actor.role, "manageAllListings")) return current ?? actor.id;
+  if (!requested || !can(actor, "manageAllListings")) return current ?? actor.id;
   const user = await db.user.findUnique({ where: { id: requested }, select: { role: true, isActive: true } });
   if (!user || !user.isActive || !SELLER_ROLES.includes(user.role)) throw new AppError("invalid", {}, 422);
   return requested;
@@ -171,7 +171,7 @@ function dataOf(input: ListingInput) {
 // ── Create / edit ───────────────────────────────────────────────────────────
 
 export async function createListing(actor: StaffUser, input: ListingInput) {
-  if (!can(actor.role, "createListing")) throw new AppError("forbidden", {}, 403);
+  if (!can(actor, "createListing")) throw new AppError("forbidden", {}, 403);
   return prisma.$transaction(async (tx) => {
     const data = dataOf(input);
     const vehicleId = await vehicleIdForPlate(tx, data.plate);
@@ -530,7 +530,7 @@ export async function listingMediaForViewer(mediaId: string, staff: StaffUser | 
     select: { storageKey: true, contentType: true, isPublic: true, kind: true, caption: true, listing: { select: { status: true, soldAt: true } } },
   });
   if (!media) return null;
-  if (staff && can(staff.role, "viewShowroom")) return media;
+  if (staff && can(staff, "viewShowroom")) return media;
   return media.isPublic && isPubliclyVisible(media.listing, now) ? media : null;
 }
 
