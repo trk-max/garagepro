@@ -64,7 +64,18 @@ export function KpiGrid({
   );
   return (
     <Surface className="p-3 sm:p-3" aria-label={t.v10.overview.watch}>
-      <div className="gp-stagger grid h-full grid-cols-1 gap-3 min-[420px]:grid-cols-2">{tiles}</div>
+      <div className="gp-stagger grid h-full grid-cols-1 gap-3 min-[420px]:grid-cols-2">
+        {/* Odd number of tiles (roles without money): the last one takes the full row, no empty slot. */}
+        {tiles.map((tile, i) =>
+          tiles.length % 2 === 1 && i === tiles.length - 1 ? (
+            <div key="last" className="grid min-[420px]:col-span-2">
+              {tile}
+            </div>
+          ) : (
+            tile
+          ),
+        )}
+      </div>
     </Surface>
   );
 }

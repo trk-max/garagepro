@@ -10,23 +10,29 @@ import type { recentActivity, recentInvoices } from "@/server/dashboard";
 import type { Dictionary } from "@/lib/i18n/fr";
 import { displayPlate, fmt, formatDateTime, formatMoney, woNumber, type Lang } from "@/lib/format";
 
-export type WatchTile = { label: string; value: string; icon: LucideIcon; href: string; tone?: "danger" | "accent" | "success" };
+export type WatchTile = { label: string; value: string; note?: string; icon: LucideIcon; href: string; tone?: "danger" | "accent" | "success" };
 
 /** "Keep an eye on": the small figures of the former dashboard (unpaid, overdue, purchases, team…). */
 export function WatchCard({ title, tiles }: { title: string; tiles: WatchTile[] }) {
   return (
     <Surface aria-labelledby="ov-watch">
       <SurfaceHeader id="ov-watch" title={title} />
-      <ul className="gp-stagger grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 lg:grid-cols-3">
-        {tiles.map(({ label, value, icon, href, tone }) => (
+      <ul className="gp-stagger grid grid-cols-[repeat(auto-fill,minmax(min(100%,15rem),1fr))] gap-2">
+        {tiles.map(({ label, value, note, icon, href, tone }) => (
           <li key={label}>
             <Link href={href} className="gp-lift flex h-full items-center gap-3 rounded-[18px] bg-gp-panel p-3 hover:bg-gp-hover">
               <IconBubble icon={icon} />
-              <span className="min-w-0 flex-1">
+              <span className="@container min-w-0 flex-1">
                 <span className="block text-xs text-gp-muted">{label}</span>
-                <span className={`block text-lg font-semibold tabular-nums ${tone === "danger" ? "text-gp-danger-ink" : tone === "accent" ? "text-gp-accent-ink" : ""}`} dir="ltr">
+                {/* Fluid size: the longest amounts ("1 227,300 DT") stay on one line, never cut. */}
+                <span
+                  className={`block font-semibold whitespace-nowrap tabular-nums ${tone === "danger" ? "text-gp-danger-ink" : tone === "accent" ? "text-gp-accent-ink" : ""}`}
+                  style={{ fontSize: "clamp(13px, 11cqi, 18px)" }}
+                  dir="ltr"
+                >
                   {value}
                 </span>
+                {note && <span className="block text-xs text-gp-muted">{note}</span>}
               </span>
             </Link>
           </li>

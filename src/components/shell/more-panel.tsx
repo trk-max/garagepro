@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useId, useRef } from "react";
+import { useId, useRef, useState } from "react";
 import { Ellipsis, X } from "lucide-react";
 import type { Role } from "@prisma/client";
 import { LangSwitch } from "@/components/garage/lang-switch";
@@ -24,13 +24,18 @@ export function MorePanel({ role, badges, triggerClassName }: { role: Role; badg
   const pathname = usePathname();
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
+  // Content (and its hub-status poller) only exists while the panel is open.
+  const [open, setOpen] = useState(false);
   const close = () => ref.current?.close();
   const extra = Object.values(badges).reduce<number>((s, n) => s + (n ?? 0), 0);
   return (
     <>
       <button
         type="button"
-        onClick={() => ref.current?.showModal()}
+        onClick={() => {
+          setOpen(true);
+          ref.current?.showModal();
+        }}
         aria-haspopup="dialog"
         aria-label={t.v10.nav.allPages}
         className={cn(triggerClassName, "group text-gp-ink hover:bg-gp-hover")}
@@ -43,8 +48,11 @@ export function MorePanel({ role, badges, triggerClassName }: { role: Role; badg
         ref={ref}
         aria-labelledby={titleId}
         onClick={(e) => e.target === e.currentTarget && close()}
+        onClose={() => setOpen(false)}
         className="m-auto max-h-[min(44rem,calc(100dvh-2rem))] w-[min(56rem,calc(100vw-1.5rem))] rounded-[32px] border border-gp-line bg-gp-canvas p-0 text-gp-ink shadow-2xl backdrop:bg-black/40 backdrop:backdrop-blur-sm gp-enter"
       >
+        {open && (
+        <>
         <div className="flex items-center gap-3 p-5 pb-3">
           <h2 id={titleId} className="flex-1 text-2xl font-semibold tracking-tight">{t.v10.nav.allPages}</h2>
           <button type="button" onClick={close} aria-label={t.v10.shell.close} className="grid size-11 place-items-center rounded-full bg-gp-card hover:bg-gp-hover">
@@ -75,7 +83,12 @@ export function MorePanel({ role, badges, triggerClassName }: { role: Role; badg
                         >
                           <Icon className="size-4 shrink-0" aria-hidden />
                           <span className="flex-1">{navLabel(t, key)}</span>
-                          {badge ? <span className="min-w-6 rounded-full bg-gp-accent px-2 text-center text-xs font-semibold text-white tabular-nums">{badge}</span> : null}
+                          {badge ? (
+                            <>
+                              <span className="sr-only">, </span>
+                              <span className="min-w-6 rounded-full bg-gp-accent px-2 text-center text-xs font-semibold text-white tabular-nums">{badge}</span>
+                            </>
+                          ) : null}
                         </Link>
                       </li>
                     );
@@ -95,6 +108,8 @@ export function MorePanel({ role, badges, triggerClassName }: { role: Role; badg
             <InstallAppButton className="rounded-full border-gp-line bg-gp-card px-4" />
           </div>
         </div>
+        </>
+        )}
       </dialog>
     </>
   );

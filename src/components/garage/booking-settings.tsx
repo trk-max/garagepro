@@ -72,9 +72,9 @@ export function BookingHoursForm({ t, settings }: { t: Dictionary; settings: Set
           {WEEK_ORDER.map((d) => {
             const day = hours[String(d)];
             return (
-              <div key={d} className="grid grid-cols-[4.5rem_auto_minmax(0,1fr)_minmax(0,1fr)] items-center gap-2 rounded-full bg-gp-panel py-1 ps-3 pe-1 text-sm">
+              <div key={d} className="grid grid-cols-2 items-center gap-2 rounded-[18px] bg-gp-panel p-2 ps-3 text-sm sm:grid-cols-[4.5rem_auto_minmax(0,1fr)_minmax(0,1fr)] sm:rounded-full sm:py-1 sm:pe-1">
                 <span>{b.days[d]}</span>
-                <label className="flex items-center gap-1 text-xs text-muted-foreground">
+                <label className="flex items-center gap-1 justify-self-end text-xs text-muted-foreground sm:justify-self-auto">
                   <input type="checkbox" name={`closed_${d}`} defaultChecked={!day} className="size-4" /> {b.closed}
                 </label>
                 <Input type="time" name={`open_${d}`} defaultValue={day?.open ?? "08:00"} className="h-8 min-w-0 px-2 text-[13px]" dir="ltr" aria-label={`${b.days[d]} open`} />

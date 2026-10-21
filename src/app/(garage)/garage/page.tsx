@@ -75,7 +75,7 @@ export default async function OverviewPage() {
     if (overdue) watch.push({ label: t.dashboard.overdue, value: String(overdue.count), icon: BellRing, href: "/garage/invoices?status=OVERDUE", tone: overdue.count ? "danger" : undefined });
   }
   if (presence) {
-    watch.push({ label: db.present, value: presence.onBreak ? `${presence.working} (+${presence.onBreak} ${db.onBreak})` : String(presence.working), icon: UserCheck, href: "/garage/pointage" });
+    watch.push({ label: db.present, value: String(presence.working), note: presence.onBreak ? `+${presence.onBreak} ${db.onBreak}` : undefined, icon: UserCheck, href: "/garage/pointage" });
   }
   if (purchasing) {
     watch.push(
@@ -85,6 +85,9 @@ export default async function OverviewPage() {
     if (role === "ADMIN") watch.push({ label: t.dashboard.supplierDue, value: formatMoney(purchasing.supplierDue, lang), icon: Wallet, href: "/garage/supplier-invoices?filter=unpaid" });
   }
   const showHero = finance || wo;
+  // Top row: only the cards this role gets, so no empty slot (no money = no chart).
+  const topCount = (showHero ? 1 : 0) + 1 + (finance ? 1 : 0);
+  const topGrid = topCount === 3 ? "md:grid-cols-2 xl:grid-cols-[1fr_1.2fr_1.1fr]" : topCount === 2 ? "md:grid-cols-2" : "";
 
   return (
     <div className="mx-auto max-w-[1440px] px-3 pt-4 pb-6 sm:px-5 xl:ps-2 xl:pe-5">
@@ -97,14 +100,14 @@ export default async function OverviewPage() {
         )}
       </PageHeader>
 
-      <div className="gp-stagger grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-[1fr_1.2fr_1.1fr]">
+      <div className={`gp-stagger grid grid-cols-1 gap-4 ${topGrid}`}>
         {showHero && (
           <HeroCard t={t} lang={lang} today={today} inShop={kpi.openOrders.current} dueToday={d.dueToday} canNewOrder={wo} canInvoice={can(role, "createInvoice")} mechanics={mechanics} showPresence={can(role, "manageTeam")} />
         )}
         <KpiGrid t={t} lang={lang} kpis={kpi} showOrders={wo} showStockLink={can(role, "viewStock")} outOfStock={d.lowStock.filter((p) => p.stockX100 <= 0).length} dueToday={d.dueToday} />
         {months && (
           <BarChartCard
-            className={showHero ? "md:col-span-2 xl:col-span-1" : undefined}
+            className={topCount === 3 ? "md:col-span-2 xl:col-span-1" : undefined}
             title={o.revenueChart}
             hint={fmt(o.revenueHint, { year })}
             lang={lang}
@@ -119,31 +122,25 @@ export default async function OverviewPage() {
         )}
       </div>
 
-      <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-[1fr_2.15fr]">
-        <div className="gp-stagger flex flex-col gap-4">
+      {/* Side cards: 2 columns on tablets, one column beside the orders from 1280 px. The orders table gets the full width below 1280 px. */}
+      <div className={`mt-4 grid grid-cols-1 gap-4 ${orders ? "xl:grid-cols-[1fr_2.15fr]" : ""}`}>
+        <div className={`gp-stagger grid content-start gap-4 md:grid-cols-2 ${orders ? "xl:grid-cols-1" : "xl:grid-cols-3"}`}>
           {goal && <GoalCard t={t} lang={lang} goal={goal} canSetGoal={can(role, "manageSettings")} />}
           {alerts && <AlertsCard t={t} alerts={alerts.open} />}
           {appts && <AppointmentsCard t={t} lang={lang} appts={appts} />}
-          {!wo && <LowStockCard t={t} lang={lang} parts={d.lowStock} canOrder={can(role, "requestPurchase")} />}
+          <LowStockCard t={t} lang={lang} parts={d.lowStock} canOrder={can(role, "requestPurchase")} />
         </div>
-        {orders ? (
+        {orders && (
           <div className="gp-stagger flex min-w-0 flex-col gap-4">
             <RecentOrders t={t} lang={lang} rows={orders} finance={finance} />
             <StatusCard t={t} byStatus={d.byStatus} statuses={ACTIVE_STATUSES} />
           </div>
-        ) : (
-          watch.length > 0 && <WatchCard title={o.watch} tiles={watch} />
         )}
       </div>
 
-      {wo && (
-        <div className="gp-stagger mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-          <LowStockCard t={t} lang={lang} parts={d.lowStock} canOrder={can(role, "requestPurchase")} />
-          {watch.length > 0 && (
-            <div className="md:col-span-1 xl:col-span-2">
-              <WatchCard title={o.watch} tiles={watch} />
-            </div>
-          )}
+      {watch.length > 0 && (
+        <div className="gp-stagger mt-4">
+          <WatchCard title={o.watch} tiles={watch} />
         </div>
       )}
 

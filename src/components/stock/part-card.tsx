@@ -18,11 +18,15 @@ export function PartCard({ p, t, lang, canEdit, suppliers }: { p: Card; t: Dicti
   const pct = p.percentOfMin;
   return (
     <li className="gp-lift flex flex-col rounded-[24px] border border-gp-line bg-gp-card p-4 shadow-gp">
-      <div className="flex items-start justify-between gap-2">
+      <div className="flex items-start justify-between gap-3">
         <span className={cn("grid size-9 place-items-center rounded-[12px]", p.isLow ? "bg-gp-danger-bg text-gp-danger-ink" : "bg-gp-accent-tint text-gp-accent-ink")} aria-hidden>
           <Package className="size-4" />
         </span>
-        {p.supplier && <Chip className="max-w-[9rem] truncate">{p.supplier}</Chip>}
+        {p.supplier && (
+          <Chip className="min-w-0 max-w-[65%]">
+            <span className="truncate" title={p.supplier}>{p.supplier}</span>
+          </Chip>
+        )}
       </div>
       <div className="mt-3 flex justify-center">
         <ProgressRing

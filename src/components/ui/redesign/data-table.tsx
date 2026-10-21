@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, type ReactNode } from "react";
 import { ListFilter, Search } from "lucide-react";
-import { fmt } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 /** `hideBelow`: the column is left out under that screen width (less important columns go first: no sideways scroll). */
@@ -15,8 +14,8 @@ const colClass = (c: DataColumn) => cn(c.className, c.hideBelow && HIDE[c.hideBe
 export type DataRow = { id: string; href: string; linkLabel: string; cells: Record<string, ReactNode>; search: string; filter?: string };
 
 /**
- * Rounded table with a search pill, a filter pill, a checkbox column, row hover
- * and clickable rows. The first cell holds a real link (keyboard and screen
+ * Rounded table with a search pill (filters the rows already loaded), a filter
+ * pill, row hover and clickable rows. No checkbox column: there is no bulk action. The first cell holds a real link (keyboard and screen
  * readers); a click anywhere else on the row opens the same page.
  */
 export function DataTable({
@@ -31,24 +30,16 @@ export function DataTable({
   columns: DataColumn[];
   rows: DataRow[];
   filters?: { value: string; label: string }[];
-  labels: { search: string; filter: string; all: string; selectRow: string; selectAll: string; selected: string; empty: string };
+  labels: { search: string; filter: string; all: string; empty: string };
   toolbar?: ReactNode;
 }) {
   const router = useRouter();
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState("");
-  const [picked, setPicked] = useState<Set<string>>(new Set());
   const shown = useMemo(() => {
     const needle = q.trim().toLowerCase();
     return rows.filter((r) => (!filter || r.filter === filter) && (!needle || r.search.toLowerCase().includes(needle)));
   }, [rows, q, filter]);
-  const allPicked = shown.length > 0 && shown.every((r) => picked.has(r.id));
-  const toggle = (id: string) => setPicked((s) => {
-    const n = new Set(s);
-    if (n.has(id)) n.delete(id);
-    else n.add(id);
-    return n;
-  });
 
   return (
     <div>
@@ -82,15 +73,11 @@ export function DataTable({
           </label>
         )}
       </div>
-      {picked.size > 0 && <p className="mb-2 text-[13px] text-gp-muted" role="status">{fmt(labels.selected, { n: picked.size })}</p>}
       <div className="overflow-x-auto rounded-[18px] bg-gp-panel p-1.5">
         <table className="w-full border-separate border-spacing-0 text-sm">
           <caption className="sr-only">{caption}</caption>
           <thead>
             <tr className="text-[13px] text-gp-muted">
-              <th scope="col" className="w-10 px-3 py-3 text-start">
-                <input type="checkbox" checked={allPicked} onChange={() => setPicked(allPicked ? new Set() : new Set(shown.map((r) => r.id)))} aria-label={labels.selectAll} className="size-4 accent-[var(--gp-accent)]" />
-              </th>
               {columns.map((c) => (
                 <th key={c.key} scope="col" className={cn("px-3 py-3 text-start font-medium whitespace-nowrap", colClass(c))}>{c.header}</th>
               ))}
@@ -99,7 +86,7 @@ export function DataTable({
           <tbody className="[&>tr>td]:bg-gp-card [&>tr:first-child>td:first-child]:rounded-ss-[14px] [&>tr:first-child>td:last-child]:rounded-se-[14px] [&>tr:last-child>td:first-child]:rounded-es-[14px] [&>tr:last-child>td:last-child]:rounded-ee-[14px]">
             {shown.length === 0 && (
               <tr>
-                <td colSpan={columns.length + 1} className="px-3 py-10 text-center text-gp-muted">{labels.empty}</td>
+                <td colSpan={columns.length} className="px-3 py-10 text-center text-gp-muted">{labels.empty}</td>
               </tr>
             )}
             {shown.map((r) => (
@@ -111,9 +98,6 @@ export function DataTable({
                 }}
                 className="group cursor-pointer [&>td]:border-t [&>td]:border-gp-line [&>td]:transition-colors [&>td]:duration-150 hover:[&>td]:bg-gp-hover first:[&>td]:border-t-0"
               >
-                <td className="px-3 py-3">
-                  <input type="checkbox" checked={picked.has(r.id)} onChange={() => toggle(r.id)} aria-label={fmt(labels.selectRow, { n: r.linkLabel })} className="size-4 accent-[var(--gp-accent)]" />
-                </td>
                 {columns.map((c, i) => (
                   <td key={c.key} className={cn("px-3 py-3 align-middle", colClass(c))}>
                     {i === 0 ? (

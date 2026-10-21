@@ -232,7 +232,8 @@ export default async function TrackerPage() {
       {/* ── History ── */}
       <section className="rounded-[24px] border border-gp-line bg-gp-card p-5 text-gp-ink shadow-gp">
         <h2 className="mb-3 font-semibold">{t.portal.history}</h2>
-        <ol className="space-y-3 border-s-2 border-border ps-4">
+        {view.events.length === 0 && <p className="text-sm text-gp-muted">{t.v10.pages.tracking.noHistory}</p>}
+        <ol className="space-y-3 border-s-2 border-border ps-4 empty:hidden">
           {view.events.map((e) => (
             <li key={e.id} className="relative text-sm">
               <span className="absolute -start-[21px] top-1.5 size-2.5 rounded-full bg-gp-accent ring-4 ring-gp-card" aria-hidden />

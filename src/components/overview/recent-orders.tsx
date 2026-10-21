@@ -34,7 +34,7 @@ export function RecentOrders({ t, lang, rows, finance }: { t: Dictionary; lang: 
     { key: "vehicle", header: o.vehicle },
     { key: "customer", header: o.customer, hideBelow: "sm" },
     { key: "service", header: o.service, className: "max-w-56", hideBelow: "2xl" },
-    ...(finance ? [{ key: "price", header: o.price, className: "text-end" }] : []),
+    ...(finance ? [{ key: "price", header: o.price, className: "text-end", hideBelow: "sm" as const }] : []),
     { key: "status", header: o.status },
     { key: "date", header: o.date, hideBelow: "lg" },
   ];
@@ -53,7 +53,7 @@ export function RecentOrders({ t, lang, rows, finance }: { t: Dictionary; lang: 
           caption={o.recentOrders}
           columns={columns}
           filters={[...ACTIVE_STATUSES, "DELIVERED", "CANCELLED"].filter((s) => statuses.includes(s as WorkOrderStatus)).map((s) => ({ value: s, label: t.status[s as WorkOrderStatus] }))}
-          labels={{ search: t.common.search, filter: o.filter, all: o.allStatuses, selectRow: o.selectRow, selectAll: o.selectAll, selected: o.selected, empty: o.noMatch }}
+          labels={{ search: o.filterRows, filter: o.filter, all: o.allStatuses, empty: o.noMatch }}
           rows={rows.map((r) => ({
             id: r.id,
             href: `/garage/work-orders/${r.id}`,

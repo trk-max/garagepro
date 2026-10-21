@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { formatMoney, type Lang } from "@/lib/format";
 
 const dayLabel = (iso: string, locale: string) => new Intl.DateTimeFormat(locale, { weekday: "short", timeZone: "UTC" }).format(new Date(`${iso}T12:00:00Z`));
 const localeOf = (lang: string) => (lang === "ar" ? "ar-TN" : lang === "en" ? "en-GB" : "fr-FR");
@@ -9,7 +10,7 @@ const localeOf = (lang: string) => (lang === "ar" ? "ar-TN" : lang === "en" ? "e
 export function DailyBars({ days, values, lang, format }: { days: string[]; values: number[]; lang: string; format: "money" | "count" }) {
   const [hover, setHover] = useState<number | null>(null);
   const max = Math.max(1, ...values);
-  const show = (v: number) => (format === "money" ? `${(v / 1000).toLocaleString(localeOf(lang), { minimumFractionDigits: 3, maximumFractionDigits: 3 })} DT` : String(v));
+  const show = (v: number) => (format === "money" ? formatMoney(v, lang as Lang) : String(v));
   return (
     <div className="week-chart" dir="ltr">
       <style>{`

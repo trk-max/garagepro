@@ -36,6 +36,7 @@ export function NotificationsMenu({ badges }: { badges: NavBadges }) {
               <Link href={href}>
                 <Icon className="size-4 text-gp-muted" aria-hidden />
                 <span className="flex-1">{navLabel(t, key)}</span>
+                <span className="sr-only">, </span>
                 <span className="min-w-6 rounded-full bg-gp-accent-tint px-2 text-center text-xs font-semibold text-gp-accent-ink tabular-nums">{badges[key]}</span>
               </Link>
             </DropdownMenuItem>

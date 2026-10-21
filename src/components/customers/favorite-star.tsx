@@ -21,8 +21,10 @@ export function FavoriteStar({ id, name, initial }: { id: string; name: string; 
       aria-pressed={on}
       aria-label={label}
       title={label}
-      disabled={pending}
+      // Not "disabled" while saving: a disabled button loses keyboard focus. Extra clicks are ignored instead.
+      aria-busy={pending}
       onClick={() =>
+        !pending &&
         start(async () => {
           setOn(!on);
           const r = await toggleFavoriteCustomerAction(id);

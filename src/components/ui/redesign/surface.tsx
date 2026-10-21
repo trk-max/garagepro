@@ -17,7 +17,7 @@ export function Panel({ className, ...props }: ComponentProps<"div">) {
 export function SurfaceHeader({ title, hint, children, id }: { title: ReactNode; hint?: ReactNode; children?: ReactNode; id?: string }) {
   return (
     <div className="mb-4 flex flex-wrap items-start gap-3">
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1 basis-56">
         <h2 id={id} className="text-lg font-semibold tracking-tight">{title}</h2>
         {hint && <p className="mt-0.5 text-[13px] text-gp-muted">{hint}</p>}
       </div>
