@@ -77,8 +77,27 @@ export default async function ListingPublicPage({ params }: PageProps) {
         <ArrowLeft className="size-4 rtl:rotate-180" aria-hidden /> {p.back}
       </Link>
 
-      <div className="mt-2 grid gap-8 lg:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="min-w-0 space-y-8">
+      {/* Phones: title and price first, then photos and details, then the seller and the form.
+          Computers: details on the left, title / price and seller / form on the right. */}
+      <div className="mt-2 grid gap-8 lg:grid-cols-[minmax(0,1fr)_360px] lg:grid-rows-[auto_1fr]">
+        <div className="border border-border p-5 lg:col-start-2 lg:row-start-1">
+          <div className="flex items-start gap-2">
+            <h1 className="f-display min-w-0 flex-1 text-2xl leading-tight">
+              {title}
+              {l.version && <span className="mt-1 block text-sm font-normal tracking-normal text-muted-foreground normal-case">{l.version}</span>}
+            </h1>
+            <FavoriteButton number={l.number} className="shrink-0" />
+          </div>
+          <p className={cn("mt-4 text-3xl font-semibold", sold && "text-muted-foreground line-through")} dir="ltr">
+            {l.price ? formatPriceDt(l.price, lang) : p.priceOnRequest}
+          </p>
+          {l.status !== "PUBLISHED" && (
+            <p className={cn("mt-3 border-s-2 ps-2 text-sm", sold ? "border-brand-500" : "border-amber-500")}>{sold ? p.soldNotice : p.reservedNotice}</p>
+          )}
+          {l.publishedAt && <p className="mt-3 text-xs text-muted-foreground">{fmt(p.publishedOn, { date: formatDate(l.publishedAt, lang) })}</p>}
+        </div>
+
+        <div className="min-w-0 space-y-8 lg:col-start-1 lg:row-span-2 lg:row-start-1">
           <ListingGallery photos={photos} title={title} sold={sold} />
 
           <section aria-labelledby="facts" className="grid grid-cols-2 gap-px border border-border bg-border sm:grid-cols-5">
@@ -156,24 +175,7 @@ export default async function ListingPublicPage({ params }: PageProps) {
           )}
         </div>
 
-        <aside className="space-y-4 lg:sticky lg:top-4 lg:self-start">
-          <div className="border border-border p-5">
-            <div className="flex items-start gap-2">
-              <h1 className="f-display min-w-0 flex-1 text-2xl leading-tight">
-                {title}
-                {l.version && <span className="mt-1 block text-sm font-normal tracking-normal text-muted-foreground normal-case">{l.version}</span>}
-              </h1>
-              <FavoriteButton number={l.number} className="shrink-0" />
-            </div>
-            <p className={cn("mt-4 text-3xl font-semibold", sold && "text-muted-foreground line-through")} dir="ltr">
-              {l.price ? formatPriceDt(l.price, lang) : p.priceOnRequest}
-            </p>
-            {l.status !== "PUBLISHED" && (
-              <p className={cn("mt-3 border-s-2 ps-2 text-sm", sold ? "border-brand-500" : "border-amber-500")}>{sold ? p.soldNotice : p.reservedNotice}</p>
-            )}
-            {l.publishedAt && <p className="mt-3 text-xs text-muted-foreground">{fmt(p.publishedOn, { date: formatDate(l.publishedAt, lang) })}</p>}
-          </div>
-
+        <aside className="space-y-4 lg:col-start-2 lg:row-start-2">
           <div className="border border-border p-5">
             <p className="f-label text-muted-foreground">{p.seller}</p>
             <p className="mt-2 font-semibold">{settings.garageName}</p>

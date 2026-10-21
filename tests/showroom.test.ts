@@ -143,6 +143,11 @@ describe("forms", () => {
     expect(listingSchema.safeParse({ make: "", model: "Rio" }).success).toBe(false);
     expect(listingSchema.safeParse({ make: "Kia", model: "Rio", year: "1800" }).success).toBe(false);
   });
+  it("textarea line breaks (CRLF from the browser) are stored as LF: re-saving is not a change", () => {
+    const v = listingSchema.parse({ make: "Kia", model: "Rio", description: "Ligne 1\r\nLigne 2", historySummary: "a\r\nb" });
+    expect(v.description).toBe("Ligne 1\nLigne 2");
+    expect(v.historySummary).toBe("a\nb");
+  });
   it("buyer contact: a phone or an e-mail is required, the honeypot must stay empty", () => {
     expect(buyerContactSchema.safeParse({ name: "Sami", message: "Toujours dispo ?" }).success).toBe(false);
     expect(buyerContactSchema.safeParse({ name: "Sami", phone: "20 111 222", message: "Toujours dispo ?" }).success).toBe(true);

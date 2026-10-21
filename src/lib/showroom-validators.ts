@@ -10,7 +10,9 @@ import { normalizeVin } from "@/lib/vehicle-info";
 const emptyToUndefined = (v: unknown) => (typeof v === "string" && v.trim() === "" ? undefined : v);
 const optInt = (min: number, max: number) => z.preprocess(emptyToUndefined, z.coerce.number().int().min(min).max(max).optional());
 const optEnum = <T extends readonly [string, ...string[]]>(values: T) => z.preprocess(emptyToUndefined, z.enum(values).optional());
-const checkbox = z.preprocess((v) => v === "on" || v === "true" || v === true, z.boolean()).default(false);
+/** Browsers send textarea line breaks as CRLF: stored as LF, so saving unchanged text is not a change. */
+const multiline = (max: number) => z.preprocess((v) => (typeof v === "string" ? v.replace(/\r\n?/g, "\n") : v), optionalText(max));
+const checkbox =z.preprocess((v) => v === "on" || v === "true" || v === true, z.boolean()).default(false);
 
 export const listingSchema = z.object({
   make: requiredText(60),
@@ -30,10 +32,10 @@ export const listingSchema = z.object({
   condition: optEnum(CONDITIONS),
   /** Typed in dinars, stored in millimes. */
   price: optionalMoney,
-  description: optionalText(5000),
+  description: multiline(5000),
   equipment: z.string().max(8000).optional().default("").transform(parseEquipment),
   specs: z.string().max(8000).optional().default("").transform(parseSpecs),
-  historySummary: optionalText(3000),
+  historySummary: multiline(3000),
   historyPublic: checkbox,
   plate: z.preprocess(emptyToUndefined, z.string().trim().min(2).max(20).transform(normalizePlate).optional()),
   vin: z.preprocess(emptyToUndefined, z.string().trim().max(40).transform(normalizeVin).optional()),
