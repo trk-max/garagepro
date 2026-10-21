@@ -304,6 +304,7 @@ export const en: Dictionary = {
     qcNotApproved: "Cannot set “Ready”: quality control must be complete and validated by a manager.",
     certificateMissing: "Missing information for the certificate: {fields}. Fill them in (Settings / employee file): nothing is made up.",
     companyLogin: "Wrong e-mail or password.",
+    alreadyVoided: "Already cancelled.",
     resetLinkInvalid: "This link is no longer valid (expired, already used or account disabled). Ask for a new link.",
     reasonRequired: "Give a reason (kept in the history).",
     hubOnly: "In garage mode, invoices, purchase orders and goods receipts are created from the garage app (garage PC), so numbers never repeat.",

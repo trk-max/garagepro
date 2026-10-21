@@ -16,6 +16,7 @@ import { deleteMediaAction, toggleMediaAction } from "@/actions/workshop";
 import { ActionButton, ActionForm, ActionSelect } from "@/components/action-form";
 import { MediaUploader } from "@/components/garage/media-uploader";
 import { RepairPanels } from "@/components/garage/repair-panels";
+import { ProfitPanel } from "@/components/garage/profit-panel";
 import { TrackingCard } from "@/components/garage/tracking-card";
 import { LiveRefresh } from "@/components/live-refresh";
 import { getBaseUrl } from "@/lib/base-url";
@@ -262,6 +263,9 @@ export default async function WorkOrderPage({ params }: PageProps) {
 
         {/* ── Time per mechanic, quality control, missing parts, insurance (V7) ── */}
         <RepairPanels wo={wo} staff={staff} t={t} lang={lang} tz={settings.timezone} />
+
+        {/* ── Direct expenses and real profit (Prompt 2/5) ── */}
+        <ProfitPanel workOrderId={wo.id} staff={staff} t={t} lang={lang} />
 
         {/* ── Photos & videos (shared with the customer when "visible") ── */}
         <Card>

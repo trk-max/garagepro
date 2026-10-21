@@ -4,7 +4,7 @@
 
 <h1 align="center">GaragePro</h1>
 <p align="center"><b>Gestion d'atelier mécanique + site client + espace équipe + portail entreprises</b> · Français / العربية / English</p>
-<p align="center">Version <b>7.2</b> — application PC / téléphone, fonctionne aussi <b>sans internet</b> (hub du garage)</p>
+<p align="center">Version <b>7.3</b> — application PC / téléphone, fonctionne aussi <b>sans internet</b> (hub du garage)</p>
 <p align="center">Next.js 15 · TypeScript · Tailwind v4 · PostgreSQL (Supabase) + Prisma 6 · Auth.js v5 · Vercel</p>
 
 <p align="center">
@@ -21,6 +21,18 @@
 | ![Version mobile en arabe](docs/media/08-mobile-arabe.jpg) **Mobile + arabe (RTL)** | ![Connexion de l'équipe](docs/media/03-connexion-equipe.jpg) **Connexion de l'équipe** |
 
 > Photos et vidéos du site : dossier `public/site/` (voir « Photos et vidéos du site » plus bas). Pour mettre une **vidéo** dans ce README sur GitHub : modifiez le fichier sur github.com et glissez-déposez un `.mp4` (moins de 10 Mo) dans l'éditeur, GitHub crée le lien tout seul.
+
+## Nouveautés V7.3 — bénéfice réel par réparation
+
+| | |
+|---|---|
+| **Rentabilité d'une réparation** | Sur la fiche de l'ordre (administrateur) : CA HT, coût réel des pièces, dépenses directes, marge brute, coût de la main-d'œuvre (heures **réellement travaillées** × coût horaire, jamais les heures facturées), frais indirects, bénéfice estimé. L'encaissé (client / assurance) est affiché à part. Tout montant estimé ou incomplet est signalé. |
+| **Coût des pièces figé** | Le prix d'achat est enregistré au moment où la pièce est utilisée : une hausse de prix plus tard ne change pas le coût d'une réparation passée. |
+| **Dépenses directes** | Sous-traitance, remorquage… sur la fiche de l'ordre (admin, responsable). Jamais effacées : annulées avec motif. |
+| **Menu Rentabilité** | Par réparation, véhicule, client, type d'intervention ou mois, sur une période ; export Excel. |
+| **Paramètres → Rentabilité** | Coût horaire moyen de la main-d'œuvre, frais indirects (aucun / % du CA / par heure). Coût horaire par employé sur sa fiche (administrateur). |
+
+Mise à jour de la base : `npm run db:cloud` (migration `7_profitability`, ajouts uniquement) avant le `git push`, puis redémarrer `start-hub.cmd`. Détails et tests : [`docs/RAPPORT-PROMPT2.md`](docs/RAPPORT-PROMPT2.md).
 
 ## Nouveautés V7.2 — Excel, mot de passe oublié, soldes de congés, journal complet
 

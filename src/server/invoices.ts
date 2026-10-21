@@ -91,9 +91,10 @@ export async function createInvoice(workOrderId: string, actor: StaffUser) {
 
 export async function recordPayment(
   invoiceId: string,
-  input: { amount: number; method: PaymentMethod; reference?: string },
+  input: { amount: number; method: PaymentMethod; reference?: string; payer?: "CUSTOMER" | "INSURANCE" },
   actor: StaffUser,
 ) {
+  const payer = input.payer ?? "CUSTOMER";
   return prisma.$transaction(async (tx) => {
     // Row lock: a second payment on the same invoice waits here until this one commits,
     // then reads the updated paidAmount (prevents double payment / lost update).
@@ -106,13 +107,13 @@ export async function recordPayment(
     const paidAmount = invoice.paidAmount + input.amount;
     const status: InvoiceStatus = paidAmount >= invoice.totalTtc ? "PAID" : "PARTIAL";
     const payment = await tx.payment.create({
-      data: { invoiceId, amount: input.amount, method: input.method, reference: input.reference, actorId: actor.id },
+      data: { invoiceId, amount: input.amount, method: input.method, reference: input.reference, payer, actorId: actor.id },
       select: { id: true },
     });
     await tx.invoice.update({ where: { id: invoiceId }, data: { paidAmount, status } });
     await audit(tx, actor, "payment.record", "Payment", payment.id, {
       before: { invoice: invoice.number, paidAmount: invoice.paidAmount, status: invoice.status },
-      after: { invoice: invoice.number, amount: input.amount, method: input.method, reference: input.reference ?? null, paidAmount, status },
+      after: { invoice: invoice.number, amount: input.amount, method: input.method, payer, reference: input.reference ?? null, paidAmount, status },
     });
     await tx.workOrderEvent.create({
       data: { workOrderId: invoice.workOrderId, actorId: actor.id, type: "PAYMENT", data: { amount: input.amount, method: input.method } },

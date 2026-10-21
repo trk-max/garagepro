@@ -164,6 +164,12 @@ export default async function InvoicePage({ params }: PageProps) {
                   ))}
                 </NativeSelect>
               </Field>
+              <Field label={t.v7.profit.payer}>
+                <NativeSelect name="payer" defaultValue="CUSTOMER">
+                  <option value="CUSTOMER">{t.v7.profit.customer}</option>
+                  <option value="INSURANCE">{t.v7.profit.insurance}</option>
+                </NativeSelect>
+              </Field>
               <Field label={`${t.invoices.reference} (${t.common.optional})`}>
                 <Input name="reference" />
               </Field>

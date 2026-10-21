@@ -24,6 +24,7 @@ import { employeeReport } from "@/server/team-reports";
 import { listPunches } from "@/server/timeclock";
 import { LeaveBalanceLine } from "@/components/team/leave-balance";
 import { getLeaveBalance } from "@/server/leaves";
+import { setHourlyCostAction } from "@/actions/profit";
 
 type PageProps = { params: Promise<{ id: string }>; searchParams: Promise<{ from?: string; to?: string }> };
 
@@ -41,7 +42,7 @@ export default async function EmployeePage({ params, searchParams }: PageProps) 
   const to = zonedToUtc(addDays(toDay, 1), "00:00", tz);
 
   const [employee, report, punches, certificates, balance] = await Promise.all([
-    prisma.user.findUnique({ where: { id }, select: { id: true, name: true, role: true, isActive: true, jobTitle: true, hireDate: true, nationalId: true, annualLeaveDays: true } }),
+    prisma.user.findUnique({ where: { id }, select: { id: true, name: true, role: true, isActive: true, jobTitle: true, hireDate: true, nationalId: true, annualLeaveDays: true, hourlyCost: true } }),
     employeeReport(id, from, to),
     listPunches(id, from, to),
     listCertificates(id),
@@ -289,6 +290,16 @@ export default async function EmployeePage({ params, searchParams }: PageProps) 
               <Button type="submit">{t.common.save}</Button>
             </div>
           </ActionForm>
+          {can(staff.role, "manageSettings") && (
+            <ActionForm action={setHourlyCostAction.bind(null, employee.id)} reset={false} className="mt-4 flex flex-wrap items-end gap-2 border-t pt-4">
+              <Field label={`${t.v7.profit.hourlyCost} (DT)`} hint={t.v7.profit.hourlyCostHint}>
+                <Input name="hourlyCost" inputMode="decimal" dir="ltr" defaultValue={employee.hourlyCost === null ? "" : (employee.hourlyCost / 1000).toFixed(3)} />
+              </Field>
+              <Button type="submit" variant="outline">
+                {t.common.save}
+              </Button>
+            </ActionForm>
+          )}
         </Card>
         {can(staff.role, "issueCertificates") && (
           <Card>

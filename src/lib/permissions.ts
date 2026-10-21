@@ -60,6 +60,10 @@ const MATRIX = {
   // Administration
   manageSettings: ["ADMIN"],
   viewReports: ["ADMIN"],
+  /// Rentabilité (coûts, main-d'œuvre, marges) : données sensibles, administrateur seulement.
+  viewProfit: ["ADMIN"],
+  /// Saisir / annuler une dépense directe sur une réparation.
+  manageExpenses: ["ADMIN", "MANAGER"],
   viewAuditLog: ["ADMIN"],
 } as const satisfies Record<string, readonly Role[]>;
 

@@ -166,7 +166,23 @@ export const paymentSchema = z.object({
   amount: money.refine((m) => m > 0),
   method: z.nativeEnum(PaymentMethod),
   reference: optionalText(80),
+  payer: z.enum(["CUSTOMER", "INSURANCE"]).default("CUSTOMER"),
 });
+
+export const expenseSchema = z.object({
+  description: z.string().trim().min(2).max(200),
+  amount: money.refine((m) => m > 0),
+  supplierId: z.preprocess(emptyToUndefined, id.optional()),
+});
+
+export const profitSettingsSchema = z.object({
+  laborCostPerHour: money,
+  overheadMode: z.enum(["NONE", "PERCENT_REVENUE", "PER_LABOR_HOUR"]),
+  /** % of revenue (e.g. "12,5") or DT per person-hour, depending on the mode. */
+  overheadValue: z.preprocess(parseDecimal, z.number().finite().min(0).max(1_000_000)),
+});
+
+export const hourlyCostSchema = z.object({ hourlyCost: optionalMoney });
 
 export const settingsSchema = z.object({
   garageName: requiredText(120),

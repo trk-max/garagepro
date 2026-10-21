@@ -399,6 +399,8 @@ type NewLine = { type: LineType; partId?: string; description?: string; quantity
 async function insertLine(tx: Tx, workOrderId: string, line: NewLine, actor: StaffUser, laborRate: number, taxBp: number) {
   let description = line.description;
   let unitPrice = line.unitPrice;
+  // Purchase cost at the moment of use: later price changes never rewrite a repair's real cost.
+  let unitCost: number | null = null;
   let warning: { name: string; stockX100: number } | null = null;
 
   if (line.type === "PART") {
@@ -409,6 +411,7 @@ async function insertLine(tx: Tx, workOrderId: string, line: NewLine, actor: Sta
       if (!part) throw new AppError("notFound", {}, 404);
       description ??= part.brand ? `${part.name} (${part.brand})` : part.name;
       unitPrice ??= part.salePrice;
+      unitCost = part.costPrice > 0 ? part.costPrice : null;
       // Business rule (unchanged): a part may be used even if the recorded stock is short
       // (it can be physically on the shelf); the user gets a warning instead of a block.
       const remaining = await moveStock(tx, actor, { partId: part.id, deltaX100: -line.quantityX100, reason: "WORK_ORDER", workOrderId });
@@ -429,6 +432,7 @@ async function insertLine(tx: Tx, workOrderId: string, line: NewLine, actor: Sta
       unitPrice: unitPrice!,
       taxRateBp: taxBp,
       partId: line.type === "PART" ? (line.partId ?? null) : null,
+      unitCost,
       position,
     },
   });
