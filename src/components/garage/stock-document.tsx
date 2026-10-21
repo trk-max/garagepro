@@ -1,6 +1,7 @@
 import type { Setting, Supplier } from "@prisma/client";
 import { formatDate, formatMoney, formatQty, type Lang } from "@/lib/format";
 import type { Dictionary } from "@/lib/i18n/fr";
+import { DocFooter, DocLogo } from "@/components/garage/doc-brand";
 
 /** Printable A4 purchase order / goods receipt. */
 export function StockDocument({
@@ -29,6 +30,7 @@ export function StockDocument({
     <article className="paper mx-auto max-w-[210mm] bg-white p-10 text-sm text-zinc-900 shadow-sm print:max-w-none print:p-0 print:shadow-none">
       <header className="flex flex-wrap items-start justify-between gap-6 border-b pb-6">
         <div>
+          <DocLogo logo={garage.logoDataUrl} name={garage.garageName} />
           <h2 className="text-xl font-bold">{garage.garageName}</h2>
           {garage.address && <p>{garage.address}</p>}
           {garage.phone && <p dir="ltr">{garage.phone}</p>}
@@ -90,6 +92,7 @@ export function StockDocument({
       <p className="mt-4 text-end text-base font-bold">
         {t.purchase.total}: <span dir="ltr">{formatMoney(total, lang)}</span>
       </p>
+      <DocFooter garage={{ name: garage.garageName, address: garage.address, phone: garage.phone, email: garage.email, taxId: garage.taxId }} taxIdLabel={t.common.taxId} />
     </article>
   );
 }

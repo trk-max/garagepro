@@ -302,6 +302,7 @@ export const fr = {
     qcNotApproved: "Impossible de passer à « Prêt » : le contrôle qualité doit être complet et validé par un responsable.",
     certificateMissing: "Informations manquantes pour l'attestation : {fields}. Complétez-les (Équipe → Entreprise, et la fiche de l'employé) : rien n'est inventé.",
     companyLogin: "E-mail ou mot de passe incorrect.",
+    logoInvalid: "Logo : image PNG, JPEG ou WEBP de 300 Ko maximum.",
     warrantyLimit: "Indiquez une durée (mois ou date de fin, après le début) et/ou un kilométrage.",
     warrantySupplier: "Garantie pièce : choisissez le fournisseur qui la garantit.",
     warrantyNoKm: "Kilométrage de départ inconnu (ni à la réception, ni sur la fiche du véhicule) : indiquez une durée, ou complétez le kilométrage.",
@@ -488,6 +489,7 @@ export const fr = {
   },
   assistant: {
     title: "Assistant auto IA",
+    askAi: "Demander à l'IA",
     guideIntro: "Bonjour ! Choisissez ce qui ressemble à votre problème, je vous guide pas à pas. Vous pouvez aussi écrire directement votre question en bas.",
     guideIntroNoAi: "Bonjour ! Choisissez ce qui ressemble à votre problème, je vous guide pas à pas.",
     causes: "Causes probables",

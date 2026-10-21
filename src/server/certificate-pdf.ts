@@ -25,7 +25,7 @@ function wrap(text: string, width: number, size: number, measure: (t: string, s:
  * subject, centred title, body with the two statements, "Fait à", signature
  * block. Only an EMPTY frame for the signature and stamp: never generated.
  */
-export async function certificatePdf(s: CertificateSnapshot): Promise<Uint8Array> {
+export async function certificatePdf(s: CertificateSnapshot, opts: { logo?: string | null } = {}): Promise<Uint8Array> {
   const pdf = await PDFDocument.create();
   pdf.setTitle(`Attestation de travail ${s.number}`);
   pdf.setAuthor(s.company.legalName);
@@ -42,6 +42,19 @@ export async function certificatePdf(s: CertificateSnapshot): Promise<Uint8Array
   const grey = rgb(0.4, 0.4, 0.45);
   const t = certificateText(s);
   let y = 790;
+
+  // Logo of the documents (Paramètres), top right. pdf-lib draws PNG and JPEG only.
+  const logo = opts.logo?.match(/^data:image\/(png|jpeg);base64,(.+)$/);
+  if (logo) {
+    try {
+      const bytes = Buffer.from(logo[2]!, "base64");
+      const img = logo[1] === "png" ? await pdf.embedPng(bytes) : await pdf.embedJpg(bytes);
+      const scale = Math.min(140 / img.width, 48 / img.height, 1);
+      page.drawImage(img, { x: W - left - img.width * scale, y: 800 - img.height * scale, width: img.width * scale, height: img.height * scale });
+    } catch {
+      /* unreadable image: the certificate is still produced, without logo */
+    }
+  }
 
   page.drawText("Attestation de travail", { x: left, y, size: 16, font: bold, color: txt });
   y -= 30;
@@ -107,6 +120,10 @@ export async function certificatePdf(s: CertificateSnapshot): Promise<Uint8Array
   page.drawText("Signature et cachet", { x: right, y, size: 9, font, color: grey });
   page.drawRectangle({ x: right, y: y - 95, width: W - right - left, height: 85, borderColor: rgb(0.75, 0.75, 0.78), borderWidth: 0.6 });
 
-  page.drawText(safe(`Document généré par GaragePro le ${s.issuedAt.slice(0, 10)} — valable uniquement signé et cacheté par l'entreprise.`), { x: left, y: 36, size: 7.5, font, color: grey });
+  // Legal footer: who issued the document.
+  const legal = safe([s.company.legalName, s.company.address.replace(/\s*\n\s*/g, ", "), s.company.phone, s.company.email, s.company.taxId ? `MF : ${s.company.taxId}` : null].filter(Boolean).join(" · "));
+  page.drawLine({ start: { x: left, y: 60 }, end: { x: W - left, y: 60 }, thickness: 0.5, color: rgb(0.8, 0.8, 0.82) });
+  for (const [i, l] of wrap(legal, width, 7.5, measure).slice(0, 2).entries()) page.drawText(l, { x: left, y: 50 - i * 10, size: 7.5, font, color: grey });
+  page.drawText(safe(`Document généré par GaragePro le ${s.issuedAt.slice(0, 10)} — valable uniquement signé et cacheté par l'entreprise.`), { x: left, y: 26, size: 7.5, font, color: grey });
   return pdf.save();
 }

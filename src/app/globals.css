@@ -370,8 +370,16 @@
 }
 
 @media print {
-  @page { size: A4; margin: 12mm; }
+  /* Margin 0: the browser has no room for its own header/footer (date, title, address, page count).
+     The margins are drawn by the body instead, on every page (box-decoration-break: clone). */
+  @page { size: A4; margin: 0; }
   html, body { background: white !important; }
+  body { padding: 12mm 14mm 22mm; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+  /* The app frame (dark, one screen tall) must not print behind or after the document:
+     with "background graphics" on it gave a black block and an empty 2nd page. */
+  .ferrari, .ferrari main { background: white !important; min-height: 0 !important; height: auto !important; }
+  /* Legal footer of the documents: at the bottom of every printed page. */
+  .doc-footer { position: fixed; left: 14mm; right: 14mm; bottom: 7mm; margin: 0 !important; background: white; }
   .dark {
   --background: #ffffff;
   --foreground: #0b0c10;

@@ -508,6 +508,8 @@ model Setting {
   /// Droit de timbre par facture, millimes.
   stampDuty              Int      @default(1000)
   invoiceFooter          String?
+  /// Logo des documents imprimés (data URL PNG/JPEG/WEBP, 300 Ko max). Vide = logo GaragePro.
+  logoDataUrl            String?
   /// Adresse publique du site (liens SMS / e-mail, QR Codes) quand APP_URL n'est pas réglé, ex. https://garage.vercel.app
   siteUrl                String?
   /// Délai de paiement client en jours (échéance = date facture + délai).

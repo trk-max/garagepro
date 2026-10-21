@@ -39,7 +39,10 @@ export function AssistantChat({
   services,
   phone,
   whatsapp,
+  embedded = false,
 }: {
+  /** Inside the floating window: fills it instead of taking 70 % of the screen. */
+  embedded?: boolean;
   aiEnabled: boolean;
   services: ChatService[];
   phone: string | null;
@@ -124,7 +127,7 @@ export function AssistantChat({
   }
 
   return (
-    <div className="flex min-h-[70dvh] flex-col overflow-hidden rounded-xl bg-card shadow-sm ring-1 ring-border">
+    <div className={cn("flex flex-col overflow-hidden bg-card", embedded ? "h-full min-h-0" : "min-h-[70dvh] rounded-xl shadow-sm ring-1 ring-border")}>
       <style>{`
         @keyframes gp-fade-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
         .gp-fade-in { animation: gp-fade-in 0.3s ease-out both; }

@@ -53,6 +53,7 @@ export default async function InvoicePage({ params }: PageProps) {
         <DocumentView
           t={t}
           lang={lang}
+          logo={settings.logoDataUrl}
           doc={{
             kind: "invoice",
             number: invoice.number,

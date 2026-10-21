@@ -1,6 +1,7 @@
 import type { LineType } from "@prisma/client";
 import { displayPlate, fmt, formatDate, formatKm, formatMoney, formatQty, woNumber, type Lang } from "@/lib/format";
 import type { Dictionary } from "@/lib/i18n/fr";
+import { DocFooter, DocLogo } from "@/components/garage/doc-brand";
 
 export type DocumentData = {
   kind: "quote" | "invoice";
@@ -15,7 +16,7 @@ export type DocumentData = {
 };
 
 /** A4 printable quote / invoice. Print with the browser (Ctrl+P → PDF). */
-export function DocumentView({ doc, t, lang }: { doc: DocumentData; t: Dictionary; lang: Lang }) {
+export function DocumentView({ doc, t, lang, logo }: { doc: DocumentData; t: Dictionary; lang: Lang; logo?: string | null }) {
   const title = doc.kind === "invoice" ? t.invoices.invoice : t.invoices.quote;
   const money = (m: number) => formatMoney(m, lang);
 
@@ -23,6 +24,7 @@ export function DocumentView({ doc, t, lang }: { doc: DocumentData; t: Dictionar
     <article className="paper mx-auto max-w-[210mm] bg-white p-10 text-sm text-zinc-900 shadow-sm print:max-w-none print:p-0 print:shadow-none">
       <header className="flex flex-wrap items-start justify-between gap-6 border-b pb-6">
         <div>
+          <DocLogo logo={logo} name={doc.garage.name} />
           <h2 className="text-xl font-bold">{doc.garage.name}</h2>
           {doc.garage.address && <p className="whitespace-pre-line">{doc.garage.address}</p>}
           {doc.garage.phone && <p dir="ltr">{doc.garage.phone}</p>}
@@ -112,10 +114,8 @@ export function DocumentView({ doc, t, lang }: { doc: DocumentData; t: Dictionar
         </div>
       </dl>
 
-      <footer className="mt-10 border-t pt-4 text-center text-xs text-zinc-500">
-        <p>{doc.kind === "quote" ? t.invoices.quoteValidity : t.invoices.thanks}</p>
-        {doc.garage.footer && <p className="mt-1 whitespace-pre-line">{doc.garage.footer}</p>}
-      </footer>
+      <p className="mt-10 text-center text-xs text-zinc-500">{doc.kind === "quote" ? t.invoices.quoteValidity : t.invoices.thanks}</p>
+      <DocFooter garage={doc.garage} text={doc.garage.footer} taxIdLabel={t.common.taxId} />
     </article>
   );
 }

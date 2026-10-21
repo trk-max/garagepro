@@ -822,4 +822,13 @@ export const v7En: typeof v7Fr = {
     limits: "Limits: an estimate, not accounting; no bank connection (the balance is typed by hand); a single garage, no branches; money received or paid without being recorded in GaragePro is only known by entering the balance again. Details: docs/GARANTIES-TRESORERIE.md.",
     empty: "No expected flow over this period.",
   },
+  branding: {
+    title: "Document logo",
+    hint: "Printed at the top of invoices, quotes, purchase orders, receipts and certificates. PNG, JPEG or WEBP, 300 KB maximum (white or transparent background advised). Without a logo, the GaragePro one is used.",
+    file: "Logo image",
+    upload: "Save the logo",
+    remove: "Back to the GaragePro logo",
+    current: "Your logo",
+    default: "GaragePro logo (no logo uploaded)",
+  },
 };

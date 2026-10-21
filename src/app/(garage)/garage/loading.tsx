@@ -6,7 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
  */
 export default function GarageLoading() {
   return (
-    <div className="mx-auto max-w-6xl space-y-6 p-6" role="status" aria-label="Chargement…">
+    <div className="mx-auto max-w-6xl space-y-6 p-6 print:hidden" role="status" aria-label="Chargement…">
       <div className="flex items-center gap-3">
         <Skeleton className="h-7 w-56" />
         <Skeleton className="ms-auto h-9 w-32" />

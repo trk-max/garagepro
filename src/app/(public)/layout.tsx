@@ -1,14 +1,19 @@
 import type { ReactNode } from "react";
+import { AskAiWidget } from "@/components/portal/ask-ai-widget";
 import { PortalShell } from "@/components/portal/portal-shell";
 import { aboutContent } from "@/lib/about-content";
 import { getI18n } from "@/lib/i18n/server";
+import { aiConfigured } from "@/server/assistant";
+import { listBookableServices } from "@/server/booking";
 import { getSettings } from "@/server/settings";
 
 export const dynamic = "force-dynamic";
 
 /** Customer site shell (header + footer). The look lives in components/portal/portal-shell.tsx. */
 export default async function PublicLayout({ children }: { children: ReactNode }) {
-  const [{ t, lang }, settings] = await Promise.all([getI18n(), getSettings()]);
+  const [{ t, lang }, settings, services] = await Promise.all([getI18n(), getSettings(), listBookableServices()]);
+  const phone = settings.phone?.replace(/\s/g, "") || null;
+  const whatsapp = phone ? phone.replace(/\D/g, "").replace(/^00/, "") || null : null;
   return (
     <PortalShell
       garageName={settings.garageName}
@@ -26,6 +31,12 @@ export default async function PublicLayout({ children }: { children: ReactNode }
       footer={t.footer}
     >
       {children}
+      <AskAiWidget
+        aiEnabled={aiConfigured()}
+        services={settings.bookingEnabled ? services.map((s) => ({ id: s.id, name: s.name, nameAr: s.nameAr })) : []}
+        phone={phone}
+        whatsapp={whatsapp}
+      />
     </PortalShell>
   );
 }

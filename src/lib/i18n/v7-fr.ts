@@ -821,4 +821,13 @@ export const v7Fr = {
     limits: "Limites : estimation, pas une comptabilité ; aucune connexion bancaire (le solde est saisi à la main) ; un seul garage, pas de succursales ; l'argent reçu ou payé sans être saisi dans GaragePro n'est connu qu'en ressaisissant le solde. Détails : docs/GARANTIES-TRESORERIE.md.",
     empty: "Aucun flux attendu sur cette période.",
   },
+  branding: {
+    title: "Logo des documents",
+    hint: "Imprimé en haut des factures, devis, bons de commande, réceptions et attestations. PNG, JPEG ou WEBP, 300 Ko maximum (fond blanc ou transparent conseillé). Sans logo, celui de GaragePro est utilisé.",
+    file: "Image du logo",
+    upload: "Enregistrer le logo",
+    remove: "Revenir au logo GaragePro",
+    current: "Votre logo",
+    default: "Logo GaragePro (aucun logo envoyé)",
+  },
 };

@@ -304,6 +304,7 @@ export const en: Dictionary = {
     qcNotApproved: "Cannot set “Ready”: quality control must be complete and validated by a manager.",
     certificateMissing: "Missing information for the certificate: {fields}. Fill them in (Team → Company, and the employee's file): nothing is made up.",
     companyLogin: "Wrong e-mail or password.",
+    logoInvalid: "Logo: PNG, JPEG or WEBP image, 300 KB maximum.",
     warrantyLimit: "Give a duration (months or end date, after the start) and/or a mileage.",
     warrantySupplier: "Part warranty: choose the supplier who guarantees it.",
     warrantyNoKm: "Starting mileage unknown (neither at check-in nor on the vehicle file): give a duration, or complete the mileage.",
@@ -490,6 +491,7 @@ export const en: Dictionary = {
   },
   assistant: {
     title: "AI car assistant",
+    askAi: "Ask AI",
     guideIntro: "Hello! Pick what looks like your problem and I'll guide you step by step. You can also type your question below.",
     guideIntroNoAi: "Hello! Pick what looks like your problem and I'll guide you step by step.",
     causes: "Likely causes",

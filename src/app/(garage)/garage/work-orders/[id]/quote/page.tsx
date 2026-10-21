@@ -31,6 +31,7 @@ export default async function QuotePage({ params }: PageProps) {
       <DocumentView
         t={t}
         lang={lang}
+        logo={settings.logoDataUrl}
         doc={{
           kind: "quote",
           number: `D-${woNumber(wo.number).slice(3)}`,
