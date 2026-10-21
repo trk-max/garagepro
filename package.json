@@ -29,7 +29,7 @@
     "reset-access": "node --env-file=.env scripts/reset-access.mjs",
     "hub:init": "node --env-file=.env scripts/hub/init.mjs",
     "hub": "node --env-file=.env scripts/hub/start.mjs",
-    "prehub": "prisma generate",
+    "prehub": "node scripts/hub/prehub.mjs",
     "hub:sync": "node --env-file=.env scripts/hub/run-sync.mjs --once",
     "test:hub": "vitest run tests/hub-sync.test.ts",
     "test:db": "node scripts/test-db-client.mjs && vitest run --config vitest.db.config.ts",

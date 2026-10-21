@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardTitle, Field, NativeSelect, PageHeader, Table, Td, Th } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { formatDateTime, formatMoney, formatQty, woNumber } from "@/lib/format";
+import { LiveRefresh } from "@/components/live-refresh";
 import { getI18n } from "@/lib/i18n/server";
 import { can } from "@/lib/permissions";
 import { requirePageAccess } from "@/lib/session";
@@ -32,6 +33,7 @@ export default async function PartsPage({ searchParams }: PageProps) {
     <div className="mx-auto grid max-w-7xl gap-6 p-6 xl:grid-cols-[minmax(0,1fr)_360px]">
       <div className="min-w-0">
         <PageHeader title={t.parts.title}>
+          <LiveRefresh url="/api/staff/live?topic=stock" liveLabel={t.portal.live} reconnectingLabel={t.portal.reconnecting} />
           <SearchForm placeholder={t.parts.searchPlaceholder} defaultValue={q} hidden={{ low }} />
           {canRequest && (
             <Button asChild size="sm">

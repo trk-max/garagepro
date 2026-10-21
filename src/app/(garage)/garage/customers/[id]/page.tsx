@@ -9,6 +9,7 @@ import { VehicleFields } from "@/components/garage/vehicle-fields";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle, PageHeader, Table, Td, Th } from "@/components/ui/field";
 import { formatDate, formatKm, formatMoney, woNumber } from "@/lib/format";
+import { LiveRefresh } from "@/components/live-refresh";
 import { getI18n } from "@/lib/i18n/server";
 import { can } from "@/lib/permissions";
 import { requirePageAccess } from "@/lib/session";
@@ -27,6 +28,7 @@ export default async function CustomerPage({ params }: PageProps) {
   return (
     <div className="mx-auto max-w-7xl p-6">
       <PageHeader title={customer.name}>
+        <LiveRefresh url="/api/staff/live?topic=customers" liveLabel={t.portal.live} reconnectingLabel={t.portal.reconnecting} />
         {showMoney && (
           <span className="text-sm text-muted-foreground">
             {t.customers.totalSpent}: <span className="font-medium text-foreground" dir="ltr">{formatMoney(customer.totalInvoiced, lang)}</span>

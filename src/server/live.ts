@@ -57,3 +57,34 @@ export async function workshopVersion(): Promise<string> {
   });
   return `${agg._max.updatedAt?.getTime() ?? 0}:${agg._count._all}`;
 }
+
+/** Stock: any part changed (quantity, reservation, price…) or any new stock movement. */
+export async function stockVersion(): Promise<string> {
+  const [parts, moves] = await Promise.all([
+    prisma.part.aggregate({ _max: { updatedAt: true }, _count: { _all: true } }),
+    prisma.stockMovement.aggregate({ _max: { createdAt: true }, _count: { _all: true } }),
+  ]);
+  return `${parts._max.updatedAt?.getTime() ?? 0}:${parts._count._all}:${moves._max.createdAt?.getTime() ?? 0}:${moves._count._all}`;
+}
+
+/** Customers and their vehicles: added, edited, mileage updated (also when received from the other copy). */
+export async function customersVersion(): Promise<string> {
+  const [customers, vehicles] = await Promise.all([
+    prisma.customer.aggregate({ _max: { updatedAt: true }, _count: { _all: true } }),
+    prisma.vehicle.aggregate({ _max: { updatedAt: true }, _count: { _all: true } }),
+  ]);
+  return `${customers._max.updatedAt?.getTime() ?? 0}:${customers._count._all}:${vehicles._max.updatedAt?.getTime() ?? 0}:${vehicles._count._all}`;
+}
+
+/** Dashboard: anything its tiles show (repairs, stock, appointments, invoices, payments, clocking). */
+export async function dashboardVersion(): Promise<string> {
+  const [wo, stock, appts, inv, pay, clock] = await Promise.all([
+    prisma.workOrder.aggregate({ _max: { updatedAt: true }, _count: { _all: true } }),
+    stockVersion(),
+    appointmentsVersion(),
+    prisma.invoice.aggregate({ _count: { _all: true }, _sum: { paidAmount: true } }),
+    prisma.payment.aggregate({ _count: { _all: true } }),
+    prisma.clockEvent.aggregate({ _count: { _all: true } }),
+  ]);
+  return [wo._max.updatedAt?.getTime() ?? 0, wo._count._all, stock, appts, inv._count._all, inv._sum.paidAmount ?? 0, pay._count._all, clock._count._all].join(":");
+}

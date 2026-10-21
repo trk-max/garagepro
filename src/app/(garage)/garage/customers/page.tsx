@@ -6,6 +6,7 @@ import { CustomerFields } from "@/components/garage/customer-fields";
 import { SearchForm } from "@/components/garage/search-form";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle, PageHeader, Table, Td, Th } from "@/components/ui/field";
+import { LiveRefresh } from "@/components/live-refresh";
 import { getI18n } from "@/lib/i18n/server";
 import { requirePageAccess } from "@/lib/session";
 import { listCustomers } from "@/server/customers";
@@ -21,6 +22,7 @@ export default async function CustomersPage({ searchParams }: PageProps) {
     <div className="mx-auto grid max-w-7xl gap-6 p-6 xl:grid-cols-[minmax(0,1fr)_380px]">
       <div>
         <PageHeader title={t.customers.title}>
+          <LiveRefresh url="/api/staff/live?topic=customers" liveLabel={t.portal.live} reconnectingLabel={t.portal.reconnecting} />
           <SearchForm placeholder={t.customers.searchPlaceholder} defaultValue={q} />
         </PageHeader>
 

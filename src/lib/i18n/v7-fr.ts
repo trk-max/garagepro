@@ -615,4 +615,17 @@ export const v7Fr = {
     none: "Aucun relevé pour ce véhicule.",
     limits: "Limites : adaptateurs ELM327 série (USB, Bluetooth classique) via Chrome/Edge. Les adaptateurs Wi-Fi et Bluetooth Low Energy ne sont pas pris en charge. Les données propres aux constructeurs (ABS, airbag, boîte…) ne sont pas lues.",
   },
+  dash: {
+    alerts: "Alertes à traiter",
+    present: "Équipe présente",
+    onBreak: "en pause",
+    moneyTitle: "Facturé et encaissé — 6 derniers mois",
+    invoiced: "Facturé (TTC)",
+    collected: "Encaissé",
+    showTable: "Voir les chiffres",
+    month: "Mois",
+    appointmentsToday: "Rendez-vous du jour",
+    noAppointments: "Aucun rendez-vous aujourd'hui.",
+    checkedIn: "Véhicule réceptionné",
+  },
 };

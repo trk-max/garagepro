@@ -616,4 +616,17 @@ export const v7Ar: typeof v7Fr = {
     none: "لا توجد قراءات لهذه السيارة.",
     limits: "الحدود: محوّلات ELM327 التسلسلية (USB، بلوتوث كلاسيكي) عبر Chrome/Edge. محوّلات Wi-Fi وBluetooth Low Energy غير مدعومة. بيانات المصنّعين الخاصة (ABS، الوسائد الهوائية، علبة السرعات…) لا تُقرأ.",
   },
+  dash: {
+    alerts: "تنبيهات للمعالجة",
+    present: "الفريق الحاضر",
+    onBreak: "في استراحة",
+    moneyTitle: "المفوتر والمحصّل — آخر 6 أشهر",
+    invoiced: "المفوتر (بالأداء)",
+    collected: "المحصّل",
+    showTable: "عرض الأرقام",
+    month: "الشهر",
+    appointmentsToday: "مواعيد اليوم",
+    noAppointments: "لا توجد مواعيد اليوم.",
+    checkedIn: "تم استقبال السيارة",
+  },
 };

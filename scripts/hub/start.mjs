@@ -4,6 +4,7 @@
  * synchronisation with the online database, in one window.
  */
 import { spawn, spawnSync } from "node:child_process";
+import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -16,12 +17,30 @@ if (process.env.GARAGE_HUB_LOCAL !== "1") {
   process.exit(1);
 }
 
+// Already running (second double-click, or started at login)? Then just open it: a second
+// hub would fail on the busy port, and the first one must keep running and syncing.
+const port = process.env.PORT || "3000";
+const portBusy = await new Promise((resolve) => {
+  const probe = net.createServer().once("error", (e) => resolve(e.code === "EADDRINUSE")).once("listening", () => probe.close(() => resolve(false)));
+  probe.listen(Number(port), "0.0.0.0");
+});
+if (portBusy) {
+  const url = `http://localhost:${port}`;
+  const ours = await fetch(`${url}/api/hub/status`, { signal: AbortSignal.timeout(5000) }).then((r) => r.status === 200 || r.status === 401, () => false);
+  if (ours) {
+    console.log(`\n  GaragePro tourne déjà sur ce PC (une autre fenêtre du hub est ouverte) : ouverture de ${url}\n`);
+    if (process.platform === "win32") spawn("cmd", ["/c", "start", "", url], { stdio: "ignore", detached: true }).unref();
+    process.exit(0);
+  }
+  console.error(`\n  !! Le port ${port} est déjà utilisé par un autre programme. Fermez-le, ou choisissez un autre port (PORT=3001 dans le .env).\n`);
+  process.exit(1);
+}
+
 // New version of the app: bring the garage database up to date first (adds tables, never deletes).
 const npx = process.platform === "win32" ? "npx.cmd" : "npx";
 const migrate = spawnSync(npx, ["prisma", "migrate", "deploy"], { cwd: ROOT, stdio: "inherit", shell: process.platform === "win32", env: { ...process.env, DIRECT_URL: process.env.DATABASE_URL } });
 if (migrate.status !== 0) console.error("\n  ⚠ Mise à jour de la base locale impossible (voir le message ci-dessus). L'application démarre quand même.\n");
 
-const port = process.env.PORT || "3000";
 const addresses = Object.values(os.networkInterfaces())
   .flat()
   .filter((a) => a && a.family === "IPv4" && !a.internal)

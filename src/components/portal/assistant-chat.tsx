@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { type ReactNode, useEffect, useRef, useState } from "react";
-import { AlertTriangle, Bot, CalendarCheck, CheckCircle2, Loader2, MessageCircle, Phone, RotateCcw, Send, Sparkles, User } from "lucide-react";
+import { AlertTriangle, Bot, CalendarCheck, CheckCircle2, Loader2, MessageCircle, Phone, RotateCcw, Send, Sparkles, User, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { QUESTIONS, RESULTS, ROOT, type Urgency, matchService, tr } from "@/lib/guided-diagnosis";
 import { useI18n } from "@/lib/i18n/client";
@@ -124,7 +124,24 @@ export function AssistantChat({
   }
 
   return (
-    <div className="flex min-h-[70dvh] flex-col overflow-hidden rounded-lg bg-card shadow-sm ring-1 ring-border">
+    <div className="flex min-h-[70dvh] flex-col overflow-hidden rounded-xl bg-card shadow-sm ring-1 ring-border">
+      <style>{`
+        @keyframes gp-fade-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .gp-fade-in { animation: gp-fade-in 0.3s ease-out both; }
+        @media (prefers-reduced-motion: reduce) { .gp-fade-in { animation: none; } }
+      `}</style>
+      {/* Header: name of the assistant and "start again". */}
+      <div className="flex items-center justify-between gap-3 border-b bg-[#0b0c10] px-4 py-3 text-white">
+        <p className="flex items-center gap-2 font-medium">
+          <Sparkles className="size-5 text-brand-400" aria-hidden /> {a.bot}
+          {aiEnabled && <span className="rounded-full bg-white/10 px-2 py-0.5 text-[0.6875rem] font-normal text-white/70">IA</span>}
+        </p>
+        {items.length > 1 && (
+          <button type="button" onClick={restart} className="grid size-9 place-items-center rounded-full text-white/70 transition-colors hover:bg-white/10 hover:text-white" aria-label={a.restart} title={a.restart}>
+            <X className="size-4" aria-hidden />
+          </button>
+        )}
+      </div>
       <div className="flex-1 space-y-4 overflow-y-auto p-4 sm:p-6" aria-live="polite" aria-busy={pending}>
         <Bubble mine={false} label={a.bot}>
           {aiEnabled ? a.guideIntro : a.guideIntroNoAi}
@@ -195,9 +212,12 @@ export function AssistantChat({
         })}
 
         {pending && (
-          <p className="flex items-center gap-2 ps-11 text-sm text-muted-foreground">
-            <Loader2 className="size-4 animate-spin" aria-hidden /> {a.thinking}
-          </p>
+          <div className="gp-fade-in ms-11 inline-flex items-center gap-1.5 rounded-2xl rounded-ss-none bg-muted px-4 py-3" role="status">
+            <span className="sr-only">{a.thinking}</span>
+            <span className="size-2 animate-pulse rounded-full bg-brand-500" aria-hidden />
+            <span className="size-2 animate-pulse rounded-full bg-brand-500 [animation-delay:0.2s]" aria-hidden />
+            <span className="size-2 animate-pulse rounded-full bg-brand-500 [animation-delay:0.4s]" aria-hidden />
+          </div>
         )}
 
         {error && (
@@ -227,7 +247,8 @@ export function AssistantChat({
             <label htmlFor="assistant-input" className="sr-only">
               {a.placeholder}
             </label>
-            <div className="flex items-end gap-2">
+            {/* Round input with the send button inside it. */}
+            <div className="relative flex items-center">
               <textarea
                 id="assistant-input"
                 ref={inputRef}
@@ -239,25 +260,25 @@ export function AssistantChat({
                     sendToAi(draft);
                   }
                 }}
-                rows={2}
+                rows={1}
                 maxLength={MAX_CHARS}
                 placeholder={a.placeholder}
-                className="min-h-11 flex-1 resize-none rounded-md border border-border bg-card px-3 py-2.5 text-base outline-none focus-visible:border-brand-400 focus-visible:ring-[3px] focus-visible:ring-brand-400/40"
+                className="max-h-40 min-h-12 w-full resize-none rounded-3xl border border-border bg-card py-3 ps-4 pe-14 text-base outline-none field-sizing-content focus-visible:border-brand-400 focus-visible:ring-[3px] focus-visible:ring-brand-400/40"
               />
-              <Button type="submit" disabled={pending || !draft.trim()} className="h-11 bg-primary px-4 text-primary-foreground hover:bg-brand-500 hover:text-white" aria-label={a.send}>
-                {pending ? <Loader2 className="animate-spin" aria-hidden /> : <Send className="rtl:-scale-x-100" aria-hidden />}
-                <span className="max-sm:sr-only">{a.send}</span>
-              </Button>
+              <button
+                type="submit"
+                disabled={pending || !draft.trim()}
+                aria-label={a.send}
+                title={a.send}
+                className="absolute end-1.5 grid size-9 place-items-center rounded-full bg-brand-500 text-white transition-colors hover:bg-brand-600 disabled:bg-muted disabled:text-muted-foreground"
+              >
+                {pending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Send className="size-4 rtl:-scale-x-100" aria-hidden />}
+              </button>
             </div>
           </form>
         )}
         <div className={cn("flex items-start gap-3", aiEnabled && "mt-2")}>
           <p className="flex-1 text-xs text-muted-foreground">{a.disclaimer}</p>
-          {items.length > 1 && (
-            <button type="button" onClick={restart} className="inline-flex min-h-11 shrink-0 items-center gap-1 rounded-md px-2 text-xs font-medium text-foreground hover:bg-accent">
-              <RotateCcw className="size-3.5" aria-hidden /> {a.restart}
-            </button>
-          )}
         </div>
       </div>
     </div>
@@ -283,11 +304,11 @@ function Chip({ children, onClick, highlight }: { children: ReactNode; onClick: 
 
 function Bubble({ mine, label, ai, children }: { mine: boolean; label: string; ai?: boolean; children: ReactNode }) {
   return (
-    <div className={cn("flex items-start gap-3", mine && "flex-row-reverse")}>
-      <span className={cn("grid size-8 shrink-0 place-items-center rounded-full text-white", mine ? "bg-foreground text-background" : "bg-[#303030] text-white")} aria-hidden>
+    <div className={cn("gp-fade-in flex items-start gap-3", mine && "flex-row-reverse")}>
+      <span className={cn("grid size-8 shrink-0 place-items-center rounded-full text-white", mine ? "bg-foreground text-background" : ai ? "bg-brand-500 text-white" : "bg-[#303030] text-white")} aria-hidden>
         {mine ? <User className="size-4" /> : ai ? <Sparkles className="size-4" /> : <Bot className="size-4" />}
       </span>
-      <div className={cn("max-w-[85%] rounded-lg px-4 py-3 text-[15px] leading-relaxed", mine ? "bg-foreground text-background" : "bg-muted text-foreground")}>
+      <div className={cn("max-w-[85%] rounded-2xl px-4 py-3 text-[15px] leading-relaxed", mine ? "rounded-se-none bg-foreground text-background" : "rounded-ss-none bg-muted text-foreground")}>
         <span className="sr-only">{label} : </span>
         {/* Plain text only: React escapes it, the model cannot inject HTML. */}
         <p className="whitespace-pre-wrap break-words">{children}</p>

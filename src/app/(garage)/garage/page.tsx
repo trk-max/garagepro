@@ -1,17 +1,20 @@
 import Link from "next/link";
-import { AlertTriangle, BellRing, CalendarClock, CarFront, CheckCircle2, ClipboardCheck, Coins, Truck, Wallet } from "lucide-react";
+import { AlertTriangle, BellRing, CalendarClock, CalendarDays, CarFront, CheckCircle2, ClipboardCheck, Coins, Siren, Truck, UserCheck, Wallet } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { PlateChip, StatusBadge } from "@/components/garage/badges";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/field";
+import { MoneyChart } from "@/components/garage/money-chart";
 import { PlateSearch } from "@/components/garage/plate-search";
+import { LiveRefresh } from "@/components/live-refresh";
 import { siteMedia } from "@/lib/site-media";
 import { getSettings } from "@/server/settings";
-import { formatDateTime, formatMoney, formatQty, woNumber } from "@/lib/format";
+import { displayPlate, formatDateTime, formatMoney, formatQty, formatTime, woNumber } from "@/lib/format";
 import { getI18n } from "@/lib/i18n/server";
 import { can } from "@/lib/permissions";
 import { requireStaff } from "@/lib/session";
-import { getDashboard } from "@/server/dashboard";
+import { listAlerts } from "@/server/alerts";
+import { getDashboard, moneySeries, presentNow, todayAppointments } from "@/server/dashboard";
 import { overdueSummary } from "@/server/invoices";
 import { purchasingSummary } from "@/server/purchasing";
 import { ACTIVE_STATUSES } from "@/server/workflow";
@@ -21,13 +24,18 @@ type Stat = { label: string; value: string; icon: LucideIcon; href: string; tone
 export default async function DashboardPage() {
   const staff = await requireStaff();
   const role = staff.role;
-  const [{ t, lang }, d, overdue, purchasing, settings] = await Promise.all([
+  const [{ t, lang }, d, overdue, purchasing, settings, money, appts, presence, alerts] = await Promise.all([
     getI18n(),
     getDashboard(),
     can(role, "viewFinance") ? overdueSummary() : null,
     can(role, "requestPurchase") ? purchasingSummary() : null,
     getSettings(),
+    can(role, "viewFinance") ? moneySeries() : null,
+    can(role, "viewAppointments") ? todayAppointments() : null,
+    can(role, "manageTeam") ? presentNow() : null,
+    can(role, "manageRepairFollowUp") ? listAlerts() : null,
   ]);
+  const db = t.v7.dash;
   const media = siteMedia();
   const bannerPhoto = media.bandPhoto ?? media.heroPhoto;
 
@@ -48,6 +56,12 @@ export default async function DashboardPage() {
     if (overdue) {
       stats.push({ label: t.dashboard.overdue, value: String(overdue.count), icon: BellRing, href: "/garage/invoices?status=OVERDUE", tone: overdue.count ? "text-red-700 dark:text-red-400" : undefined });
     }
+  }
+  if (alerts) {
+    stats.push({ label: db.alerts, value: String(alerts.open.length), icon: Siren, href: "/garage/suivi", tone: alerts.open.length ? "text-red-700 dark:text-red-400" : undefined });
+  }
+  if (presence) {
+    stats.push({ label: db.present, value: presence.onBreak ? `${presence.working} (+${presence.onBreak} ${db.onBreak})` : String(presence.working), icon: UserCheck, href: "/garage/pointage" });
   }
   if (purchasing) {
     stats.push(
@@ -77,6 +91,7 @@ export default async function DashboardPage() {
             <h1 className="f-display mt-3 text-2xl text-white sm:text-4xl">{t.dashboard.title}</h1>
           </div>
           <div className="ms-auto flex flex-wrap items-center gap-2">
+            <LiveRefresh url="/api/staff/live?topic=dashboard" liveLabel={t.portal.live} reconnectingLabel={t.portal.reconnecting} tone="dark" />
             {can(role, "viewWorkOrders") && (
               <PlateSearch className="w-56 [&_input]:border-white/30 [&_input]:bg-black/60 [&_input]:text-white" placeholder={t.plateLookup.quick} label={t.plateLookup.title} />
             )}
@@ -109,6 +124,45 @@ export default async function DashboardPage() {
             </Link>
           ))}
         </div>
+
+        {(money || appts) && (
+          <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
+            {money && (
+              <Card className="lg:col-span-2">
+                <CardTitle className="flex items-center gap-2">
+                  <Coins className="size-4 text-muted-foreground" aria-hidden /> {db.moneyTitle}
+                </CardTitle>
+                <MoneyChart points={money} lang={lang} labels={{ invoiced: db.invoiced, collected: db.collected, table: db.showTable, month: db.month }} />
+              </Card>
+            )}
+            {appts && (
+              <Card className={money ? undefined : "lg:col-span-3"}>
+                <CardTitle className="flex items-center gap-2">
+                  <CalendarDays className="size-4 text-muted-foreground" aria-hidden /> {db.appointmentsToday}
+                </CardTitle>
+                {appts.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">{db.noAppointments}</p>
+                ) : (
+                  <ul className="divide-y text-sm">
+                    {appts.map((a) => (
+                      <li key={a.id} className="flex flex-wrap items-center gap-2 py-2">
+                        <span className="tabular-nums font-medium">{formatTime(a.startAt, lang)}</span>
+                        <span className="font-mono text-xs" dir="ltr">{displayPlate(a.plate)}</span>
+                        <span className="min-w-0 truncate text-muted-foreground">
+                          {a.firstName} {a.lastName} · {a.service.name}
+                        </span>
+                        {a.status === "CHECKED_IN" && <CheckCircle2 className="ms-auto size-4 text-emerald-700 dark:text-emerald-400" aria-label={db.checkedIn} />}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <Button asChild variant="outline" size="sm" className="mt-3">
+                  <Link href="/garage/appointments">{t.appointments.title}</Link>
+                </Button>
+              </Card>
+            )}
+          </div>
+        )}
 
         <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
           {can(role, "viewWorkOrders") && (

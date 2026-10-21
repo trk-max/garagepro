@@ -616,4 +616,17 @@ export const v7En: typeof v7Fr = {
     none: "No reading for this vehicle.",
     limits: "Limits: serial ELM327 adapters (USB, classic Bluetooth) through Chrome/Edge. Wi-Fi and Bluetooth Low Energy adapters are not supported. Manufacturer-specific data (ABS, airbag, gearbox…) is not read.",
   },
+  dash: {
+    alerts: "Alerts to handle",
+    present: "Team present",
+    onBreak: "on break",
+    moneyTitle: "Invoiced and collected — last 6 months",
+    invoiced: "Invoiced (incl. tax)",
+    collected: "Collected",
+    showTable: "Show the figures",
+    month: "Month",
+    appointmentsToday: "Today's appointments",
+    noAppointments: "No appointment today.",
+    checkedIn: "Vehicle checked in",
+  },
 };
