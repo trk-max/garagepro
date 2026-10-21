@@ -315,6 +315,8 @@ export async function moveClaim(actor: StaffUser, claimId: string, to: ClaimStat
         if (!input.amountAccepted || input.amountAccepted <= 0) throw new AppError("claimAmount", {}, 422);
         accepted = input.amountAccepted;
       } else accepted = input.amountAccepted ?? c.amountClaimed;
+      // A typo (5 000 instead of 500) would inflate the expected refunds of the cash forecast.
+      if (c.amountClaimed > 0 && accepted > c.amountClaimed) throw new AppError("claimAmountTooHigh", {}, 422);
       Object.assign(data, { amountAccepted: accepted, decidedAt: now, decidedById: actor.id, decision: input.decision?.trim() || null });
     }
     if (to === "CLOSED") data.closedAt = now;
@@ -331,7 +333,11 @@ export async function addRefund(actor: StaffUser, claimId: string, input: { amou
   const tz = settings.timezone || GARAGE_TZ;
   return prisma.$transaction(async (tx) => {
     // Row lock on the claim: two refunds typed at the same time are checked one after the other.
-    const c = await tx.warrantyClaim.update({ where: { id: claimId }, data: { updatedAt: new Date() }, select: { status: true, amountAccepted: true, refunds: { select: { amount: true, voidedAt: true } } } }).catch(() => null);
+    const c = await tx.warrantyClaim.update({ where: { id: claimId }, data: { updatedAt: new Date() }, select: { status: true, amountAccepted: true, refunds: { select: { amount: true, voidedAt: true } } } })
+      .catch((e: { code?: string }) => {
+        if (e?.code === "P2025") return null; // no such claim
+        throw e; // database error: shown as such, not as "not found"
+      });
     if (!c) throw new AppError("notFound", {}, 404);
     if (c.status !== "ACCEPTED" && c.status !== "PARTIAL") throw new AppError("refundNotAccepted", {}, 409);
     const b = claimBalance(c, c.refunds.map((r) => ({ amount: r.amount, voided: !!r.voidedAt })));

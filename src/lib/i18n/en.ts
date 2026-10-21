@@ -312,6 +312,7 @@ export const en: Dictionary = {
     claimTransition: "This change is not possible from the claim's current state (refresh the page).",
     claimClosed: "This claim is closed.",
     claimAmount: "Partial acceptance: enter the accepted amount (more than 0).",
+    claimAmountTooHigh: "The accepted amount cannot be more than the amount claimed.",
     refundNotAccepted: "A refund can only be recorded on an accepted (fully or partly), not closed claim.",
     refundTooHigh: "Amount higher than what is still expected ({max} DT).",
     expenseDates: "The end date must be after the first due date.",

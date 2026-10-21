@@ -310,6 +310,7 @@ export const fr = {
     claimTransition: "Ce changement n'est pas possible depuis l'état actuel de la réclamation (actualisez la page).",
     claimClosed: "Cette réclamation est clôturée.",
     claimAmount: "Acceptation partielle : indiquez le montant accepté (supérieur à 0).",
+    claimAmountTooHigh: "Le montant accepté ne peut pas dépasser le montant réclamé.",
     refundNotAccepted: "Un remboursement ne peut être saisi que sur une réclamation acceptée (totalement ou partiellement) et non clôturée.",
     refundTooHigh: "Montant supérieur au reste attendu ({max} DT).",
     expenseDates: "La date de fin doit être après la première échéance.",

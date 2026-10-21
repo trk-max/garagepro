@@ -86,6 +86,8 @@ describe("Garanties saisies à la main et réclamations", () => {
     await expect(moveClaim(manager, claim.id, "ACCEPTED")).rejects.toMatchObject({ code: "claimTransition" });
     await moveClaim(manager, claim.id, "SUBMITTED");
     await expect(moveClaim(manager, claim.id, "PARTIAL", {})).rejects.toMatchObject({ code: "claimAmount" });
+    // Typo guard: never more than claimed (it would inflate the expected refunds of the forecast).
+    await expect(moveClaim(manager, claim.id, "PARTIAL", { amountAccepted: 2_500_000 })).rejects.toMatchObject({ code: "claimAmountTooHigh" });
     await moveClaim(manager, claim.id, "PARTIAL", { amountAccepted: 200_000, decision: "Pièce reprise, main-d'œuvre refusée" });
 
     await expect(addRefund(manager, claim.id, { amount: 250_000, receivedDay: "2026-10-20", method: "TRANSFER" })).rejects.toMatchObject({ code: "refundTooHigh" });
