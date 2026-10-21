@@ -41,13 +41,14 @@ export default async function TrackerPage() {
   const waText = encodeURIComponent(`${woNumber(view.number)} – ${displayPlate(view.vehicle.plate)} : `);
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4 px-4 py-6">
+    // V10: the tracking content uses the staff app's cards and chips (.gp-scope), the site header / footer stay as they are.
+    <div className="gp-scope gp-stagger mx-auto max-w-3xl space-y-4 px-4 py-6">
       {/* ── Vehicle header ── */}
-      <section className="rounded-lg bg-navy p-5 text-white shadow-sm ring-1 ring-white/10">
+      <section className="rounded-[28px] bg-[#0b0b0c] p-5 text-white ring-1 ring-white/10 sm:p-6">
         <div className="flex items-start gap-3">
           <div className="min-w-0 flex-1">
             <p className="text-xs uppercase tracking-wide text-slate-300">{woNumber(view.number)}</p>
-            <h1 className="mt-1 text-xl font-bold">
+            <h1 className="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">
               {view.vehicle.make} {view.vehicle.model}
               {view.vehicle.year && <span className="ms-2 text-base font-normal text-slate-300">{view.vehicle.year}</span>}
             </h1>
@@ -66,20 +67,20 @@ export default async function TrackerPage() {
         </div>
 
         <dl className="mt-5 grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
-          <div className="rounded-md bg-white/5 p-3">
+          <div className="rounded-[16px] bg-white/[0.07] p-3">
             <dt className="flex items-center gap-1.5 text-xs text-slate-300">
               <UserRound className="size-3.5" aria-hidden /> {t.portal.technician}
             </dt>
             <dd className="mt-1 font-medium">{view.mechanicName ?? t.portal.notAssigned}</dd>
           </div>
-          <div className="rounded-md bg-white/5 p-3">
+          <div className="rounded-[16px] bg-white/[0.07] p-3">
             <dt className="flex items-center gap-1.5 text-xs text-slate-300">
               <CalendarClock className="size-3.5" aria-hidden /> {t.portal.eta}
             </dt>
             <dd className="mt-1 font-medium">{view.promisedAt ? formatDateTime(view.promisedAt, lang) : t.portal.etaUnknown}</dd>
           </div>
           {view.mileageIn != null && (
-            <div className="col-span-2 rounded-md bg-white/5 p-3 sm:col-span-1">
+            <div className="col-span-2 rounded-[16px] bg-white/[0.07] p-3 sm:col-span-1">
               <dt className="flex items-center gap-1.5 text-xs text-slate-300">
                 <Gauge className="size-3.5" aria-hidden /> {t.customers.mileage}
               </dt>
@@ -91,12 +92,12 @@ export default async function TrackerPage() {
 
       {/* ── Banners ── */}
       {ready && (
-        <p className="flex items-center gap-3 rounded-lg bg-emerald-500 p-4 font-medium text-white shadow-sm">
+        <p className="flex items-center gap-3 rounded-[20px] bg-gp-success-bg p-4 font-semibold text-gp-success-ink">
           <CheckCircle2 className="size-6 shrink-0" aria-hidden /> {t.portal.readyBanner}
         </p>
       )}
       {delivered && (
-        <p className="flex items-center gap-3 rounded-lg bg-slate-800 p-4 font-medium text-white">
+        <p className="flex items-center gap-3 rounded-[20px] bg-gp-panel p-4 font-semibold text-gp-ink">
           <PartyPopper className="size-6 shrink-0" aria-hidden /> {t.portal.delivered}
         </p>
       )}
@@ -105,7 +106,7 @@ export default async function TrackerPage() {
 
       {/* ── Quote to approve ── */}
       {view.quote && (
-        <section className="rounded-lg bg-card p-5 ring-2 ring-foreground">
+        <section className="rounded-[24px] bg-gp-card p-5 text-gp-ink ring-2 ring-gp-accent">
           <h2 className="font-semibold text-foreground">{t.portal.quoteTitle}</h2>
           <p className="mt-1 text-sm text-muted-foreground">{t.portal.quoteIntro}</p>
           <ul className="mt-4 divide-y text-sm">
@@ -140,7 +141,7 @@ export default async function TrackerPage() {
               action={approveQuoteAction}
               confirm={fmt(t.portal.approveConfirm, { amount: formatMoney(view.quote.totals.totalTtc, lang) })}
               successMessage={t.portal.quoteApproved}
-              className="h-11 flex-1 bg-emerald-600 text-base hover:bg-emerald-700"
+              className="h-11 flex-1 rounded-full bg-[#1f7a44] text-base text-white hover:bg-[#19663a]"
             >
               <CheckCircle2 className="size-5" aria-hidden /> {t.portal.approveQuote}
             </ActionButton>
@@ -157,7 +158,7 @@ export default async function TrackerPage() {
 
       {/* ── Invoice ── */}
       {view.invoice && (
-        <section className="flex items-center gap-3 rounded-lg bg-card p-4 shadow-sm ring-1 ring-border">
+        <section className="flex items-center gap-3 rounded-[24px] border border-gp-line bg-gp-card p-4 text-gp-ink shadow-gp">
           <FileText className="size-5 text-muted-foreground" aria-hidden />
           <div className="flex-1 text-sm">
             <p className="font-medium">
@@ -177,7 +178,7 @@ export default async function TrackerPage() {
       )}
 
       {/* ── Photos & videos ── */}
-      <section className="rounded-lg bg-card p-5 shadow-sm ring-1 ring-border">
+      <section className="rounded-[24px] border border-gp-line bg-gp-card p-5 text-gp-ink shadow-gp">
         <h2 className="mb-3 font-semibold">{t.portal.gallery}</h2>
         <MediaGallery
           emptyLabel={t.portal.galleryEmpty}
@@ -186,17 +187,17 @@ export default async function TrackerPage() {
       </section>
 
       {/* ── Contact ── */}
-      <section className="rounded-lg bg-card p-5 shadow-sm ring-1 ring-border">
+      <section className="rounded-[24px] border border-gp-line bg-gp-card p-5 text-gp-ink shadow-gp">
         <h2 className="font-semibold">{t.portal.contactTitle}</h2>
         {phone && (
           <div className="mt-3 grid grid-cols-2 gap-2">
-            <Button asChild className="h-11 bg-anthracite hover:bg-black">
+            <Button asChild className="h-11 rounded-full bg-gp-primary text-gp-primary-ink hover:opacity-90">
               <a href={`tel:${phone}`}>
                 <Phone className="size-4" aria-hidden /> {t.portal.call}
               </a>
             </Button>
             {waNumber && (
-              <Button asChild className="h-11 bg-emerald-600 hover:bg-emerald-700">
+              <Button asChild className="h-11 rounded-full bg-[#1f7a44] text-white hover:bg-[#19663a]">
                 <a href={`https://wa.me/${waNumber}?text=${waText}`} target="_blank" rel="noopener">
                   <MessageCircle className="size-4" aria-hidden /> {t.portal.whatsapp}
                 </a>
@@ -214,14 +215,14 @@ export default async function TrackerPage() {
 
       {/* ── Rating once the car is ready / delivered ── */}
       {(ready || delivered) && (
-        <section className="rounded-lg bg-card p-5 shadow-sm ring-1 ring-border">
+        <section className="rounded-[24px] border border-gp-line bg-gp-card p-5 text-gp-ink shadow-gp">
           <h2 className="mb-3 font-semibold">{t.feedback.trackerTitle}</h2>
           {rated ? <p className="text-sm text-muted-foreground">{t.feedback.already}</p> : <FeedbackForm fromTracker />}
         </section>
       )}
 
       {/* ── Complaint about this repair ── */}
-      <details className="group rounded-lg bg-card p-5 shadow-sm ring-1 ring-border">
+      <details className="group rounded-[24px] border border-gp-line bg-gp-card p-5 text-gp-ink shadow-gp">
         <summary className="cursor-pointer font-semibold marker:text-muted-foreground">{t.claims.fromTracker}</summary>
         <div className="mt-4">
           <ClaimForm fromTracker defaults={{ name: view.customer.name, plate: displayPlate(view.vehicle.plate) }} />
@@ -229,12 +230,12 @@ export default async function TrackerPage() {
       </details>
 
       {/* ── History ── */}
-      <section className="rounded-lg bg-card p-5 shadow-sm ring-1 ring-border">
+      <section className="rounded-[24px] border border-gp-line bg-gp-card p-5 text-gp-ink shadow-gp">
         <h2 className="mb-3 font-semibold">{t.portal.history}</h2>
         <ol className="space-y-3 border-s-2 border-border ps-4">
           {view.events.map((e) => (
             <li key={e.id} className="relative text-sm">
-              <span className="absolute -start-[21px] top-1.5 size-2.5 rounded-full bg-brand-500 ring-4 ring-background" aria-hidden />
+              <span className="absolute -start-[21px] top-1.5 size-2.5 rounded-full bg-gp-accent ring-4 ring-gp-card" aria-hidden />
               <p className="font-medium">{eventLabel(e, t)}</p>
               {e.body && <p className="mt-0.5 whitespace-pre-line text-muted-foreground">{e.body}</p>}
               <time className="text-xs text-muted-foreground">{formatDateTime(e.createdAt, lang)}</time>
