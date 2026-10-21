@@ -198,7 +198,12 @@ export type CreateWorkOrderInput = {
  * Fills the missing pieces of a work order's vehicle file (orders opened from
  * an online booking, or cars created before VIN was mandatory).
  */
-export async function completeVehicleInfo(workOrderId: string, fill: { vin?: string; year?: number; fuel?: FuelType; color?: string }, mileageIn: number | undefined) {
+export async function completeVehicleInfo(
+  workOrderId: string,
+  fill: { vin?: string; year?: number; fuel?: FuelType; color?: string },
+  mileageIn: number | undefined,
+  actor: StaffUser,
+) {
   return prisma.$transaction(async (tx) => {
     const wo = await tx.workOrder.findUnique({
       where: { id: workOrderId },
@@ -207,7 +212,13 @@ export async function completeVehicleInfo(workOrderId: string, fill: { vin?: str
     if (!wo) throw new AppError("notFound", {}, 404);
     if (isFinal(wo.status)) throw new AppError("final", {}, 409);
     const data = Object.fromEntries(Object.entries(fill).filter(([, v]) => v !== undefined && v !== ""));
-    if (Object.keys(data).length) await tx.vehicle.update({ where: { id: wo.vehicleId }, data });
+    if (Object.keys(data).length) {
+      await tx.vehicle.update({ where: { id: wo.vehicleId }, data });
+      await audit(tx, actor, "vehicle.update", "Vehicle", wo.vehicleId, {
+        before: Object.fromEntries(Object.keys(data).map((k) => [k, wo.vehicle[k as keyof typeof wo.vehicle] ?? null])),
+        after: data,
+      });
+    }
     const km = mileageIn ?? wo.mileageIn ?? undefined;
     if (mileageIn !== undefined) {
       await tx.workOrder.update({ where: { id: workOrderId }, data: { mileageIn } });
@@ -229,6 +240,7 @@ export async function createWorkOrder(input: CreateWorkOrderInput, actor: StaffU
     if (!customerId) {
       if (!input.newCustomer) throw new AppError("invalid");
       customerId = (await tx.customer.create({ data: input.newCustomer, select: { id: true } })).id;
+      await audit(tx, actor, "customer.create", "Customer", customerId, { after: input.newCustomer });
     }
 
     let vehicleId = input.vehicleId;
@@ -236,12 +248,19 @@ export async function createWorkOrder(input: CreateWorkOrderInput, actor: StaffU
       const vehicle = await tx.vehicle.findUnique({ where: { id: vehicleId }, select: { customerId: true, vin: true, year: true, fuel: true, color: true } });
       if (!vehicle || vehicle.customerId !== customerId) throw new AppError("invalid");
       const fill = Object.fromEntries(Object.entries(input.completeVehicle ?? {}).filter(([, v]) => v !== undefined && v !== ""));
-      if (Object.keys(fill).length) await tx.vehicle.update({ where: { id: vehicleId }, data: fill });
+      if (Object.keys(fill).length) {
+        await tx.vehicle.update({ where: { id: vehicleId }, data: fill });
+        await audit(tx, actor, "vehicle.update", "Vehicle", vehicleId, {
+          before: Object.fromEntries(Object.keys(fill).map((k) => [k, vehicle[k as keyof typeof vehicle] ?? null])),
+          after: fill,
+        });
+      }
       if (input.requireCompleteVehicle) assertVehicleComplete({ ...vehicle, ...fill }, input.mileageIn);
     } else {
       if (!input.newVehicle) throw new AppError("invalid");
       if (input.requireCompleteVehicle) assertVehicleComplete(input.newVehicle, input.mileageIn);
       vehicleId = (await tx.vehicle.create({ data: { ...input.newVehicle, customerId }, select: { id: true } })).id;
+      await audit(tx, actor, "vehicle.create", "Vehicle", vehicleId, { after: { customerId, ...input.newVehicle } });
     }
 
     if (input.mileageIn !== undefined) {

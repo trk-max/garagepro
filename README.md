@@ -4,7 +4,7 @@
 
 <h1 align="center">GaragePro</h1>
 <p align="center"><b>Gestion d'atelier mécanique + site client + espace équipe + portail entreprises</b> · Français / العربية / English</p>
-<p align="center">Version <b>7.1</b> — application PC / téléphone, fonctionne aussi <b>sans internet</b> (hub du garage)</p>
+<p align="center">Version <b>7.2</b> — application PC / téléphone, fonctionne aussi <b>sans internet</b> (hub du garage)</p>
 <p align="center">Next.js 15 · TypeScript · Tailwind v4 · PostgreSQL (Supabase) + Prisma 6 · Auth.js v5 · Vercel</p>
 
 <p align="center">
@@ -21,6 +21,25 @@
 | ![Version mobile en arabe](docs/media/08-mobile-arabe.jpg) **Mobile + arabe (RTL)** | ![Connexion de l'équipe](docs/media/03-connexion-equipe.jpg) **Connexion de l'équipe** |
 
 > Photos et vidéos du site : dossier `public/site/` (voir « Photos et vidéos du site » plus bas). Pour mettre une **vidéo** dans ce README sur GitHub : modifiez le fichier sur github.com et glissez-déposez un `.mp4` (moins de 10 Mo) dans l'éditeur, GitHub crée le lien tout seul.
+
+## Nouveautés V7.2 — Excel, mot de passe oublié, soldes de congés, journal complet
+
+| | |
+|---|---|
+| **Vrai fichier Excel** | Fiche employé → **Excel (.xlsx)** : 4 feuilles (Résumé, Présence, Réparations, Congés), heures en vrais nombres (Excel peut les additionner), arabe et accents intacts. Le lien **CSV** reste disponible à côté. |
+| **Mot de passe oublié (entreprises)** | `/entreprise/connexion` → *Mot de passe oublié ?* : l'utilisateur reçoit un e-mail avec un lien **valable 1 heure, utilisable une seule fois**. Même réponse que le compte existe ou non ; 3 demandes par heure et par e-mail au maximum. Nécessite l'envoi d'e-mails configuré (Resend ou Gmail) et `APP_URL`. |
+| **Soldes de congés** | Fiche employé → **Congés payés par an (jours)**. Solde = jours par an − congés payés acceptés de l'année civile (jours d'ouverture du garage), sans report. Les demandes en attente sont affichées à part. Visible sur la fiche employé et sur *Pointage & congés* de chacun. |
+| **Journal complet** | En plus de l'argent et du stock : **clients** (création, modification avant → après), **véhicules** (ajout, VIN/année/carburant complétés), **équipe** (création, rôle, activation, mot de passe changé — jamais le mot de passe lui-même —, suppression), **paramètres** généraux et de réservation, **forfaits**, **prestations en ligne**, demandes et changements de mot de passe des comptes entreprise. |
+
+### Mise à jour vers la V7.2 (base de données)
+
+Une migration qui **ajoute** une colonne (jours de congé par an). Avec le hub, internet branché, **avant** le `git push` :
+
+```
+npm run db:cloud
+```
+
+Le PC du garage se met à jour au prochain `start-hub.cmd` (**redémarrez-le** après la mise à jour). **Sans hub** : `npx prisma db execute --file prisma/migrations/6_leave_balance/migration.sql --schema prisma/schema.prisma`
 
 ## Nouveautés V7.1 — journal de l'argent et du stock, alertes réglables
 

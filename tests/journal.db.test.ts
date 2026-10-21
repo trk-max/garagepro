@@ -9,6 +9,8 @@ import { createPart, moveStock, updatePart } from "@/server/parts";
 import { addLine, removeLine } from "@/server/work-orders";
 import { approvePurchaseOrder, createPurchaseOrder, createReceipt, createSupplier, createSupplierInvoice, paySupplierInvoice } from "@/server/purchasing";
 import { delays } from "@/server/follow-up";
+import { addVehicle, createCustomer, updateCustomer } from "@/server/customers";
+import { createWorkOrder } from "@/server/work-orders";
 import { makeUser, makeWorkOrder, prisma } from "./helpers/db";
 
 beforeAll(async () => {
@@ -90,6 +92,32 @@ describe("journal : stock", () => {
     const pay = await prisma.auditLog.findFirstOrThrow({ where: { action: "supplierPayment.record", actorId: admin.id } });
     expect(pay.after).toMatchObject({ status: "PAID", paidAmount: 142_800 });
     await expect(approvePurchaseOrder(po.id, admin)).rejects.toMatchObject({ code: "poNotEditable" });
+  });
+});
+
+describe("journal : clients et véhicules", () => {
+  it("customer created, edited (before → after), vehicle added, and the same at check-in", async () => {
+    const rec = await makeUser("RECEPTION");
+    const c = await createCustomer({ name: "Sami Ben Ali", phone: "20123456" }, rec);
+    await updateCustomer(c.id, { phone: "20999888", email: "sami@test.tn" }, rec);
+    const v = await addVehicle(c.id, { plate: `J${Date.now()}`, make: "Kia", model: "Rio" }, rec);
+    const upd = await prisma.auditLog.findFirstOrThrow({ where: { entityId: c.id, action: "customer.update" } });
+    expect(upd.before).toMatchObject({ phone: "20123456", email: null });
+    expect(upd.after).toMatchObject({ phone: "20999888", email: "sami@test.tn" });
+    expect((await lines(v.id)).map((l) => l.action)).toEqual(["vehicle.create"]);
+
+    const wo = await createWorkOrder(
+      {
+        newCustomer: { name: "Nouveau client", phone: "50111222" },
+        newVehicle: { plate: `K${Date.now()}`, make: "Renault", model: "Clio" },
+        complaint: "Bruit",
+        priority: "NORMAL",
+      },
+      rec,
+    );
+    const order = await prisma.workOrder.findUniqueOrThrow({ where: { id: wo.id } });
+    expect((await lines(order.customerId)).map((l) => l.action)).toEqual(["customer.create"]);
+    expect((await lines(order.vehicleId)).map((l) => l.action)).toEqual(["vehicle.create"]);
   });
 });
 

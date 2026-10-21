@@ -39,11 +39,11 @@ Non testé ici : Supabase réel, Windows réel, impression physique.
 
 - **Preuve de présence** : le code de borne prouve qu'on voit l'écran du garage à ce moment-là ; quelqu'un sur place pourrait le dicter à distance en moins de 30–60 s. Pour l'éviter, activer « Code de la borne ET réseau du garage ». Le Wi-Fi seul n'est jamais considéré comme suffisant.
 - Le code est dérivé de `AUTH_SECRET` : le PC du garage et Vercel doivent avoir la **même** valeur (c'est le cas si le `.env` a été copié).
-- Les rapports s'exportent en **CSV** (s'ouvre dans Excel) et en PDF par l'impression du navigateur ; pas de fichier `.xlsx` natif. L'attestation est un vrai PDF.
-- Pas de calcul de **soldes de congés** : aucune règle légale n'a été inventée ; le rapport donne les jours pris.
+- ~~Pas de fichier `.xlsx` natif~~ → **fait en V7.2** : rapport employé en vrai Excel (.xlsx), CSV toujours disponible. L'attestation est un vrai PDF.
+- ~~Pas de calcul de soldes de congés~~ → **fait en V7.2**, selon la règle choisie par le garage : nombre fixe de jours par an (fiche employé), année civile, sans report.
 - ~~L'alerte assurance est fixée à 3 jours~~ → **fait en V7.1 (Prompt 2)** : seuils réglables dans Paramètres (voir README).
 - ~~Les factures, paiements et stock ne sont pas encore dans le journal~~ → **fait en V7.1 (Prompt 2)** : factures, paiements, relances, pièces, mouvements de stock, bons de commande, bons de réception, factures et paiements fournisseurs.
-- Portail entreprise : consultation seulement (l'accord de devis reste dans le suivi client existant) ; mot de passe oublié → le garage en donne un nouveau.
+- Portail entreprise : consultation seulement (l'accord de devis reste dans le suivi client existant). ~~Mot de passe oublié → le garage en donne un nouveau~~ → **fait en V7.2** : lien par e-mail (1 h, usage unique).
 
 ## 4. Fichiers principaux
 

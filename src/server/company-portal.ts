@@ -146,7 +146,7 @@ export async function updateCompanyUser(actor: StaffUser, companyUserId: string,
     });
     await audit(tx, actor, "companyUser.update", "CompanyUser", companyUserId, {
       before: { isActive: old.isActive, role: old.role },
-      after: { isActive: input.isActive ?? old.isActive, role: input.role ?? old.role, passwordChanged: !!input.password },
+      after: { isActive: input.isActive ?? old.isActive, role: input.role ?? old.role, ...(input.password ? { change: "mot de passe" } : {}) },
     });
   });
 }

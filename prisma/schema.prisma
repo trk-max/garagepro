@@ -132,21 +132,23 @@ enum AppointmentStatus {
 // ── Staff (login) ────────────────────────────────────────────────────────────
 
 model User {
-  id           String    @id @default(cuid())
-  email        String    @unique
-  name         String
-  role         Role      @default(MECHANIC)
-  phone        String?
-  passwordHash String
-  isActive     Boolean   @default(true)
-  lastSeenAt   DateTime?
+  id              String    @id @default(cuid())
+  email           String    @unique
+  name            String
+  role            Role      @default(MECHANIC)
+  phone           String?
+  passwordHash    String
+  isActive        Boolean   @default(true)
+  lastSeenAt      DateTime?
   /// Fiche RH (attestations, rapports) — facultatif.
-  jobTitle     String?
-  hireDate     DateTime? @db.Date
+  jobTitle        String?
+  hireDate        DateTime? @db.Date
   /// N° CIN, uniquement pour les attestations de travail.
-  nationalId   String?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  nationalId      String?
+  /// Jours de congé payé par an (année civile, du 1er janvier au 31 décembre). null = non défini.
+  annualLeaveDays Int?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   clockEvents             ClockEvent[]      @relation("ClockUser")
   leaveRequests           LeaveRequest[]    @relation("LeaveUser")

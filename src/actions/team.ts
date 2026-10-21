@@ -120,14 +120,19 @@ export async function updateEmployeeProfileAction(userId: string, form: FormData
     const v = employeeProfileSchema.parse(formToObject(form));
     const uid = id.parse(userId);
     await prisma.$transaction(async (tx) => {
-      const before = await tx.user.findUnique({ where: { id: uid }, select: { jobTitle: true, hireDate: true, nationalId: true } });
+      const before = await tx.user.findUnique({ where: { id: uid }, select: { jobTitle: true, hireDate: true, nationalId: true, annualLeaveDays: true } });
       if (!before) throw new AppError("notFound", {}, 404);
-      const data = { jobTitle: v.jobTitle ?? null, hireDate: v.hireDate ? new Date(`${v.hireDate}T00:00:00Z`) : null, nationalId: v.nationalId?.toUpperCase() ?? null };
+      const data = {
+        jobTitle: v.jobTitle ?? null,
+        hireDate: v.hireDate ? new Date(`${v.hireDate}T00:00:00Z`) : null,
+        nationalId: v.nationalId?.toUpperCase() ?? null,
+        annualLeaveDays: v.annualLeaveDays ?? null,
+      };
       await tx.user.update({ where: { id: uid }, data });
       // The ID number is personal: the journal only says it changed.
       await audit(tx, actor, "employee.profile", "User", uid, {
-        before: { jobTitle: before.jobTitle, hireDate: before.hireDate, nationalIdSet: !!before.nationalId },
-        after: { jobTitle: data.jobTitle, hireDate: data.hireDate, nationalIdSet: !!data.nationalId },
+        before: { jobTitle: before.jobTitle, hireDate: before.hireDate, nationalIdSet: !!before.nationalId, annualLeaveDays: before.annualLeaveDays },
+        after: { jobTitle: data.jobTitle, hireDate: data.hireDate, nationalIdSet: !!data.nationalId, annualLeaveDays: data.annualLeaveDays },
       });
     });
     revalidatePath(`/garage/equipe/${uid}`);

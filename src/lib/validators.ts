@@ -426,6 +426,7 @@ export const employeeProfileSchema = z.object({
   jobTitle: optionalText(120),
   hireDate: z.preprocess(emptyToUndefined, isoDay.optional()),
   nationalId: z.preprocess(emptyToUndefined, z.string().trim().regex(/^[A-Z0-9]{6,12}$/i).optional()),
+  annualLeaveDays: z.preprocess(emptyToUndefined, z.coerce.number().int().min(0).max(60).optional()),
 });
 
 export const laborManualSchema = z.object({ userId: id, from: localDateTime, to: localDateTime, note: optionalText(300) });
@@ -472,6 +473,14 @@ export const companyUserSchema = z.object({
 });
 
 export const companyLoginSchema = z.object({ email: z.string().trim().toLowerCase().email().max(200), password: z.string().min(1).max(200) });
+
+export const companyForgotSchema = z.object({ email: z.string().trim().toLowerCase().email().max(200) });
+
+export const companyResetSchema = z.object({
+  token: z.string().min(10).max(500),
+  password: z.string().min(10).max(200),
+  confirm: z.string().max(200),
+});
 
 export const settingsV7Schema = z.object({
   legalName: optionalText(200),

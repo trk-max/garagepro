@@ -19,6 +19,7 @@ import { removeMedia, setMediaVisibility } from "@/server/media";
 import { notifyVehicleReady } from "@/server/customer-notifications";
 import { notifyCustomerDetailed } from "@/server/notify";
 import { sendEmail } from "@/server/email";
+import { audit } from "@/server/audit";
 import { recordReminder } from "@/server/invoices";
 import { getSettings } from "@/server/settings";
 import { changeStatus, regenerateTrackingPin } from "@/server/work-orders";
@@ -143,7 +144,7 @@ export async function appointmentMechanicAction(appointmentId: string, mechanicI
 
 export async function updateBookingSettingsAction(form: FormData): Promise<Result> {
   try {
-    await requirePermission("manageSettings");
+    const actor = await requirePermission("manageSettings");
     const raw = formToObject(form);
     const data = bookingSettingsSchema.parse({
       ...raw,
@@ -154,17 +155,21 @@ export async function updateBookingSettingsAction(form: FormData): Promise<Resul
       })),
     });
     const openingHours = Object.fromEntries(data.hours.map((h, d) => [String(d), h.closed ? null : { open: h.open, close: h.close }]));
-    await prisma.setting.upsert({
-      where: { id: "garage" },
-      update: {
-        bookingEnabled: data.bookingEnabled,
-        bookingSlotMinutes: data.bookingSlotMinutes,
-        bookingCapacity: data.bookingCapacity,
-        bookingLeadMinutes: data.bookingLeadMinutes,
-        bookingHorizonDays: data.bookingHorizonDays,
-        openingHours,
-      },
-      create: { id: "garage", openingHours },
+    const values = {
+      bookingEnabled: data.bookingEnabled,
+      bookingSlotMinutes: data.bookingSlotMinutes,
+      bookingCapacity: data.bookingCapacity,
+      bookingLeadMinutes: data.bookingLeadMinutes,
+      bookingHorizonDays: data.bookingHorizonDays,
+      openingHours,
+    };
+    await prisma.$transaction(async (tx) => {
+      const before = await tx.setting.findUnique({
+        where: { id: "garage" },
+        select: { bookingEnabled: true, bookingSlotMinutes: true, bookingCapacity: true, bookingLeadMinutes: true, bookingHorizonDays: true, openingHours: true },
+      });
+      await tx.setting.upsert({ where: { id: "garage" }, update: values, create: { id: "garage", openingHours } });
+      await audit(tx, actor, "settings.booking", "Setting", "garage", { before, after: values });
     });
     return done();
   } catch (error) {
@@ -174,9 +179,9 @@ export async function updateBookingSettingsAction(form: FormData): Promise<Resul
 
 export async function upsertServiceAction(serviceId: string | null, form: FormData): Promise<Result> {
   try {
-    await requirePermission("manageSettings");
+    const actor = await requirePermission("manageSettings");
     const data = bookableServiceSchema.parse({ isActive: "false", ...formToObject(form) });
-    await upsertService(serviceId ? id.parse(serviceId) : undefined, data);
+    await upsertService(serviceId ? id.parse(serviceId) : undefined, data, actor);
     return done();
   } catch (error) {
     return toActionError(error);

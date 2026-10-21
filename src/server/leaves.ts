@@ -5,6 +5,10 @@ import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/permissions";
 import type { StaffUser } from "@/lib/session";
 import { audit } from "@/server/audit";
+import { parseOpeningHours } from "@/lib/booking";
+import { leaveBalance, leaveDaysInYear, type LeaveBalance } from "@/lib/leaves";
+import { localToday } from "@/lib/periods";
+import { getSettings } from "@/server/settings";
 
 export type LeaveInput = { userId?: string; type: LeaveType; startAt: Date; endAt: Date; allDay: boolean; reason?: string };
 
@@ -118,4 +122,28 @@ export async function listLeaves(filter: LeaveFilter) {
     take: 300,
     include: { user: { select: { id: true, name: true } }, decidedBy: { select: { name: true } } },
   });
+}
+
+/**
+ * Paid-leave balance of one employee for a calendar year (default: this year in
+ * the garage's time zone). Counts whole-day PAID_LEAVE only; short
+ * authorisations and other absence types do not use the balance.
+ */
+export async function getLeaveBalance(userId: string, year?: number): Promise<LeaveBalance | null> {
+  const settings = await getSettings();
+  const tz = settings.timezone;
+  const y = year ?? Number(localToday(tz).slice(0, 4));
+  const yearStart = new Date(Date.UTC(y, 0, 1) - 86_400_000); // one day of margin for the time zone
+  const yearEnd = new Date(Date.UTC(y + 1, 0, 1) + 86_400_000);
+  const [user, leaves] = await Promise.all([
+    prisma.user.findUnique({ where: { id: userId }, select: { annualLeaveDays: true } }),
+    prisma.leaveRequest.findMany({
+      where: { userId, type: "PAID_LEAVE", allDay: true, status: { in: ACTIVE }, startAt: { lt: yearEnd }, endAt: { gt: yearStart } },
+      select: { startAt: true, endAt: true, status: true },
+    }),
+  ]);
+  if (!user) return null;
+  const hours = parseOpeningHours(settings.openingHours);
+  const count = (status: LeaveStatus) => leaveDaysInYear(leaves.filter((l) => l.status === status), y, tz, hours);
+  return leaveBalance(user.annualLeaveDays, count("APPROVED"), count("PENDING"), y);
 }

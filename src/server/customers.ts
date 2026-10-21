@@ -1,4 +1,7 @@
 import "server-only";
+import { AppError } from "@/lib/http";
+import type { StaffUser } from "@/lib/session";
+import { audit } from "@/server/audit";
 import type { Prisma } from "@prisma/client";
 import { normalizePlate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
@@ -86,14 +89,30 @@ export async function getCustomer(id: string) {
   return { ...customer, totalInvoiced: invoiced._sum.totalTtc ?? 0 };
 }
 
-export async function createCustomer(data: Prisma.CustomerCreateInput) {
-  return prisma.customer.create({ data, select: { id: true } });
+const CUSTOMER_AUDIT = { name: true, phone: true, email: true, address: true, taxId: true, notes: true, isCompany: true } as const;
+
+export async function createCustomer(data: Prisma.CustomerCreateInput, actor: StaffUser) {
+  return prisma.$transaction(async (tx) => {
+    const customer = await tx.customer.create({ data, select: { id: true, ...CUSTOMER_AUDIT } });
+    const { id, ...after } = customer;
+    await audit(tx, actor, "customer.create", "Customer", id, { after });
+    return { id };
+  });
 }
 
-export async function updateCustomer(id: string, data: Prisma.CustomerUpdateInput) {
-  await prisma.customer.update({ where: { id }, data });
+export async function updateCustomer(id: string, data: Prisma.CustomerUpdateInput, actor: StaffUser) {
+  await prisma.$transaction(async (tx) => {
+    const before = await tx.customer.findUnique({ where: { id }, select: CUSTOMER_AUDIT });
+    if (!before) throw new AppError("notFound", {}, 404);
+    const after = await tx.customer.update({ where: { id }, data, select: CUSTOMER_AUDIT });
+    await audit(tx, actor, "customer.update", "Customer", id, { before, after });
+  });
 }
 
-export async function addVehicle(customerId: string, data: Omit<Prisma.VehicleCreateWithoutCustomerInput, "workOrders">) {
-  return prisma.vehicle.create({ data: { ...data, customerId }, select: { id: true } });
+export async function addVehicle(customerId: string, data: Omit<Prisma.VehicleCreateWithoutCustomerInput, "workOrders">, actor: StaffUser) {
+  return prisma.$transaction(async (tx) => {
+    const vehicle = await tx.vehicle.create({ data: { ...data, customerId }, select: { id: true } });
+    await audit(tx, actor, "vehicle.create", "Vehicle", vehicle.id, { after: { customerId, ...data } });
+    return vehicle;
+  });
 }

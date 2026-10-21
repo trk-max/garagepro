@@ -14,7 +14,8 @@ import { localToday } from "@/lib/periods";
 import { can } from "@/lib/permissions";
 import { requirePageAccess } from "@/lib/session";
 import { cn } from "@/lib/utils";
-import { listLeaves } from "@/server/leaves";
+import { getLeaveBalance, listLeaves } from "@/server/leaves";
+import { LeaveBalanceLine } from "@/components/team/leave-balance";
 import { getSettings } from "@/server/settings";
 import { myClockStatus } from "@/server/timeclock";
 
@@ -24,7 +25,13 @@ type PageProps = { searchParams: Promise<{ code?: string }> };
 export default async function TimeClockPage({ searchParams }: PageProps) {
   const staff = await requirePageAccess("useTimeClock");
   const { code } = await searchParams;
-  const [{ t, lang }, status, leaves, settings] = await Promise.all([getI18n(), myClockStatus(staff.id), listLeaves({ userId: staff.id }), getSettings()]);
+  const [{ t, lang }, status, leaves, settings, balance] = await Promise.all([
+    getI18n(),
+    myClockStatus(staff.id),
+    listLeaves({ userId: staff.id }),
+    getSettings(),
+    getLeaveBalance(staff.id),
+  ]);
   const c = t.v7.clock;
   const l = t.v7.leave;
   const hours = parseOpeningHours(settings.openingHours);
@@ -71,6 +78,7 @@ export default async function TimeClockPage({ searchParams }: PageProps) {
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardTitle>{l.request}</CardTitle>
+          {balance && <LeaveBalanceLine balance={balance} t={t} className="mb-4" />}
           <LeaveRequestForm defaultDay={localToday(settings.timezone)} />
         </Card>
         <Card>

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { attendanceByDay } from "@/lib/attendance";
 import { DEFAULT_OPENING_HOURS } from "@/lib/booking";
 import { elapsedMinutes, minutesByUser, personMinutes, suggestedBilledX100 } from "@/lib/labor";
-import { spanDates, wholeDaysSpan, workingDays } from "@/lib/leaves";
+import { leaveBalance, leaveDaysInYear, spanDates, wholeDaysSpan, workingDays } from "@/lib/leaves";
 import { ALLOWED_NEXT, ipAllowed, kioskCode, stateAfter, validNetworks, verifyKioskCode, windowAt } from "@/lib/timeclock";
 
 const TZ = "Africa/Tunis";
@@ -103,5 +103,18 @@ describe("leave days", () => {
     const span = wholeDaysSpan("2026-10-23", "2026-10-26", TZ); // Fri → Mon (Sunday closed)
     expect(spanDates(span, TZ)).toEqual(["2026-10-23", "2026-10-24", "2026-10-25", "2026-10-26"]);
     expect(workingDays(span, TZ, DEFAULT_OPENING_HOURS)).toBe(3);
+  });
+
+  it("balance per calendar year: a leave across New Year counts in each year", () => {
+    const span = wholeDaysSpan("2026-12-29", "2027-01-04", TZ); // Tue 29 → Mon 4 (Sundays 3 Jan closed)
+    expect(leaveDaysInYear([span], 2026, TZ, DEFAULT_OPENING_HOURS)).toBe(3); // 29, 30, 31 Dec
+    expect(leaveDaysInYear([span], 2027, TZ, DEFAULT_OPENING_HOURS)).toBe(3); // 1, 2, 4 Jan
+    expect(leaveDaysInYear([span], 2025, TZ, DEFAULT_OPENING_HOURS)).toBe(0);
+  });
+
+  it("fixed days per year minus approved days, no carry-over; not set = no balance", () => {
+    expect(leaveBalance(24, 10, 3, 2026)).toEqual({ year: 2026, allowance: 24, taken: 10, pending: 3, remaining: 14 });
+    expect(leaveBalance(null, 10, 0, 2026).remaining).toBeNull();
+    expect(leaveBalance(12, 15, 0, 2026).remaining).toBe(-3); // shown, never hidden
   });
 });

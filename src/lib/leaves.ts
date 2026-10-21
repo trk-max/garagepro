@@ -32,3 +32,20 @@ export function spanHours(span: { startAt: Date; endAt: Date }): number {
 }
 
 export const overlaps = (a: { startAt: Date; endAt: Date }, b: { startAt: Date; endAt: Date }) => a.startAt < b.endAt && b.startAt < a.endAt;
+
+/**
+ * Days of whole-day leave falling in a calendar year (garage open days only),
+ * e.g. a leave from 29 Dec to 3 Jan counts its December days in one year and
+ * its January days in the next.
+ */
+export function leaveDaysInYear(spans: { startAt: Date; endAt: Date }[], year: number, timeZone: string, hours: OpeningHours): number {
+  const prefix = `${year}-`;
+  return spans.reduce((sum, span) => sum + spanDates(span, timeZone).filter((d) => d.startsWith(prefix) && hours[String(weekdayOf(d))] !== null).length, 0);
+}
+
+export type LeaveBalance = { year: number; allowance: number | null; taken: number; pending: number; remaining: number | null };
+
+/** Fixed number of days per year (set on the employee file), minus approved paid leave; no carry-over. */
+export function leaveBalance(allowance: number | null, taken: number, pending: number, year: number): LeaveBalance {
+  return { year, allowance, taken, pending, remaining: allowance === null ? null : allowance - taken };
+}

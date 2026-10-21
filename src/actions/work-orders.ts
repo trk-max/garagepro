@@ -85,11 +85,11 @@ export async function createWorkOrderAction(form: FormData): Promise<ActionResul
 /** Completes the vehicle file from the work order page (VIN, year, fuel, colour, mileage). */
 export async function completeVehicleAction(workOrderId: string, form: FormData): Promise<ActionResult<Redirect>> {
   try {
-    await requirePermission("viewWorkOrders");
+    const actor = await requirePermission("viewWorkOrders");
     const raw = formToObject(form);
     const fill = vehicleCompletionSchema.parse(prefixed(raw, "f_"));
     const mileageIn = raw.mileageIn === undefined || raw.mileageIn === "" ? undefined : createWorkOrderSchema.shape.mileageIn.parse(raw.mileageIn);
-    await completeVehicleInfo(id.parse(workOrderId), fill, mileageIn);
+    await completeVehicleInfo(id.parse(workOrderId), fill, mileageIn, actor);
     refresh(workOrderId);
     return { ok: true, data: {} };
   } catch (error) {

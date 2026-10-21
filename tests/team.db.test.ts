@@ -5,7 +5,8 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { kioskCode, windowAt } from "@/lib/timeclock";
 import { employeeReport, employeeReportCsv } from "@/server/team-reports";
-import { cancelLeave, decideLeave, requestLeave } from "@/server/leaves";
+import { cancelLeave, decideLeave, getLeaveBalance, requestLeave } from "@/server/leaves";
+import { wholeDaysSpan } from "@/lib/leaves";
 import { addLaborEntry, laborSummary, startLabor, stopLabor, voidLaborEntry } from "@/server/labor";
 import { approveQualityCheck, saveQualityCheck } from "@/server/quality";
 import { changeStatus } from "@/server/work-orders";
@@ -109,6 +110,22 @@ describe("congés et absences", () => {
     await cancelLeave(manager, leave.id, "annulé à la demande");
     const history = await prisma.auditLog.findMany({ where: { entityId: leave.id }, orderBy: { createdAt: "asc" } });
     expect(history.map((h) => h.action)).toEqual(["leave.request", "leave.approve", "leave.cancel"]);
+  });
+
+  it("paid-leave balance: fixed days per year minus approved days; pending shown apart; refused not counted", async () => {
+    const manager = await makeUser("MANAGER");
+    const m = await makeUser("MECHANIC", { annualLeaveDays: 24 });
+    const tz = "Africa/Tunis";
+    const approved = await requestLeave(m, { type: "PAID_LEAVE", ...wholeDaysSpan("2026-03-02", "2026-03-04", tz), allDay: true }); // Mon–Wed = 3 d
+    await decideLeave(manager, approved.id, true);
+    await requestLeave(m, { type: "PAID_LEAVE", ...wholeDaysSpan("2026-03-09", "2026-03-10", tz), allDay: true }); // pending, 2 d
+    const refused = await requestLeave(m, { type: "PAID_LEAVE", ...wholeDaysSpan("2026-04-06", "2026-04-10", tz), allDay: true });
+    await decideLeave(manager, refused.id, false, "période chargée");
+    await requestLeave(manager, { userId: m.id, type: "SICK", ...wholeDaysSpan("2026-05-04", "2026-05-05", tz), allDay: true }); // not paid leave
+    expect(await getLeaveBalance(m.id, 2026)).toEqual({ year: 2026, allowance: 24, taken: 3, pending: 2, remaining: 21 });
+    expect((await getLeaveBalance(m.id, 2027))!.taken).toBe(0); // new year, no carry-over
+    const unset = await makeUser("MECHANIC");
+    expect((await getLeaveBalance(unset.id, 2026))!.remaining).toBeNull();
   });
 
   it("an absence recorded by a manager is approved at once, with its author", async () => {

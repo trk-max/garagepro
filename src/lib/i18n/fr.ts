@@ -302,6 +302,7 @@ export const fr = {
     qcNotApproved: "Impossible de passer à « Prêt » : le contrôle qualité doit être complet et validé par un responsable.",
     certificateMissing: "Informations manquantes pour l'attestation : {fields}. Complétez-les (Paramètres / fiche employé) : rien n'est inventé.",
     companyLogin: "E-mail ou mot de passe incorrect.",
+    resetLinkInvalid: "Ce lien n'est plus valable (expiré, déjà utilisé ou compte désactivé). Demandez un nouveau lien.",
     reasonRequired: "Indiquez un motif (il est conservé dans l'historique).",
     hubOnly: "Avec le mode garage, les factures, bons de commande et bons de réception sont créés depuis l'application du garage (PC du garage), pour garder une numérotation sans doublon.",
     vehicleIncomplete: "Fiche du véhicule incomplète : VIN (17 caractères), année, carburant, couleur et kilométrage sont obligatoires.",

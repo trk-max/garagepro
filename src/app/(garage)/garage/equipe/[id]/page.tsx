@@ -22,6 +22,8 @@ import { listCertificates } from "@/server/certificates";
 import { getSettings } from "@/server/settings";
 import { employeeReport } from "@/server/team-reports";
 import { listPunches } from "@/server/timeclock";
+import { LeaveBalanceLine } from "@/components/team/leave-balance";
+import { getLeaveBalance } from "@/server/leaves";
 
 type PageProps = { params: Promise<{ id: string }>; searchParams: Promise<{ from?: string; to?: string }> };
 
@@ -38,11 +40,12 @@ export default async function EmployeePage({ params, searchParams }: PageProps) 
   const from = zonedToUtc(fromDay, "00:00", tz);
   const to = zonedToUtc(addDays(toDay, 1), "00:00", tz);
 
-  const [employee, report, punches, certificates] = await Promise.all([
-    prisma.user.findUnique({ where: { id }, select: { id: true, name: true, role: true, isActive: true, jobTitle: true, hireDate: true, nationalId: true } }),
+  const [employee, report, punches, certificates, balance] = await Promise.all([
+    prisma.user.findUnique({ where: { id }, select: { id: true, name: true, role: true, isActive: true, jobTitle: true, hireDate: true, nationalId: true, annualLeaveDays: true } }),
     employeeReport(id, from, to),
     listPunches(id, from, to),
     listCertificates(id),
+    getLeaveBalance(id),
   ]);
   if (!employee || !report) notFound();
   const v = t.v7;
@@ -83,7 +86,10 @@ export default async function EmployeePage({ params, searchParams }: PageProps) 
           </nav>
           <div className="ms-auto flex gap-2">
             <a href={`/api/team/${employee.id}/report?from=${fromDay}&to=${toDay}`} className="inline-flex h-9 items-center gap-2 border px-3 text-sm hover:border-foreground">
-              <Download className="size-4" aria-hidden /> {v.team.exportCsv}
+              <Download className="size-4" aria-hidden /> {v.team.exportXlsx}
+            </a>
+            <a href={`/api/team/${employee.id}/report?from=${fromDay}&to=${toDay}&format=csv`} className="inline-flex h-9 items-center border px-3 text-xs text-muted-foreground hover:border-foreground">
+              {v.team.exportCsv}
             </a>
             <PrintButton />
           </div>
@@ -108,6 +114,7 @@ export default async function EmployeePage({ params, searchParams }: PageProps) 
           </Card>
         ))}
       </div>
+      {balance && <LeaveBalanceLine balance={balance} t={t} />}
       {report.incompleteDays.length > 0 && (
         <p className="border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm">
           <strong>{v.team.incomplete} :</strong> {report.incompleteDays.join(", ")} — {v.team.incompleteHint}
@@ -274,6 +281,9 @@ export default async function EmployeePage({ params, searchParams }: PageProps) 
             </Field>
             <Field label={v.team.nationalId}>
               <Input name="nationalId" maxLength={12} defaultValue={employee.nationalId ?? ""} autoComplete="off" dir="ltr" />
+            </Field>
+            <Field label={v.team.annualLeaveDays} hint={v.team.annualLeaveHint}>
+              <Input type="number" name="annualLeaveDays" min={0} max={60} step={1} inputMode="numeric" defaultValue={employee.annualLeaveDays ?? ""} />
             </Field>
             <div>
               <Button type="submit">{t.common.save}</Button>

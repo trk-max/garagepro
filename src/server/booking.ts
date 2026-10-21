@@ -1,4 +1,5 @@
 import "server-only";
+import { audit, type AuditActor } from "@/server/audit";
 import type { AppointmentStatus, Setting } from "@prisma/client";
 import { availability, freeSlots, parseOpeningHours, phoneMatchNeedle, utcToZoned, zonedToUtc, addDays, type BookingRules } from "@/lib/booking";
 import { fmt, formatMoney, normalizePlate, type Lang } from "@/lib/format";
@@ -292,6 +293,7 @@ export async function checkInAppointment(id: string, actor: StaffUser) {
 export async function upsertService(
   id: string | undefined,
   data: { name: string; nameAr?: string; description?: string; descriptionAr?: string; durationMin: number; priceFrom?: number; isActive: boolean; position: number },
+  actor: AuditActor,
 ) {
   const values = {
     ...data,
@@ -300,8 +302,17 @@ export async function upsertService(
     descriptionAr: data.descriptionAr ?? null,
     priceFrom: data.priceFrom ?? null,
   };
-  if (id) await prisma.bookableService.update({ where: { id }, data: values });
-  else await prisma.bookableService.create({ data: values });
+  await prisma.$transaction(async (tx) => {
+    if (id) {
+      const before = await tx.bookableService.findUnique({ where: { id } });
+      if (!before) throw new AppError("notFound", {}, 404);
+      await tx.bookableService.update({ where: { id }, data: values });
+      await audit(tx, actor, "bookableService.update", "BookableService", id, { before, after: values });
+    } else {
+      const created = await tx.bookableService.create({ data: values, select: { id: true } });
+      await audit(tx, actor, "bookableService.create", "BookableService", created.id, { after: values });
+    }
+  });
 }
 
 export function priceLabel(priceFrom: number | null, t: Dictionary, lang: Lang) {

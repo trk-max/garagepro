@@ -4,6 +4,7 @@ import { attendanceByDay, localDate } from "@/lib/attendance";
 import { parseOpeningHours } from "@/lib/booking";
 import { spanHours, workingDays } from "@/lib/leaves";
 import { prisma } from "@/lib/prisma";
+import { buildXlsx } from "@/lib/xlsx";
 
 /**
  * Report for one employee over [from, to): presence (punches), time on each
@@ -97,4 +98,54 @@ export function employeeReportCsv(r: EmployeeReport): string {
     ...r.leaves.map((l) => [l.type, local(l.startAt), local(new Date(l.endAt.getTime() - (l.allDay ? 1 : 0))), l.status]),
   ];
   return "﻿" + rows.map((r2) => r2.map(esc).join(";")).join("\r\n");
+}
+
+/**
+ * Same report as a real Excel file: one sheet per table, hours as numbers
+ * (Excel can add them up), dates and times as text in the garage's time zone.
+ */
+export function employeeReportXlsx(r: EmployeeReport): Uint8Array {
+  const h = (m: number) => Math.round((m / 60) * 100) / 100;
+  const time = (d: Date | null) => (d ? d.toLocaleTimeString("fr-FR", { timeZone: r.timeZone, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }) : "");
+  const local = (d: Date) => d.toLocaleString("fr-FR", { timeZone: r.timeZone, dateStyle: "short", timeStyle: "short", hourCycle: "h23" });
+  return buildXlsx([
+    {
+      name: "Résumé",
+      widths: [44, 40],
+      boldRows: [0],
+      rows: [
+        ["Employé", r.user.name],
+        ["Période", `${localDate(r.from, r.timeZone)} → ${localDate(new Date(r.to.getTime() - 1), r.timeZone)}`],
+        ["Heures de présence", h(r.presenceMinutes)],
+        ["Heures sur réparations", h(r.laborMinutes)],
+        ["Heures de pause", h(r.breakMinutes)],
+        ["Jours travaillés", r.daysWorked],
+        ["Jours incomplets (pointage de sortie manquant)", r.incompleteDays.join(" ") || "aucun"],
+      ],
+    },
+    {
+      name: "Présence",
+      widths: [12, 10, 10, 12, 13, 11],
+      boldRows: [0],
+      rows: [
+        ["Date", "Arrivée", "Départ", "Pauses (h)", "Présence (h)", "Incomplet"],
+        ...r.days.map((d) => [d.date, time(d.firstIn), time(d.lastOut), h(d.breakMinutes), h(d.presenceMinutes), d.incomplete ? "oui" : ""]),
+      ],
+    },
+    {
+      name: "Réparations",
+      widths: [12, 16, 18],
+      boldRows: [0],
+      rows: [["Ordre", "Immatriculation", "Heures travaillées"], ...r.laborByOrder.map((o) => [`OR-${String(o.number).padStart(4, "0")}`, o.plate, h(o.minutes)])],
+    },
+    {
+      name: "Congés",
+      widths: [18, 18, 18, 12],
+      boldRows: [0],
+      rows: [
+        ["Congé / absence", "Du", "Au", "Statut"],
+        ...r.leaves.map((l) => [l.type, local(l.startAt), local(new Date(l.endAt.getTime() - (l.allDay ? 1 : 0))), l.status]),
+      ],
+    },
+  ]);
 }

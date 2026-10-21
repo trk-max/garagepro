@@ -4,9 +4,10 @@ import { toErrorResponse } from "@/lib/http";
 import { isIsoDay } from "@/lib/periods";
 import { requirePermission } from "@/lib/session";
 import { getSettings } from "@/server/settings";
-import { employeeReport, employeeReportCsv } from "@/server/team-reports";
+import { XLSX_MIME } from "@/lib/xlsx";
+import { employeeReport, employeeReportCsv, employeeReportXlsx } from "@/server/team-reports";
 
-/** Employee report as CSV (opens in Excel). Managers only. */
+/** Employee report as an Excel file (.xlsx), or CSV with ?format=csv. Managers only. */
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     await requirePermission("manageTeam");
@@ -19,10 +20,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     const report = await employeeReport(id, zonedToUtc(fromDay, "00:00", tz), zonedToUtc(addDays(toDay, 1), "00:00", tz));
     if (!report) return NextResponse.json({ error: "notFound" }, { status: 404 });
     const name = report.user.name.normalize("NFD").replace(/[^\w]+/g, "-").replace(/^-|-$/g, "") || "employe";
-    return new NextResponse(employeeReportCsv(report), {
+    const csv = url.searchParams.get("format") === "csv";
+    const body = csv ? employeeReportCsv(report) : Buffer.from(employeeReportXlsx(report));
+    return new NextResponse(body, {
       headers: {
-        "Content-Type": "text/csv; charset=utf-8",
-        "Content-Disposition": `attachment; filename="rapport-${name}-${fromDay}-${toDay}.csv"`,
+        "Content-Type": csv ? "text/csv; charset=utf-8" : XLSX_MIME,
+        "Content-Disposition": `attachment; filename="rapport-${name}-${fromDay}-${toDay}.${csv ? "csv" : "xlsx"}"`,
         "Cache-Control": "private, no-store",
       },
     });
