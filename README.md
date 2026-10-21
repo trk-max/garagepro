@@ -41,6 +41,12 @@ Il n'y a **qu'une seule base de données** (Supabase en ligne + sa copie sur le 
 - Réservez l'adresse du PC du garage dans la box (bail DHCP fixe) ; si elle change, refaites `npm run shortcut`.
 - Pour que le site en ligne s'ouvre sans compte Vercel : Vercel → projet → *Settings* → *Deployment Protection* → *Vercel Authentication* → ne protéger que les *Preview Deployments* (sinon chaque PC doit se connecter à Vercel).
 
+## Nouveautés V8.4 — garanties, dépenses et trésorerie prévisionnelle
+
+- **Garanties** sur réparations et pièces (date et/ou km, la première limite atteinte), réclamations, décisions, coûts et remboursements reçus. Garantie automatique à la livraison (Paramètres, désactivée par défaut). Les montants ne sont visibles que de l'administrateur et du responsable.
+- **Dépenses et échéances** : loyer, salaires, électricité, crédit… une fois ou chaque mois / trimestre / an, marquées payées.
+- **Trésorerie prévisionnelle** (administrateur, responsable) : solde caisse + banque saisi, encaissements réels, factures impayées et remboursements attendus séparés, sans double comptage, scénarios prudent / normal / optimiste avec hypothèses affichées, alerte de solde bas configurable. Un seul garage, pas de connexion bancaire : voir [docs/GARANTIES-TRESORERIE.md](docs/GARANTIES-TRESORERIE.md).
+
 ## Nouveautés V8.0 — diagnostic OBD-II et installateur Windows
 
 - **Diagnostic OBD-II** (adaptateur ELM327, Chrome/Edge) : codes défauts (jamais effacés), données moteur, VIN, kilométrage si la voiture le fournit. Voir [docs/OBD.md](docs/OBD.md).
