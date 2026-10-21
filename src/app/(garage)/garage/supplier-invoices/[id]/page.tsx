@@ -91,7 +91,7 @@ export default async function SupplierInvoicePage({ params }: PageProps) {
             )}
           </Card>
 
-          {balance > 0 && can(staff.role, "paySupplier") && (
+          {balance > 0 && can(staff, "paySupplier") && (
             <Card>
               <CardTitle>{t.supplierInvoices.pay}</CardTitle>
               <ActionForm action={paySupplierInvoiceAction.bind(null, inv.id)} className="grid gap-3">

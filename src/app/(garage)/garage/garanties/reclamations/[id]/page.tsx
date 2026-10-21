@@ -33,7 +33,7 @@ export default async function WarrantyClaimPage({ params }: PageProps) {
   const v = t.v7.warranty;
   const tz = settings.timezone;
   const today = utcToZoned(new Date(), tz).date;
-  const showMoney = can(staff.role, "viewWarrantyMoney") && claim.money !== null;
+  const showMoney = can(staff, "viewWarrantyMoney") && claim.money !== null;
   const w = claim.warranty;
   const validity = warrantyValidity(
     { startDay: utcToZoned(w.startsAt, tz).date, endDay: w.endsAt ? utcToZoned(w.endsAt, tz).date : null, endKm: w.endKm, voided: !!w.voidedAt },

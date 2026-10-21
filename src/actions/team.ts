@@ -20,6 +20,9 @@ import {
   settingsV7Schema,
 } from "@/lib/validators";
 import { prisma } from "@/lib/prisma";
+import { z } from "zod";
+import { isPermission, type OverrideChoice } from "@/lib/permissions";
+import { setUserPermissions } from "@/server/access";
 import { audit } from "@/server/audit";
 import { issueCertificate } from "@/server/certificates";
 import { cancelLeave, decideLeave, requestLeave } from "@/server/leaves";
@@ -28,6 +31,8 @@ import { getSettings } from "@/server/settings";
 import { correctPunch, punch, voidPunch } from "@/server/timeclock";
 
 type Msg = { message?: string };
+
+const overrideChoice = z.enum(["ROLE", "GRANT", "DENY"]);
 
 const tz = async () => (await getSettings()).timezone;
 const localToUtc = (value: string, timeZone: string) => {
@@ -219,6 +224,29 @@ export async function updateCompanyLegalAction(form: FormData): Promise<ActionRe
     });
     revalidatePath("/garage/equipe", "layout");
     return { ok: true, data: null };
+  } catch (error) {
+    return toActionError(error);
+  }
+}
+
+/**
+ * V10.3 — custom access of one employee (Accès section of /garage/equipe/[id]).
+ * Form fields: one per permission, value "ROLE" | "GRANT" | "DENY". Administrator only (manageTeam + ADMIN role).
+ */
+export async function setUserPermissionsAction(userId: string, form: FormData): Promise<ActionResult<Msg>> {
+  try {
+    const actor = await requirePermission("manageTeam");
+    if (actor.role !== "ADMIN") throw new AppError("forbidden", {}, 403);
+    const raw = formToObject(form);
+    const wanted: Record<string, OverrideChoice> = {};
+    for (const [key, value] of Object.entries(raw)) {
+      if (!isPermission(key)) continue;
+      wanted[key] = overrideChoice.parse(value);
+    }
+    await setUserPermissions(actor, id.parse(userId), wanted);
+    revalidatePath("/garage", "layout");
+    const { t } = await getI18n();
+    return { ok: true, data: { message: t.v103.access.saved } };
   } catch (error) {
     return toActionError(error);
   }

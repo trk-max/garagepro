@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, Field, NativeSelect, PageHeader, Textarea } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { getI18n } from "@/lib/i18n/server";
+import { can } from "@/lib/permissions";
 import { requirePageAccess } from "@/lib/session";
 import { partOptions } from "@/server/parts";
 import { lowStockSuggestions, supplierOptions } from "@/server/purchasing";
@@ -31,7 +32,7 @@ export default async function NewPurchaseOrderPage({ searchParams }: PageProps) 
   return (
     <div className="mx-auto max-w-5xl p-6">
       <PageHeader title={t.purchase.new} />
-      {staff.role !== "ADMIN" && (
+      {!can(staff, "approvePurchase") && (
         <p className="mb-4 rounded-md border border-amber-500/30 bg-amber-500/10 px-4 py-2 text-sm text-amber-700 dark:text-amber-300">
           {t.purchase.pendingInfo}
         </p>
@@ -58,7 +59,7 @@ export default async function NewPurchaseOrderPage({ searchParams }: PageProps) 
             <Textarea name="notes" rows={2} />
           </Field>
           <Button type="submit" className="w-full sm:w-auto">
-            {staff.role === "ADMIN" ? t.common.create : t.purchase.submit}
+            {can(staff, "approvePurchase") ? t.common.create : t.purchase.submit}
           </Button>
         </Card>
       </ActionForm>

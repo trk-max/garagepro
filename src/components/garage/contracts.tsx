@@ -144,7 +144,7 @@ export async function RelatedContracts({
   newHref?: string | null;
   newLabel?: string;
 }) {
-  if (contractCategoriesFor(staff.role, "view").length === 0) return null;
+  if (contractCategoriesFor(staff, "view").length === 0) return null;
   const rows = await listContracts(staff, { ...filter, take: 20 });
   return (
     <Card>

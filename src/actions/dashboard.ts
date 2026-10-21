@@ -3,8 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { toActionError, type ActionResult } from "@/lib/http";
-import { requirePermission } from "@/lib/session";
+import { requirePermission, requireStaff } from "@/lib/session";
 import { formToObject, id, money } from "@/lib/validators";
+import { saveDashboardLayout } from "@/server/dashboard-layout";
 import { setMonthlyTarget } from "@/server/dashboard-v10";
 import { toggleFavoriteCustomer } from "@/server/dashboard-v10-customers";
 
@@ -30,6 +31,21 @@ export async function updateMonthlyTargetAction(form: FormData): Promise<ActionR
     const v = targetSchema.parse(formToObject(form));
     await setMonthlyTarget(actor, v.monthlyRevenueTarget);
     revalidatePath("/garage", "layout");
+    return { ok: true, data: null };
+  } catch (error) {
+    return toActionError(error);
+  }
+}
+
+/**
+ * V10.3 — saves the signed-in user's OWN dashboard layout ([{ id, visible }] in order; null = reset).
+ * Any signed-in team member; never another user's layout (the id comes from the session).
+ */
+export async function saveDashboardLayoutAction(layout: unknown): Promise<ActionResult> {
+  try {
+    const me = await requireStaff();
+    await saveDashboardLayout(me.id, layout);
+    revalidatePath("/garage");
     return { ok: true, data: null };
   } catch (error) {
     return toActionError(error);

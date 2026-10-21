@@ -76,8 +76,8 @@ export default async function WorkOrderPage({ params }: PageProps) {
 
   const final = isFinal(wo.status);
   const linesLocked = final || Boolean(wo.invoice);
-  const canInvoice = can(staff?.role, "createInvoice");
-  const canSeeInvoice = can(staff?.role, "viewClientInvoices");
+  const canInvoice = can(staff, "createInvoice");
+  const canSeeInvoice = can(staff, "viewClientInvoices");
   const totals = computeTotals(wo.lines, settings.stampDuty);
   const next = NEXT_STEP[wo.status];
   // Vehicle file incomplete (VIN, year, fuel, colour, check-in mileage): asked on top of the order.
@@ -276,10 +276,10 @@ export default async function WorkOrderPage({ params }: PageProps) {
         <RepairPanels wo={wo} staff={staff} t={t} lang={lang} tz={settings.timezone} />
 
         {/* ── Vehicle QR Code (created at check-in) ── */}
-        {can(staff.role, "manageVehicleQr") && <VehicleQrCard vehicle={{ id: wo.vehicle.id, qrToken: wo.vehicle.qrToken ?? null }} t={t} />}
+        {can(staff, "manageVehicleQr") && <VehicleQrCard vehicle={{ id: wo.vehicle.id, qrToken: wo.vehicle.qrToken ?? null }} t={t} />}
 
         {/* ── OBD-II diagnostic (Prompt 3/5) ── */}
-        {can(staff.role, "obdDiagnose") && (
+        {can(staff, "obdDiagnose") && (
           <Card>
             <CardTitle>{t.v7.obd.title}</CardTitle>
             <Button asChild size="sm" variant="outline">
@@ -302,7 +302,7 @@ export default async function WorkOrderPage({ params }: PageProps) {
           filter={{ workOrderId: wo.id }}
           t={t}
           lang={lang}
-          newHref={canContract(staff.role, "REPAIR", "manage") && wo.status !== "CANCELLED" ? `/garage/contrats/nouveau?category=REPAIR&workOrder=${wo.id}` : null}
+          newHref={canContract(staff, "REPAIR", "manage") && wo.status !== "CANCELLED" ? `/garage/contrats/nouveau?category=REPAIR&workOrder=${wo.id}` : null}
           newLabel={t.ctr.createFromWorkOrder}
         />
 
@@ -312,7 +312,7 @@ export default async function WorkOrderPage({ params }: PageProps) {
         {/* ── Photos & videos (shared with the customer when "visible") ── */}
         <Card>
           <CardTitle>{t.tracking.media}</CardTitle>
-          {wo.status !== "CANCELLED" && can(staff.role, "uploadMedia") && <MediaUploader workOrderId={wo.id} />}
+          {wo.status !== "CANCELLED" && can(staff, "uploadMedia") && <MediaUploader workOrderId={wo.id} />}
           {wo.media.length === 0 ? (
             <p className="mt-3 text-sm text-muted-foreground">{t.tracking.noMedia}</p>
           ) : (
@@ -332,7 +332,7 @@ export default async function WorkOrderPage({ params }: PageProps) {
                     <p className="text-muted-foreground">
                       {m.uploadedBy?.name ?? ""} · {formatDateTime(m.createdAt, lang)}
                     </p>
-                    {can(staff.role, "uploadMedia") && (
+                    {can(staff, "uploadMedia") && (
                       <div className="flex items-center gap-1">
                         <ActionButton
                           size="sm"
@@ -402,7 +402,7 @@ export default async function WorkOrderPage({ params }: PageProps) {
 
       {/* ── Right: customer, vehicle, history, invoice ── */}
       <aside className="space-y-4">
-        {!final && can(staff.role, "manageTracking") && (
+        {!final && can(staff, "manageTracking") && (
           <TrackingCard
             workOrderId={wo.id}
             pin={wo.trackingPin}

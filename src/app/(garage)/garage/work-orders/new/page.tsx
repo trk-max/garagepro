@@ -24,7 +24,7 @@ type PageProps = { searchParams: Promise<{ customerId?: string; vehicleId?: stri
 export default async function NewWorkOrderPage({ searchParams }: PageProps) {
   const staffUser = await requirePageAccess("viewWorkOrders");
   // Money (totals, invoice amounts) only for roles that see finances, as on the customer page.
-  const showMoney = can(staffUser.role, "viewFinance");
+  const showMoney = can(staffUser, "viewFinance");
   const preset = await searchParams;
   const { t, lang } = await getI18n();
   const p = t.plateLookup;

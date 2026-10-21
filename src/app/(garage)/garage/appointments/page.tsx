@@ -31,7 +31,7 @@ export default async function AppointmentsPage({ searchParams }: PageProps) {
 
   // The day list keeps the former query (any day, with notes and Arabic service names); bookingSettings feeds the settings card.
   const [{ t, lang }, { items, capacity }, mechanics, info] = await Promise.all([getI18n(), appointmentsForDay(date), listMechanics(), bookingSettings()]);
-  const canManage = can(staff.role, "manageAppointments");
+  const canManage = can(staff, "manageAppointments");
   const active = items.filter((a) => a.status !== "CANCELLED");
   const mechanicOptions = [
     { value: "", label: t.workOrders.unassigned },
@@ -85,7 +85,7 @@ export default async function AppointmentsPage({ searchParams }: PageProps) {
           )}
         </Surface>
 
-        <BookingCard t={t} info={info} settings={settings} canEdit={can(staff.role, "manageSettings")} />
+        <BookingCard t={t} info={info} settings={settings} canEdit={can(staff, "manageSettings")} />
       </div>
     </div>
   );

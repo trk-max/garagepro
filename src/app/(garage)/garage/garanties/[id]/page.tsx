@@ -23,7 +23,7 @@ export default async function WarrantyPage({ params }: PageProps) {
   if (!w) notFound();
   const v = t.v7.warranty;
   const c = t.v7.claim;
-  const showMoney = can(staff.role, "viewWarrantyMoney");
+  const showMoney = can(staff, "viewWarrantyMoney");
   const canClaim = w.validity.status !== "VOID" && w.validity.status !== "EXPIRED";
   const day = (d: string) => formatDay(d, lang, { day: "numeric", month: "long", year: "numeric" });
 

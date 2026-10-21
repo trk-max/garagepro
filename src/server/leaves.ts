@@ -22,7 +22,7 @@ const ACTIVE: LeaveStatus[] = ["PENDING", "APPROVED"];
 export async function requestLeave(actor: StaffUser, input: LeaveInput) {
   const userId = input.userId ?? actor.id;
   const forSomeoneElse = userId !== actor.id;
-  if (forSomeoneElse && !can(actor.role, "manageTeam")) throw new AppError("forbidden", {}, 403);
+  if (forSomeoneElse && !can(actor, "manageTeam")) throw new AppError("forbidden", {}, 403);
   if (!(input.endAt > input.startAt)) throw new AppError("leaveDates", {}, 422);
   if (input.endAt.getTime() - input.startAt.getTime() > 366 * 86_400_000) throw new AppError("leaveDates", {}, 422);
 
@@ -67,7 +67,7 @@ const pick = (l: { userId: string; type: LeaveType; startAt: Date; endAt: Date; 
 
 /** Manager accepts or refuses. A manager never decides on his own request (an administrator can). */
 export async function decideLeave(actor: StaffUser, leaveId: string, approve: boolean, note?: string) {
-  if (!can(actor.role, "manageTeam")) throw new AppError("forbidden", {}, 403);
+  if (!can(actor, "manageTeam")) throw new AppError("forbidden", {}, 403);
   return prisma.$transaction(async (tx) => {
     const leave = await tx.leaveRequest.findUnique({ where: { id: leaveId } });
     if (!leave) throw new AppError("notFound", {}, 404);
@@ -98,7 +98,7 @@ export async function cancelLeave(actor: StaffUser, leaveId: string, note?: stri
   return prisma.$transaction(async (tx) => {
     const leave = await tx.leaveRequest.findUnique({ where: { id: leaveId } });
     if (!leave) throw new AppError("notFound", {}, 404);
-    const manager = can(actor.role, "manageTeam") && (leave.userId !== actor.id || actor.role === "ADMIN");
+    const manager = can(actor, "manageTeam") && (leave.userId !== actor.id || actor.role === "ADMIN");
     const ownPending = leave.userId === actor.id && leave.status === "PENDING";
     if (!manager && !ownPending) throw new AppError("forbidden", {}, 403);
     if (!ACTIVE.includes(leave.status)) throw new AppError("leaveNotPending", {}, 409);

@@ -13,7 +13,7 @@ export async function issueCertificate(
   userId: string,
   input: { purpose?: string | null; endDate?: Date | null; notResigning?: boolean; recipient?: { name: string; address?: string | null } | null },
 ) {
-  if (!can(actor.role, "issueCertificates")) throw new AppError("forbidden", {}, 403);
+  if (!can(actor, "issueCertificates")) throw new AppError("forbidden", {}, 403);
   return prisma.$transaction(async (tx) => {
     const [setting, employee] = await Promise.all([
       tx.setting.findUnique({ where: { id: "garage" } }),

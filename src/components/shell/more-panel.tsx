@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useId, useRef, useState } from "react";
 import { Ellipsis, X } from "lucide-react";
-import type { Role } from "@prisma/client";
+import type { PermSubject } from "@/lib/permissions";
 import { InstallAppButton } from "@/components/pwa/install-app-button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { allowed, groupLabel, inMore, isActive, NAV_GROUPS, navLabel, type NavBadges } from "@/components/shell/nav";
@@ -19,7 +19,7 @@ import { cn } from "@/lib/utils";
  * account menu only; the theme button shows here on phones only. Native
  * <dialog>: focus stays inside, Escape and a click outside close it.
  */
-export function MorePanel({ role, badges, triggerClassName }: { role: Role; badges: NavBadges; triggerClassName: string }) {
+export function MorePanel({ who, badges, triggerClassName }: { who: PermSubject; badges: NavBadges; triggerClassName: string }) {
   const { t } = useI18n();
   const pathname = usePathname();
   const ref = useRef<HTMLDialogElement>(null);
@@ -62,7 +62,7 @@ export function MorePanel({ role, badges, triggerClassName }: { role: Role; badg
         </div>
         <div className="grid gap-3 px-5 sm:grid-cols-2 lg:grid-cols-3">
           {NAV_GROUPS.map((g, gi) => {
-            const items = g.items.filter((i) => inMore(i.key) && allowed(role, i));
+            const items = g.items.filter((i) => inMore(i.key) && allowed(who, i));
             if (items.length === 0) return null;
             return (
               <section key={gi} className="rounded-[24px] bg-gp-card p-3">

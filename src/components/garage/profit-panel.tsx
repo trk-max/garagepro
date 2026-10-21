@@ -57,8 +57,8 @@ export function ProfitFlags({ p, t }: { p: Profit; t: Dictionary }) {
 
 /** Work order page: direct expenses (manager) and real profit (administrator). */
 export async function ProfitPanel({ workOrderId, staff, t, lang }: { workOrderId: string; staff: StaffUser; t: Dictionary; lang: Lang }) {
-  const showProfit = can(staff.role, "viewProfit");
-  const canExpense = can(staff.role, "manageExpenses");
+  const showProfit = can(staff, "viewProfit");
+  const canExpense = can(staff, "manageExpenses");
   if (!showProfit && !canExpense) return null;
   const [expenses, profit, suppliers] = await Promise.all([listExpenses(workOrderId), showProfit ? workOrderProfit(workOrderId) : null, canExpense ? supplierOptions() : []]);
   const v = t.v7.profit;

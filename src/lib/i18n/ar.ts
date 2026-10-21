@@ -1,4 +1,5 @@
 import { v10Ar } from "@/lib/i18n/v10-ar";
+import { v103Ar } from "@/lib/i18n/v103-ar";
 import { contractsAr } from "@/lib/i18n/contracts-ar";
 import { v7Ar } from "@/lib/i18n/v7-ar";
 import { showroomAr } from "@/lib/i18n/showroom-ar";
@@ -381,6 +382,8 @@ export const ar: Dictionary = {
     lastAdmin: "غير ممكن: يجب أن يبقى مدير نشط واحد على الأقل.",
     ownRole: "لا يمكنك تغيير دورك بنفسك. اطلب ذلك من مدير آخر.",
     ownDelete: "لا يمكنك حذف حسابك بنفسك. اطلب ذلك من مدير آخر.",
+    ownAccess: "لا يمكنك سحب صلاحية إدارة الفريق أو الإعدادات من نفسك. اطلب ذلك من مدير آخر.",
+    lastAdminAccess: "غير ممكن: يجب أن يحتفظ مدير نشط واحد على الأقل بصلاحية إدارة الفريق.",
     passwordMismatch: "كلمتا المرور غير متطابقتين.",
     passwordTooShort: "يجب أن تحتوي كلمة المرور على 8 أحرف على الأقل.",
     insufficientStock: "المخزون غير كافٍ: {stock} متوفّر.",
@@ -940,4 +943,6 @@ export const ar: Dictionary = {
   showroom: showroomAr,
   /** V10 — refonte du tableau de bord. */
   v10: v10Ar,
+  /** V10.3 — accès sur mesure, tableau de bord personnalisé. */
+  v103: v103Ar,
 };

@@ -30,7 +30,7 @@ export default async function NotificationsPage() {
   return (
     <div className="mx-auto max-w-7xl space-y-5 p-4 sm:p-6">
       <PageHeader title={n.title}>
-        {can(staff.role, "manageSettings") && <ActionButton action={runRemindersAction}>{n.runNow}</ActionButton>}
+        {can(staff, "manageSettings") && <ActionButton action={runRemindersAction}>{n.runNow}</ActionButton>}
       </PageHeader>
 
       <Card>

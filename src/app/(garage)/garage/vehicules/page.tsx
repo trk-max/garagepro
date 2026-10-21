@@ -20,10 +20,10 @@ export default async function VehiclesPage({ searchParams }: PageProps) {
   const p = t.v10.pages.vehicles;
   const c = t.v10.pages.customers;
   const rights = {
-    newOrder: can(staff.role, "viewWorkOrders"),
-    qr: can(staff.role, "manageVehicleQr"),
-    obd: can(staff.role, "obdDiagnose"),
-    maintenance: can(staff.role, "manageMaintenance"),
+    newOrder: can(staff, "viewWorkOrders"),
+    qr: can(staff, "manageVehicleQr"),
+    obd: can(staff, "obdDiagnose"),
+    maintenance: can(staff, "manageMaintenance"),
   };
   const href = (cursor?: string) => {
     const params = new URLSearchParams();

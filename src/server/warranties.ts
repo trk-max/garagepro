@@ -26,7 +26,7 @@ const dayOf = (d: Date, tz: string) => utcToZoned(d, tz).date;
 export const dayToInstant = (day: string, tz: string) => zonedToUtc(day, "12:00", tz);
 
 function assertCan(actor: StaffUser, permission: "manageWarranties" | "viewWarrantyMoney") {
-  if (!can(actor.role, permission)) throw new AppError("forbidden", {}, 403);
+  if (!can(actor, permission)) throw new AppError("forbidden", {}, 403);
 }
 
 // ── Creation ────────────────────────────────────────────────────────────────
@@ -203,7 +203,7 @@ export async function listWarranties(actor: StaffUser, opts: { filter?: Warranty
 /** One warranty with its claims. `money` is null for roles that may not see amounts. */
 export async function getWarranty(actor: StaffUser, warrantyId: string, now = new Date()) {
   assertCan(actor, "manageWarranties");
-  const showMoney = can(actor.role, "viewWarrantyMoney");
+  const showMoney = can(actor, "viewWarrantyMoney");
   const settings = await getSettings();
   const tz = settings.timezone || GARAGE_TZ;
   const w = await prisma.warranty.findUnique({
@@ -237,7 +237,7 @@ function moneyOf(c: { status: string; costParts: number; costLabor: number; amou
 /** One claim. Without viewWarrantyMoney: no amount, no refund, no decision text. */
 export async function getClaim(actor: StaffUser, claimId: string) {
   assertCan(actor, "manageWarranties");
-  const showMoney = can(actor.role, "viewWarrantyMoney");
+  const showMoney = can(actor, "viewWarrantyMoney");
   const c = await prisma.warrantyClaim.findUnique({
     where: { id: claimId },
     include: { refunds: { orderBy: { receivedAt: "desc" } }, warranty: { select: { ...warrantySelect } } },

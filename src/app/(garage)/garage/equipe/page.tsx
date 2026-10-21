@@ -17,17 +17,20 @@ import { listLeaves } from "@/server/leaves";
 import { getSettings } from "@/server/settings";
 import { teamPresence } from "@/server/timeclock";
 import { can } from "@/lib/permissions";
+import { AccessChip } from "@/components/team/access-editor";
+import { countOverridesByUser } from "@/server/access";
 import { CompanyLegalCard } from "@/components/team/company-legal-card";
 
 /** Managers: who is here, requests to decide, employees' files. */
 export default async function TeamPage() {
   const staff = await requirePageAccess("manageTeam");
-  const [{ t, lang }, presence, pending, settings, employees] = await Promise.all([
+  const [{ t, lang }, presence, pending, settings, employees, custom] = await Promise.all([
     getI18n(),
     teamPresence(),
     listLeaves({ status: "PENDING" }),
     getSettings(),
     prisma.user.findMany({ where: { isActive: true }, orderBy: { name: "asc" }, select: { id: true, name: true, role: true, jobTitle: true } }),
+    countOverridesByUser(),
   ]);
   const v = t.v7;
   const hours = parseOpeningHours(settings.openingHours);
@@ -35,7 +38,7 @@ export default async function TeamPage() {
   return (
     <div className="mx-auto max-w-6xl space-y-6 p-4 sm:p-6">
       <PageHeader title={v.team.title} />
-      {can(staff.role, "issueCertificates") && (
+      {can(staff, "issueCertificates") && (
         <details id="entreprise" open={!settings.legalRepName || !settings.legalRepTitle || !settings.city} className="scroll-mt-20 border p-0 [&[open]]:pb-0">
           <summary className="cursor-pointer px-4 py-3 text-sm font-medium">{v.settingsV7.legalTitle}</summary>
           <div className="px-1 pb-1">
@@ -54,6 +57,7 @@ export default async function TeamPage() {
                   {p.name}
                 </Link>
                 <span className="text-xs text-muted-foreground">{t.roles[p.role]}</span>
+                {custom.get(p.id) ? <AccessChip href={`/garage/equipe/${p.id}#acces`} label={fmt(t.v103.access.custom, { n: custom.get(p.id)! })} /> : null}
                 <span className="ms-auto text-xs text-muted-foreground">
                   {v.clock.state[p.state]}
                   {p.state !== "OUT" && p.lastAt ? ` · ${fmt(v.team.since, { time: formatTime(p.lastAt, lang, settings.timezone) })}` : ""}

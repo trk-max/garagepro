@@ -171,7 +171,7 @@ export default async function CashForecastPage({ searchParams }: PageProps) {
           <CardTitle>{v.balanceTitle}</CardTitle>
           <p className="mb-3 text-xs text-muted-foreground">{v.balanceHint}</p>
           {/* Read-only for the accountant (readCashForecast): typing the balance stays administrator + manager. */}
-          {can(staff.role, "viewCashForecast") && (
+          {can(staff, "viewCashForecast") && (
             <ActionForm action={recordCashBalanceAction} className="grid gap-3 sm:grid-cols-2">
               <Field label={v.amount}>
                 <Input name="amount" inputMode="decimal" required dir="ltr" />

@@ -21,7 +21,7 @@ const pill = "rounded-full border border-gp-line bg-gp-card shadow-gp";
  */
 export function TopNav({ logo, user, badges }: { logo: ReactNode; user: ShellUser; badges: NavBadges }) {
   const { t } = useI18n();
-  const items = pick(user.role, TOP_KEYS);
+  const items = pick(user, TOP_KEYS);
   return (
     <header className="sticky top-0 z-40 rounded-t-[32px] bg-gp-canvas/85 px-3 pt-3 pb-2 backdrop-blur-md sm:px-5 sm:pt-4 print:hidden">
       <div className="flex items-center gap-2 sm:gap-3">
@@ -29,7 +29,7 @@ export function TopNav({ logo, user, badges }: { logo: ReactNode; user: ShellUse
         <PageNav items={items} className="hidden flex-1 justify-center xl:flex" label={t.v10.nav.main} badges={badges} />
         <div className="ms-auto flex shrink-0 items-center gap-2 sm:gap-3 xl:ms-0">
           <div className={cn(pill, "flex h-14 items-center gap-1 px-1.5")}>
-            {can(user.role, "viewWorkOrders") && <SearchButton />}
+            {can(user, "viewWorkOrders") && <SearchButton />}
             <NotificationsMenu badges={badges} />
           </div>
           <UserMenu user={user} />

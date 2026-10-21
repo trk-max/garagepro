@@ -1,8 +1,7 @@
 import "server-only";
-import type { Role } from "@prisma/client";
 import { AppError } from "@/lib/http";
 import { canContract } from "@/lib/contracts";
-import { can } from "@/lib/permissions";
+import { can, type PermSubject } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import type { StaffUser } from "@/lib/session";
 import { audit } from "@/server/audit";
@@ -46,7 +45,7 @@ const NEAR_END = ["QUALITY_CONTROL", "WASHING", "READY"];
  * `viewerRole`: the cash alert (V8.4) is added only for roles allowed to see the forecast
  * (administrator, manager) — never computed, never shown, for the others.
  */
-export async function listAlerts(now = new Date(), viewerRole?: Role | null) {
+export async function listAlerts(now = new Date(), viewerRole?: PermSubject) {
   const settings = await getSettings();
   const [d, active, low, cash, contracts] = await Promise.all([
     delays(now, settings),
@@ -144,10 +143,10 @@ export type AlertChange = { assignTo?: string | null; handled?: boolean; snoozeD
 
 export async function updateAlert(actor: StaffUser, key: string, change: AlertChange, now = new Date()) {
   if (!ALERT_KEY.test(key)) throw new AppError("invalid", {}, 422);
-  if (key.startsWith("cashLow:") && !can(actor.role, "viewCashForecast")) throw new AppError("forbidden", {}, 403);
+  if (key.startsWith("cashLow:") && !can(actor, "viewCashForecast")) throw new AppError("forbidden", {}, 403);
   if (key.startsWith("contractExpiry:")) {
     const category = await contractCategoryOf(key.split(":")[1]!);
-    if (!category || !canContract(actor.role, category, "view")) throw new AppError("forbidden", {}, 403);
+    if (!category || !canContract(actor, category, "view")) throw new AppError("forbidden", {}, 403);
   }
   if (change.assignTo) {
     const u = await prisma.user.findUnique({ where: { id: change.assignTo }, select: { isActive: true } });

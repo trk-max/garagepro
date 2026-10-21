@@ -3,12 +3,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Moon, Sun, type LucideIcon } from "lucide-react";
-import type { Role } from "@prisma/client";
 import { MorePanel } from "@/components/shell/more-panel";
 import { Tip } from "@/components/shell/tip";
 import { isActive, navLabel, pick, RAIL_KEYS, type NavBadges } from "@/components/shell/nav";
 import { useTheme } from "@/components/theme-toggle";
 import { useI18n } from "@/lib/i18n/client";
+import type { PermSubject } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 
 const group = "flex items-center gap-1 rounded-full border border-gp-line bg-gp-card p-1.5 shadow-gp";
@@ -20,10 +20,10 @@ const btn = "gp-pill-t relative grid size-10 shrink-0 place-items-center rounded
  * Sign-out and settings live only in the account menu. Below 1280 px the same
  * icons become a bottom bar.
  */
-export function SideRail({ role, badges }: { role: Role; badges: NavBadges }) {
+export function SideRail({ who, badges }: { who: PermSubject; badges: NavBadges }) {
   const { t } = useI18n();
   const pathname = usePathname();
-  const items = pick(role, RAIL_KEYS);
+  const items = pick(who, RAIL_KEYS);
   const links = items.map((i) => (
     <RailLink key={i.key} href={i.href} icon={i.icon} label={navLabel(t, i.key)} active={isActive(pathname, i.href)} badge={badges[i.key]} />
   ));
@@ -33,7 +33,7 @@ export function SideRail({ role, badges }: { role: Role; badges: NavBadges }) {
         <ThemeSwitch />
         <div className={cn(group, "flex-col")}>
           {links}
-          <MorePanel role={role} badges={badges} triggerClassName={btn} />
+          <MorePanel who={who} badges={badges} triggerClassName={btn} />
         </div>
       </nav>
       {/* Tablets and phones: same icons as a floating bottom bar. */}
@@ -41,7 +41,7 @@ export function SideRail({ role, badges }: { role: Role; badges: NavBadges }) {
         <div className={cn(group, "max-w-full shadow-lg")}>
           {/* Phones: the page icons scroll sideways, "More" stays pinned at the end. */}
           <div className="gp-scroll-x flex min-w-0 items-center gap-1 max-md:-m-1 max-md:overflow-x-auto max-md:p-1">{links}</div>
-          <MorePanel role={role} badges={badges} triggerClassName={btn} />
+          <MorePanel who={who} badges={badges} triggerClassName={btn} />
           <span className="hidden md:contents">
             <ThemeButton />
           </span>

@@ -1,4 +1,5 @@
 import { v10En } from "@/lib/i18n/v10-en";
+import { v103En } from "@/lib/i18n/v103-en";
 import { contractsEn } from "@/lib/i18n/contracts-en";
 import { v7En } from "@/lib/i18n/v7-en";
 import { showroomEn } from "@/lib/i18n/showroom-en";
@@ -381,6 +382,8 @@ export const en: Dictionary = {
     lastAdmin: "Not possible: the garage must keep at least one active administrator.",
     ownRole: "You cannot change your own role. Ask another administrator.",
     ownDelete: "You cannot delete your own account. Ask another administrator.",
+    ownAccess: "You cannot remove your own team management or settings access. Ask another administrator.",
+    lastAdminAccess: "Not possible: at least one active administrator must keep team management.",
     passwordMismatch: "The two passwords do not match.",
     passwordTooShort: "The password must be at least 8 characters long.",
     insufficientStock: "Not enough stock: {stock} in stock.",
@@ -940,4 +943,6 @@ export const en: Dictionary = {
   showroom: showroomEn,
   /** V10 — refonte du tableau de bord. */
   v10: v10En,
+  /** V10.3 — accès sur mesure, tableau de bord personnalisé. */
+  v103: v103En,
 };

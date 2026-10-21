@@ -45,7 +45,7 @@ export default async function ContractPage({ params }: PageProps) {
   const status = c.status as ContractStatus;
   // Buttons for the moves this viewer may make (checked again on the server). SIGNED = scan upload only.
   const moves = (CONTRACT_TRANSITIONS[status] ?? []).filter((to) => to !== "SIGNED" && (accessForMove(to) === "approve" ? c.can.approve : c.can.manage));
-  const canSeeInvoice = can(staff.role, "viewClientInvoices");
+  const canSeeInvoice = can(staff, "viewClientInvoices");
   const inv = c.workOrder?.invoice ?? null;
 
   return (

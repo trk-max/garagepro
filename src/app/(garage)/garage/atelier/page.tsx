@@ -26,7 +26,7 @@ export default async function WorkshopPage({ searchParams }: PageProps) {
   const { view } = await searchParams;
   const mineOnly = view ? view === "mine" : staff.role === "MECHANIC";
   const [{ t, lang }, orders, running] = await Promise.all([getI18n(), workshopOrders(mineOnly ? staff.id : undefined), runningLabor(staff.id)]);
-  const canTime = can(staff.role, "logOwnLabor");
+  const canTime = can(staff, "logOwnLabor");
 
   return (
     <div className="mx-auto max-w-3xl space-y-4 p-3 sm:p-6">
@@ -94,7 +94,7 @@ export default async function WorkshopPage({ searchParams }: PageProps) {
                           </span>
                         )}
                       </a>
-                      {can(staff.role, "uploadMedia") && (
+                      {can(staff, "uploadMedia") && (
                         <ActionButton
                           size="icon-sm"
                           variant="secondary"

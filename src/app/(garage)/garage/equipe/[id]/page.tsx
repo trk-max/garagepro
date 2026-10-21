@@ -28,6 +28,8 @@ import { setHourlyCostAction } from "@/actions/profit";
 import { missingCertificateFields } from "@/lib/certificate";
 import { RelatedContracts } from "@/components/garage/contracts";
 import { canContract } from "@/lib/contracts";
+import { AccessEditor } from "@/components/team/access-editor";
+import { getUserOverrides } from "@/server/access";
 
 type PageProps = { params: Promise<{ id: string }>; searchParams: Promise<{ from?: string; to?: string }> };
 
@@ -44,12 +46,15 @@ export default async function EmployeePage({ params, searchParams }: PageProps) 
   const from = zonedToUtc(fromDay, "00:00", tz);
   const to = zonedToUtc(addDays(toDay, 1), "00:00", tz);
 
-  const [employee, report, punches, certificates, balance] = await Promise.all([
+  // V10.3: custom access — administrators only.
+  const isAdmin = staff.role === "ADMIN";
+  const [employee, report, punches, certificates, balance, overrides] = await Promise.all([
     prisma.user.findUnique({ where: { id }, select: { id: true, name: true, role: true, isActive: true, jobTitle: true, hireDate: true, nationalId: true, annualLeaveDays: true, hourlyCost: true, contractType: true } }),
     employeeReport(id, from, to),
     listPunches(id, from, to),
     listCertificates(id),
     getLeaveBalance(id),
+    isAdmin ? getUserOverrides(id) : null,
   ]);
   if (!employee || !report) notFound();
   const v = t.v7;
@@ -276,14 +281,14 @@ export default async function EmployeePage({ params, searchParams }: PageProps) 
       </div>
 
       {/* V9: employment contracts — administrator and HR only (the manager sees nothing here). */}
-      {canContract(staff.role, "EMPLOYMENT", "view") && (
+      {canContract(staff, "EMPLOYMENT", "view") && (
         <div className="print:hidden">
           <RelatedContracts
             staff={staff}
             filter={{ userId: employee.id, category: "EMPLOYMENT" }}
             t={t}
             lang={lang}
-            newHref={canContract(staff.role, "EMPLOYMENT", "manage") ? `/garage/contrats/nouveau?category=EMPLOYMENT&user=${employee.id}` : null}
+            newHref={canContract(staff, "EMPLOYMENT", "manage") ? `/garage/contrats/nouveau?category=EMPLOYMENT&user=${employee.id}` : null}
             newLabel={t.ctr.createEmployment}
           />
         </div>
@@ -320,7 +325,7 @@ export default async function EmployeePage({ params, searchParams }: PageProps) 
               <Button type="submit">{t.common.save}</Button>
             </div>
           </ActionForm>
-          {can(staff.role, "manageSettings") && (
+          {can(staff, "manageSettings") && (
             <ActionForm action={setHourlyCostAction.bind(null, employee.id)} reset={false} className="mt-4 flex flex-wrap items-end gap-2 border-t pt-4">
               <Field label={`${t.v7.profit.hourlyCost} (DT)`} hint={t.v7.profit.hourlyCostHint}>
                 <Input name="hourlyCost" inputMode="decimal" dir="ltr" defaultValue={employee.hourlyCost === null ? "" : (employee.hourlyCost / 1000).toFixed(3)} />
@@ -331,7 +336,7 @@ export default async function EmployeePage({ params, searchParams }: PageProps) 
             </ActionForm>
           )}
         </Card>
-        {can(staff.role, "issueCertificates") && (
+        {can(staff, "issueCertificates") && (
           <Card>
             <CardTitle>{v.team.certificates}</CardTitle>
             {!certificateReady && (
@@ -395,6 +400,9 @@ export default async function EmployeePage({ params, searchParams }: PageProps) 
           </Card>
         )}
       </div>
+
+      {/* V10.3: custom access (administrators only). */}
+      {isAdmin && overrides && <AccessEditor t={t} userId={employee.id} role={employee.role} overrides={overrides} isSelf={employee.id === staff.id} />}
     </div>
   );
 }

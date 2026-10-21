@@ -28,7 +28,7 @@ export default async function DelaysPage() {
   const me = await requirePageAccess("manageRepairFollowUp");
   const [{ t, lang }, a, staff] = await Promise.all([
     getI18n(),
-    listAlerts(undefined, me.role),
+    listAlerts(undefined, me),
     prisma.user.findMany({ where: { isActive: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
   ]);
   const v = t.v7.delays;

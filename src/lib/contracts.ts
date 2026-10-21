@@ -1,5 +1,6 @@
 import type { Role } from "@prisma/client";
 import { addDaysToDay, addMonthsToDay } from "@/lib/warranty";
+import type { PermSubject } from "@/lib/permissions";
 
 /**
  * Contracts (V9.0, Prompt 5/5) — pure rules, unit-tested in tests/contracts.test.ts.
@@ -47,12 +48,24 @@ export const CONTRACT_ACCESS: Record<ContractCategory, { view: readonly Role[]; 
 };
 
 type Access = "view" | "manage" | "approve";
-export function canContract(role: Role | null | undefined, category: string, access: Access): boolean {
-  if (!role || !isContractCategory(category)) return false;
-  return (CONTRACT_ACCESS[category][access] as readonly Role[]).includes(role);
+/**
+ * V10.3 — per-employee overrides (see src/lib/permissions.ts) map onto contracts like this:
+ * - DENY viewContracts: no contract at all, whatever the category;
+ * - GRANT viewContracts (role without it): READ the non-employment categories
+ *   (repair, fleet, supplier, blank). Managing / approving and employment contracts stay role-based
+ *   (salaries and ID numbers are never opened by an override).
+ * A bare role keeps the historic role-only answer.
+ */
+export function canContract(subject: PermSubject, category: string, access: Access): boolean {
+  if (!subject || !isContractCategory(category)) return false;
+  const role = typeof subject === "string" ? subject : subject.role;
+  const perms = typeof subject === "string" ? null : subject.perms;
+  if (perms?.deny.includes("viewContracts")) return false;
+  if ((CONTRACT_ACCESS[category][access] as readonly Role[]).includes(role)) return true;
+  return !!perms?.grant.includes("viewContracts") && access === "view" && category !== "EMPLOYMENT";
 }
-export function contractCategoriesFor(role: Role | null | undefined, access: Access): ContractCategory[] {
-  return CONTRACT_CATEGORIES.filter((c) => canContract(role, c, access));
+export function contractCategoriesFor(subject: PermSubject, access: Access): ContractCategory[] {
+  return CONTRACT_CATEGORIES.filter((c) => canContract(subject, c, access));
 }
 
 // ── Status machine ───────────────────────────────────────────────────────────

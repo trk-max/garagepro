@@ -127,7 +127,7 @@ export default async function InvoicePage({ params }: PageProps) {
           )}
         </Card>
 
-        {balance > 0 && can(staff.role, "sendReminder") && (
+        {balance > 0 && can(staff, "sendReminder") && (
           <Card className={late ? "border-red-500/40" : undefined}>
             <CardTitle>{t.reminders.send}</CardTitle>
             <ReminderPanel
@@ -162,7 +162,7 @@ export default async function InvoicePage({ params }: PageProps) {
           )}
         </Card>
 
-        {balance > 0 && can(staff.role, "recordPayment") && (
+        {balance > 0 && can(staff, "recordPayment") && (
           <Card>
             <CardTitle>{t.invoices.recordPayment}</CardTitle>
             <ActionForm action={recordPaymentAction.bind(null, invoice.id)} className="grid gap-3">

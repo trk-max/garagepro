@@ -1,6 +1,5 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import type { Role } from "@prisma/client";
 import { Activity, CarFront, FileSignature, Plus, QrCode, ShieldCheck, Wrench } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { addVehicleAction } from "@/actions/catalog";
@@ -12,7 +11,7 @@ import { EmptyState, Surface, SurfaceHeader } from "@/components/ui/redesign/sur
 import { canContract } from "@/lib/contracts";
 import type { Dictionary } from "@/lib/i18n/fr";
 import { formatKm, type Lang } from "@/lib/format";
-import { can } from "@/lib/permissions";
+import { can, type PermSubject } from "@/lib/permissions";
 import type { getCustomer } from "@/server/customers";
 
 type Customer = NonNullable<Awaited<ReturnType<typeof getCustomer>>>;
@@ -28,7 +27,7 @@ function Act({ href, icon: Icon, children }: { href: string; icon: LucideIcon; c
 }
 
 /** The customer's vehicles with every former shortcut (new order, contracts, maintenance, QR, warranties, OBD) and the add-vehicle form. */
-export function VehicleTiles({ customer, role, t, lang }: { customer: Customer; role: Role; t: Dictionary; lang: Lang }) {
+export function VehicleTiles({ customer, who, t, lang }: { customer: Customer; who: PermSubject; t: Dictionary; lang: Lang }) {
   return (
     <Surface aria-labelledby="cu-vehicles">
       <SurfaceHeader id="cu-vehicles" title={t.customers.vehicles} />
@@ -53,11 +52,11 @@ export function VehicleTiles({ customer, role, t, lang }: { customer: Customer; 
                 <Link href={`/garage/work-orders/new?customerId=${customer.id}&vehicleId=${v.id}`} className="gp-lift inline-flex h-9 items-center gap-1.5 rounded-full bg-gp-primary px-3 text-xs font-medium text-gp-primary-ink">
                   <Plus className="size-3.5" aria-hidden /> {t.customers.newWorkOrder}
                 </Link>
-                {canContract(role, "REPAIR", "view") && <Act href={`/garage/contrats?vehicle=${v.id}`} icon={FileSignature}>{t.ctr.nav}</Act>}
-                {can(role, "manageMaintenance") && <Act href={`/garage/vehicules/${v.id}/entretien`} icon={Wrench}>{t.v7.maintenance.button}</Act>}
-                {can(role, "manageVehicleQr") && <Act href={`/garage/vehicules/${v.id}/qr`} icon={QrCode}>{t.v7.qr.button}</Act>}
-                {can(role, "manageWarranties") && <Act href={`/garage/garanties?f=all&vehicle=${v.id}`} icon={ShieldCheck}>{t.v7.warranty.button}</Act>}
-                {can(role, "obdDiagnose") && <Act href={`/garage/vehicules/${v.id}/obd`} icon={Activity}>{t.v7.obd.button}</Act>}
+                {canContract(who, "REPAIR", "view") && <Act href={`/garage/contrats?vehicle=${v.id}`} icon={FileSignature}>{t.ctr.nav}</Act>}
+                {can(who, "manageMaintenance") && <Act href={`/garage/vehicules/${v.id}/entretien`} icon={Wrench}>{t.v7.maintenance.button}</Act>}
+                {can(who, "manageVehicleQr") && <Act href={`/garage/vehicules/${v.id}/qr`} icon={QrCode}>{t.v7.qr.button}</Act>}
+                {can(who, "manageWarranties") && <Act href={`/garage/garanties?f=all&vehicle=${v.id}`} icon={ShieldCheck}>{t.v7.warranty.button}</Act>}
+                {can(who, "obdDiagnose") && <Act href={`/garage/vehicules/${v.id}/obd`} icon={Activity}>{t.v7.obd.button}</Act>}
               </div>
             </li>
           ))}

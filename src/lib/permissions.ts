@@ -104,9 +104,86 @@ const MATRIX = {
 
 export type Permission = keyof typeof MATRIX;
 
-export function can(role: Role | null | undefined, permission: Permission): boolean {
+export const PERMISSIONS = Object.keys(MATRIX) as Permission[];
+
+export function isPermission(value: unknown): value is Permission {
+  return typeof value === "string" && Object.prototype.hasOwnProperty.call(MATRIX, value);
+}
+
+/** What the role alone allows (the matrix above, without any per-user override). */
+export function roleCan(role: Role | null | undefined, permission: Permission): boolean {
   return !!role && (MATRIX[permission] as readonly Role[]).includes(role);
 }
+
+/**
+ * V10.3 — per-employee overrides set by an administrator (table UserPermission).
+ * Loaded once per request with the signed-in user (src/lib/session.ts getStaff).
+ */
+export type PermOverrides = { grant: readonly Permission[]; deny: readonly Permission[] };
+export type PermEffect = "GRANT" | "DENY";
+/** A role alone, or a user (role + optional overrides). */
+export type PermSubject = Role | { role: Role; perms?: PermOverrides | null } | null | undefined;
+
+/**
+ * Effective rule: DENY override > GRANT override > role matrix.
+ * Passing a bare role keeps the historic role-only behaviour.
+ */
+export function can(subject: PermSubject, permission: Permission): boolean {
+  if (!subject) return false;
+  if (typeof subject === "string") return roleCan(subject, permission);
+  const perms = subject.perms;
+  if (perms) {
+    if (perms.deny.includes(permission)) return false;
+    if (perms.grant.includes(permission)) return true;
+  }
+  return roleCan(subject.role, permission);
+}
+
+/** Builds the overrides from database rows (unknown permission names are ignored). */
+export function overridesFrom(rows: readonly { permission: string; effect: string }[] | null | undefined): PermOverrides {
+  const grant: Permission[] = [];
+  const deny: Permission[] = [];
+  for (const r of rows ?? []) {
+    if (!isPermission(r.permission)) continue;
+    if (r.effect === "DENY") deny.push(r.permission);
+    else if (r.effect === "GRANT") grant.push(r.permission);
+  }
+  return { grant, deny };
+}
+
+/** Permissions an administrator may never refuse to themselves (they would lock themselves out). */
+export const SELF_PROTECTED: readonly Permission[] = ["manageTeam", "manageSettings"];
+
+export type OverrideChoice = PermEffect | "ROLE";
+
+/**
+ * Normalises a requested set of overrides against the role: an override equal to the role
+ * default is dropped (it would change nothing), so only real differences are stored.
+ */
+export function normaliseOverrides(role: Role, wanted: Partial<Record<string, OverrideChoice>>): { permission: Permission; effect: PermEffect }[] {
+  const out: { permission: Permission; effect: PermEffect }[] = [];
+  for (const permission of PERMISSIONS) {
+    const effect = wanted[permission];
+    if (effect !== "GRANT" && effect !== "DENY") continue;
+    const byRole = roleCan(role, permission);
+    if ((effect === "GRANT" && byRole) || (effect === "DENY" && !byRole)) continue;
+    out.push({ permission, effect });
+  }
+  return out;
+}
+
+/** Display groups for the "Accès" editor (every permission appears exactly once). */
+export const PERMISSION_GROUPS = {
+  workshop: ["viewWorkOrders", "useWorkshop", "printQuote", "uploadMedia", "obdDiagnose", "viewAppointments", "manageAppointments", "manageTracking", "manageRepairFollowUp", "reportMissingPart", "logOwnLabor", "manageLabor", "fillQualityCheck", "approveQualityCheck", "manageClaims", "manageWarranties"],
+  customers: ["viewCustomers", "manageMaintenance", "manageVehicleQr", "viewNotifications", "manageCompanyAccess"],
+  money: ["viewFinance", "viewClientInvoices", "createInvoice", "recordPayment", "sendReminder", "manageExpenses", "viewWarrantyMoney", "viewCashForecast", "readCashForecast", "viewProfit", "viewReports"],
+  stock: ["viewStock", "manageStock", "reserveStock", "viewSuppliers", "manageSuppliers", "requestPurchase", "approvePurchase", "receiveGoods", "viewSupplierInvoices", "manageSupplierInvoices", "paySupplier"],
+  team: ["useTimeClock", "manageTeam", "showClockKiosk", "issueCertificates"],
+  contracts: ["viewContracts", "reviewContractTemplates"],
+  showroom: ["viewShowroom", "createListing", "manageAllListings", "useShowroomMessages", "readAllShowroomMessages"],
+  admin: ["manageSettings", "viewAuditLog"],
+} as const satisfies Record<string, readonly Permission[]>;
+export type PermissionGroup = keyof typeof PERMISSION_GROUPS;
 
 export function rolesFor(permission: Permission): Role[] {
   return [...MATRIX[permission]];

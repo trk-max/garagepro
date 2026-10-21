@@ -24,7 +24,7 @@ export default async function ListingStaffPage({ params }: PageProps) {
   if (!/^[a-z0-9]{20,40}$/.test(id)) notFound();
   const [{ t, lang }, l] = await Promise.all([getI18n(), getStaffListing(staff, id)]);
   if (!l) notFound();
-  const sellers = l.canEdit && can(staff.role, "manageAllListings") ? await listSellers() : null;
+  const sellers = l.canEdit && can(staff, "manageAllListings") ? await listSellers() : null;
   const s = t.showroom.staff;
   const facts = readFacts(l.facts);
   const next = isListingStatus(l.status) ? LISTING_TRANSITIONS[l.status] : [];
@@ -105,7 +105,7 @@ export default async function ListingStaffPage({ params }: PageProps) {
                 ))}
               </div>
             )}
-            {l.canEdit && can(staff.role, "useShowroomMessages") && (
+            {l.canEdit && can(staff, "useShowroomMessages") && (
               <Link href={`/garage/messages?listing=${l.id}`} className="mt-3 block text-sm underline-offset-4 hover:underline">
                 {s.conversations}
               </Link>

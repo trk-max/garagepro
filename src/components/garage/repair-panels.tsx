@@ -72,7 +72,7 @@ export async function RepairPanels({ wo, staff, t, lang, tz }: { wo: Wo; staff: 
       <Card>
         <CardTitle>{v.labor.title}</CardTitle>
         <div className="flex flex-wrap items-center gap-2">
-          {!final && can(staff.role, "logOwnLabor") && (mine ? (
+          {!final && can(staff, "logOwnLabor") && (mine ? (
             <ActionButton action={stopLaborAction.bind(null, mine.id, wo.id)} variant="destructive">
               <Timer className="size-4" aria-hidden /> {v.labor.stop} · {fmt(v.labor.running, { time: formatTime(mine.startedAt, lang, tz) })}
             </ActionButton>
@@ -87,7 +87,7 @@ export async function RepairPanels({ wo, staff, t, lang, tz }: { wo: Wo; staff: 
               <span key={e.id} className="inline-flex items-center gap-2 border px-2 py-1 text-xs">
                 <span className="size-2 animate-pulse rounded-full bg-emerald-500" aria-hidden />
                 {e.user.name} · {formatTime(e.startedAt, lang, tz)}
-                {can(staff.role, "manageLabor") && (
+                {can(staff, "manageLabor") && (
                   <ActionButton size="sm" variant="ghost" className="h-6 px-1.5" action={stopLaborAction.bind(null, e.id, wo.id)}>
                     {v.labor.stop}
                   </ActionButton>
@@ -164,7 +164,7 @@ export async function RepairPanels({ wo, staff, t, lang, tz }: { wo: Wo; staff: 
                       ({v.labor.voided} : {e.voidReason})
                     </span>
                   ) : (
-                    can(staff.role, "manageLabor") && (
+                    can(staff, "manageLabor") && (
                       <ReasonButton className="ms-auto h-6" question={v.labor.voidReason} action={voidLaborEntryAction.bind(null, e.id, wo.id)}>
                         {v.labor.void}
                       </ReasonButton>
@@ -175,7 +175,7 @@ export async function RepairPanels({ wo, staff, t, lang, tz }: { wo: Wo; staff: 
             </ul>
           </details>
         )}
-        {can(staff.role, "manageLabor") && !final && (
+        {can(staff, "manageLabor") && !final && (
           <details className="mt-3">
             <summary className="cursor-pointer text-sm text-muted-foreground">{v.labor.manual}</summary>
             <ActionForm action={addLaborEntryAction.bind(null, wo.id)} className="mt-2 grid gap-2 sm:grid-cols-3">
@@ -220,7 +220,7 @@ export async function RepairPanels({ wo, staff, t, lang, tz }: { wo: Wo; staff: 
         {final ? null : (
           <>
             <ActionForm action={saveQualityCheckAction.bind(null, wo.id)} reset={false} className="space-y-3">
-              <fieldset className="flex flex-wrap items-center gap-4 text-sm" disabled={!can(staff.role, "fillQualityCheck")}>
+              <fieldset className="flex flex-wrap items-center gap-4 text-sm" disabled={!can(staff, "fillQualityCheck")}>
                 <legend className="mb-1 font-medium">{v.quality.roadTest}</legend>
                 <label className="flex items-center gap-2">
                   <input type="radio" name="roadTest" value="DONE" defaultChecked={qc?.roadTest === "DONE"} className="size-4 accent-brand-500" /> {v.quality.roadTestDone}
@@ -241,10 +241,10 @@ export async function RepairPanels({ wo, staff, t, lang, tz }: { wo: Wo; staff: 
                 <Textarea name="notes" rows={2} maxLength={1000} defaultValue={qc?.notes ?? ""} />
               </Field>
               <div className="flex flex-wrap items-center gap-2">
-                {can(staff.role, "fillQualityCheck") && <Button type="submit" variant="outline">{v.quality.save}</Button>}
+                {can(staff, "fillQualityCheck") && <Button type="submit" variant="outline">{v.quality.save}</Button>}
               </div>
             </ActionForm>
-            {can(staff.role, "approveQualityCheck") && !qc?.approvedAt && (
+            {can(staff, "approveQualityCheck") && !qc?.approvedAt && (
               <ActionButton className="mt-3" action={approveQualityCheckAction.bind(null, wo.id)} disabled={!qcDone}>
                 <CheckCircle2 className="size-4" aria-hidden /> {v.quality.approve}
               </ActionButton>
@@ -272,7 +272,7 @@ export async function RepairPanels({ wo, staff, t, lang, tz }: { wo: Wo; staff: 
                     {late && <span className="f-label border border-red-500 px-1.5 text-[0.625rem] text-red-600">{v.parts.late}</span>}
                     {n.purchaseOrder && <span className="text-xs">{v.parts.po} {n.purchaseOrder.number}</span>}
                   </p>
-                  {can(staff.role, "manageRepairFollowUp") && !final ? (
+                  {can(staff, "manageRepairFollowUp") && !final ? (
                     <ActionForm action={updatePartNeedAction.bind(null, n.id, wo.id)} reset={false} className="mt-2 flex flex-wrap items-end gap-2">
                       <NativeSelect name="status" defaultValue={n.status} className="w-36" aria-label={v.parts.title}>
                         {(["NEEDED", "ORDERED", "RECEIVED", "CANCELLED"] as const).map((s) => (
@@ -306,7 +306,7 @@ export async function RepairPanels({ wo, staff, t, lang, tz }: { wo: Wo; staff: 
             })}
           </ul>
         )}
-        {can(staff.role, "reportMissingPart") && !final && (
+        {can(staff, "reportMissingPart") && !final && (
           <details className="mt-3">
             <summary className="cursor-pointer text-sm font-medium">{v.parts.add}</summary>
             <ActionForm action={addPartNeedAction.bind(null, wo.id)} className="mt-2 grid gap-2 sm:grid-cols-2">
@@ -350,7 +350,7 @@ export async function RepairPanels({ wo, staff, t, lang, tz }: { wo: Wo; staff: 
       </Card>
 
       {/* ── Insurance ── */}
-      {(wo.status === "WAITING_INSURANCE" || wo.insurerName || can(staff.role, "manageRepairFollowUp")) && (
+      {(wo.status === "WAITING_INSURANCE" || wo.insurerName || can(staff, "manageRepairFollowUp")) && (
         <Card className={cn(wo.status === "WAITING_INSURANCE" && "border-fuchsia-500")}>
           <CardTitle>{v.insurance.title}</CardTitle>
           {wo.insuranceDecision && wo.insuranceRequestedAt && wo.insuranceDecidedAt ? (
@@ -363,7 +363,7 @@ export async function RepairPanels({ wo, staff, t, lang, tz }: { wo: Wo; staff: 
               <p className="mb-2 text-sm text-fuchsia-700 dark:text-fuchsia-300">{fmt(v.insurance.waitingSince, { n: Math.floor((Date.now() - wo.insuranceRequestedAt.getTime()) / 86_400_000) })}</p>
             )
           )}
-          {can(staff.role, "manageRepairFollowUp") && !final ? (
+          {can(staff, "manageRepairFollowUp") && !final ? (
             <ActionForm action={updateInsuranceAction.bind(null, wo.id)} reset={false} className="grid gap-2 sm:grid-cols-2">
               <Field label={v.insurance.insurer}>
                 <Input name="insurerName" maxLength={120} defaultValue={wo.insurerName ?? ""} />

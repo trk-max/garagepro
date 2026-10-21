@@ -32,7 +32,7 @@ export const readingSchema = z.object({
 export type ReadingInput = z.infer<typeof readingSchema>;
 
 export async function saveReading(actor: StaffUser, vehicleId: string, input: { result: ReadingInput; workOrderId?: string | null; applyOdometer?: boolean; note?: string | null }) {
-  if (!can(actor.role, "obdDiagnose")) throw new AppError("forbidden", {}, 403);
+  if (!can(actor, "obdDiagnose")) throw new AppError("forbidden", {}, 403);
   const r = readingSchema.parse(input.result);
   return prisma.$transaction(async (tx) => {
     const v = await tx.vehicle.findUnique({ where: { id: vehicleId }, select: { id: true, vin: true, mileage: true, plate: true } });

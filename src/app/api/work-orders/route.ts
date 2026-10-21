@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
       status === "all" || status === "active" ? status : (STATUS_ORDER as string[]).includes(status) ? (status as WorkOrderStatus) : "active";
     const orders = await listWorkOrders(filter, request.nextUrl.searchParams.get("q") ?? undefined);
     // The tracking PIN opens the customer portal: only roles that manage tracking get it.
-    const showPin = can(staff.role, "manageTracking");
+    const showPin = can(staff, "manageTracking");
     const items = orders.map(({ trackingPin, ...o }) => (showPin ? { ...o, trackingPin } : o));
     return NextResponse.json({ items }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {

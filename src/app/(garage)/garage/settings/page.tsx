@@ -21,6 +21,8 @@ import { fmt, formatMoney, formatQty } from "@/lib/format";
 import { getI18n } from "@/lib/i18n/server";
 import { requirePageAccess } from "@/lib/session";
 import { listPackages, listStaff } from "@/server/admin";
+import { AccessChip } from "@/components/team/access-editor";
+import { countOverridesByUser } from "@/server/access";
 import { partOptions } from "@/server/parts";
 import { getSettings } from "@/server/settings";
 import { listBookableServices } from "@/server/booking";
@@ -37,7 +39,7 @@ import { EmailSettings } from "@/components/garage/email-settings";
 export default async function SettingsPage() {
   const me = await requirePageAccess("manageSettings");
 
-  const [{ t, lang }, settings, packages, parts, staff, bookableServices] = await Promise.all([getI18n(), getSettings(), listPackages(), partOptions(), listStaff(), listBookableServices(true)]);
+  const [{ t, lang }, settings, packages, parts, staff, bookableServices, custom] = await Promise.all([getI18n(), getSettings(), listPackages(), partOptions(), listStaff(), listBookableServices(true), countOverridesByUser()]);
 
   return (
     <div className="mx-auto max-w-6xl space-y-6 p-6">
@@ -100,6 +102,7 @@ export default async function SettingsPage() {
                     <p className="text-xs text-muted-foreground" dir="ltr">{u.email}</p>
                   </div>
                   <Badge variant="secondary">{t.roles[u.role]}</Badge>
+                  {custom.get(u.id) ? <AccessChip href={`/garage/equipe/${u.id}#acces`} label={fmt(t.v103.access.custom, { n: custom.get(u.id)! })} /> : null}
                   {u.id !== me.id && (
                     <ActionButton size="sm" variant="ghost" action={setStaffActiveAction.bind(null, u.id, !u.isActive)}>
                       {u.isActive ? <Pause aria-hidden /> : <Play aria-hidden />}

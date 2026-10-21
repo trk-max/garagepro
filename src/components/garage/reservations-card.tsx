@@ -14,7 +14,7 @@ import { prisma } from "@/lib/prisma";
 
 /** Work order page: parts put aside for this repair (still on the shelf, no longer free for others). */
 export async function ReservationsCard({ workOrderId, closed, staff, t, lang }: { workOrderId: string; closed: boolean; staff: StaffUser; t: Dictionary; lang: Lang }) {
-  const canReserve = can(staff.role, "reserveStock");
+  const canReserve = can(staff, "reserveStock");
   const [reservations, parts] = await Promise.all([
     listReservations(workOrderId),
     canReserve && !closed

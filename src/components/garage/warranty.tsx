@@ -54,7 +54,7 @@ export function ValidityText({ endDay, endKm, v, t, lang }: { endDay: string | n
 
 /** Work order page: its warranties and the form to add one (repair or part). */
 export async function WarrantyCard({ workOrderId, staff, t, lang }: { workOrderId: string; staff: StaffUser; t: Dictionary; lang: Lang }) {
-  if (!can(staff.role, "manageWarranties")) return null;
+  if (!can(staff, "manageWarranties")) return null;
   const w = t.v7.warranty;
   const [list, suppliers, lines] = await Promise.all([
     listWarranties(staff, { workOrderId }),

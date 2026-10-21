@@ -3,6 +3,7 @@ import { audit, type AuditActor } from "@/server/audit";
 import type { LineType, Prisma, Role } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { AppError } from "@/lib/http";
+import { assertAdminKeepsTeam } from "@/server/access";
 import { prisma } from "@/lib/prisma";
 
 // ── Service packages ─────────────────────────────────────────────────────────
@@ -111,12 +112,12 @@ export async function setStaffActive(userId: string, isActive: boolean, actor: A
 
 type Tx = Prisma.TransactionClient;
 
-/** The garage must always keep at least one active admin (otherwise nobody can manage it). */
+/**
+ * The garage must always keep at least one active admin (otherwise nobody can manage it).
+ * V10.3: an admin whose manageTeam is refused by a custom access does not count.
+ */
 async function assertAnotherAdmin(tx: Tx, exceptUserId: string) {
-  // Lock the admin rows so two simultaneous changes cannot remove the last two admins.
-  await tx.$queryRaw`SELECT id FROM "User" WHERE role = 'ADMIN' AND "isActive" = true FOR UPDATE`;
-  const others = await tx.user.count({ where: { role: "ADMIN", isActive: true, id: { not: exceptUserId } } });
-  if (others === 0) throw new AppError("lastAdmin", {}, 409);
+  await assertAdminKeepsTeam(tx, exceptUserId);
 }
 
 /** Change a team member's role. An admin cannot change their own role (no accidental lock-out). */
