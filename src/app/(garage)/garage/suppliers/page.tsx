@@ -8,6 +8,7 @@ import { Card, CardTitle, PageHeader, Table, Td, Th } from "@/components/ui/fiel
 import { canContract } from "@/lib/contracts";
 import { formatMoney } from "@/lib/format";
 import { getI18n } from "@/lib/i18n/server";
+import { can } from "@/lib/permissions";
 import { requirePageAccess } from "@/lib/session";
 import { listSuppliers } from "@/server/purchasing";
 
@@ -16,11 +17,13 @@ type PageProps = { searchParams: Promise<{ q?: string }> };
 export default async function SuppliersPage({ searchParams }: PageProps) {
   const staff = await requirePageAccess("viewSuppliers");
   const showContracts = canContract(staff.role, "SUPPLIER", "view");
+  // Manager and accountant only read the list (the server refuses their changes): no forms for them.
+  const canManage = can(staff.role, "manageSuppliers");
   const { q } = await searchParams;
   const [{ t, lang }, suppliers] = await Promise.all([getI18n(), listSuppliers(q)]);
 
   return (
-    <div className="mx-auto grid max-w-7xl gap-6 p-6 xl:grid-cols-[minmax(0,1fr)_380px]">
+    <div className={`mx-auto grid max-w-7xl gap-6 p-6 ${canManage ? "xl:grid-cols-[minmax(0,1fr)_380px]" : ""}`}>
       <div className="min-w-0">
         <PageHeader title={t.suppliers.title}>
           <SearchForm placeholder={t.suppliers.searchPlaceholder} defaultValue={q} />
@@ -35,7 +38,7 @@ export default async function SuppliersPage({ searchParams }: PageProps) {
                 <Th>{t.suppliers.contact}</Th>
                 <Th className="text-end">{t.suppliers.orders}</Th>
                 <Th className="text-end">{t.suppliers.balance}</Th>
-                <Th />
+                {canManage && <Th />}
               </tr>
             </thead>
             <tbody>
@@ -66,6 +69,7 @@ export default async function SuppliersPage({ searchParams }: PageProps) {
                       {formatMoney(s.balance, lang)}
                     </Link>
                   </Td>
+                  {canManage && (
                   <Td className="w-64">
                     <details>
                       <summary className="cursor-pointer text-xs text-primary">{t.common.edit}</summary>
@@ -77,6 +81,7 @@ export default async function SuppliersPage({ searchParams }: PageProps) {
                       </ActionForm>
                     </details>
                   </Td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -84,6 +89,7 @@ export default async function SuppliersPage({ searchParams }: PageProps) {
         )}
       </div>
 
+      {canManage && (
       <Card className="h-fit">
         <CardTitle>{t.suppliers.new}</CardTitle>
         <ActionForm action={createSupplierAction} className="space-y-4">
@@ -93,6 +99,7 @@ export default async function SuppliersPage({ searchParams }: PageProps) {
           </Button>
         </ActionForm>
       </Card>
+      )}
     </div>
   );
 }
