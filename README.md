@@ -41,6 +41,10 @@ Il n'y a **qu'une seule base de données** (Supabase en ligne + sa copie sur le 
 - Réservez l'adresse du PC du garage dans la box (bail DHCP fixe) ; si elle change, refaites `npm run shortcut`.
 - Pour que le site en ligne s'ouvre sans compte Vercel : Vercel → projet → *Settings* → *Deployment Protection* → *Vercel Authentication* → ne protéger que les *Preview Deployments* (sinon chaque PC doit se connecter à Vercel).
 
+## Nouveautés V9 — showroom et messagerie acheteurs
+
+- **Showroom** : annonces de véhicules (photos, documents PDF, fiche technique, équipements, prix, historique prix / km / statut), pages publiques `/showroom` avec recherche, filtres, tri et favoris (sans compte). Chaque information indique sa source : « vérifié par le garage » ou « déclaré par le vendeur ». Rôles **Vendeur** (ses annonces seulement) et **Responsable showroom** ; **messagerie** acheteur ↔ vendeur par lien privé, non-lus et mises à jour en direct. Voir [docs/SHOWROOM-MESSAGERIE.md](docs/SHOWROOM-MESSAGERIE.md).
+
 ## Nouveautés V8.4 — garanties, dépenses et trésorerie prévisionnelle
 
 - **Garanties** sur réparations et pièces (date et/ou km, la première limite atteinte), réclamations, décisions, coûts et remboursements reçus. Garantie automatique à la livraison (Paramètres, désactivée par défaut). Les montants ne sont visibles que de l'administrateur et du responsable.
