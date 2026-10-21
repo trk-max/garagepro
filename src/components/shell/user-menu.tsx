@@ -37,7 +37,8 @@ export function UserMenu({ user }: { user: ShellUser }) {
         <span className="grid size-11 shrink-0 place-items-center rounded-full bg-gp-primary text-sm font-semibold text-gp-primary-ink" aria-hidden>
           {initials(user.name)}
         </span>
-        <span className="hidden min-w-0 lg:block">
+        {/* 1280–1535 px: the page pills share this row, so only the initials (name and e-mail are in the menu). */}
+        <span className="hidden min-w-0 lg:block xl:hidden 2xl:block">
           <span className="block max-w-40 truncate text-sm font-semibold">{user.name}</span>
           <span className="block max-w-40 truncate text-xs text-gp-muted">{user.email}</span>
         </span>
