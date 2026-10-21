@@ -44,7 +44,7 @@ Il n'y a **qu'une seule base de données** (Supabase en ligne + sa copie sur le 
 ## Nouveautés V8.0 — diagnostic OBD-II et installateur Windows
 
 - **Diagnostic OBD-II** (adaptateur ELM327, Chrome/Edge) : codes défauts (jamais effacés), données moteur, VIN, kilométrage si la voiture le fournit. Voir [docs/OBD.md](docs/OBD.md).
-- **Installateur Windows** : `npm run installer` fabrique `distGaragePro-Setup-….exe`. Voir [docs/INSTALLATEUR.md](docs/INSTALLATEUR.md).
+- **Installateur Windows** : `npm run installer` fabrique `dist\GaragePro-Setup-….exe`. Voir [docs/INSTALLATEUR.md](docs/INSTALLATEUR.md).
 
 ## Nouveautés V7.7 — sauvegardes chiffrées, restauration testée
 
