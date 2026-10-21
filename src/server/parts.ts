@@ -1,5 +1,5 @@
 import "server-only";
-import type { Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { AppError } from "@/lib/http";
 import { prisma } from "@/lib/prisma";
 import type { StaffUser } from "@/lib/session";
@@ -51,6 +51,8 @@ export async function recentMovements(limit = 30) {
       part: { select: { sku: true, name: true } },
       workOrder: { select: { id: true, number: true } },
       actor: { select: { name: true } },
+      supplier: { select: { name: true } },
+      correctedBy: { select: { id: true } },
     },
   });
 }
@@ -92,32 +94,167 @@ export async function updatePart(id: string, data: Prisma.PartUpdateInput, actor
   });
 }
 
+type Tx = Prisma.TransactionClient;
+
+/**
+ * Atomic stock change, checked by the UPDATE itself (no read-then-write race):
+ * an exit is refused when it would take parts reserved for a repair or go below
+ * zero. Two simultaneous exits of the last free unit: the second matches 0 rows.
+ * Returns the new stock, or null when refused.
+ */
+async function applyDelta(tx: Tx, partId: string, delta: number) {
+  const rows = await tx.$queryRaw<{ stockX100: number; reservedX100: number }[]>`
+    UPDATE "Part" SET "stockX100" = "stockX100" + ${delta}, "updatedAt" = now()
+    WHERE id = ${partId} AND (${delta} >= 0 OR "stockX100" - "reservedX100" + ${delta} >= 0)
+    RETURNING "stockX100", "reservedX100"`;
+  return rows[0] ?? null;
+}
+
+async function refuse(tx: Tx, partId: string): Promise<never> {
+  const part = await tx.part.findUnique({ where: { id: partId }, select: { stockX100: true, reservedX100: true } });
+  if (!part) throw new AppError("notFound", {}, 404);
+  throw new AppError("insufficientStock", { stock: (part.stockX100 - part.reservedX100) / 100 }, 409);
+}
+
+export type ManualReason = "PURCHASE" | "ADJUSTMENT" | "SUPPLIER_RETURN";
+
+/** Manual movement from the stock page: entry, stocktake adjustment, or return to a supplier. */
 export async function moveStock(
   partId: string,
-  input: { delta: number; reason: "PURCHASE" | "ADJUSTMENT"; note?: string },
+  input: { delta: number; reason: ManualReason; note?: string; supplierId?: string | null },
   actor: StaffUser,
 ) {
   if (input.delta === 0) throw new AppError("invalid", {}, 422);
+  // A return to the supplier always takes parts out, and says to whom.
+  if (input.reason === "SUPPLIER_RETURN" && (input.delta > 0 || !input.supplierId)) throw new AppError("supplierReturnInvalid", {}, 422);
   await prisma.$transaction(async (tx) => {
-    // Manual exit: the shelf cannot go below zero. The condition is checked by the
-    // UPDATE itself, so two simultaneous exits cannot both pass (atomic, no race).
-    const { count } = await tx.part.updateMany({
-      where: { id: partId, ...(input.delta < 0 ? { stockX100: { gte: -input.delta } } : {}) },
-      data: { stockX100: { increment: input.delta } },
-    });
-    if (count === 0) {
-      const part = await tx.part.findUnique({ where: { id: partId }, select: { stockX100: true } });
-      if (!part) throw new AppError("notFound", {}, 404);
-      throw new AppError("insufficientStock", { stock: part.stockX100 / 100 }, 409);
-    }
+    const after = await applyDelta(tx, partId, input.delta);
+    if (!after) await refuse(tx, partId);
     const movement = await tx.stockMovement.create({
-      data: { partId, deltaX100: input.delta, reason: input.reason, note: input.note, actorId: actor.id },
+      data: {
+        partId,
+        deltaX100: input.delta,
+        reason: input.reason,
+        note: input.note,
+        supplierId: input.reason === "SUPPLIER_RETURN" ? input.supplierId : null,
+        actorId: actor.id,
+      },
       select: { id: true },
     });
-    const part = await tx.part.findUnique({ where: { id: partId }, select: { sku: true, stockX100: true } });
-    await audit(tx, actor, "stock.manual", "StockMovement", movement.id, {
-      before: { partId, sku: part?.sku, stockX100: part ? part.stockX100 - input.delta : null },
-      after: { partId, sku: part?.sku, deltaX100: input.delta, reason: input.reason, note: input.note ?? null, stockX100: part?.stockX100 ?? null },
+    await audit(tx, actor, input.reason === "SUPPLIER_RETURN" ? "stock.supplierReturn" : "stock.manual", "StockMovement", movement.id, {
+      before: { partId, stockX100: after!.stockX100 - input.delta },
+      after: { partId, deltaX100: input.delta, reason: input.reason, supplierId: input.supplierId ?? null, note: input.note ?? null, stockX100: after!.stockX100 },
     });
   });
+}
+
+const CORRECTABLE = ["PURCHASE", "ADJUSTMENT", "SUPPLIER_RETURN"] as const;
+
+/**
+ * Corrects a wrong manual movement: a CORRECTION movement of the opposite
+ * quantity, linked to the original (which stays in the history). One correction
+ * per movement (unique link in the database). Repair and goods-receipt movements
+ * are corrected from their own documents, not here.
+ */
+export async function correctMovement(actor: StaffUser, movementId: string, reason: string) {
+  try {
+    return await prisma.$transaction(async (tx) => {
+      const m = await tx.stockMovement.findUnique({ where: { id: movementId }, select: { id: true, partId: true, deltaX100: true, reason: true, correctedBy: { select: { id: true } } } });
+      if (!m) throw new AppError("notFound", {}, 404);
+      if (!(CORRECTABLE as readonly string[]).includes(m.reason)) throw new AppError("notCorrectable", {}, 409);
+      if (m.correctedBy) throw new AppError("alreadyCorrected", {}, 409);
+      const after = await applyDelta(tx, m.partId, -m.deltaX100);
+      if (!after) await refuse(tx, m.partId);
+      const correction = await tx.stockMovement.create({
+        data: { partId: m.partId, deltaX100: -m.deltaX100, reason: "CORRECTION", correctsId: m.id, note: reason, actorId: actor.id },
+        select: { id: true },
+      });
+      await audit(tx, actor, "stock.correct", "StockMovement", correction.id, {
+        before: { movementId: m.id, reason: m.reason, deltaX100: m.deltaX100, stockX100: after!.stockX100 + m.deltaX100 },
+        after: { deltaX100: -m.deltaX100, note: reason, stockX100: after!.stockX100 },
+      });
+      return correction;
+    });
+  } catch (error) {
+    // Two people correcting the same movement at once: the unique link refuses the second.
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") throw new AppError("alreadyCorrected", {}, 409);
+    throw error;
+  }
+}
+
+// ── Reservations (parts put aside for a repair) ─────────────────────────────
+
+export async function listReservations(workOrderId: string) {
+  return prisma.stockReservation.findMany({
+    where: { workOrderId },
+    orderBy: { createdAt: "asc" },
+    include: { part: { select: { sku: true, name: true, unit: true } } },
+  });
+}
+
+export async function reservePart(actor: StaffUser, workOrderId: string, partId: string, quantityX100: number) {
+  if (quantityX100 <= 0) throw new AppError("invalid", {}, 422);
+  return prisma.$transaction(async (tx) => {
+    const wo = await tx.workOrder.findUnique({ where: { id: workOrderId }, select: { status: true } });
+    if (!wo) throw new AppError("notFound", {}, 404);
+    if (wo.status === "DELIVERED" || wo.status === "CANCELLED") throw new AppError("final", {}, 409);
+    // Atomic: only if that quantity is still free (stock − already reserved).
+    const rows = await tx.$queryRaw<{ stockX100: number; reservedX100: number }[]>`
+      UPDATE "Part" SET "reservedX100" = "reservedX100" + ${quantityX100}, "updatedAt" = now()
+      WHERE id = ${partId} AND "isActive" AND "stockX100" - "reservedX100" >= ${quantityX100}
+      RETURNING "stockX100", "reservedX100"`;
+    if (!rows[0]) await refuse(tx, partId);
+    const reservation = await tx.stockReservation.create({ data: { partId, workOrderId, quantityX100, createdById: actor.id }, select: { id: true } });
+    await audit(tx, actor, "stock.reserve", "StockReservation", reservation.id, { after: { workOrderId, partId, quantityX100, reservedX100: rows[0]!.reservedX100 } });
+    return reservation;
+  });
+}
+
+async function unreserve(tx: Tx, partId: string, quantityX100: number) {
+  await tx.$executeRaw`UPDATE "Part" SET "reservedX100" = GREATEST(0, "reservedX100" - ${quantityX100}), "updatedAt" = now() WHERE id = ${partId}`;
+}
+
+/** Frees a reservation (no longer needed). Conditional: a reservation is released once. */
+export async function releaseReservation(actor: StaffUser | null, reservationId: string, note: string) {
+  return prisma.$transaction(async (tx) => {
+    const r = await tx.stockReservation.findUnique({ where: { id: reservationId } });
+    if (!r) throw new AppError("notFound", {}, 404);
+    const { count } = await tx.stockReservation.updateMany({ where: { id: reservationId, status: "ACTIVE" }, data: { status: "RELEASED", closedAt: new Date(), closedNote: note } });
+    if (count === 0) throw new AppError("reservationClosed", {}, 409);
+    await unreserve(tx, r.partId, r.quantityX100);
+    await audit(tx, actor, "stock.release", "StockReservation", r.id, { before: { status: "ACTIVE", quantityX100: r.quantityX100 }, after: { status: "RELEASED", note } });
+    return r.workOrderId;
+  });
+}
+
+/**
+ * The part is now used on the repair: its reservation for this order is
+ * consumed (in full or in part), so the same units are not counted twice
+ * (once reserved, once taken out).
+ */
+export async function consumeReservations(tx: Tx, actor: StaffUser, workOrderId: string, partId: string, quantityX100: number) {
+  let remaining = quantityX100;
+  const active = await tx.stockReservation.findMany({ where: { workOrderId, partId, status: "ACTIVE" }, orderBy: { createdAt: "asc" } });
+  for (const r of active) {
+    if (remaining <= 0) break;
+    const take = Math.min(remaining, r.quantityX100);
+    if (take === r.quantityX100) {
+      await tx.stockReservation.update({ where: { id: r.id }, data: { status: "CONSUMED", closedAt: new Date() } });
+    } else {
+      await tx.stockReservation.update({ where: { id: r.id }, data: { quantityX100: r.quantityX100 - take } });
+    }
+    await unreserve(tx, partId, take);
+    await audit(tx, actor, "stock.consumeReservation", "StockReservation", r.id, { after: { workOrderId, partId, quantityX100: take } });
+    remaining -= take;
+  }
+}
+
+/** Repair delivered or cancelled: what is still reserved for it goes back to "available". */
+export async function releaseAllFor(tx: Tx, actor: StaffUser, workOrderId: string, note: string) {
+  const active = await tx.stockReservation.findMany({ where: { workOrderId, status: "ACTIVE" } });
+  for (const r of active) {
+    await tx.stockReservation.update({ where: { id: r.id }, data: { status: "RELEASED", closedAt: new Date(), closedNote: note } });
+    await unreserve(tx, r.partId, r.quantityX100);
+    await audit(tx, actor, "stock.release", "StockReservation", r.id, { before: { status: "ACTIVE", quantityX100: r.quantityX100 }, after: { status: "RELEASED", note } });
+  }
 }

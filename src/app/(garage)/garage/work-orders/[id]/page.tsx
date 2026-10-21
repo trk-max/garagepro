@@ -17,6 +17,7 @@ import { ActionButton, ActionForm, ActionSelect } from "@/components/action-form
 import { MediaUploader } from "@/components/garage/media-uploader";
 import { RepairPanels } from "@/components/garage/repair-panels";
 import { ProfitPanel } from "@/components/garage/profit-panel";
+import { ReservationsCard } from "@/components/garage/reservations-card";
 import { TrackingCard } from "@/components/garage/tracking-card";
 import { LiveRefresh } from "@/components/live-refresh";
 import { getBaseUrl } from "@/lib/base-url";
@@ -263,6 +264,9 @@ export default async function WorkOrderPage({ params }: PageProps) {
 
         {/* ── Time per mechanic, quality control, missing parts, insurance (V7) ── */}
         <RepairPanels wo={wo} staff={staff} t={t} lang={lang} tz={settings.timezone} />
+
+        {/* ── Parts put aside for this repair (Prompt 2/5, step B) ── */}
+        <ReservationsCard workOrderId={wo.id} closed={isFinal(wo.status)} staff={staff} t={t} lang={lang} />
 
         {/* ── Direct expenses and real profit (Prompt 2/5) ── */}
         <ProfitPanel workOrderId={wo.id} staff={staff} t={t} lang={lang} />

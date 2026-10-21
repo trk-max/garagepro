@@ -1,4 +1,5 @@
 import "server-only";
+import { consumeReservations, releaseAllFor } from "@/server/parts";
 import { audit } from "@/server/audit";
 import { assertQualityApproved, resetQualityApproval } from "@/server/quality";
 import { missingVehicleInfo } from "@/lib/vehicle-info";
@@ -320,6 +321,9 @@ export async function changeStatus(workOrderId: string, to: WorkOrderStatus, act
     const { count } = await tx.workOrder.updateMany({ where: { id: workOrderId, status: wo.status }, data });
     if (count === 0) throw new AppError("transition", { from: wo.status, to }, 409);
 
+    // Delivered or cancelled: parts still reserved for it become available again.
+    if (to === "CANCELLED" || to === "DELIVERED") await releaseAllFor(tx, actor, workOrderId, to === "CANCELLED" ? "ordre annulé" : "véhicule livré");
+
     // Cancelling puts every consumed part back on the shelf.
     if (to === "CANCELLED") {
       for (const line of wo.lines) {
@@ -414,8 +418,11 @@ async function insertLine(tx: Tx, workOrderId: string, line: NewLine, actor: Sta
       unitCost = part.costPrice > 0 ? part.costPrice : null;
       // Business rule (unchanged): a part may be used even if the recorded stock is short
       // (it can be physically on the shelf); the user gets a warning instead of a block.
+      await consumeReservations(tx, actor, workOrderId, part.id, line.quantityX100);
       const remaining = await moveStock(tx, actor, { partId: part.id, deltaX100: -line.quantityX100, reason: "WORK_ORDER", workOrderId });
-      if (remaining < 0) warning = { name: part.name, stockX100: remaining };
+      // Business rule (unchanged): allowed, with a warning, even when the recorded free stock is short.
+      const after = await tx.part.findUnique({ where: { id: part.id }, select: { reservedX100: true } });
+      if (remaining - (after?.reservedX100 ?? 0) < 0) warning = { name: part.name, stockX100: remaining - (after?.reservedX100 ?? 0) };
     }
   } else {
     if (!description) throw new AppError("invalid");

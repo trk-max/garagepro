@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  * `updateMany` applies its WHERE condition atomically, like PostgreSQL does.
  */
 const db = vi.hoisted(() => ({
-  parts: new Map<string, { stockX100: number }>(),
+  parts: new Map<string, { stockX100: number; reservedX100?: number }>(),
   movements: [] as { partId: string; deltaX100: number }[],
   audits: [] as { action: string; actorId: string | null; entityId: string | null; before?: unknown; after?: unknown }[],
   attempts: [] as { key: string; ok: boolean; createdAt: Date }[],
@@ -19,7 +19,21 @@ vi.mock("@/lib/prisma", () => {
       p.stockX100 += data.stockX100.increment;
       return { count: 1 };
     },
-    findUnique: async ({ where }: { where: { id: string } }) => db.parts.get(where.id) ?? null,
+    findUnique: async ({ where }: { where: { id: string } }) => {
+      const p = db.parts.get(where.id);
+      return p ? { reservedX100: 0, ...p } : null;
+    },
+  };
+  /**
+   * The atomic UPDATE of applyDelta(): values = [delta, partId, delta, delta].
+   * Synchronous body = atomic, like the single SQL statement in PostgreSQL.
+   */
+  const $queryRaw = async (_sql: TemplateStringsArray, delta: number, partId: string) => {
+    const p = db.parts.get(partId);
+    const reserved = p?.reservedX100 ?? 0;
+    if (!p || (delta < 0 && p.stockX100 - reserved + delta < 0)) return [];
+    p.stockX100 += delta;
+    return [{ stockX100: p.stockX100, reservedX100: reserved }];
   };
   const stockMovement = {
     create: async ({ data }: { data: { partId: string; deltaX100: number } }) => ({ id: `m${db.movements.push(data)}` }),
@@ -31,7 +45,7 @@ vi.mock("@/lib/prisma", () => {
     create: async ({ data }: { data: { key: string; ok: boolean } }) => db.attempts.push({ ...data, createdAt: new Date() }),
     deleteMany: async () => ({ count: 0 }),
   };
-  const tx = { part, stockMovement, auditLog };
+  const tx = { part, stockMovement, auditLog, $queryRaw };
   return { prisma: { part, stockMovement, portalAttempt, $transaction: async (fn: (t: typeof tx) => unknown) => fn(tx) } };
 });
 
@@ -109,6 +123,30 @@ describe("manual stock movement", () => {
     const results = await Promise.allSettled([exit(1), exit(1)]);
     expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
     expect(stock()).toBe(0);
+  });
+});
+
+describe("reserved parts", () => {
+  it("an exit cannot take parts reserved for a repair (5 in stock, 4 reserved: 2 refused, 1 accepted)", async () => {
+    db.parts.set("p1", { stockX100: 500, reservedX100: 400 });
+    await expect(exit(2)).rejects.toMatchObject({ code: "insufficientStock" });
+    expect(stock()).toBe(5);
+    await exit(1);
+    expect(stock()).toBe(4);
+  });
+  it("two simultaneous exits of the last free unit (the others reserved): only one succeeds", async () => {
+    db.parts.set("p1", { stockX100: 300, reservedX100: 200 });
+    const results = await Promise.allSettled([exit(1), exit(1)]);
+    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+    expect(stock()).toBe(2);
+  });
+  it("a return to the supplier needs a supplier and goes out", async () => {
+    db.parts.set("p1", { stockX100: 500 });
+    await expect(moveStock("p1", { delta: -100, reason: "SUPPLIER_RETURN" }, actor)).rejects.toMatchObject({ code: "supplierReturnInvalid" });
+    await expect(moveStock("p1", { delta: 100, reason: "SUPPLIER_RETURN", supplierId: "s1" }, actor)).rejects.toMatchObject({ code: "supplierReturnInvalid" });
+    await moveStock("p1", { delta: -100, reason: "SUPPLIER_RETURN", supplierId: "s1" }, actor);
+    expect(stock()).toBe(4);
+    expect(db.audits.at(-1)).toMatchObject({ action: "stock.supplierReturn" });
   });
 });
 

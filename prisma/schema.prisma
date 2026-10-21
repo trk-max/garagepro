@@ -66,6 +66,8 @@ enum StockMovementReason {
   WORK_ORDER_RETURN
   ADJUSTMENT
   GOODS_RECEIPT
+  SUPPLIER_RETURN // pièce renvoyée au fournisseur (défectueuse, erreur de livraison)
+  CORRECTION // annule un mouvement manuel erroné (lié par correctsId)
 }
 
 enum PurchaseOrderStatus {
@@ -271,6 +273,7 @@ model WorkOrder {
   laborEntries   LaborEntry[]
   partNeeds      WorkOrderPartNeed[]
   expenses       WorkOrderExpense[]
+  reservations   StockReservation[]
   qualityCheck   QualityCheck?
 
   @@index([status, updatedAt(sort: Desc)])
@@ -328,6 +331,8 @@ model Part {
   /// Stock en quantité × 100.
   stockX100    Int      @default(0)
   minStockX100 Int      @default(0)
+  /// Quantité réservée pour des réparations (× 100) : disponible = stock − réservé.
+  reservedX100 Int      @default(0)
   costPrice    Int      @default(0) // millimes HT
   salePrice    Int // millimes HT
   unit         String   @default("pce")
@@ -341,6 +346,7 @@ model Part {
   purchaseLines     PurchaseOrderLine[]
   receiptLines      GoodsReceiptLine[]
   partNeeds         WorkOrderPartNeed[]
+  reservations      StockReservation[]
   defaultSupplierId String?
   defaultSupplier   Supplier?           @relation(fields: [defaultSupplierId], references: [id], onDelete: SetNull)
 
@@ -355,14 +361,21 @@ model StockMovement {
   reason      StockMovementReason
   workOrderId String?
   receiptId   String?
+  /// Retour fournisseur : à qui la pièce est renvoyée.
+  supplierId  String?
+  /// Correction : le mouvement manuel qu'elle annule (une seule correction par mouvement).
+  correctsId  String?             @unique
   actorId     String?
   note        String?
   createdAt   DateTime            @default(now())
 
-  part      Part          @relation(fields: [partId], references: [id], onDelete: Cascade)
-  workOrder WorkOrder?    @relation(fields: [workOrderId], references: [id], onDelete: SetNull)
-  receipt   GoodsReceipt? @relation(fields: [receiptId], references: [id], onDelete: SetNull)
-  actor     User?         @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  part        Part           @relation(fields: [partId], references: [id], onDelete: Cascade)
+  workOrder   WorkOrder?     @relation(fields: [workOrderId], references: [id], onDelete: SetNull)
+  receipt     GoodsReceipt?  @relation(fields: [receiptId], references: [id], onDelete: SetNull)
+  supplier    Supplier?      @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  corrects    StockMovement? @relation("StockCorrection", fields: [correctsId], references: [id], onDelete: SetNull)
+  correctedBy StockMovement? @relation("StockCorrection")
+  actor       User?          @relation(fields: [actorId], references: [id], onDelete: SetNull)
 
   @@index([partId, createdAt(sort: Desc)])
   @@index([workOrderId])
@@ -542,6 +555,7 @@ model Supplier {
   invoices       SupplierInvoice[]
   partNeeds      WorkOrderPartNeed[]
   expenses       WorkOrderExpense[]
+  stockMovements StockMovement[]
 
   @@index([name])
 }
@@ -1096,4 +1110,25 @@ model WorkOrderExpense {
   supplier  Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
 
   @@index([workOrderId])
+}
+
+/// Pièce mise de côté pour une réparation : elle reste en stock mais n'est plus disponible
+/// pour une autre sortie. ACTIVE → CONSUMED (utilisée sur l'ordre) ou RELEASED (libérée).
+model StockReservation {
+  id           String    @id @default(cuid())
+  partId       String
+  workOrderId  String
+  quantityX100 Int
+  /// "ACTIVE", "CONSUMED" ou "RELEASED".
+  status       String    @default("ACTIVE")
+  createdById  String?
+  createdAt    DateTime  @default(now())
+  closedAt     DateTime?
+  closedNote   String?
+
+  part      Part      @relation(fields: [partId], references: [id], onDelete: Restrict)
+  workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Restrict)
+
+  @@index([partId, status])
+  @@index([workOrderId, status])
 }

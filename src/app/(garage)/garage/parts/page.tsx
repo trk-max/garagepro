@@ -1,5 +1,8 @@
 import Link from "next/link";
 import { createPartAction, moveStockAction, updatePartAction } from "@/actions/catalog";
+import { correctMovementAction } from "@/actions/stock";
+import { ReasonButton } from "@/components/team/prompt-action";
+import { supplierOptions } from "@/server/purchasing";
 import { ActionForm } from "@/components/action-form";
 import { SearchForm } from "@/components/garage/search-form";
 import { Button } from "@/components/ui/button";
@@ -20,8 +23,9 @@ const qty = (x100: number) => String(x100 / 100);
 export default async function PartsPage({ searchParams }: PageProps) {
   const { q, low } = await searchParams;
   const staff = await requirePageAccess("viewStock");
-  const [{ t, lang }, parts, movements] = await Promise.all([getI18n(), listParts(q, low === "1"), recentMovements(20)]);
   const canEdit = can(staff.role, "manageStock");
+  const [{ t, lang }, parts, movements, suppliers] = await Promise.all([getI18n(), listParts(q, low === "1"), recentMovements(30), canEdit ? supplierOptions() : []]);
+  const v = t.v7.stock;
   const canRequest = can(staff.role, "requestPurchase");
 
   return (
@@ -51,6 +55,8 @@ export default async function PartsPage({ searchParams }: PageProps) {
                 <Th>{t.parts.sku}</Th>
                 <Th>{t.parts.name}</Th>
                 <Th className="text-end">{t.parts.stock}</Th>
+                <Th className="text-end">{v.reserved}</Th>
+                <Th className="text-end">{v.available}</Th>
                 <Th className="text-end">{t.parts.costPrice}</Th>
                 <Th className="text-end">{t.parts.salePrice}</Th>
                 {canEdit && <Th />}
@@ -71,6 +77,8 @@ export default async function PartsPage({ searchParams }: PageProps) {
                     <span className="text-xs text-muted-foreground">{p.unit}</span>
                     {isLow(p) && <div className="text-xs text-amber-700 dark:text-amber-400">{t.parts.low}</div>}
                   </Td>
+                  <Td className="text-end tabular-nums text-muted-foreground">{p.reservedX100 ? formatQty(p.reservedX100, lang) : "—"}</Td>
+                  <Td className={cn("text-end tabular-nums", p.stockX100 - p.reservedX100 <= 0 && "font-semibold text-red-700 dark:text-red-400")}>{formatQty(p.stockX100 - p.reservedX100, lang)}</Td>
                   <Td className="text-end tabular-nums text-muted-foreground" dir="ltr">{formatMoney(p.costPrice, lang)}</Td>
                   <Td className="text-end tabular-nums" dir="ltr">{formatMoney(p.salePrice, lang)}</Td>
                   {canEdit && (
@@ -82,6 +90,15 @@ export default async function PartsPage({ searchParams }: PageProps) {
                           <NativeSelect name="reason" defaultValue="PURCHASE" aria-label={t.parts.reason}>
                             <option value="PURCHASE">{t.parts.reasons.PURCHASE}</option>
                             <option value="ADJUSTMENT">{t.parts.reasons.ADJUSTMENT}</option>
+                            <option value="SUPPLIER_RETURN">{t.parts.reasons.SUPPLIER_RETURN}</option>
+                          </NativeSelect>
+                          <NativeSelect name="supplierId" defaultValue="" aria-label={v.returnSupplier}>
+                            <option value="">{v.returnSupplier} —</option>
+                            {suppliers.map((sup) => (
+                              <option key={sup.id} value={sup.id}>
+                                {sup.name}
+                              </option>
+                            ))}
                           </NativeSelect>
                           <Input name="note" placeholder={t.common.notes} />
                           <Button type="submit" size="sm" className="w-full">
@@ -170,9 +187,21 @@ export default async function PartsPage({ searchParams }: PageProps) {
                         </Link>
                       </>
                     )}
+                    {m.supplier && ` · ${m.supplier.name}`}
                     {" · "}
                     {formatDateTime(m.createdAt, lang)}
                   </p>
+                  {m.note && <p className="text-xs text-muted-foreground">{m.note}</p>}
+                  {m.correctedBy ? (
+                    <p className="text-xs text-amber-700 dark:text-amber-400">{v.corrected}</p>
+                  ) : (
+                    canEdit &&
+                    ["PURCHASE", "ADJUSTMENT", "SUPPLIER_RETURN"].includes(m.reason) && (
+                      <ReasonButton className="mt-1 h-6" question={v.correctReason} action={correctMovementAction.bind(null, m.id)}>
+                        {v.correct}
+                      </ReasonButton>
+                    )
+                  )}
                 </div>
                 <span dir="ltr" className={cn("shrink-0 font-medium tabular-nums", m.deltaX100 > 0 ? "text-emerald-700 dark:text-emerald-400" : "text-red-700 dark:text-red-400")}>
                   {m.deltaX100 > 0 ? "+" : ""}

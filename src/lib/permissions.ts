@@ -38,6 +38,8 @@ const MATRIX = {
   // Espace fournisseur
   viewStock: ["ADMIN", "MANAGER", "RECEPTION", "MECHANIC", "STOREKEEPER"],
   manageStock: ["ADMIN", "STOREKEEPER"],
+  /// Réserver une pièce pour une réparation / libérer la réservation.
+  reserveStock: ["ADMIN", "MANAGER", "RECEPTION", "STOREKEEPER"],
   viewSuppliers: ["ADMIN", "MANAGER", "STOREKEEPER"],
   manageSuppliers: ["ADMIN", "STOREKEEPER"],
   requestPurchase: ["ADMIN", "MANAGER", "STOREKEEPER"],

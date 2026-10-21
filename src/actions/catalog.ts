@@ -122,7 +122,9 @@ export async function updatePartAction(partId: string, form: FormData): Promise<
 export async function moveStockAction(partId: string, form: FormData): Promise<Result> {
   try {
     const actor = await requirePermission("manageStock");
-    await moveStock(id.parse(partId), stockMovementSchema.parse(formToObject(form)), actor);
+    const v = stockMovementSchema.parse(formToObject(form));
+    // A return to the supplier is typed as a positive quantity: it always goes out.
+    await moveStock(id.parse(partId), { ...v, delta: v.reason === "SUPPLIER_RETURN" ? -Math.abs(v.delta) : v.delta }, actor);
     return done();
   } catch (error) {
     return toActionError(error);

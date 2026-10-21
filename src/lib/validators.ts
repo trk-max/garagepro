@@ -158,9 +158,12 @@ export const partSchema = z.object({
 
 export const stockMovementSchema = z.object({
   delta: signedQuantity,
-  reason: z.enum([StockMovementReason.PURCHASE, StockMovementReason.ADJUSTMENT]),
+  reason: z.enum([StockMovementReason.PURCHASE, StockMovementReason.ADJUSTMENT, StockMovementReason.SUPPLIER_RETURN]),
   note: optionalText(200),
+  supplierId: z.preprocess(emptyToUndefined, z.string().cuid().optional()),
 });
+
+export const reservationSchema = z.object({ partId: z.string().cuid(), quantity: z.preprocess(parseDecimal, z.number().finite().positive().max(100_000)).transform((q) => Math.round(q * 100)) });
 
 export const paymentSchema = z.object({
   amount: money.refine((m) => m > 0),

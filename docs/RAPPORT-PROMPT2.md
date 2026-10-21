@@ -5,10 +5,40 @@ Avancement par étape. Chaque étape est commitée séparément ; rien n'est pou
 | Étape | Contenu | État |
 |---|---|---|
 | A | Bénéfice réel par réparation | **Terminée et testée** (V7.3) |
-| B | Stock : réservations, retours fournisseur, corrections liées | À faire |
+| B | Stock : réservations, retours fournisseur, corrections liées | **Terminée et testée** (V7.4) |
 | C | QR Code sécurisé par véhicule | À faire |
 | D | Rappels clients et alertes (assignation, traitement, anti-répétition) | À faire |
 | E | Sauvegardes chiffrées avec restauration testée | À faire |
+
+## Étape B — Stock : réservations, retours, corrections (V7.4)
+
+### Ce qui existait déjà (réutilisé, pas dupliqué)
+
+Catalogue (références, fournisseurs, coûts, prix), entrées (achat, bon de réception), sorties atelier et retours atelier, ajustements d'inventaire, seuil minimal et alertes, bons de commande avec date prévue, pièces manquantes et réparations bloquées (page *Suivi & retards*), historique des mouvements, journal.
+
+### Ajouté
+
+| Fonction | Règle |
+|---|---|
+| **Réservation** pour une réparation | Fiche de l'ordre → *Pièces réservées* (admin, responsable, réception, magasinier). La pièce reste en stock mais n'est plus **disponible** (disponible = stock − réservé, colonnes sur la page Stock). Contrôle **atomique** dans une seule requête SQL : deux réservations simultanées de la dernière unité libre → une seule réussit. |
+| Utilisation d'une réservation | Quand la pièce est ajoutée à l'ordre, sa réservation pour cet ordre est consommée (en tout ou en partie) : les mêmes unités ne sont jamais comptées deux fois. |
+| Libération | Manuelle avec motif, ou **automatique** à la livraison ou à l'annulation de l'ordre. Une réservation n'est libérée qu'une fois. |
+| Sorties manuelles | Refusées si elles prennent des unités réservées (vérifié dans la même requête SQL que la sortie : pas de course entre deux sorties). Règle existante conservée : l'atelier peut utiliser une pièce même si le stock enregistré est insuffisant, avec un avertissement. |
+| **Retour fournisseur** | Nouveau type de mouvement, fournisseur obligatoire, toujours une sortie. |
+| **Correction** | *Corriger* sur un mouvement manuel (achat, inventaire, retour) : mouvement inverse « Correction » lié à l'original, motif obligatoire. L'original reste dans l'historique. **Une seule correction par mouvement** (contrainte unique en base, même en cas de clics simultanés). Les mouvements d'ordre ou de bon de réception se corrigent depuis leur document. |
+| Base de données | Contraintes de sécurité : réservation toujours positive, compteur réservé jamais négatif. |
+
+Journal : `stock.reserve`, `stock.release`, `stock.consumeReservation`, `stock.supplierReturn`, `stock.correct`.
+
+Migration `prisma/migrations/8_stock_reservations/migration.sql` — ajouts uniquement (2 valeurs d'énumération, colonnes, table `StockReservation`, contraintes, synchronisation du hub). **Rejouée deux fois sur la base de test sans erreur** (avec la migration 7).
+
+### Tests réellement exécutés
+
+- `tests/stock-and-limits.test.ts` (+3) : sortie refusée si elle prend des unités réservées, deux sorties simultanées de la dernière unité libre, retour fournisseur.
+- `tests/stock.db.test.ts` (8, vraie base PostgreSQL) : deux réservations simultanées de la dernière unité → une seule ; sortie manuelle bloquée par la réservation ; consommation partielle à l'ajout sur l'ordre ; libération manuelle unique et libération automatique à l'annulation ; contrainte « réservé ≥ 0 » en base ; retour fournisseur ; correction liée, unique même en simultané, original conservé ; mouvements d'ordre non corrigeables ici ; correction refusée si les unités sont réservées.
+- Suite complète : 239 tests unitaires, 40 tests base de données, `tsc`, `eslint`, `next build` : réussis.
+
+Non vérifié ici : affichage dans le navigateur avec un compte connecté.
 
 ## Étape A — Bénéfice réel par réparation (V7.3)
 
