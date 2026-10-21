@@ -41,6 +41,11 @@ Il n'y a **qu'une seule base de données** (Supabase en ligne + sa copie sur le 
 - Réservez l'adresse du PC du garage dans la box (bail DHCP fixe) ; si elle change, refaites `npm run shortcut`.
 - Pour que le site en ligne s'ouvre sans compte Vercel : Vercel → projet → *Settings* → *Deployment Protection* → *Vercel Authentication* → ne protéger que les *Preview Deployments* (sinon chaque PC doit se connecter à Vercel).
 
+## Nouveautés V8.0 — diagnostic OBD-II et installateur Windows
+
+- **Diagnostic OBD-II** (adaptateur ELM327, Chrome/Edge) : codes défauts (jamais effacés), données moteur, VIN, kilométrage si la voiture le fournit. Voir [docs/OBD.md](docs/OBD.md).
+- **Installateur Windows** : `npm run installer` fabrique `distGaragePro-Setup-….exe`. Voir [docs/INSTALLATEUR.md](docs/INSTALLATEUR.md).
+
 ## Nouveautés V7.7 — sauvegardes chiffrées, restauration testée
 
 Le PC du garage sauvegarde la base **chaque jour** : copie cohérente, **chiffrée** (AES-256, clé hors du projet), copiée sur un **2e emplacement** (clé USB, OneDrive…), et **restaurée pour de vrai dans une base jetable** pour prouver qu'elle est utilisable. Menu **Sauvegardes** (administrateur) avec alerte en cas de problème. Mise en place en 3 commandes : `npm run backup:key` (puis copiez la clé ailleurs), réglez `BACKUP_COPY_DIR`, `npm run backup`. Procédure de restauration : [`docs/SAUVEGARDES.md`](docs/SAUVEGARDES.md).

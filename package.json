@@ -38,7 +38,8 @@
     "backup:key": "node --env-file-if-exists=.env scripts/backup/tools.mjs key",
     "backup:verify": "node --env-file=.env scripts/backup/tools.mjs verify",
     "backup:restore": "node --env-file=.env scripts/backup/tools.mjs restore",
-    "shortcut": "node --env-file-if-exists=.env scripts/make-shortcut.mjs"
+    "shortcut": "node --env-file-if-exists=.env scripts/make-shortcut.mjs",
+    "installer": "node scripts/installer/build.mjs"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

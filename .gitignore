@@ -32,3 +32,6 @@ Thumbs.db
 
 # shortcut for another PC (made by npm run shortcut, machine-specific)
 /GaragePro.cmd
+
+# Windows installer output (npm run installer)
+/dist/
