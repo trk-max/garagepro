@@ -1,7 +1,7 @@
 import {
   BarChart3, BellRing, Boxes, Building2, CalendarClock, CalendarDays, CalendarRange, Car, CarFront, ClipboardList, Clock3,
   DatabaseBackup, FileSignature, FileText, History, Landmark, LayoutGrid, Mail, MessageSquareWarning, PackageCheck, ReceiptText,
-  Settings, ShieldCheck, ShoppingCart, Smartphone, TrendingUp, TriangleAlert, Truck, Users,
+  Settings, ShieldCheck, ShoppingCart, Smartphone, TrendingUp, TriangleAlert, Truck, UserRound, Users,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { Role } from "@prisma/client";
@@ -14,7 +14,7 @@ import { can, type Permission } from "@/lib/permissions";
  * unreachable and the filters stay the same everywhere.
  */
 export type NavKey =
-  | "dashboard" | "appointments" | "workshop" | "workOrders" | "delays" | "notifications" | "customers" | "companies"
+  | "dashboard" | "appointments" | "workshop" | "workOrders" | "delays" | "notifications" | "customers" | "vehicles" | "companies"
   | "clientInvoices" | "claims" | "warranties" | "parts" | "suppliers" | "purchaseOrders" | "receipts" | "supplierInvoices"
   | "timeClock" | "calendar" | "team" | "showroom" | "messages" | "contracts" | "reports" | "profitability" | "expenses"
   | "cash" | "audit" | "backups" | "settings";
@@ -34,7 +34,8 @@ export const NAV_GROUPS: NavGroup[] = [
       { key: "workOrders", href: "/garage/work-orders", icon: ClipboardList, permission: "viewWorkOrders" },
       { key: "delays", href: "/garage/suivi", icon: TriangleAlert, permission: "manageRepairFollowUp" },
       { key: "notifications", href: "/garage/notifications", icon: BellRing, permission: "viewNotifications" },
-      { key: "customers", href: "/garage/customers", icon: Car, permission: "viewCustomers" },
+      { key: "customers", href: "/garage/customers", icon: UserRound, permission: "viewCustomers" },
+      { key: "vehicles", href: "/garage/vehicules", icon: Car, permission: "viewCustomers" },
       { key: "companies", href: "/garage/entreprises", icon: Building2, permission: "manageCompanyAccess" },
       { key: "clientInvoices", href: "/garage/invoices", icon: FileText, permission: "viewClientInvoices" },
       { key: "claims", href: "/garage/reclamations", icon: MessageSquareWarning, permission: "manageClaims" },
@@ -83,9 +84,18 @@ export const NAV_GROUPS: NavGroup[] = [
 
 const ALL = new Map(NAV_GROUPS.flatMap((g) => g.items).map((i) => [i.key, i]));
 
-/** Top pill bar (short labels) and left rail: subsets of the same list. */
-export const TOP_KEYS: NavKey[] = ["dashboard", "workOrders", "customers", "parts", "clientInvoices", "reports"];
-export const RAIL_KEYS: NavKey[] = ["dashboard", "appointments", "messages", "contracts", "customers", "parts", "settings"];
+/**
+ * Top pill bar (short labels): overview, stock and the money pages. Left rail: the
+ * garage's daily work. "More" lists every other page; settings and sign-out live only
+ * in the account menu. Each page therefore appears in exactly one place.
+ */
+export const TOP_KEYS: NavKey[] = ["dashboard", "parts", "clientInvoices", "cash", "profitability", "reports"];
+export const RAIL_KEYS: NavKey[] = ["workOrders", "workshop", "appointments", "customers", "vehicles", "delays", "messages", "contracts"];
+/** Pages reached from the account menu only (never in the bar, the rail or "More"). */
+export const MENU_KEYS: NavKey[] = ["settings"];
+const PLACED = new Set<NavKey>([...TOP_KEYS, ...RAIL_KEYS, ...MENU_KEYS]);
+/** True when a page belongs in the "More" panel (not already in the bar, the rail or the account menu). */
+export const inMore = (key: NavKey) => !PLACED.has(key);
 
 export const allowed = (role: Role, item: NavItem) => !item.permission || can(role, item.permission);
 export const pick = (role: Role, keys: NavKey[]) => keys.map((k) => ALL.get(k)!).filter((i) => allowed(role, i));
@@ -97,14 +107,15 @@ const V7 = ["timeClock", "team", "calendar", "delays", "audit", "companies", "pr
 export function navLabel(t: Dictionary, key: NavKey): string {
   if (key === "contracts") return t.ctr.nav;
   if (key === "showroom" || key === "messages") return t.showroom.nav[key];
+  if (key === "vehicles") return t.v10.nav.vehicles;
   if ((V7 as readonly string[]).includes(key)) return t.v7.nav[key as (typeof V7)[number]];
-  return t.nav[key as Exclude<NavKey, (typeof V7)[number] | "contracts" | "showroom" | "messages">];
+  return t.nav[key as Exclude<NavKey, (typeof V7)[number] | "contracts" | "showroom" | "messages" | "vehicles">];
 }
 
 /** Short label for the top pill bar. */
 export function topLabel(t: Dictionary, key: NavKey): string {
   const n = t.v10.nav;
-  const short: Partial<Record<NavKey, string>> = { dashboard: n.overview, workOrders: n.workOrders, customers: n.customers, parts: n.stock, clientInvoices: n.invoices, reports: n.reports };
+  const short: Partial<Record<NavKey, string>> = { dashboard: n.overview, parts: n.stock, clientInvoices: n.invoices, cash: n.cash, profitability: n.profitability, reports: n.reports };
   return short[key] ?? navLabel(t, key);
 }
 

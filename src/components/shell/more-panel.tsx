@@ -5,18 +5,18 @@ import { usePathname } from "next/navigation";
 import { useId, useRef, useState } from "react";
 import { Ellipsis, X } from "lucide-react";
 import type { Role } from "@prisma/client";
-import { LangSwitch } from "@/components/garage/lang-switch";
-import { HubStatus } from "@/components/pwa/hub-status";
 import { InstallAppButton } from "@/components/pwa/install-app-button";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { allowed, groupLabel, isActive, NAV_GROUPS, navLabel, type NavBadges } from "@/components/shell/nav";
+import { allowed, groupLabel, inMore, isActive, NAV_GROUPS, navLabel, type NavBadges } from "@/components/shell/nav";
 import { Tip } from "@/components/shell/tip";
 import { useI18n } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
 
 /**
- * "More" button + panel listing EVERY staff page of the former sidebar, with the
- * same permission filters and badges (nothing becomes unreachable). Native
+ * "More" button + panel listing the staff pages that are neither in the top bar,
+ * the rail nor the account menu (each page appears once, none is unreachable),
+ * with the same permission filters and badges. Language and hub status are in the
+ * account menu only; the theme button shows here on phones only. Native
  * <dialog>: focus stays inside, Escape and a click outside close it.
  */
 export function MorePanel({ role, badges, triggerClassName }: { role: Role; badges: NavBadges; triggerClassName: string }) {
@@ -24,10 +24,11 @@ export function MorePanel({ role, badges, triggerClassName }: { role: Role; badg
   const pathname = usePathname();
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
-  // Content (and its hub-status poller) only exists while the panel is open.
+  // Content only exists while the panel is open.
   const [open, setOpen] = useState(false);
   const close = () => ref.current?.close();
-  const extra = Object.values(badges).reduce<number>((s, n) => s + (n ?? 0), 0);
+  // Dot on the button only for badges of pages listed inside the panel.
+  const extra = Object.entries(badges).reduce<number>((s, [k, n]) => s + (inMore(k as keyof NavBadges) ? (n ?? 0) : 0), 0);
   return (
     <>
       <button
@@ -61,7 +62,7 @@ export function MorePanel({ role, badges, triggerClassName }: { role: Role; badg
         </div>
         <div className="grid gap-3 px-5 sm:grid-cols-2 lg:grid-cols-3">
           {NAV_GROUPS.map((g, gi) => {
-            const items = g.items.filter((i) => allowed(role, i));
+            const items = g.items.filter((i) => inMore(i.key) && allowed(role, i));
             if (items.length === 0) return null;
             return (
               <section key={gi} className="rounded-[24px] bg-gp-card p-3">
@@ -99,11 +100,8 @@ export function MorePanel({ role, badges, triggerClassName }: { role: Role; badg
           })}
         </div>
         <div className="flex flex-wrap items-center gap-3 p-5">
-          <LangSwitch className="rounded-full border-gp-line bg-gp-card p-1 [&_a]:rounded-full" />
-          <ThemeToggle withLabel className="rounded-full bg-gp-card px-4" />
-          <div className="empty:hidden">
-            <HubStatus />
-          </div>
+          {/* Phones only: the rail (desktop) and the bottom bar (tablets) already carry the theme switch. */}
+          <ThemeToggle withLabel className="rounded-full bg-gp-card px-4 md:hidden" />
           <div className="ms-auto empty:hidden">
             <InstallAppButton className="rounded-full border-gp-line bg-gp-card px-4" />
           </div>

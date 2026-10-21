@@ -24,6 +24,18 @@ export const v10PagesFr = {
     first: "Retour au début",
     open: "Ouvrir la fiche de {name}",
   },
+  vehicles: {
+    subtitle: "Toutes les voitures des clients : retrouvez-en une par plaque, marque ou propriétaire.",
+    search: "Plaque, marque, modèle, VIN, propriétaire…",
+    empty: "Aucun véhicule.",
+    inShop: "À l'atelier — {number}",
+    newOrder: "Nouvel ordre",
+    qr: "QR",
+    obd: "OBD",
+    maintenance: "Entretien",
+    owner: "Propriétaire : {name}",
+    actions: "Actions pour {plate}",
+  },
   stock: {
     subtitle: "Ce que vaut le stock, ce qui manque, et chaque pièce d'un coup d'œil.",
     value: "Valeur du stock",

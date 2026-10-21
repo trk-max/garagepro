@@ -26,6 +26,18 @@ export const v10PagesEn: typeof v10PagesFr = {
     first: "Back to start",
     open: "Open {name}'s file",
   },
+  vehicles: {
+    subtitle: "Every customer car: find one by plate, make or owner.",
+    search: "Plate, make, model, VIN, owner…",
+    empty: "No vehicles.",
+    inShop: "In the workshop — {number}",
+    newOrder: "New order",
+    qr: "QR",
+    obd: "OBD",
+    maintenance: "Maintenance",
+    owner: "Owner: {name}",
+    actions: "Actions for {plate}",
+  },
   stock: {
     subtitle: "What the stock is worth, what is missing, and every part at a glance.",
     value: "Stock value",

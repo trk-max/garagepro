@@ -26,7 +26,7 @@ export function TopNav({ logo, user, badges }: { logo: ReactNode; user: ShellUse
     <header className="sticky top-0 z-40 rounded-t-[32px] bg-gp-canvas/85 px-3 pt-3 pb-2 backdrop-blur-md sm:px-5 sm:pt-4 print:hidden">
       <div className="flex items-center gap-2 sm:gap-3">
         <div className={cn(pill, "flex h-14 min-w-0 shrink items-center")}>{logo}</div>
-        <PageNav items={items} className="hidden flex-1 justify-center xl:flex" label={t.v10.nav.main} />
+        <PageNav items={items} className="hidden flex-1 justify-center xl:flex" label={t.v10.nav.main} badges={badges} />
         <div className="ms-auto flex shrink-0 items-center gap-2 sm:gap-3 xl:ms-0">
           <div className={cn(pill, "flex h-14 items-center gap-1 px-1.5")}>
             {can(user.role, "viewWorkOrders") && <SearchButton />}
@@ -35,12 +35,12 @@ export function TopNav({ logo, user, badges }: { logo: ReactNode; user: ShellUse
           <UserMenu user={user} />
         </div>
       </div>
-      <PageNav items={items} className="mt-2 xl:hidden" label={t.v10.nav.main} />
+      <PageNav items={items} className="mt-2 xl:hidden" label={t.v10.nav.main} badges={badges} />
     </header>
   );
 }
 
-function PageNav({ items, className, label }: { items: ReturnType<typeof pick>; className?: string; label: string }) {
+function PageNav({ items, className, label, badges }: { items: ReturnType<typeof pick>; className?: string; label: string; badges: NavBadges }) {
   const pathname = usePathname();
   const { t } = useI18n();
   const list = useRef<HTMLUListElement>(null);
@@ -56,6 +56,7 @@ function PageNav({ items, className, label }: { items: ReturnType<typeof pick>; 
       <ul ref={list} className={cn(pill, "gp-scroll-x flex h-14 items-center gap-1 overflow-x-auto p-1.5")}>
         {items.map((i) => {
           const active = isActive(pathname, i.href);
+          const badge = badges[i.key];
           return (
             <li key={i.key} className="shrink-0">
               <Link
@@ -67,6 +68,12 @@ function PageNav({ items, className, label }: { items: ReturnType<typeof pick>; 
                 )}
               >
                 {topLabel(t, i.key)}
+                {badge ? (
+                  <>
+                    <span className="sr-only">, </span>
+                    <span className="ms-2 min-w-5 rounded-full bg-gp-accent px-1.5 text-center text-xs font-semibold text-white tabular-nums">{badge > 99 ? "99+" : badge}</span>
+                  </>
+                ) : null}
               </Link>
             </li>
           );

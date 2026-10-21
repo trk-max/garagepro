@@ -2,10 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LogOut, Moon, Sun, type LucideIcon } from "lucide-react";
+import { Moon, Sun, type LucideIcon } from "lucide-react";
 import type { Role } from "@prisma/client";
 import { MorePanel } from "@/components/shell/more-panel";
-import { SIGN_OUT_FORM } from "@/components/shell/user-menu";
 import { Tip } from "@/components/shell/tip";
 import { isActive, navLabel, pick, RAIL_KEYS, type NavBadges } from "@/components/shell/nav";
 import { useTheme } from "@/components/theme-toggle";
@@ -17,8 +16,9 @@ const btn = "gp-pill-t relative grid size-10 shrink-0 place-items-center rounded
 
 /**
  * Floating icon rail (≥ 1280 px, left / right in Arabic): theme switch on top,
- * the main pages in the middle with a "More" panel for every other page, and
- * sign-out at the bottom. Below 1280 px the same icons become a bottom bar.
+ * then the garage's daily pages with a "More" panel for the other pages.
+ * Sign-out and settings live only in the account menu. Below 1280 px the same
+ * icons become a bottom bar.
  */
 export function SideRail({ role, badges }: { role: Role; badges: NavBadges }) {
   const { t } = useI18n();
@@ -29,23 +29,18 @@ export function SideRail({ role, badges }: { role: Role; badges: NavBadges }) {
   ));
   return (
     <>
-      <nav aria-label={t.v10.nav.quick} className="sticky top-28 hidden h-[calc(100dvh-8.5rem)] flex-col items-center justify-between pb-2 xl:flex print:hidden">
+      <nav aria-label={t.v10.nav.quick} className="sticky top-28 hidden h-[calc(100dvh-8.5rem)] flex-col items-center gap-4 pb-2 xl:flex print:hidden">
         <ThemeSwitch />
         <div className={cn(group, "flex-col")}>
           {links}
           <MorePanel role={role} badges={badges} triggerClassName={btn} />
         </div>
-        <div className={cn(group, "flex-col")}>
-          <button type="submit" form={SIGN_OUT_FORM} className={cn(btn, "group text-gp-ink hover:bg-gp-hover")} aria-label={t.common.signOut}>
-            <LogOut className="size-[18px] rtl:rotate-180" aria-hidden />
-            <Tip label={t.common.signOut} />
-          </button>
-        </div>
       </nav>
       {/* Tablets and phones: same icons as a floating bottom bar. */}
       <nav aria-label={t.v10.nav.quick} className="fixed inset-x-0 bottom-3 z-40 flex justify-center px-3 xl:hidden print:hidden">
-        <div className={cn(group, "gp-scroll-x max-w-full shadow-lg max-md:overflow-x-auto")}>
-          {links}
+        <div className={cn(group, "max-w-full shadow-lg")}>
+          {/* Phones: the page icons scroll sideways, "More" stays pinned at the end. */}
+          <div className="gp-scroll-x flex min-w-0 items-center gap-1 max-md:-m-1 max-md:overflow-x-auto max-md:p-1">{links}</div>
           <MorePanel role={role} badges={badges} triggerClassName={btn} />
           <span className="hidden md:contents">
             <ThemeButton />

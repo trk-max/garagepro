@@ -26,6 +26,18 @@ export const v10PagesAr: typeof v10PagesFr = {
     first: "العودة إلى البداية",
     open: "فتح ملف {name}",
   },
+  vehicles: {
+    subtitle: "كل سيارات الحرفاء: ابحث عن سيارة بالرقم أو الماركة أو المالك.",
+    search: "الرقم، الماركة، الطراز، رقم الهيكل، المالك…",
+    empty: "لا توجد سيارات.",
+    inShop: "في الورشة — {number}",
+    newOrder: "أمر جديد",
+    qr: "QR",
+    obd: "OBD",
+    maintenance: "الصيانة",
+    owner: "المالك: {name}",
+    actions: "إجراءات {plate}",
+  },
   stock: {
     subtitle: "قيمة المخزون، ما ينقص، وكل قطعة في لمحة.",
     value: "قيمة المخزون",
