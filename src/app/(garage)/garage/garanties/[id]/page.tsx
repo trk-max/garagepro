@@ -48,13 +48,13 @@ export default async function WarrantyPage({ params }: PageProps) {
         </Link>
       </PageHeader>
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <Card>
           <dl className="space-y-2 text-sm">
             {rows.map(([label, value]) => (
-              <div key={label} className="grid grid-cols-[9rem_1fr] gap-2">
+              <div key={label} className="grid grid-cols-[9rem_minmax(0,1fr)] gap-2">
                 <dt className="text-muted-foreground">{label}</dt>
-                <dd>{value}</dd>
+                <dd className="break-words">{value}</dd>
               </div>
             ))}
           </dl>

@@ -185,6 +185,8 @@ export function ListingForm({
               type="button"
               size="sm"
               variant="outline"
+              // Long label: wraps on phones instead of widening the page.
+              className="h-auto min-h-8 max-w-full whitespace-normal py-1.5 text-start"
               disabled={drafting}
               onClick={() =>
                 startDraft(async () => {

@@ -41,7 +41,7 @@ export default async function ListingStaffPage({ params }: PageProps) {
       </PageHeader>
       {!l.canEdit && <p className="border border-dashed p-3 text-sm text-muted-foreground">{s.readOnly}</p>}
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="space-y-4">
           <Card>
             <ListingForm
