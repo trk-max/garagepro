@@ -450,6 +450,7 @@ export const v7Fr = {
     staffHint: "Équipe du garage ou client professionnel : connectez-vous pour voir l'historique.",
     cardHint: "Créé automatiquement à l'entrée du véhicule. Collez l'étiquette dans la voiture.",
     printLabel: "Imprimer l'étiquette",
+    hostMismatch: "Attention : ce QR Code ouvre {link}, mais vous utilisez {here}. Si {link} est une faute, corrigez APP_URL sur Vercel (puis Redeploy) ou l'« Adresse publique du site » dans Paramètres, puis réimprimez l'étiquette.",
   },
   alerts: {
     types: {

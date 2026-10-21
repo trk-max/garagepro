@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import QRCode from "qrcode";
 import { issueVehicleQrAction, revokeVehicleQrAction } from "@/actions/vehicle-qr";
@@ -7,7 +8,7 @@ import { PlateChip } from "@/components/garage/badges";
 import { PrintButton } from "@/components/garage/print-button";
 import { Card, PageHeader } from "@/components/ui/field";
 import { getBaseUrl } from "@/lib/base-url";
-import { formatDateTime } from "@/lib/format";
+import { fmt, formatDateTime } from "@/lib/format";
 import { getI18n } from "@/lib/i18n/server";
 import { prisma } from "@/lib/prisma";
 import { requirePageAccess } from "@/lib/session";
@@ -29,6 +30,12 @@ export default async function VehicleQrAdminPage({ params }: PageProps) {
   const base: string | null = await getBaseUrl().catch(() => null);
   const link = vehicle.qrToken && base ? `${base}/v/${vehicle.qrToken}` : null;
   const svg = link ? await QRCode.toString(link, { type: "svg", margin: 1, errorCorrectionLevel: "M" }) : null;
+  // Only to WARN (the link itself never comes from the request): the address in the QR
+  // differs from the site being used → probably a typo in APP_URL / Paramètres.
+  const here = (await headers()).get("host")?.split(":")[0]?.toLowerCase() ?? "";
+  const linkHost = base ? new URL(base).hostname.toLowerCase() : "";
+  const local = !here || here === "localhost" || /^\d+\.\d+\.\d+\.\d+$/.test(here) || here.endsWith(".local") || !here.includes(".");
+  const mismatch = !!linkHost && !local && linkHost !== here;
 
   return (
     <div className="mx-auto max-w-3xl space-y-5 p-4 sm:p-6">
@@ -39,6 +46,11 @@ export default async function VehicleQrAdminPage({ params }: PageProps) {
       </PageHeader>
       <p className="text-sm text-muted-foreground print:hidden">{q.intro}</p>
       {!base && <p className="border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm">{t.errors.appUrlMissing}</p>}
+      {mismatch && (
+        <p className="border border-red-500/50 bg-red-500/10 px-3 py-2 text-sm print:hidden">
+          {fmt(q.hostMismatch, { link: linkHost, here })}
+        </p>
+      )}
 
       <Card className="print:border-0 print:shadow-none">
         {svg && link ? (
@@ -51,6 +63,9 @@ export default async function VehicleQrAdminPage({ params }: PageProps) {
               {vehicle.make} {vehicle.model}
             </p>
             <p className="text-[0.625rem] text-muted-foreground">{q.labelHint}</p>
+            <p className="break-all font-mono text-[0.625rem] text-muted-foreground print:hidden" dir="ltr">
+              {link}
+            </p>
           </div>
         ) : (
           <p className="py-6 text-center text-sm text-muted-foreground">{vehicle.qrToken ? q.noBaseUrl : q.none}</p>

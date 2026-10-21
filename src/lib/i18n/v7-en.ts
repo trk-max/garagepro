@@ -451,6 +451,7 @@ export const v7En: typeof v7Fr = {
     staffHint: "Garage staff or business customer: sign in to see the history.",
     cardHint: "Created automatically when the vehicle comes in. Stick the label in the car.",
     printLabel: "Print the label",
+    hostMismatch: "Warning: this QR code opens {link}, but you are using {here}. If {link} is a mistake, fix APP_URL on Vercel (then Redeploy) or the \"Public site address\" in Settings, then print the label again.",
   },
   alerts: {
     types: {
