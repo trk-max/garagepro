@@ -7,7 +7,10 @@ import { ListFilter, Search } from "lucide-react";
 import { fmt } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-export type DataColumn = { key: string; header: string; className?: string };
+/** `hideBelow`: the column is left out under that screen width (less important columns go first: no sideways scroll). */
+export type DataColumn = { key: string; header: string; className?: string; hideBelow?: "sm" | "md" | "lg" | "xl" | "2xl" };
+const HIDE = { sm: "hidden sm:table-cell", md: "hidden md:table-cell", lg: "hidden lg:table-cell", xl: "hidden xl:table-cell", "2xl": "hidden 2xl:table-cell" } as const;
+const colClass = (c: DataColumn) => cn(c.className, c.hideBelow && HIDE[c.hideBelow]);
 /** One row: cells already rendered (server components can pass them), plus what search/filter read. */
 export type DataRow = { id: string; href: string; linkLabel: string; cells: Record<string, ReactNode>; search: string; filter?: string };
 
@@ -81,7 +84,7 @@ export function DataTable({
       </div>
       {picked.size > 0 && <p className="mb-2 text-[13px] text-gp-muted" role="status">{fmt(labels.selected, { n: picked.size })}</p>}
       <div className="overflow-x-auto rounded-[18px] bg-gp-panel p-1.5">
-        <table className="w-full min-w-[720px] border-separate border-spacing-0 text-sm">
+        <table className="w-full border-separate border-spacing-0 text-sm">
           <caption className="sr-only">{caption}</caption>
           <thead>
             <tr className="text-[13px] text-gp-muted">
@@ -89,7 +92,7 @@ export function DataTable({
                 <input type="checkbox" checked={allPicked} onChange={() => setPicked(allPicked ? new Set() : new Set(shown.map((r) => r.id)))} aria-label={labels.selectAll} className="size-4 accent-[var(--gp-accent)]" />
               </th>
               {columns.map((c) => (
-                <th key={c.key} scope="col" className={cn("px-3 py-3 text-start font-medium whitespace-nowrap", c.className)}>{c.header}</th>
+                <th key={c.key} scope="col" className={cn("px-3 py-3 text-start font-medium whitespace-nowrap", colClass(c))}>{c.header}</th>
               ))}
             </tr>
           </thead>
@@ -112,7 +115,7 @@ export function DataTable({
                   <input type="checkbox" checked={picked.has(r.id)} onChange={() => toggle(r.id)} aria-label={fmt(labels.selectRow, { n: r.linkLabel })} className="size-4 accent-[var(--gp-accent)]" />
                 </td>
                 {columns.map((c, i) => (
-                  <td key={c.key} className={cn("px-3 py-3 align-middle", c.className)}>
+                  <td key={c.key} className={cn("px-3 py-3 align-middle", colClass(c))}>
                     {i === 0 ? (
                       <Link href={r.href} className="rounded-full font-medium hover:underline">{r.cells[c.key]}</Link>
                     ) : (

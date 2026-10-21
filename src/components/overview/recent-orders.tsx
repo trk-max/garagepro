@@ -32,11 +32,11 @@ export function RecentOrders({ t, lang, rows, finance }: { t: Dictionary; lang: 
   const columns: DataColumn[] = [
     { key: "order", header: o.order },
     { key: "vehicle", header: o.vehicle },
-    { key: "customer", header: o.customer },
-    { key: "service", header: o.service, className: "max-w-56" },
+    { key: "customer", header: o.customer, hideBelow: "sm" },
+    { key: "service", header: o.service, className: "max-w-56", hideBelow: "2xl" },
     ...(finance ? [{ key: "price", header: o.price, className: "text-end" }] : []),
     { key: "status", header: o.status },
-    { key: "date", header: o.date },
+    { key: "date", header: o.date, hideBelow: "lg" },
   ];
   const statuses = [...new Set(rows.map((r) => r.status))];
   return (
@@ -63,9 +63,9 @@ export function RecentOrders({ t, lang, rows, finance }: { t: Dictionary; lang: 
             cells: {
               order: <span className="font-mono text-[13px] whitespace-nowrap">{woNumber(r.number)}</span>,
               vehicle: (
-                <span className="flex items-center gap-2 whitespace-nowrap">
+                <span className="flex flex-col items-start gap-1 whitespace-nowrap">
                   <PlateChip plate={r.vehicle.plate} />
-                  <span className="text-[13px] text-gp-muted">{[r.vehicle.make, r.vehicle.model].filter(Boolean).join(" ")}</span>
+                  <span className="text-xs text-gp-muted">{[r.vehicle.make, r.vehicle.model].filter(Boolean).join(" ")}</span>
                 </span>
               ),
               customer: <span className="whitespace-nowrap">{r.customer.name}</span>,

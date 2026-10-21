@@ -79,7 +79,7 @@ export function HeroCard({
             <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">
               {mechanics.slice(0, 3).map((m) => (
                 <li key={m.id} className="min-w-0 rounded-[14px] bg-gp-card p-3">
-                  <p className="truncate text-[13px] font-semibold" title={m.name}>{m.name}</p>
+                  <p className="line-clamp-2 text-[13px] leading-snug font-semibold break-words" title={m.name}>{m.name}</p>
                   <p className="mt-1 text-xs text-gp-muted">{fmt(o.jobs, { n: m.activeOrders })}</p>
                   {showPresence && (
                     <p

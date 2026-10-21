@@ -42,7 +42,7 @@ export function StatCard({
           <Icon className="size-4" />
         </span>
       </div>
-      <p className="mt-5 leading-none font-semibold tracking-tight whitespace-nowrap" style={{ fontSize: "clamp(20px, 14cqi, 34px)" }}>
+      <p className="mt-5 leading-none font-semibold tracking-tight whitespace-nowrap" style={{ fontSize: "clamp(26px, 19cqi, 40px)" }}>
         <CountUp value={value} format={format} lang={lang} />
       </p>
       {footer && <div className="mt-4">{footer}</div>}
