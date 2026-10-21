@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, Bot, CalendarCheck, Clock, Gauge, MessageCircle, Phone } from "lucide-react";
+import { ArrowRight, Bot, Building2, CalendarCheck, Clock, Gauge, MessageCircle, Phone } from "lucide-react";
 import { GpMonogram } from "@/components/brand/garagepro-logo";
 import { HeroBackdrop } from "@/components/portal/hero-backdrop";
 import type { SiteMedia } from "@/lib/site-media";
@@ -16,6 +16,8 @@ type Labels = {
   bookHint: string;
   assistant: string;
   assistantHint: string;
+  company: string;
+  companyHint: string;
   protocolTitle: string;
   protocolText: string;
   protocolCta: string;
@@ -68,18 +70,22 @@ export function HomeView({
             <Link href="/suivi" className="f-label inline-flex min-h-12 items-center gap-3 border-b border-transparent text-white transition-colors hover:border-brand-500 hover:text-brand-500">
               {labels.track} <ArrowRight className="size-4 rtl:rotate-180" aria-hidden />
             </Link>
+            <Link href="/entreprise/connexion" className="f-label inline-flex min-h-12 items-center gap-3 border-b border-transparent text-white/70 transition-colors hover:border-brand-500 hover:text-brand-500">
+              <Building2 className="size-4" aria-hidden /> {labels.company}
+            </Link>
           </div>
         </div>
         <span aria-hidden className="absolute start-1/2 bottom-0 h-12 w-px -translate-x-1/2 bg-gradient-to-b from-transparent to-white/50 rtl:translate-x-1/2" />
       </section>
 
-      {/* ── Three entry points ── */}
+      {/* ── Entry points (customers, then companies) ── */}
       <section className="mx-auto max-w-6xl px-4 py-16 sm:py-24">
-        <div className="grid gap-px border border-border bg-border sm:grid-cols-3">
+        <div className="grid gap-px border border-border bg-border sm:grid-cols-2 lg:grid-cols-4">
           {[
             { href: "/suivi", icon: Gauge, title: labels.track, hint: labels.trackHint },
             { href: "/rdv", icon: CalendarCheck, title: labels.book, hint: labels.bookHint },
             { href: "/assistant", icon: Bot, title: labels.assistant, hint: labels.assistantHint },
+            { href: "/entreprise/connexion", icon: Building2, title: labels.company, hint: labels.companyHint },
           ].map(({ href, icon: Icon, title, hint }) => (
             <Link key={href} href={href} className="group flex min-h-44 flex-col justify-between gap-6 bg-background p-6 sm:min-h-64 sm:gap-10 transition-colors hover:bg-card sm:p-8">
               <Icon className="size-6 text-foreground" strokeWidth={1.25} aria-hidden />

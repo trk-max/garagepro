@@ -9,7 +9,7 @@ import { InstallAppButton } from "@/components/pwa/install-app-button";
 import { clearPrivateCache } from "@/components/pwa/pwa-register";
 import { HubStatus } from "@/components/pwa/hub-status";
 import {
-  BarChart3,
+  Building2, BarChart3,
   CalendarRange,
   Clock3,
   History,
@@ -58,10 +58,11 @@ type NavKey =
   | "team"
   | "calendar"
   | "delays"
-  | "audit";
+  | "audit"
+  | "companies";
 
-type V7Key = "timeClock" | "team" | "calendar" | "delays" | "audit";
-const V7_KEYS: V7Key[] = ["timeClock", "team", "calendar", "delays", "audit"];
+type V7Key = "timeClock" | "team" | "calendar" | "delays" | "audit" | "companies";
+const V7_KEYS: V7Key[] = ["timeClock", "team", "calendar", "delays", "audit", "companies"];
 
 type Item = { key: NavKey; href: string; icon: LucideIcon; permission?: Permission };
 type Group = { title?: "clientSpace" | "supplierSpace" | "teamSpace"; items: Item[] };
@@ -76,6 +77,7 @@ const GROUPS: Group[] = [
       { key: "workOrders", href: "/garage/work-orders", icon: ClipboardList, permission: "viewWorkOrders" },
       { key: "delays", href: "/garage/suivi", icon: TriangleAlert, permission: "manageRepairFollowUp" },
       { key: "customers", href: "/garage/customers", icon: Car, permission: "viewCustomers" },
+      { key: "companies", href: "/garage/entreprises", icon: Building2, permission: "manageCompanyAccess" },
       { key: "clientInvoices", href: "/garage/invoices", icon: FileText, permission: "viewClientInvoices" },
       { key: "claims", href: "/garage/reclamations", icon: MessageSquareWarning, permission: "manageClaims" },
     ],

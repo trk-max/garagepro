@@ -15,7 +15,7 @@ export async function CompanyAccess({ customerId, t, lang }: { customerId: strin
   const users = await listCompanyUsers(customerId);
   const c = t.v7.company;
   return (
-    <Card className="h-fit">
+    <Card id="acces-entreprise" className="h-fit scroll-mt-20">
       <CardTitle>{c.staffTitle}</CardTitle>
       <p className="mb-3 text-xs text-muted-foreground">{c.staffIntro}</p>
       <ul className="mb-4 space-y-3">

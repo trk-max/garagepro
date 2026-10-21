@@ -32,6 +32,8 @@ export default async function PortalHome() {
         bookHint: t.portal.bookCtaHint,
         assistant: t.assistant.homeCta,
         assistantHint: t.assistant.homeCtaHint,
+        company: t.v7.company.portalTitle,
+        companyHint: t.v7.company.homeHint,
         protocolTitle: about.homeBandTitle,
         protocolText: about.homeBandText,
         protocolCta: about.enter,
