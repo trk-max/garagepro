@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { MIN_PHONE_DIGITS } from "@/lib/booking";
 import { normalizePlate } from "@/lib/format";
-import { CONDITIONS, FUELS, GEARBOXES, parseEquipment, parseSpecs } from "@/lib/showroom";
+import { CONDITIONS, FUELS, GEARBOXES, MESSAGE_MAX, parseEquipment, parseSpecs } from "@/lib/showroom";
 import { optionalMoney, optionalText, requiredText } from "@/lib/validators";
 import { normalizeVin } from "@/lib/vehicle-info";
 
@@ -49,8 +49,6 @@ const phone = z
   .regex(/^[+\d\s().-]+$/)
   .refine((p) => p.replace(/\D/g, "").length >= MIN_PHONE_DIGITS);
 
-/** Messages are plain text, limited in size (and escaped when shown — React does it). */
-export const MESSAGE_MAX = 2000;
 const body = z
   .string()
   .transform((s) => s.replace(/\r\n/g, "\n").replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, "").trim())

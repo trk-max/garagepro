@@ -188,6 +188,7 @@ export const showroomAr: typeof showroomFr = {
     buyerAuthor: "{name}",
     reply: "الرد",
     replyPlaceholder: "ردّكم على المشتري…",
+    buyerPlaceholder: "رسالتكم إلى البائع…",
     send: "إرسال",
     seenByBuyer: "قرأها المشتري",
     notSeen: "لم تُقرأ بعد",

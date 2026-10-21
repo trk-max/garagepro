@@ -9,7 +9,8 @@ import { ListingCard } from "@/components/showroom/listing-card";
 import { fmt, formatDate, formatKm } from "@/lib/format";
 import type { Dictionary } from "@/lib/i18n/fr";
 import { getI18n } from "@/lib/i18n/server";
-import { formatPriceDt, listingSlug, numberFromSlug, readFacts, readSpecs, readStringList } from "@/lib/showroom";
+import { formatPriceDt, isContactable, listingSlug, numberFromSlug, readFacts, readSpecs, readStringList } from "@/lib/showroom";
+import { ContactSellerForm } from "@/components/showroom/contact-form";
 import { cn } from "@/lib/utils";
 import { getPublicListing, relatedListings } from "@/server/showroom";
 import { getSettings } from "@/server/settings";
@@ -184,7 +185,13 @@ export default async function ListingPublicPage({ params }: PageProps) {
               </a>
             )}
           </div>
-          {/* contact form slot (messaging) */}
+          {isContactable(l.status) && (
+            <div id="contact" className="border border-border p-5">
+              <h2 className="f-display text-lg">{t.showroom.contact.title}</h2>
+              <p className="mt-2 mb-4 text-xs text-muted-foreground">{t.showroom.contact.intro}</p>
+              <ContactSellerForm listingNumber={l.number} />
+            </div>
+          )}
         </aside>
       </div>
 

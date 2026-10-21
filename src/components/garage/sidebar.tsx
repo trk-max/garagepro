@@ -22,6 +22,7 @@ import {
   CalendarDays,
   Car,
   CarFront,
+  MessagesSquare,
   Menu,
   Smartphone,
   ClipboardList,
@@ -71,11 +72,12 @@ type NavKey =
   | "expenses"
   | "cash"
   // Showroom (V9)
-  | "showroom";
+  | "showroom"
+  | "messages";
 
 /** Showroom (V9) menu entries, labelled from t.showroom.nav. */
-type ShowroomKey = "showroom";
-const SHOWROOM_KEYS: ShowroomKey[] = ["showroom"];
+type ShowroomKey = "showroom" | "messages";
+const SHOWROOM_KEYS: ShowroomKey[] = ["showroom", "messages"];
 
 type V7Key = "timeClock" | "team" | "calendar" | "delays" | "audit" | "companies" | "profitability" | "notifications" | "backups" | "warranties" | "expenses" | "cash";
 const V7_KEYS: V7Key[] = ["timeClock", "team", "calendar", "delays", "audit", "companies", "profitability", "notifications", "backups", "warranties", "expenses", "cash"];
@@ -120,7 +122,10 @@ const GROUPS: Group[] = [
   },
   {
     title: "showroomSpace",
-    items: [{ key: "showroom", href: "/garage/showroom", icon: CarFront, permission: "viewShowroom" }],
+    items: [
+      { key: "showroom", href: "/garage/showroom", icon: CarFront, permission: "viewShowroom" },
+      { key: "messages", href: "/garage/messages", icon: MessagesSquare, permission: "useShowroomMessages" },
+    ],
   },
   {
     items: [

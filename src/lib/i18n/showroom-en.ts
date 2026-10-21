@@ -189,6 +189,7 @@ export const showroomEn: typeof showroomFr = {
     buyerAuthor: "{name}",
     reply: "Reply",
     replyPlaceholder: "Your answer to the buyer…",
+    buyerPlaceholder: "Your message to the seller…",
     send: "Send",
     seenByBuyer: "Read by the buyer",
     notSeen: "Not read yet",

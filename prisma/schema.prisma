@@ -1495,8 +1495,9 @@ model Listing {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
-  media  ListingMedia[]
-  events ListingEvent[]
+  media         ListingMedia[]
+  events        ListingEvent[]
+  conversations Conversation[]
 
   @@index([status, publishedAt(sort: Desc)])
   @@index([sellerId])
@@ -1542,4 +1543,55 @@ model ListingEvent {
   listing Listing @relation(fields: [listingId], references: [id], onDelete: Restrict)
 
   @@index([listingId, createdAt])
+}
+
+// ── Messagerie acheteurs (V9, Prompt 5/5) ────────────────────────────────────
+
+/// Conversation entre un acheteur (sans compte) et le garage au sujet d'une annonce. L'acheteur
+/// n'y accède que par son lien privé /messages/<jeton> ; seul le hachage du jeton est stocké.
+/// workOrderId : prévu pour lier une conversation à une réparation (non utilisé en V9).
+/// assignedToId : membre de l'équipe en charge (simple identifiant, comme sellerId).
+model Conversation {
+  id             String   @id @default(cuid())
+  listingId      String?
+  workOrderId    String?
+  buyerName      String
+  buyerPhone     String?
+  buyerEmail     String?
+  /// SHA-256 (hexadécimal) du jeton du lien privé. Le jeton lui-même n'est jamais enregistré.
+  buyerTokenHash String   @unique
+  assignedToId   String?
+  /// "OPEN" ou "CLOSED".
+  status         String   @default("OPEN")
+  lastMessageAt  DateTime @default(now())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  listing  Listing?  @relation(fields: [listingId], references: [id], onDelete: Restrict)
+  messages Message[]
+
+  @@index([listingId, lastMessageAt(sort: Desc)])
+  @@index([assignedToId, lastMessageAt(sort: Desc)])
+  @@index([lastMessageAt(sort: Desc)])
+}
+
+/// Message d'une conversation. Texte brut limité à 2 000 caractères (affiché échappé).
+/// readByStaffAt : message d'acheteur lu par l'équipe ; readByBuyerAt : message de l'équipe lu par l'acheteur.
+model Message {
+  id             String    @id @default(cuid())
+  conversationId String
+  /// "STAFF" ou "BUYER".
+  authorKind     String
+  authorUserId   String?
+  /// Nom du membre de l'équipe au moment de l'envoi.
+  authorName     String?
+  body           String
+  createdAt      DateTime  @default(now())
+  readByStaffAt  DateTime?
+  readByBuyerAt  DateTime?
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Restrict)
+
+  @@index([conversationId, createdAt])
+  @@index([authorKind, readByStaffAt])
 }

@@ -188,6 +188,7 @@ export const showroomFr = {
     buyerAuthor: "{name}",
     reply: "Répondre",
     replyPlaceholder: "Votre réponse à l'acheteur…",
+    buyerPlaceholder: "Votre message au vendeur…",
     send: "Envoyer",
     seenByBuyer: "Lu par l'acheteur",
     notSeen: "Pas encore lu",

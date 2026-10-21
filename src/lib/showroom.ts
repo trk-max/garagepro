@@ -8,7 +8,10 @@
 export const LISTING_STATUSES = ["DRAFT", "PUBLISHED", "RESERVED", "SOLD", "UNAVAILABLE", "ARCHIVED"] as const;
 export type ListingStatus = (typeof LISTING_STATUSES)[number];
 
-export const FUELS = ["ESSENCE", "DIESEL", "HYBRID", "ELECTRIC", "GPL"] as const;
+/** Buyer messages are plain text, limited in size (and escaped when shown — React does it). */
+export const MESSAGE_MAX = 2000;
+
+export const FUELS =["ESSENCE", "DIESEL", "HYBRID", "ELECTRIC", "GPL"] as const;
 export const GEARBOXES = ["MANUAL", "AUTOMATIC"] as const;
 export const CONDITIONS = ["NEW", "EXCELLENT", "GOOD", "FAIR", "TO_REPAIR"] as const;
 

@@ -10,6 +10,7 @@ import { prisma } from "@/lib/prisma";
 import { getSettings } from "@/server/settings";
 import { countLateRepairs } from "@/server/follow-up";
 import { backupProblem } from "@/server/backups";
+import { unreadForStaff } from "@/server/messaging";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +19,7 @@ export default async function GarageLayout({ children }: { children: ReactNode }
   if (!staff) redirect("/login");
 
   // Menu counters: small COUNT queries in parallel (no rows loaded).
-  const [settings, overdue, pendingApprovals, appointmentsToday, openClaims, pendingLeaves, lateRepairs, backupAlert] = await Promise.all([
+  const [settings, overdue, pendingApprovals, appointmentsToday, openClaims, pendingLeaves, lateRepairs, backupAlert, unreadMessages] = await Promise.all([
     getSettings(),
     can(staff.role, "viewClientInvoices") ? countOverdue() : 0,
     staff.role === "ADMIN" ? prisma.purchaseOrder.count({ where: { status: "PENDING_APPROVAL" } }) : 0,
@@ -30,6 +31,8 @@ export default async function GarageLayout({ children }: { children: ReactNode }
     can(staff.role, "manageRepairFollowUp") ? countLateRepairs().catch(() => 0) : 0,
     // Backups run on the garage PC: warn the administrator when the last one failed, is too old or was not restore-tested.
     staff.role === "ADMIN" ? backupProblem() : 0,
+    // Showroom (V9): unread buyer messages in this person's conversations only. .catch: menu never breaks before migration 18.
+    can(staff.role, "useShowroomMessages") ? unreadForStaff(staff).catch(() => 0) : 0,
   ]);
 
   // Counters in the menu: today's remaining bookings, late customer invoices, orders waiting for the admin.
@@ -41,6 +44,7 @@ export default async function GarageLayout({ children }: { children: ReactNode }
     team: pendingLeaves || undefined,
     delays: lateRepairs || undefined,
     backups: backupAlert || undefined,
+    messages: unreadMessages || undefined,
   };
   const user = { name: staff.name, role: staff.role };
 

@@ -105,6 +105,11 @@ export default async function ListingStaffPage({ params }: PageProps) {
                 ))}
               </div>
             )}
+            {l.canEdit && can(staff.role, "useShowroomMessages") && (
+              <Link href={`/garage/messages?listing=${l.id}`} className="mt-3 block text-sm underline-offset-4 hover:underline">
+                {s.conversations}
+              </Link>
+            )}
             {l.status === "SOLD" && (
               // TODO(module Contrats) : documents de vente (contrat de vente, attestation de cession) générés ici.
               <p className="mt-3 flex gap-2 border-s-2 border-amber-500 ps-2 text-xs text-muted-foreground">
