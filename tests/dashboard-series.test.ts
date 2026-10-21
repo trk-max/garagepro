@@ -36,3 +36,12 @@ describe("dashboard — money per month", () => {
     expect(monthlyMoney(["2026-10"], [], [])).toEqual([{ month: "2026-10", invoiced: 0, collected: 0 }]);
   });
 });
+
+describe("dashboard — garage day", () => {
+  it("00:30 in Tunis is already the new day, even on a UTC server", async () => {
+    const { startOfGarageDay } = await import("@/lib/dashboard-series");
+    // 2026-10-21 23:30 UTC = 2026-10-22 00:30 in Tunis (UTC+1) → day starts 2026-10-21 23:00 UTC.
+    expect(startOfGarageDay(new Date("2026-10-21T23:30:00Z")).toISOString()).toBe("2026-10-21T23:00:00.000Z");
+    expect(startOfGarageDay(new Date("2026-10-21T12:00:00Z")).toISOString()).toBe("2026-10-20T23:00:00.000Z");
+  });
+});

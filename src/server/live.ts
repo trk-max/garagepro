@@ -1,4 +1,5 @@
 import "server-only";
+import { createHash } from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import { ACTIVE_STATUSES } from "@/server/workflow";
 
@@ -33,7 +34,9 @@ export function sharedVersion(key: string, read: () => Promise<string | null>): 
 export async function versionResponse(key: string, read: () => Promise<string | null>): Promise<Response> {
   const version = await sharedVersion(key, read);
   const headers = { "Cache-Control": "no-store" };
-  return version === null ? Response.json({ gone: true }, { status: 410, headers }) : Response.json({ version }, { headers });
+  if (version === null) return Response.json({ gone: true }, { status: 410, headers });
+  // Only a fingerprint leaves the server: the raw version can contain counts or totals.
+  return Response.json({ version: createHash("sha1").update(version).digest("base64url") }, { headers });
 }
 
 export async function workOrderVersion(id: string): Promise<string | null> {
@@ -82,9 +85,24 @@ export async function dashboardVersion(): Promise<string> {
     prisma.workOrder.aggregate({ _max: { updatedAt: true }, _count: { _all: true } }),
     stockVersion(),
     appointmentsVersion(),
-    prisma.invoice.aggregate({ _count: { _all: true }, _sum: { paidAmount: true } }),
-    prisma.payment.aggregate({ _count: { _all: true } }),
-    prisma.clockEvent.aggregate({ _count: { _all: true } }),
+    prisma.invoice.aggregate({ _count: { _all: true }, _sum: { paidAmount: true, totalTtc: true }, _max: { issuedAt: true } }),
+    prisma.payment.aggregate({ _count: { _all: true }, _sum: { amount: true }, _max: { paidAt: true } }),
+    prisma.clockEvent.aggregate({ _count: { _all: true }, _max: { at: true, voidedAt: true } }),
   ]);
-  return [wo._max.updatedAt?.getTime() ?? 0, wo._count._all, stock, appts, inv._count._all, inv._sum.paidAmount ?? 0, pay._count._all, clock._count._all].join(":");
+  return [
+    wo._max.updatedAt?.getTime() ?? 0,
+    wo._count._all,
+    stock,
+    appts,
+    inv._count._all,
+    inv._sum.paidAmount ?? 0,
+    inv._sum.totalTtc ?? 0,
+    inv._max.issuedAt?.getTime() ?? 0,
+    pay._count._all,
+    pay._sum.amount ?? 0,
+    pay._max.paidAt?.getTime() ?? 0,
+    clock._count._all,
+    clock._max.at?.getTime() ?? 0,
+    clock._max.voidedAt?.getTime() ?? 0,
+  ].join(":");
 }

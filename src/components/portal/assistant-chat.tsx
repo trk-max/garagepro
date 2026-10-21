@@ -136,7 +136,7 @@ export function AssistantChat({
           <Sparkles className="size-5 text-brand-400" aria-hidden /> {a.bot}
           {aiEnabled && <span className="rounded-full bg-white/10 px-2 py-0.5 text-[0.6875rem] font-normal text-white/70">IA</span>}
         </p>
-        {items.length > 1 && (
+        {items.length > 1 && !pending && (
           <button type="button" onClick={restart} className="grid size-9 place-items-center rounded-full text-white/70 transition-colors hover:bg-white/10 hover:text-white" aria-label={a.restart} title={a.restart}>
             <X className="size-4" aria-hidden />
           </button>

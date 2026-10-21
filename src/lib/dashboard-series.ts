@@ -42,3 +42,15 @@ export function monthlyMoney(
   }
   return [...points.values()];
 }
+
+/** Midnight of the garage's day containing `now` (e.g. the online copy runs in UTC, the garage in Tunis). */
+export function startOfGarageDay(now: Date, timeZone = GARAGE_TZ): Date {
+  const p = Object.fromEntries(
+    new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" })
+      .formatToParts(now)
+      .map((x) => [x.type, x.value]),
+  );
+  const wallAsUtc = Date.UTC(+p.year!, +p.month! - 1, +p.day!, +p.hour!, +p.minute!, +p.second!);
+  const offset = wallAsUtc - Math.floor(now.getTime() / 1000) * 1000;
+  return new Date(Date.UTC(+p.year!, +p.month! - 1, +p.day!) - offset);
+}

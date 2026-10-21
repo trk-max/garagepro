@@ -1,5 +1,5 @@
 import "server-only";
-import { lastMonths, monthKey, monthlyMoney } from "@/lib/dashboard-series";
+import { lastMonths, monthKey, monthlyMoney, startOfGarageDay } from "@/lib/dashboard-series";
 import { prisma } from "@/lib/prisma";
 import { lowStockParts } from "@/server/parts";
 import { ACTIVE_STATUSES } from "@/server/workflow";
@@ -59,7 +59,7 @@ export async function moneySeries(now = new Date()) {
 
 /** Today's booked appointments (not cancelled), in time order. */
 export async function todayAppointments(now = new Date()) {
-  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startOfDay = startOfGarageDay(now);
   return prisma.appointment.findMany({
     where: { startAt: { gte: startOfDay, lt: new Date(startOfDay.getTime() + 86_400_000) }, status: { in: ["CONFIRMED", "CHECKED_IN"] } },
     orderBy: { startAt: "asc" },
@@ -68,11 +68,10 @@ export async function todayAppointments(now = new Date()) {
   });
 }
 
-/** Who is at work right now: last clock event of the day is IN or BREAK_END (on break counted apart). */
+/** Who is at work right now: last clock event of the past 24 h is IN or BREAK_END (on break counted apart). */
 export async function presentNow(now = new Date()) {
-  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const events = await prisma.clockEvent.findMany({
-    where: { at: { gte: startOfDay, lte: now }, voidedAt: null },
+    where: { at: { gte: new Date(now.getTime() - 86_400_000), lte: now }, voidedAt: null },
     orderBy: { at: "asc" },
     select: { userId: true, kind: true },
   });
