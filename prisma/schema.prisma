@@ -214,6 +214,10 @@ model Vehicle {
   color      String?
   mileage    Int?
   customerId String
+  /// Jeton secret du QR Code du véhicule (lien /v/<jeton>). null = pas de QR ou révoqué.
+  /// Renouveler = nouveau jeton : l'ancienne étiquette ne fonctionne plus.
+  qrToken    String?   @unique
+  qrIssuedAt DateTime?
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
 

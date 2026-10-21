@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Plus } from "lucide-react";
+import { QrCode, Plus } from "lucide-react";
 import { addVehicleAction, updateCustomerAction } from "@/actions/catalog";
 import { ActionForm } from "@/components/action-form";
 import { PlateChip, StatusBadge } from "@/components/garage/badges";
@@ -46,7 +46,7 @@ export default async function CustomerPage({ params }: PageProps) {
             ) : (
               <ul className="grid gap-3 sm:grid-cols-2">
                 {customer.vehicles.map((v) => (
-                  <li key={v.id} className="rounded-md border p-3">
+                  <li key={v.id} id={`vehicule-${v.id}`} className="scroll-mt-20 rounded-md border p-3 target:border-brand-500">
                     <div className="flex items-center gap-2">
                       <PlateChip plate={v.plate} />
                       <span className="font-medium">
@@ -63,6 +63,13 @@ export default async function CustomerPage({ params }: PageProps) {
                         <Plus className="size-3.5" aria-hidden /> {t.customers.newWorkOrder}
                       </Link>
                     </Button>
+                    {can(staff.role, "manageVehicleQr") && (
+                      <Button asChild size="sm" variant="outline" className="ms-2 mt-2">
+                        <Link href={`/garage/vehicules/${v.id}/qr`}>
+                          <QrCode className="size-3.5" aria-hidden /> {t.v7.qr.button}
+                        </Link>
+                      </Button>
+                    )}
                   </li>
                 ))}
               </ul>

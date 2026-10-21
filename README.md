@@ -4,7 +4,7 @@
 
 <h1 align="center">GaragePro</h1>
 <p align="center"><b>Gestion d'atelier mécanique + site client + espace équipe + portail entreprises</b> · Français / العربية / English</p>
-<p align="center">Version <b>7.4</b> — application PC / téléphone, fonctionne aussi <b>sans internet</b> (hub du garage)</p>
+<p align="center">Version <b>7.5</b> — application PC / téléphone, fonctionne aussi <b>sans internet</b> (hub du garage)</p>
 <p align="center">Next.js 15 · TypeScript · Tailwind v4 · PostgreSQL (Supabase) + Prisma 6 · Auth.js v5 · Vercel</p>
 
 <p align="center">
@@ -21,6 +21,10 @@
 | ![Version mobile en arabe](docs/media/08-mobile-arabe.jpg) **Mobile + arabe (RTL)** | ![Connexion de l'équipe](docs/media/03-connexion-equipe.jpg) **Connexion de l'équipe** |
 
 > Photos et vidéos du site : dossier `public/site/` (voir « Photos et vidéos du site » plus bas). Pour mettre une **vidéo** dans ce README sur GitHub : modifiez le fichier sur github.com et glissez-déposez un `.mp4` (moins de 10 Mo) dans l'éditeur, GitHub crée le lien tout seul.
+
+## Nouveautés V7.5 — QR Code sécurisé par véhicule
+
+Fiche client → véhicule → **QR Code** : créer, imprimer l'étiquette, renouveler, révoquer. Le scan ouvre la fiche pour l'équipe connectée, l'espace entreprise pour le compte propriétaire du véhicule, et **pour toute autre personne seulement l'immatriculation et le modèle** (suivi de réparation toujours protégé par le code à 4 chiffres). Jeton aléatoire impossible à deviner, jamais écrit dans le journal. Nécessite `APP_URL`. Mise à jour de la base : `npm run db:cloud` (migration `9_vehicle_qr`). Détails et tests : [`docs/RAPPORT-PROMPT2.md`](docs/RAPPORT-PROMPT2.md).
 
 ## Nouveautés V7.4 — stock : réservations, retours fournisseur, corrections
 

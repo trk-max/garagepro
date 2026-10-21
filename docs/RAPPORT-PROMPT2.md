@@ -6,9 +6,38 @@ Avancement par étape. Chaque étape est commitée séparément ; rien n'est pou
 |---|---|---|
 | A | Bénéfice réel par réparation | **Terminée et testée** (V7.3) |
 | B | Stock : réservations, retours fournisseur, corrections liées | **Terminée et testée** (V7.4) |
-| C | QR Code sécurisé par véhicule | À faire |
+| C | QR Code sécurisé par véhicule | **Terminée et testée** (V7.5) |
 | D | Rappels clients et alertes (assignation, traitement, anti-répétition) | À faire |
 | E | Sauvegardes chiffrées avec restauration testée | À faire |
+
+## Étape C — QR Code sécurisé par véhicule (V7.5)
+
+### Fonctionnement
+
+- Fiche client → véhicule → **QR Code** (admin, responsable, réception) : créer, **imprimer l'étiquette** (QR + immatriculation + garage), **renouveler** (l'ancienne étiquette cesse de fonctionner), **révoquer**.
+- Le QR contient `<APP_URL>/v/<jeton>` : jeton de 24 octets aléatoires (192 bits), unique, sans lien avec la plaque ou l'identifiant : impossible à deviner.
+- Le **serveur** décide de ce que le scan ouvre :
+
+| Qui scanne | Résultat |
+|---|---|
+| Équipe connectée autorisée à voir les clients (admin, responsable, réception, mécanicien) | Fiche du client, sur ce véhicule |
+| Compte entreprise **propriétaire** du véhicule | Espace entreprise, sur ce véhicule (ses propres règles d'accès, montants selon le rôle) |
+| Toute autre personne, **y compris une autre entreprise ou le magasinier** | Seulement : nom du garage, immatriculation, marque et modèle, boutons « Suivre ma réparation » (code à 4 chiffres toujours exigé), « Prendre rendez-vous », téléphone |
+| Jeton faux, renouvelé ou révoqué | « QR Code non valable », sans aucune donnée ; 30 essais faux par adresse IP et 15 minutes, puis blocage |
+
+- Posséder le QR ne donne **jamais** l'historique, les pièces, les devis, les factures, le nom du client ni les montants.
+- Page sans indexation, sans envoi de l'adresse aux autres sites (`no-referrer`).
+- Journal : `vehicle.qrIssue`, `vehicle.qrRenew`, `vehicle.qrRevoke` — **le jeton n'y est jamais écrit**.
+
+Migration `prisma/migrations/9_vehicle_qr/migration.sql` : 2 colonnes optionnelles + index unique (ajouts uniquement).
+
+### Tests réellement exécutés
+
+- `tests/vehicle-qr.db.test.ts` (6, vraie base PostgreSQL) : scan anonyme = plaque/marque/modèle uniquement (comparaison exacte de l'objet renvoyé) ; mécanicien → fiche, magasinier → carte publique ; entreprise propriétaire → portail, **autre entreprise → carte publique** ; renouvellement tue l'ancien jeton, révocation tue l'actuel ; jeton absent du journal ; 20 jetons tous différents ; mécanicien ne peut pas créer de QR ; jetons malformés/devinés refusés puis blocage après 30 essais (une autre adresse non bloquée).
+- **Vérifié dans un vrai navigateur** (serveur de test sur la base de test) : page de scan publique (plaque, modèle, deux actions, rien d'autre) et page « QR Code non valable ».
+- Suite complète : 239 tests unitaires, 46 tests base de données, `tsc`, `eslint`, `next build` : réussis.
+
+Non vérifié : impression physique de l'étiquette, scan avec un vrai téléphone (nécessite `APP_URL` accessible depuis le téléphone).
 
 ## Étape B — Stock : réservations, retours, corrections (V7.4)
 

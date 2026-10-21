@@ -55,7 +55,7 @@ export default async function CompanyHome() {
           </thead>
           <tbody>
             {overview.vehicles.map((v) => (
-              <tr key={v.id}>
+              <tr key={v.id} id={`vehicule-${v.id}`} className="scroll-mt-20 target:bg-accent">
                 <Td>
                   <PlateChip plate={v.plate} /> {v.make} {v.model} {v.year ?? ""}
                 </Td>

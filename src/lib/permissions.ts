@@ -16,6 +16,8 @@ const MATRIX = {
   viewFinance: ["ADMIN", "MANAGER", "RECEPTION"],
   uploadMedia: ["ADMIN", "MANAGER", "RECEPTION", "MECHANIC"],
   manageTracking: ["ADMIN", "MANAGER", "RECEPTION"],
+  /// Créer, imprimer, renouveler ou révoquer le QR Code d'un véhicule.
+  manageVehicleQr: ["ADMIN", "MANAGER", "RECEPTION"],
   viewAppointments: ["ADMIN", "MANAGER", "RECEPTION", "MECHANIC"],
   manageAppointments: ["ADMIN", "MANAGER", "RECEPTION"],
   useWorkshop: ["ADMIN", "MANAGER", "RECEPTION", "MECHANIC"],
