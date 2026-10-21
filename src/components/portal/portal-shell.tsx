@@ -44,11 +44,11 @@ export function PortalShell({
   return (
     <div className="ferrari flex min-h-dvh flex-col bg-background text-foreground">
       <header className="dark border-b border-[#303030] bg-black text-white">
-        <div className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-3">
+        <div className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-3 xl:max-w-7xl">
           <Link href="/" aria-label={garageName} className="group flex shrink-0 items-center gap-3 py-1">
             <GpMonogram className="h-9 w-auto shrink-0 text-white" aria-hidden />
-            <span className="hidden h-7 w-px bg-[#303030] sm:block" aria-hidden />
-            <GpWordmark className="h-2.5 w-auto shrink-0 text-white sm:h-3" aria-hidden />
+            <span className="hidden h-7 w-px bg-[#303030] sm:block xl:hidden" aria-hidden />
+            <GpWordmark className="h-2.5 w-auto shrink-0 text-white sm:h-3 xl:hidden" aria-hidden />
           </Link>
 
           <nav className="ms-auto hidden items-center xl:flex" aria-label="Navigation">
