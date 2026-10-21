@@ -43,10 +43,17 @@ export function TopNav({ logo, user, badges }: { logo: ReactNode; user: ShellUse
 function PageNav({ items, className, label }: { items: ReturnType<typeof pick>; className?: string; label: string }) {
   const pathname = usePathname();
   const { t } = useI18n();
+  const list = useRef<HTMLUListElement>(null);
+  // Phones: bring the active pill into view when it sits beyond the edge of the scrolling row.
+  useEffect(() => {
+    const ul = list.current;
+    const on = ul?.querySelector<HTMLElement>("[aria-current=page]");
+    if (ul && on && ul.scrollWidth > ul.clientWidth) on.scrollIntoView({ block: "nearest", inline: "center" });
+  }, [pathname]);
   if (items.length === 0) return null;
   return (
     <nav aria-label={label} className={cn("min-w-0", className)}>
-      <ul className={cn(pill, "gp-scroll-x flex h-14 items-center gap-1 overflow-x-auto p-1.5")}>
+      <ul ref={list} className={cn(pill, "gp-scroll-x flex h-14 items-center gap-1 overflow-x-auto p-1.5")}>
         {items.map((i) => {
           const active = isActive(pathname, i.href);
           return (

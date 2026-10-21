@@ -1,3 +1,4 @@
+import { v10PagesFr } from "@/lib/i18n/v10-pages-fr";
 /** V10 — refonte du tableau de bord (barre de pilules, rail, vue d'ensemble). */
 export const v10Fr = {
   nav: {
@@ -83,4 +84,5 @@ export const v10Fr = {
     watch: "À surveiller",
     weekTitle: "Les 7 derniers jours",
   },
+  pages: v10PagesFr,
 };

@@ -1,3 +1,4 @@
+import { v10PagesAr } from "@/lib/i18n/v10-pages-ar";
 import type { v10Fr } from "@/lib/i18n/v10-fr";
 
 /** V10 — إعادة تصميم لوحة القيادة. */
@@ -85,4 +86,5 @@ export const v10Ar: typeof v10Fr = {
     watch: "للمتابعة",
     weekTitle: "آخر 7 أيام",
   },
+  pages: v10PagesAr,
 };

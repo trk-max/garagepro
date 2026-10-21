@@ -1,6 +1,7 @@
 import "server-only";
 import type { Prisma } from "@prisma/client";
 import { AppError } from "@/lib/http";
+import { normalizePlate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import type { StaffUser } from "@/lib/session";
 import { audit } from "@/server/audit";
@@ -46,6 +47,12 @@ const toCard = (c: Row): CustomerCard => ({
   isFavorite: c.isFavorite,
 });
 
+/** Same plate search as the former customer list (V10 UI): "123 TU 4567" finds the owner. */
+function plateFilter(q: string): Prisma.CustomerWhereInput[] {
+  const key = normalizePlate(q);
+  return key.length >= 2 ? [{ vehicles: { some: { plate: { contains: key } } } }] : [];
+}
+
 /** One page of cards, by name; pass back `nextCursor` for the next page (null = last page). */
 export async function customerCards(opts: { tab?: CustomerTab; q?: string; take?: number; cursor?: string | null } = {}): Promise<{ items: CustomerCard[]; nextCursor: string | null }> {
   const take = Math.max(1, Math.min(opts.take ?? 24, 100));
@@ -53,7 +60,7 @@ export async function customerCards(opts: { tab?: CustomerTab; q?: string; take?
   const where: Prisma.CustomerWhereInput = {
     ...(opts.tab === "favourites" ? { isFavorite: true } : opts.tab === "companies" ? { isCompany: true } : {}),
     ...(q
-      ? { OR: [{ name: { contains: q, mode: "insensitive" } }, { phone: { contains: q.replace(/\s+/g, "") } }, { email: { contains: q, mode: "insensitive" } }] }
+      ? { OR: [{ name: { contains: q, mode: "insensitive" } }, { phone: { contains: q.replace(/\s+/g, "") } }, { email: { contains: q, mode: "insensitive" } }, ...plateFilter(q)] }
       : {}),
   };
   const rows = await prisma.customer.findMany({

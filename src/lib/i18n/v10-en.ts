@@ -1,3 +1,4 @@
+import { v10PagesEn } from "@/lib/i18n/v10-pages-en";
 import type { v10Fr } from "@/lib/i18n/v10-fr";
 
 /** V10 — dashboard redesign (pill bar, rail, overview). */
@@ -85,4 +86,5 @@ export const v10En: typeof v10Fr = {
     watch: "Keep an eye on",
     weekTitle: "Last 7 days",
   },
+  pages: v10PagesEn,
 };

@@ -8,19 +8,13 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { LANGS, type Lang } from "@/lib/format";
 import { useI18n } from "@/lib/i18n/client";
 import { can } from "@/lib/permissions";
+import { initials } from "@/components/shell/initials";
 
 export type ShellUser = { id: string; name: string; email: string; role: Role };
 
 export const SIGN_OUT_FORM = "gp-sign-out";
 const LANG_NAMES: Record<Lang, string> = { fr: "Français", ar: "العربية", en: "English" };
 
-export const initials = (name: string) =>
-  name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => w[0]!.toUpperCase())
-    .join("");
 
 /**
  * Account pill (initials, name, e-mail, chevron) and its menu: account page,
