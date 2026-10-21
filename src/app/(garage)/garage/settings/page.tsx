@@ -30,6 +30,7 @@ import { SettingsProfit } from "@/components/garage/settings-profit";
 import { SettingsWarranty } from "@/components/garage/settings-warranty";
 import { SettingsLogo } from "@/components/garage/settings-logo";
 import { SettingsCash } from "@/components/garage/settings-cash";
+import { SettingsTarget } from "@/components/garage/settings-target";
 import { SettingsReminders } from "@/components/garage/settings-reminders";
 import { EmailSettings } from "@/components/garage/email-settings";
 
@@ -265,6 +266,7 @@ export default async function SettingsPage() {
       <SettingsLogo t={t} settings={settings} />
       <SettingsWarranty t={t} settings={settings} />
       <SettingsCash t={t} settings={settings} />
+      <SettingsTarget t={t} settings={settings} />
       <SettingsReminders t={t} settings={settings} />
 
       <BookingSettings t={t} lang={lang} settings={settings} services={bookableServices} />

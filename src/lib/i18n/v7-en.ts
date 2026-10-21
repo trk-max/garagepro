@@ -846,6 +846,11 @@ export const v7En: typeof v7Fr = {
     limits: "Limits: an estimate, not accounting; no bank connection (the balance is typed by hand); a single garage, no branches; money received or paid without being recorded in GaragePro is only known by entering the balance again. Details: docs/GARANTIES-TRESORERIE.md.",
     empty: "No expected flow over this period.",
   },
+  monthlyTarget: {
+    title: "Monthly target",
+    intro: "Amount of payments aimed for each month, shown on the dashboard (to the roles that see finances). 0 = no target.",
+    amount: "Target (DT per month, 0 = none)",
+  },
   branding: {
     title: "Document logo",
     hint: "Printed at the top of invoices, quotes, purchase orders, receipts and certificates. PNG, JPEG or WEBP, 300 KB maximum (white or transparent background advised). Without a logo, the GaragePro one is used.",

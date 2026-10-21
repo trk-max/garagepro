@@ -845,6 +845,11 @@ export const v7Fr = {
     limits: "Limites : estimation, pas une comptabilité ; aucune connexion bancaire (le solde est saisi à la main) ; un seul garage, pas de succursales ; l'argent reçu ou payé sans être saisi dans GaragePro n'est connu qu'en ressaisissant le solde. Détails : docs/GARANTIES-TRESORERIE.md.",
     empty: "Aucun flux attendu sur cette période.",
   },
+  monthlyTarget: {
+    title: "Objectif mensuel",
+    intro: "Montant des encaissements visé chaque mois, affiché sur le tableau de bord (visible par les rôles qui voient les finances). 0 = pas d'objectif.",
+    amount: "Objectif (DT par mois, 0 = aucun)",
+  },
   branding: {
     title: "Logo des documents",
     hint: "Imprimé en haut des factures, devis, bons de commande, réceptions et attestations. PNG, JPEG ou WEBP, 300 Ko maximum (fond blanc ou transparent conseillé). Sans logo, celui de GaragePro est utilisé.",
