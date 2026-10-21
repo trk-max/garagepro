@@ -1,0 +1,30 @@
+import type { stockListFr } from "@/lib/i18n/stock-list-fr";
+
+export const stockListAr: typeof stockListFr = {
+  edit: "تعديل",
+  editTitle: "تعديل {name}",
+  adjust: "تسوية",
+  adjustTitle: "تسوية مخزون {name}",
+  saved: "تم حفظ القطعة.",
+  cols: {
+    sku: "المرجع",
+    name: "التسمية",
+    brandSupplier: "العلامة / المورد",
+    qty: "الكمية",
+    min: "الحد الأدنى",
+    state: "الحالة",
+    cost: "سعر الشراء",
+    value: "القيمة",
+    sale: "سعر البيع",
+  },
+  states: { ok: "جيد", low: "منخفض", out: "نفاد" },
+  count: "{n} قطعة",
+  summary: "{low} منخفض · {out} نفاد",
+  reserved: "منها {x} محجوز",
+  total: "المجموع",
+  totalQty: "{x} وحدة في المخزون",
+  sortBy: "ترتيب حسب {col}",
+  page: "الصفحة {p} من {n}",
+  prev: "السابق",
+  next: "التالي",
+};

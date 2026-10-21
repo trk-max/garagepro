@@ -22,6 +22,7 @@ export function ActionForm({
   reset = true,
   silent = false,
   successMessage,
+  closeDialog = false,
 }: {
   action: (form: FormData) => Promise<Result>;
   children: ReactNode;
@@ -29,6 +30,8 @@ export function ActionForm({
   reset?: boolean;
   silent?: boolean;
   successMessage?: string;
+  /** On success, close the <dialog> holding the form. */
+  closeDialog?: boolean;
 }) {
   const router = useRouter();
   const ref = useRef<HTMLFormElement>(null);
@@ -53,6 +56,7 @@ export function ActionForm({
           else if (successMessage) toast.success(successMessage);
           else if (!silent) toast.success(t.common.saved);
           if (reset) ref.current?.reset();
+          if (closeDialog) ref.current?.closest("dialog")?.close();
           if (result.data?.redirectTo) router.push(result.data.redirectTo);
         });
       }}

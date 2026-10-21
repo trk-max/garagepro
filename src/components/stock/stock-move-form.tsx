@@ -6,10 +6,10 @@ import { Input } from "@/components/ui/input";
 import type { Dictionary } from "@/lib/i18n/fr";
 
 /** The existing stock movement form (purchase / adjustment / supplier return) for one part — manageStock only. */
-export function StockMoveForm({ t, partId, suppliers, className }: { t: Dictionary; partId: string; suppliers: { id: string; name: string }[]; className?: string }) {
+export function StockMoveForm({ t, partId, suppliers, className, closeDialog = false }: { t: Dictionary; partId: string; suppliers: { id: string; name: string }[]; className?: string; closeDialog?: boolean }) {
   const v = t.v7.stock;
   return (
-    <ActionForm action={moveStockAction.bind(null, partId)} className={className ?? "mt-2 space-y-2"}>
+    <ActionForm action={moveStockAction.bind(null, partId)} className={className ?? "mt-2 space-y-2"} closeDialog={closeDialog}>
       <Input name="delta" required inputMode="decimal" placeholder="+10 / -2" dir="ltr" aria-label={t.parts.delta} />
       <NativeSelect name="reason" defaultValue="PURCHASE" aria-label={t.parts.reason}>
         <option value="PURCHASE">{t.parts.reasons.PURCHASE}</option>

@@ -1,5 +1,6 @@
 import { Package, Plus } from "lucide-react";
 import type { PartCard as Card } from "@/server/dashboard-v10-stock";
+import { EditPartButton } from "@/components/stock/part-edit-form";
 import { StockMoveForm } from "@/components/stock/stock-move-form";
 import { Chip } from "@/components/ui/redesign/chip";
 import { DialogButton } from "@/components/ui/redesign/dialog";
@@ -11,7 +12,7 @@ import { cn } from "@/lib/utils";
 /**
  * Part card (reference "goal" cards): tinted icon, supplier chip, ring = stock as % of
  * the minimum (red when low), name, "12 of 20 units", and "+ Add stock" opening the
- * existing stock movement form (manageStock only).
+ * existing stock movement form, and « Modifier » opening the existing part edit form (both manageStock only).
  */
 export function PartCard({ p, t, lang, canEdit, suppliers }: { p: Card; t: Dictionary; lang: Lang; canEdit: boolean; suppliers: { id: string; name: string }[] }) {
   const s = t.v10.pages.stock;
@@ -45,7 +46,7 @@ export function PartCard({ p, t, lang, canEdit, suppliers }: { p: Card; t: Dicti
         {fmt(s.units, { x: formatQty(p.stockX100, lang), y: formatQty(p.minStockX100, lang), unit: p.unit })}
       </p>
       {canEdit && (
-        <div className="mt-auto pt-3">
+        <div className="mt-auto flex flex-col gap-2 pt-3">
           <DialogButton
             id={`add-stock-${p.id}`}
             label={s.addStock}
@@ -57,6 +58,7 @@ export function PartCard({ p, t, lang, canEdit, suppliers }: { p: Card; t: Dicti
           >
             <StockMoveForm t={t} partId={p.id} suppliers={suppliers} className="space-y-3" />
           </DialogButton>
+          <EditPartButton t={t} part={p} className="h-10 w-full" />
         </div>
       )}
     </li>

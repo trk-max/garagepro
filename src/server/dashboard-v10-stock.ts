@@ -81,6 +81,10 @@ export type PartCard = {
   percentOfMin: number | null;
   isLow: boolean;
   unit: string;
+  /** For the « Modifier » form (rendered only for manageStock). */
+  brand: string | null;
+  costPrice: number;
+  salePrice: number;
 };
 
 /** Active parts by name, searchable by name / SKU / brand; `nextCursor` for the next page. viewStock is checked by the caller. */
@@ -96,7 +100,7 @@ export async function partCards(opts: { q?: string; take?: number; cursor?: stri
     orderBy: [{ name: "asc" }, { id: "asc" }],
     take: take + 1,
     ...(opts.cursor ? { cursor: { id: opts.cursor }, skip: 1 } : {}),
-    select: { id: true, name: true, sku: true, stockX100: true, minStockX100: true, unit: true, defaultSupplier: { select: { name: true } } },
+    select: { id: true, name: true, sku: true, brand: true, costPrice: true, salePrice: true, stockX100: true, minStockX100: true, unit: true, defaultSupplier: { select: { name: true } } },
   });
   const items = rows.slice(0, take).map((p) => ({
     id: p.id,
@@ -108,6 +112,9 @@ export async function partCards(opts: { q?: string; take?: number; cursor?: stri
     percentOfMin: percentOfMinimum(p.stockX100, p.minStockX100),
     isLow: isLow(p),
     unit: p.unit,
+    brand: p.brand,
+    costPrice: p.costPrice,
+    salePrice: p.salePrice,
   }));
   return { items, nextCursor: rows.length > take ? (items.at(-1)?.id ?? null) : null };
 }

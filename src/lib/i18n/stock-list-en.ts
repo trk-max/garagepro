@@ -1,0 +1,30 @@
+import type { stockListFr } from "@/lib/i18n/stock-list-fr";
+
+export const stockListEn: typeof stockListFr = {
+  edit: "Edit",
+  editTitle: "Edit {name}",
+  adjust: "Adjust",
+  adjustTitle: "Adjust the stock of {name}",
+  saved: "Part saved.",
+  cols: {
+    sku: "Reference",
+    name: "Description",
+    brandSupplier: "Brand / Supplier",
+    qty: "Quantity",
+    min: "Minimum",
+    state: "Status",
+    cost: "Cost price",
+    value: "Value",
+    sale: "Sale price",
+  },
+  states: { ok: "OK", low: "Low", out: "Out of stock" },
+  count: "{n} part(s)",
+  summary: "{low} low · {out} out of stock",
+  reserved: "incl. {x} reserved",
+  total: "Total",
+  totalQty: "{x} item(s) in stock",
+  sortBy: "Sort by {col}",
+  page: "Page {p} of {n}",
+  prev: "Previous",
+  next: "Next",
+};
