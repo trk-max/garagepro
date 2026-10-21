@@ -50,6 +50,28 @@ export async function sendSms(phone: string, text: string): Promise<boolean> {
   }
 }
 
+/** Same as sendSms, but returns the provider's error text (stored in the reminders history). */
+export async function sendSmsDetailed(phone: string, text: string): Promise<{ ok: boolean; error?: string }> {
+  const sid = process.env.TWILIO_ACCOUNT_SID;
+  const token = process.env.TWILIO_AUTH_TOKEN;
+  const from = process.env.TWILIO_FROM;
+  const to = toE164(phone);
+  if (!sid || !token || !from) return { ok: false, error: "SMS non configuré (TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM)" };
+  if (!to) return { ok: false, error: "Numéro de téléphone invalide" };
+  try {
+    const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
+      method: "POST",
+      headers: { Authorization: `Basic ${Buffer.from(`${sid}:${token}`).toString("base64")}`, "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ To: to, From: from, Body: text }),
+    });
+    if (res.ok) return { ok: true };
+    const body = await res.text();
+    return { ok: false, error: `Twilio ${res.status} : ${body.slice(0, 200)}` };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
 type NotifyMessage = { subject: string; text: string; brand?: string; attachment?: { filename: string; content: string } };
 
 /** Sends on every configured channel the customer can receive; returns the channels that worked. */

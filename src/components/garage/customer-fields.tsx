@@ -9,6 +9,7 @@ type CustomerDefaults = {
   address?: string | null;
   taxId?: string | null;
   notes?: string | null;
+  reminderOptOut?: boolean;
 };
 
 export function CustomerFields({ t, defaults = {} }: { t: Dictionary; defaults?: CustomerDefaults }) {
@@ -32,6 +33,10 @@ export function CustomerFields({ t, defaults = {} }: { t: Dictionary; defaults?:
       <Field label={t.common.notes} className="sm:col-span-2">
         <Textarea name="notes" rows={2} defaultValue={defaults.notes ?? ""} />
       </Field>
+      <label className="flex items-center gap-2 text-sm sm:col-span-2">
+        <input type="checkbox" name="reminderOptOut" defaultChecked={!!defaults.reminderOptOut} className="size-4" />
+        {t.v7.maintenance.optOutLabel}
+      </label>
     </div>
   );
 }

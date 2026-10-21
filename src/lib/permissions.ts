@@ -16,6 +16,10 @@ const MATRIX = {
   viewFinance: ["ADMIN", "MANAGER", "RECEPTION"],
   uploadMedia: ["ADMIN", "MANAGER", "RECEPTION", "MECHANIC"],
   manageTracking: ["ADMIN", "MANAGER", "RECEPTION"],
+  /// Plans d'entretien des véhicules (rappels vidange, filtres…).
+  manageMaintenance: ["ADMIN", "MANAGER", "RECEPTION"],
+  /// Historique des rappels envoyés aux clients.
+  viewNotifications: ["ADMIN", "MANAGER"],
   /// Créer, imprimer, renouveler ou révoquer le QR Code d'un véhicule.
   manageVehicleQr: ["ADMIN", "MANAGER", "RECEPTION"],
   viewAppointments: ["ADMIN", "MANAGER", "RECEPTION", "MECHANIC"],

@@ -79,6 +79,8 @@ export const customerSchema = z.object({
   address: optionalText(300),
   taxId: optionalText(40),
   notes: optionalText(2000),
+  /** Checkbox "refuse les rappels d'entretien". */
+  reminderOptOut: z.preprocess((v) => v === "on" || v === "true" || v === true, z.boolean()).default(false),
 });
 
 export const vehicleSchema = z.object({

@@ -27,6 +27,7 @@ import { listBookableServices } from "@/server/booking";
 import { BookingSettings } from "@/components/garage/booking-settings";
 import { SettingsV7 } from "@/components/garage/settings-v7";
 import { SettingsProfit } from "@/components/garage/settings-profit";
+import { SettingsReminders } from "@/components/garage/settings-reminders";
 import { EmailSettings } from "@/components/garage/email-settings";
 
 export default async function SettingsPage() {
@@ -255,6 +256,7 @@ export default async function SettingsPage() {
       </Card>
       <SettingsV7 t={t} settings={settings} />
       <SettingsProfit t={t} settings={settings} />
+      <SettingsReminders t={t} settings={settings} />
 
       <BookingSettings t={t} lang={lang} settings={settings} services={bookableServices} />
       <EmailSettings t={t} defaultTo={me.email} />

@@ -1,27 +1,37 @@
 import Link from "next/link";
-import { Card, CardTitle, PageHeader } from "@/components/ui/field";
+import { alertAction } from "@/actions/reminders";
+import { ActionForm } from "@/components/action-form";
 import { StatusBadge } from "@/components/garage/badges";
+import { Button } from "@/components/ui/button";
+import { Card, CardTitle, NativeSelect } from "@/components/ui/field";
+import { PageHeader } from "@/components/ui/field";
 import { fmt, formatDate, formatDateTime, woNumber } from "@/lib/format";
 import { getI18n } from "@/lib/i18n/server";
+import { prisma } from "@/lib/prisma";
 import { requirePageAccess } from "@/lib/session";
-import { delays } from "@/server/follow-up";
-import { getSettings } from "@/server/settings";
+import { listAlerts, type AlertItem, type AlertType } from "@/server/alerts";
 
-function lateLabel(since: Date, now: Date, lang: "fr" | "ar" | "en") {
-  const hours = Math.max(0, Math.round((now.getTime() - since.getTime()) / 3_600_000));
+const ORDER: AlertType[] = ["lateOrder", "deliveryRisk", "stuck", "latePart", "insurance", "lowStock"];
+
+function ago(since: Date, now: Date, lang: "fr" | "ar" | "en") {
+  const hours = Math.max(0, Math.round(Math.abs(now.getTime() - since.getTime()) / 3_600_000));
   const days = Math.floor(hours / 24);
   if (lang === "ar") return days ? `${days} يوم` : `${hours} س`;
   if (lang === "en") return days ? `${days} d` : `${hours} h`;
   return days ? `${days} j` : `${hours} h`;
 }
 
-/** Repairs late or blocked, with who to call and what to do. */
+/** Repairs late or blocked, with who to call, what to do, and who handles it. */
 export default async function DelaysPage() {
   await requirePageAccess("manageRepairFollowUp");
-  const [{ t, lang }, settings] = await Promise.all([getI18n(), getSettings()]);
-  const d = await delays(new Date(), settings);
+  const [{ t, lang }, a, staff] = await Promise.all([
+    getI18n(),
+    listAlerts(),
+    prisma.user.findMany({ where: { isActive: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
+  ]);
   const v = t.v7.delays;
-  const tz = settings.timezone;
+  const al = t.v7.alerts;
+  const tz = a.settings.timezone;
   const now = new Date();
   const tel = (p?: string | null) =>
     p ? (
@@ -29,110 +39,149 @@ export default async function DelaysPage() {
         {p}
       </a>
     ) : null;
-  const empty = d.lateOrders.length + d.lateParts.length + d.waitingParts.length + d.insurance.length === 0;
+
+  const Row = ({ x, quiet }: { x: AlertItem; quiet?: boolean }) => (
+    <li className="space-y-2 py-3">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+        {x.workOrder && (
+          <Link href={`/garage/work-orders/${x.workOrder.id}`} className="font-mono underline-offset-4 hover:underline">
+            {woNumber(x.workOrder.number)}
+          </Link>
+        )}
+        {x.workOrder && <span>{x.workOrder.plate}</span>}
+        {x.workOrder?.status && <StatusBadge status={x.workOrder.status as never} t={t} />}
+        {x.label && <span className="font-medium">{x.label}</span>}
+        <span className={quiet ? "text-muted-foreground" : "font-semibold text-red-600 dark:text-red-400"}>
+          {x.type === "deliveryRisk" ? fmt(al.dueIn, { d: ago(x.since, now, lang) }) : x.type === "lowStock" ? "" : fmt(v.lateBy, { d: ago(x.since, now, lang) })}
+        </span>
+        {x.type !== "lowStock" && <span className="text-xs text-muted-foreground">{formatDateTime(x.since, lang, tz)}</span>}
+        <span className="ms-auto text-xs">
+          {x.contact && (
+            <>
+              {v.contact} : {x.contact.name} {tel(x.contact.phone)}
+            </>
+          )}
+          {x.responsible && ` · ${v.responsible} : ${x.responsible}`}
+        </span>
+      </div>
+      <div className="flex flex-wrap items-center gap-2 text-xs">
+        <ActionForm action={alertAction} reset={false} silent className="flex items-center gap-1">
+          <input type="hidden" name="key" value={x.key} />
+          <input type="hidden" name="op" value="assign" />
+          <NativeSelect name="userId" defaultValue={x.state?.assignedToId ?? ""} aria-label={al.assign} className="h-7 text-xs">
+            <option value="">{al.unassigned}</option>
+            {staff.map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.name}
+              </option>
+            ))}
+          </NativeSelect>
+          <Button type="submit" size="sm" variant="outline" className="h-7">
+            {al.assign}
+          </Button>
+        </ActionForm>
+        {quiet ? (
+          <ActionForm action={alertAction} reset={false} silent>
+            <input type="hidden" name="key" value={x.key} />
+            <input type="hidden" name="op" value="reopen" />
+            <Button type="submit" size="sm" variant="outline" className="h-7">
+              {al.reopen}
+            </Button>
+          </ActionForm>
+        ) : (
+          <>
+            <ActionForm action={alertAction} reset={false} silent>
+              <input type="hidden" name="key" value={x.key} />
+              <input type="hidden" name="op" value="handle" />
+              <Button type="submit" size="sm" variant="outline" className="h-7">
+                {al.handled}
+              </Button>
+            </ActionForm>
+            {[1, 3].map((days) => (
+              <ActionForm key={days} action={alertAction} reset={false} silent>
+                <input type="hidden" name="key" value={x.key} />
+                <input type="hidden" name="op" value="snooze" />
+                <input type="hidden" name="days" value={days} />
+                <Button type="submit" size="sm" variant="ghost" className="h-7">
+                  {fmt(al.snooze, { n: days })}
+                </Button>
+              </ActionForm>
+            ))}
+          </>
+        )}
+        {x.state?.handledAt && <span className="text-muted-foreground">{fmt(al.handledOn, { date: formatDateTime(x.state.handledAt, lang, tz) })}</span>}
+        {x.state?.snoozedUntil && x.state.snoozedUntil > now && !x.state.handledAt && (
+          <span className="text-muted-foreground">{fmt(al.snoozedUntil, { date: formatDateTime(x.state.snoozedUntil, lang, tz) })}</span>
+        )}
+      </div>
+    </li>
+  );
 
   return (
     <div className="mx-auto max-w-6xl space-y-6 p-4 sm:p-6">
       <PageHeader title={v.title} />
-      {empty && <p className="border border-dashed p-10 text-center text-muted-foreground">{v.nothing}</p>}
+      <p className="text-xs text-muted-foreground">
+        {fmt(al.thresholds, { stuck: a.settings.alertStuckDays, risk: a.settings.alertDeliveryRiskHours, insurance: a.settings.alertInsuranceDays })}
+      </p>
+      {a.open.length === 0 && a.waitingParts.length === 0 && <p className="border border-dashed p-10 text-center text-muted-foreground">{v.nothing}</p>}
 
-      {d.lateOrders.length > 0 && (
+      {ORDER.map((type) => {
+        const list = a.open.filter((x) => x.type === type);
+        if (list.length === 0) return null;
+        return (
+          <Card key={type}>
+            <CardTitle>
+              {al.types[type]} ({list.length})
+            </CardTitle>
+            <p className="mb-1 text-xs text-muted-foreground">
+              {v.action} : {al.actions[type]}
+            </p>
+            <ul className="divide-y">
+              {list.map((x) => (
+                <Row key={x.key} x={x} />
+              ))}
+            </ul>
+          </Card>
+        );
+      })}
+
+      {a.waitingParts.length > 0 && (
         <Card>
           <CardTitle>
-            {v.lateOrders} ({d.lateOrders.length})
+            {v.waitingParts} ({a.waitingParts.length})
           </CardTitle>
-          <p className="mb-3 text-xs text-muted-foreground">
-            {v.action} : {v.actions.order}
-          </p>
           <ul className="divide-y text-sm">
-            {d.lateOrders.map((w) => (
-              <li key={w.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2">
-                <Link href={`/garage/work-orders/${w.id}`} className="font-mono underline-offset-4 hover:underline">
-                  {woNumber(w.number)}
+            {a.waitingParts.map((p) => (
+              <li key={p.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2">
+                <Link href={`/garage/work-orders/${p.workOrder.id}`} className="font-mono underline-offset-4 hover:underline">
+                  {woNumber(p.workOrder.number)}
                 </Link>
-                <span>{w.vehicle.plate}</span>
-                <StatusBadge status={w.status} t={t} />
-                <span className="font-semibold text-red-600 dark:text-red-400">{fmt(v.lateBy, { d: lateLabel(w.promisedAt!, now, lang) })}</span>
-                <span className="text-muted-foreground">{formatDateTime(w.promisedAt!, lang, tz)}</span>
-                <span className="ms-auto text-xs">
-                  {v.contact} : {w.customer.name} {tel(w.customer.phone)}
-                  {w.mechanic && ` · ${v.responsible} : ${w.mechanic.name}`}
-                </span>
+                <span>{p.workOrder.vehicle.plate}</span>
+                <span className="font-medium">{p.description}</span>
+                <span className="text-xs text-muted-foreground">{t.v7.parts.status[p.status]}</span>
+                {p.expectedAt && <span className="text-muted-foreground">{formatDate(p.expectedAt, lang, tz)}</span>}
+                {p.supplier && (
+                  <span className="ms-auto text-xs">
+                    {v.contact} : {p.supplier.name} {tel(p.supplier.phone)}
+                  </span>
+                )}
               </li>
             ))}
           </ul>
         </Card>
       )}
 
-      {d.waitingParts.length > 0 && (
-        <Card>
-          <CardTitle>
-            {v.waitingParts} ({d.waitingParts.length})
-          </CardTitle>
-          <p className="mb-3 text-xs text-muted-foreground">
-            {v.action} : {v.actions.part}
-          </p>
-          <ul className="divide-y text-sm">
-            {d.waitingParts.map((p) => {
-              const late = p.expectedAt && p.expectedAt < d.cutoffs.part;
-              return (
-                <li key={p.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2">
-                  <Link href={`/garage/work-orders/${p.workOrder.id}`} className="font-mono underline-offset-4 hover:underline">
-                    {woNumber(p.workOrder.number)}
-                  </Link>
-                  <span>{p.workOrder.vehicle.plate}</span>
-                  <span className="font-medium">{p.description}</span>
-                  <span className="text-xs text-muted-foreground">{t.v7.parts.status[p.status]}</span>
-                  {p.expectedAt && (
-                    <span className={late ? "font-semibold text-red-600 dark:text-red-400" : "text-muted-foreground"}>
-                      {formatDate(p.expectedAt, lang, tz)}
-                      {late && ` · ${fmt(v.lateBy, { d: lateLabel(p.expectedAt, now, lang) })}`}
-                    </span>
-                  )}
-                  {p.supplier && (
-                    <span className="ms-auto text-xs">
-                      {v.contact} : {p.supplier.name} {tel(p.supplier.phone)}
-                    </span>
-                  )}
-                </li>
-              );
-            })}
+      {a.quiet.length > 0 && (
+        <details className="border p-4">
+          <summary className="cursor-pointer text-sm font-medium">
+            {al.quiet} ({a.quiet.length})
+          </summary>
+          <ul className="mt-2 divide-y">
+            {a.quiet.map((x) => (
+              <Row key={x.key} x={x} quiet />
+            ))}
           </ul>
-        </Card>
-      )}
-
-      {d.insurance.length > 0 && (
-        <Card>
-          <CardTitle>
-            {v.insurance} ({d.insurance.length})
-          </CardTitle>
-          <p className="mb-3 text-xs text-muted-foreground">
-            {v.action} : {v.actions.insurance}
-          </p>
-          <ul className="divide-y text-sm">
-            {d.insurance.map((w) => {
-              const since = w.insuranceRequestedAt ?? w.updatedAt;
-              const late = d.insuranceLate.some((x) => x.id === w.id);
-              return (
-                <li key={w.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2">
-                  <Link href={`/garage/work-orders/${w.id}`} className="font-mono underline-offset-4 hover:underline">
-                    {woNumber(w.number)}
-                  </Link>
-                  <span>{w.vehicle.plate}</span>
-                  <span>{w.insurerName ?? "—"}</span>
-                  {w.insuranceClaimRef && <span className="font-mono text-xs">{w.insuranceClaimRef}</span>}
-                  <span className={late ? "font-semibold text-red-600 dark:text-red-400" : "text-muted-foreground"}>
-                    {fmt(t.v7.insurance.waitingSince, { n: Math.floor((now.getTime() - since.getTime()) / 86_400_000) })}
-                    {late && ` (${fmt(v.insuranceLate, { n: d.cutoffs.values.alertInsuranceDays })})`}
-                  </span>
-                  <span className="ms-auto text-xs">
-                    {v.contact} : {w.customer.name} {tel(w.customer.phone)}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-        </Card>
+        </details>
       )}
     </div>
   );

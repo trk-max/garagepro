@@ -177,18 +177,21 @@ model User {
 // ── Clients & véhicules ──────────────────────────────────────────────────────
 
 model Customer {
-  id        String   @id @default(cuid())
-  name      String
-  phone     String
-  email     String?
-  address   String?
+  id             String   @id @default(cuid())
+  name           String
+  phone          String
+  email          String?
+  address        String?
   /// Matricule fiscal pour les clients professionnels (facturation).
-  taxId     String?
-  notes     String?
+  taxId          String?
+  notes          String?
   /// Client professionnel (flotte) : peut avoir des comptes sur le portail entreprise.
-  isCompany Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  isCompany      Boolean  @default(false)
+  /// Le client refuse les rappels d'entretien (SMS / e-mail). Les messages de service
+  /// (RDV, voiture prête, livraison prévue) restent envoyés.
+  reminderOptOut Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   companyUsers CompanyUser[]
   vehicles     Vehicle[]
@@ -221,9 +224,10 @@ model Vehicle {
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
 
-  customer     Customer      @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  customer     Customer             @relation(fields: [customerId], references: [id], onDelete: Restrict)
   workOrders   WorkOrder[]
   appointments Appointment[]
+  maintenance  VehicleMaintenance[]
 
   @@index([customerId])
 }
@@ -484,58 +488,68 @@ model Sequence {
 
 /// Paramètres du garage (une seule ligne, id = "garage").
 model Setting {
-  id                  String   @id @default("garage")
-  garageName          String   @default("Mon Garage")
-  address             String?
-  phone               String?
-  email               String?
-  taxId               String?
+  id                     String   @id @default("garage")
+  garageName             String   @default("Mon Garage")
+  address                String?
+  phone                  String?
+  email                  String?
+  taxId                  String?
   /// Taux horaire main d'œuvre, millimes HT.
-  laborRate           Int      @default(35000)
-  defaultTaxBp        Int      @default(1900)
+  laborRate              Int      @default(35000)
+  defaultTaxBp           Int      @default(1900)
   /// Droit de timbre par facture, millimes.
-  stampDuty           Int      @default(1000)
-  invoiceFooter       String?
+  stampDuty              Int      @default(1000)
+  invoiceFooter          String?
   /// Délai de paiement client en jours (échéance = date facture + délai).
-  paymentTermsDays    Int      @default(15)
+  paymentTermsDays       Int      @default(15)
   /// Fuseau horaire du garage (créneaux de réservation).
-  timezone            String   @default("Africa/Tunis")
-  bookingEnabled      Boolean  @default(true)
+  timezone               String   @default("Africa/Tunis")
+  bookingEnabled         Boolean  @default(true)
   /// Pas entre deux créneaux proposés (minutes).
-  bookingSlotMinutes  Int      @default(30)
+  bookingSlotMinutes     Int      @default(30)
   /// Nombre de véhicules pris en charge en parallèle (ponts / postes).
-  bookingCapacity     Int      @default(3)
+  bookingCapacity        Int      @default(3)
   /// Délai minimum avant un RDV (minutes).
-  bookingLeadMinutes  Int      @default(120)
+  bookingLeadMinutes     Int      @default(120)
   /// Jusqu'à combien de jours à l'avance on peut réserver.
-  bookingHorizonDays  Int      @default(30)
+  bookingHorizonDays     Int      @default(30)
   /// Horaires par jour (0 = dimanche) : { "1": { "open": "08:00", "close": "17:00" }, "0": null }
   /// Raison sociale, représentant légal, ville (attestations de travail).
-  legalName           String?
-  legalRepName        String?
-  legalRepTitle       String?
-  city                String?
+  legalName              String?
+  legalRepName           String?
+  legalRepTitle          String?
+  city                   String?
   /// Pointage : "CODE" (code de la borne), "NETWORK" (réseau du garage) ou "CODE_AND_NETWORK".
-  clockMode           String   @default("CODE")
+  clockMode              String   @default("CODE")
   /// Réseaux autorisés pour le pointage, ex. "192.168.100.0/24, 41.226.10.5".
-  clockNetworks       String?
+  clockNetworks          String?
   /// Facturation de la main-d'œuvre proposée à partir du temps passé :
   /// "ELAPSED" (temps de l'intervention, même si plusieurs mécaniciens) ou "PERSON" (somme des heures de chacun).
-  laborBillingMode    String   @default("ELAPSED")
+  laborBillingMode       String   @default("ELAPSED")
   /// Seuils de la page « Suivi & retards » (et du compteur du menu) :
   /// livraison promise dépassée depuis plus de N heures (0 = dès que l'heure est passée),
   /// pièce attendue en retard depuis plus de N jours, assurance sans réponse depuis plus de N jours.
-  alertOrderLateHours Int      @default(0)
-  alertPartLateDays   Int      @default(0)
-  alertInsuranceDays  Int      @default(3)
+  alertOrderLateHours    Int      @default(0)
+  alertPartLateDays      Int      @default(0)
+  alertInsuranceDays     Int      @default(3)
   /// Rentabilité : coût horaire moyen de la main-d'œuvre pour le garage (millimes / heure ; 0 = non renseigné).
-  laborCostPerHour    Int      @default(0)
+  laborCostPerHour       Int      @default(0)
   /// Frais indirects : "NONE", "PERCENT_REVENUE" (overheadValue = points de base du CA HT)
   /// ou "PER_LABOR_HOUR" (overheadValue = millimes par heure-personne).
-  overheadMode        String   @default("NONE")
-  overheadValue       Int      @default(0)
-  openingHours        Json     @default("{\"0\":null,\"1\":{\"open\":\"08:00\",\"close\":\"17:00\"},\"2\":{\"open\":\"08:00\",\"close\":\"17:00\"},\"3\":{\"open\":\"08:00\",\"close\":\"17:00\"},\"4\":{\"open\":\"08:00\",\"close\":\"17:00\"},\"5\":{\"open\":\"08:00\",\"close\":\"17:00\"},\"6\":{\"open\":\"08:00\",\"close\":\"13:00\"}}")
-  updatedAt           DateTime @updatedAt
+  overheadMode           String   @default("NONE")
+  overheadValue          Int      @default(0)
+  /// Rappels : envoyer N jours avant l'échéance d'entretien.
+  reminderLeadDays       Int      @default(7)
+  /// Alertes : réparation sans changement de statut depuis plus de N jours ;
+  /// livraison promise dans moins de N heures alors que le véhicule n'est pas en fin de travaux.
+  alertStuckDays         Int      @default(5)
+  alertDeliveryRiskHours Int      @default(24)
+  /// Modèles de message (null = texte par défaut). Variables : {garage} {plate} {item} {date} {km} {time} {phone}.
+  tplMaintenance         String?
+  tplAppointment         String?
+  tplDelivery            String?
+  openingHours           Json     @default("{\"0\":null,\"1\":{\"open\":\"08:00\",\"close\":\"17:00\"},\"2\":{\"open\":\"08:00\",\"close\":\"17:00\"},\"3\":{\"open\":\"08:00\",\"close\":\"17:00\"},\"4\":{\"open\":\"08:00\",\"close\":\"17:00\"},\"5\":{\"open\":\"08:00\",\"close\":\"17:00\"},\"6\":{\"open\":\"08:00\",\"close\":\"13:00\"}}")
+  updatedAt              DateTime @updatedAt
 }
 
 // ── Espace fournisseur ───────────────────────────────────────────────────────
@@ -1135,4 +1149,68 @@ model StockReservation {
 
   @@index([partId, status])
   @@index([workOrderId, status])
+}
+
+/// Plan d'entretien d'un véhicule : à refaire tous les N jours et/ou tous les N km.
+model VehicleMaintenance {
+  id           String    @id @default(cuid())
+  vehicleId    String
+  /// "OIL", "FILTERS", "SERVICE", "BRAKES", "TIRES", "BATTERY" ou "OTHER".
+  kind         String
+  label        String?
+  intervalDays Int?
+  intervalKm   Int?
+  lastDoneAt   DateTime?
+  lastDoneKm   Int?
+  isActive     Boolean   @default(true)
+  createdById  String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
+
+  @@index([vehicleId])
+}
+
+/// Historique des messages aux clients (rappels). Une ligne par canal ; dedupeKey
+/// empêche d'envoyer deux fois le même rappel. Jamais simulé : SKIPPED dit pourquoi.
+model Notification {
+  id            String    @id @default(cuid())
+  /// "MAINTENANCE", "APPOINTMENT" ou "DELIVERY".
+  kind          String
+  /// "SMS", "EMAIL" ou "NONE" (aucun canal possible).
+  channel       String
+  dedupeKey     String
+  customerId    String?
+  vehicleId     String?
+  workOrderId   String?
+  appointmentId String?
+  maintenanceId String?
+  to            String?
+  subject       String?
+  body          String
+  /// "PENDING", "SENDING", "SENT", "FAILED" (réessayé) ou "SKIPPED".
+  status        String    @default("PENDING")
+  error         String?
+  attempts      Int       @default(0)
+  nextAttemptAt DateTime?
+  sentAt        DateTime?
+  createdAt     DateTime  @default(now())
+
+  @@unique([dedupeKey, channel])
+  @@index([status, nextAttemptAt])
+  @@index([createdAt])
+}
+
+/// Suivi d'une alerte de la page « Suivi & retards » : assignée, traitée, reportée.
+/// La clé contient la date concernée : si la situation change (nouvelle date promise…),
+/// c'est une nouvelle alerte.
+model AlertState {
+  key          String    @id
+  assignedToId String?
+  handledAt    DateTime?
+  handledById  String?
+  snoozedUntil DateTime?
+  note         String?
+  updatedAt    DateTime  @updatedAt
 }

@@ -4,7 +4,7 @@
 
 <h1 align="center">GaragePro</h1>
 <p align="center"><b>Gestion d'atelier mécanique + site client + espace équipe + portail entreprises</b> · Français / العربية / English</p>
-<p align="center">Version <b>7.5</b> — application PC / téléphone, fonctionne aussi <b>sans internet</b> (hub du garage)</p>
+<p align="center">Version <b>7.6</b> — application PC / téléphone, fonctionne aussi <b>sans internet</b> (hub du garage)</p>
 <p align="center">Next.js 15 · TypeScript · Tailwind v4 · PostgreSQL (Supabase) + Prisma 6 · Auth.js v5 · Vercel</p>
 
 <p align="center">
@@ -21,6 +21,16 @@
 | ![Version mobile en arabe](docs/media/08-mobile-arabe.jpg) **Mobile + arabe (RTL)** | ![Connexion de l'équipe](docs/media/03-connexion-equipe.jpg) **Connexion de l'équipe** |
 
 > Photos et vidéos du site : dossier `public/site/` (voir « Photos et vidéos du site » plus bas). Pour mettre une **vidéo** dans ce README sur GitHub : modifiez le fichier sur github.com et glissez-déposez un `.mp4` (moins de 10 Mo) dans l'éditeur, GitHub crée le lien tout seul.
+
+## Nouveautés V7.6 — rappels clients et alertes
+
+| | |
+|---|---|
+| **Plans d'entretien** | Fiche client → véhicule → *Entretien* : vidange, filtres… tous les N jours et/ou N km. Le kilométrage n'est jamais deviné. |
+| **Rappels automatiques** | Entretien, rendez-vous et livraison du lendemain, par SMS (Twilio) et/ou e-mail **s'ils sont configurés**. Modèles modifiables, refus du client respecté, pas de doublon, réessais. Menu *Rappels clients* : historique, erreurs, réessayer. |
+| **Alertes** | *Suivi & retards* : + réparations bloquées, livraisons à risque, stock minimal ; assigner, marquer traitée, reporter. |
+
+Configuration : `CRON_SECRET` (16 caractères min.) dans le `.env` du PC du garage **et** sur Vercel. Base : `npm run db:cloud` (migration `10_reminders_alerts`). Détails et tests : [`docs/RAPPORT-PROMPT2.md`](docs/RAPPORT-PROMPT2.md).
 
 ## Nouveautés V7.5 — QR Code sécurisé par véhicule
 

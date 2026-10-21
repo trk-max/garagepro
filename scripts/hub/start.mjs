@@ -31,3 +31,23 @@ if (addresses.length) console.log(`  Téléphones et tablettes sur le Wi-Fi du g
 const server = spawn(process.execPath, [path.join(ROOT, "scripts/serve.mjs")], { stdio: "inherit", env: process.env });
 server.on("exit", (code) => process.exit(code ?? 0));
 void loop();
+
+// Customer reminders: with a hub, the garage PC is the one that sends them (the
+// online copy skips), every hour, through the app's protected cron route.
+const cronSecret = process.env.CRON_SECRET;
+if (cronSecret && cronSecret.length >= 16) {
+  const runReminders = async () => {
+    try {
+      const res = await fetch(`http://localhost:${port}/api/cron/reminders`, { headers: { Authorization: `Bearer ${cronSecret}` } });
+      const r = await res.json().catch(() => ({}));
+      if (res.ok && (r.queued || r.sent || r.failed)) console.log(`  Rappels clients : ${r.queued} nouveau(x), ${r.sent} envoyé(s), ${r.failed} échec(s)`);
+      else if (!res.ok) console.error(`  ⚠ Rappels clients : erreur ${res.status}`);
+    } catch {
+      /* app still starting, or offline: next hour */
+    }
+  };
+  setTimeout(runReminders, 60_000);
+  setInterval(runReminders, 60 * 60_000);
+} else {
+  console.log("  Rappels clients automatiques : désactivés (ajoutez CRON_SECRET, 16 caractères min., dans le .env).");
+}

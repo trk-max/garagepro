@@ -89,7 +89,7 @@ export async function getCustomer(id: string) {
   return { ...customer, totalInvoiced: invoiced._sum.totalTtc ?? 0 };
 }
 
-const CUSTOMER_AUDIT = { name: true, phone: true, email: true, address: true, taxId: true, notes: true, isCompany: true } as const;
+const CUSTOMER_AUDIT = { name: true, phone: true, email: true, address: true, taxId: true, notes: true, isCompany: true, reminderOptOut: true } as const;
 
 export async function createCustomer(data: Prisma.CustomerCreateInput, actor: StaffUser) {
   return prisma.$transaction(async (tx) => {

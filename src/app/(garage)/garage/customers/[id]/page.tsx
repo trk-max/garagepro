@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { QrCode, Plus } from "lucide-react";
+import { Wrench, QrCode, Plus } from "lucide-react";
 import { addVehicleAction, updateCustomerAction } from "@/actions/catalog";
 import { ActionForm } from "@/components/action-form";
 import { PlateChip, StatusBadge } from "@/components/garage/badges";
@@ -63,6 +63,13 @@ export default async function CustomerPage({ params }: PageProps) {
                         <Plus className="size-3.5" aria-hidden /> {t.customers.newWorkOrder}
                       </Link>
                     </Button>
+                    {can(staff.role, "manageMaintenance") && (
+                      <Button asChild size="sm" variant="outline" className="ms-2 mt-2">
+                        <Link href={`/garage/vehicules/${v.id}/entretien`}>
+                          <Wrench className="size-3.5" aria-hidden /> {t.v7.maintenance.button}
+                        </Link>
+                      </Button>
+                    )}
                     {can(staff.role, "manageVehicleQr") && (
                       <Button asChild size="sm" variant="outline" className="ms-2 mt-2">
                         <Link href={`/garage/vehicules/${v.id}/qr`}>

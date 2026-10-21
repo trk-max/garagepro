@@ -7,8 +7,37 @@ Avancement par étape. Chaque étape est commitée séparément ; rien n'est pou
 | A | Bénéfice réel par réparation | **Terminée et testée** (V7.3) |
 | B | Stock : réservations, retours fournisseur, corrections liées | **Terminée et testée** (V7.4) |
 | C | QR Code sécurisé par véhicule | **Terminée et testée** (V7.5) |
-| D | Rappels clients et alertes (assignation, traitement, anti-répétition) | À faire |
+| D | Rappels clients et alertes (assignation, traitement, anti-répétition) | **Terminée et testée** (V7.6) |
 | E | Sauvegardes chiffrées avec restauration testée | À faire |
+
+## Étape D — Rappels clients et alertes (V7.6)
+
+### Rappels clients
+
+- **Plans d'entretien par véhicule** (fiche client → véhicule → *Entretien*) : vidange, filtres, entretien périodique, freins, pneus, batterie, autre ; tous les N jours et/ou N km, à partir de la dernière fois (date + km). Bouton *Fait* : redémarre le compte ; le kilométrage du véhicule n'est relevé que s'il est saisi et plus élevé (jamais baissé, jamais inventé).
+- **Échéance au km** : comparée au dernier kilométrage **enregistré**. Sans kilométrage, la règle au km est affichée « impossible à calculer » et **aucun rappel n'est envoyé sur cette base**.
+- Rappels envoyés : entretien (N jours avant, réglable), rendez-vous dans les 24 h, livraison promise dans les 24 h.
+- **Canaux** : SMS (Twilio) et e-mail (Resend / Gmail) **seulement s'ils sont configurés**. Rien n'est simulé : *Envoyé* uniquement si le fournisseur a accepté ; *Échec* avec le message du fournisseur, réessayé 3 fois (15 min, 30 min, 1 h) ; *Non envoyé* avec la raison (aucun canal configuré, pas de téléphone/e-mail).
+- **Modèles de messages** modifiables (Paramètres → Rappels et alertes), variables `{garage} {plate} {item} {when} {date} {time} {km} {phone}`.
+- **Consentement** : case « Refuse les rappels d'entretien » sur la fiche client ; respectée. Les messages de service (RDV, livraison) restent envoyés.
+- **Pas de doublon** : (rappel, canal) unique en base ; chaque envoi est « réservé » avant d'être fait — deux exécutions simultanées n'envoient qu'une fois.
+- **Historique** : menu *Rappels clients* (admin, responsable) : statut, erreurs, nombre d'essais, *Réessayer*, état de la configuration, *Lancer maintenant* (admin).
+- **Planification** : en ligne, Vercel Cron chaque jour à 7 h UTC (`vercel.json`) ; avec le hub, le PC du garage toutes les heures et **la copie en ligne n'envoie pas** (pas de double message). Route `/api/cron/reminders` protégée par `CRON_SECRET` (comparaison à temps constant ; sans secret : tout est refusé).
+- Espace entreprise : bloc « Entretiens à prévoir » limité aux véhicules de l'entreprise.
+
+### Alertes (page Suivi & retards)
+
+Nouvelles alertes : **réparation bloquée** (statut inchangé depuis N jours), **livraison à risque** (promise dans moins de N heures, pas en fin de travaux), **stock minimal**, en plus des livraisons dépassées, pièces en retard et assurance. Chaque alerte : dossier, durée, responsable, contact, action recommandée ; **assigner**, **traitée**, **reporter 1 ou 3 jours**, **rouvrir**. Une alerte traitée sort de la liste ; si la situation change (nouvelle heure promise…), c'est une nouvelle alerte. Seuils dans Paramètres → Rappels et alertes. Journal : `alert.*`, `maintenance.*`, `settings.reminders`.
+
+Migration `prisma/migrations/10_reminders_alerts/migration.sql` — ajouts uniquement.
+
+### Tests réellement exécutés
+
+- `tests/maintenance.test.ts` (8) : échéances date/km, km inconnu jamais deviné, le premier atteint l'emporte, jamais fait, une clé par occurrence, modèles, délais de réessai.
+- `tests/reminders.db.test.ts` (12, vraie base, faux fournisseurs SMS/e-mail) : envoi réel enregistré et pas de doublon au 2e passage ; refus du client respecté ; km inconnu ⇒ aucun rappel ; aucun canal ⇒ « non envoyé » avec la raison ; erreur fournisseur ⇒ échec, réessai au bon moment, abandon après 3 ; **deux exécutions simultanées ⇒ un seul SMS** ; RDV et livraison du lendemain ; hub ⇒ la copie en ligne n'envoie pas ; espace entreprise limité à ses véhicules ; route planifiée refusée sans le secret exact ; alertes bloquée / à risque / stock ; traitée, nouvelle alerte si nouvelle date, report, réouverture, journal, clé invalide refusée.
+- Suite complète : 247 tests unitaires, 58 tests base de données, `tsc`, `eslint`, `next build` : réussis.
+
+**Non vérifié** (nécessite vos identifiants) : envoi réel d'un SMS Twilio ou d'un e-mail, exécution réelle de Vercel Cron. À faire : ajouter `CRON_SECRET` dans le `.env` du PC du garage et sur Vercel.
 
 ## Étape C — QR Code sécurisé par véhicule (V7.5)
 
