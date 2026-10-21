@@ -9,7 +9,7 @@ import { InstallAppButton } from "@/components/pwa/install-app-button";
 import { clearPrivateCache } from "@/components/pwa/pwa-register";
 import { HubStatus } from "@/components/pwa/hub-status";
 import {
-  BellRing, TrendingUp, Building2, BarChart3,
+  DatabaseBackup, BellRing, TrendingUp, Building2, BarChart3,
   CalendarRange,
   Clock3,
   History,
@@ -61,10 +61,11 @@ type NavKey =
   | "audit"
   | "companies"
   | "profitability"
-  | "notifications";
+  | "notifications"
+  | "backups";
 
-type V7Key = "timeClock" | "team" | "calendar" | "delays" | "audit" | "companies" | "profitability" | "notifications";
-const V7_KEYS: V7Key[] = ["timeClock", "team", "calendar", "delays", "audit", "companies", "profitability", "notifications"];
+type V7Key = "timeClock" | "team" | "calendar" | "delays" | "audit" | "companies" | "profitability" | "notifications" | "backups";
+const V7_KEYS: V7Key[] = ["timeClock", "team", "calendar", "delays", "audit", "companies", "profitability", "notifications", "backups"];
 
 type Item = { key: NavKey; href: string; icon: LucideIcon; permission?: Permission };
 type Group = { title?: "clientSpace" | "supplierSpace" | "teamSpace"; items: Item[] };
@@ -108,6 +109,7 @@ const GROUPS: Group[] = [
       { key: "reports", href: "/garage/rapports", icon: BarChart3, permission: "viewReports" },
       { key: "profitability", href: "/garage/rentabilite", icon: TrendingUp, permission: "viewProfit" },
       { key: "audit", href: "/garage/journal", icon: History, permission: "viewAuditLog" },
+      { key: "backups", href: "/garage/sauvegardes", icon: DatabaseBackup, permission: "manageSettings" },
       { key: "settings", href: "/garage/settings", icon: Settings, permission: "manageSettings" },
     ],
   },

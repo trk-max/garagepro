@@ -33,7 +33,11 @@
     "hub:sync": "node --env-file=.env scripts/hub/run-sync.mjs --once",
     "test:hub": "vitest run tests/hub-sync.test.ts",
     "test:db": "node scripts/test-db-client.mjs && vitest run --config vitest.db.config.ts",
-    "db:cloud": "node --env-file=.env scripts/hub/migrate-cloud.mjs"
+    "db:cloud": "node --env-file=.env scripts/hub/migrate-cloud.mjs",
+    "backup": "node --env-file=.env scripts/backup/run.mjs",
+    "backup:key": "node --env-file-if-exists=.env scripts/backup/tools.mjs key",
+    "backup:verify": "node --env-file=.env scripts/backup/tools.mjs verify",
+    "backup:restore": "node --env-file=.env scripts/backup/tools.mjs restore"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

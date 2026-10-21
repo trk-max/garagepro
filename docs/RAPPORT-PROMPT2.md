@@ -8,7 +8,32 @@ Avancement par étape. Chaque étape est commitée séparément ; rien n'est pou
 | B | Stock : réservations, retours fournisseur, corrections liées | **Terminée et testée** (V7.4) |
 | C | QR Code sécurisé par véhicule | **Terminée et testée** (V7.5) |
 | D | Rappels clients et alertes (assignation, traitement, anti-répétition) | **Terminée et testée** (V7.6) |
-| E | Sauvegardes chiffrées avec restauration testée | À faire |
+| E | Sauvegardes chiffrées avec restauration testée | **Terminée et testée** (V7.7) |
+
+## Bilan du Prompt 2/5
+
+Toutes les étapes sont terminées et testées. Suite complète à la fin de l'étape E : **252 tests unitaires et 62 tests sur une vraie base PostgreSQL de test** réussis, `tsc`, `eslint` et `next build` réussis. Migrations 7 à 10 : ajouts uniquement, rejouables.
+
+**Nécessite vos identifiants ou une action de votre part (non vérifié ici)** : envoi réel de SMS (Twilio) et d'e-mails ; Vercel Cron (`CRON_SECRET` sur Vercel et dans le `.env` du hub) ; clé de sauvegarde et 2e emplacement sur le PC du garage ; scan d'un QR avec un vrai téléphone (`APP_URL`) ; vérification visuelle des écrans réservés aux comptes connectés.
+
+## Étape E — Sauvegardes chiffrées avec restauration testée (V7.7)
+
+Procédure complète : [`docs/SAUVEGARDES.md`](SAUVEGARDES.md).
+
+- Copie cohérente (`pg_dump` dans un instantané figé), **chiffrement AES-256-GCM** avec une clé hors du projet (`npm run backup:key`, jamais écrasée), empreintes SHA-256.
+- **Vérification par restauration réelle** dans une base jetable, comparaison du nombre de lignes de **chaque table** avec l'instantané d'origine, base jetable supprimée ensuite. « Restauration testée » n'est affiché que si tout correspond ; sinon « intégrité seulement » ou « échouée ».
+- **2e emplacement** (`BACKUP_COPY_DIR`), copie vérifiée par empreinte ; **versions** conservées (`BACKUP_KEEP`, 14).
+- **Automatique** sur le hub : chaque jour à `BACKUP_HOUR` + au démarrage si la dernière a plus de 26 h. Désactivé tant que la clé n'existe pas.
+- **Alerte** : menu *Sauvegardes* (administrateur) avec pastille si échec, ancienneté > 36 h ou restauration non testée ; message dans la fenêtre du hub ; code de sortie 1 pour le Planificateur de tâches.
+- **Restauration** : `npm run backup:restore` uniquement dans une base **neuve et vide** (refus sinon) ; jamais par-dessus la base en service.
+
+### Tests réellement exécutés
+
+- `tests/backup.test.ts` (5) : chiffrement/déchiffrement identique (2 Mo binaires, illisible en clair) ; **un octet modifié ou une mauvaise clé ⇒ refus** ; clé créée une fois, jamais écrasée, validée ; conservation des N plus récentes sans toucher aux autres fichiers ; noms triables.
+- `tests/backup.db.test.ts` (4, **vrais pg_dump / pg_restore** sur la base de test) : sauvegarde chiffrée + copie + **restauration prouvée** (plus de 30 tables, mêmes nombres de lignes), aucun fichier en clair ni base jetable laissés ; sauvegarde abîmée ⇒ vérification refusée ; restauration dans une base neuve (données présentes) et **refus dans une base non vide** ; conservation de 2 versions.
+- **Commande réelle** `npm run backup:key`, `npm run backup`, `npm run backup:verify` exécutées sur la base de test (clé et dossiers temporaires) : 43 tables, 661 lignes, « RESTAURATION TESTÉE », copie faite, `status.json` écrit ; échec volontaire (base inexistante) ⇒ `ok: false`, erreur enregistrée, dernière réussite conservée.
+
+**Non fait ici** : sauvegarde de **votre** base réelle (il faut d'abord créer **votre** clé avec `npm run backup:key` et en garder une copie) ; alerte par e-mail (alerte dans l'application seulement).
 
 ## Étape D — Rappels clients et alertes (V7.6)
 

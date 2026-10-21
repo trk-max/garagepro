@@ -8,6 +8,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { loop } from "./run-sync.mjs";
+import { scheduleBackups } from "./backup-schedule.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 if (process.env.GARAGE_HUB_LOCAL !== "1") {
@@ -51,3 +52,6 @@ if (cronSecret && cronSecret.length >= 16) {
 } else {
   console.log("  Rappels clients automatiques : désactivés (ajoutez CRON_SECRET, 16 caractères min., dans le .env).");
 }
+
+// Daily encrypted, restore-tested backup of the garage database (scripts/hub/backup-schedule.mjs).
+scheduleBackups();

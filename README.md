@@ -4,7 +4,7 @@
 
 <h1 align="center">GaragePro</h1>
 <p align="center"><b>Gestion d'atelier mécanique + site client + espace équipe + portail entreprises</b> · Français / العربية / English</p>
-<p align="center">Version <b>7.6</b> — application PC / téléphone, fonctionne aussi <b>sans internet</b> (hub du garage)</p>
+<p align="center">Version <b>7.7</b> — application PC / téléphone, fonctionne aussi <b>sans internet</b> (hub du garage)</p>
 <p align="center">Next.js 15 · TypeScript · Tailwind v4 · PostgreSQL (Supabase) + Prisma 6 · Auth.js v5 · Vercel</p>
 
 <p align="center">
@@ -21,6 +21,10 @@
 | ![Version mobile en arabe](docs/media/08-mobile-arabe.jpg) **Mobile + arabe (RTL)** | ![Connexion de l'équipe](docs/media/03-connexion-equipe.jpg) **Connexion de l'équipe** |
 
 > Photos et vidéos du site : dossier `public/site/` (voir « Photos et vidéos du site » plus bas). Pour mettre une **vidéo** dans ce README sur GitHub : modifiez le fichier sur github.com et glissez-déposez un `.mp4` (moins de 10 Mo) dans l'éditeur, GitHub crée le lien tout seul.
+
+## Nouveautés V7.7 — sauvegardes chiffrées, restauration testée
+
+Le PC du garage sauvegarde la base **chaque jour** : copie cohérente, **chiffrée** (AES-256, clé hors du projet), copiée sur un **2e emplacement** (clé USB, OneDrive…), et **restaurée pour de vrai dans une base jetable** pour prouver qu'elle est utilisable. Menu **Sauvegardes** (administrateur) avec alerte en cas de problème. Mise en place en 3 commandes : `npm run backup:key` (puis copiez la clé ailleurs), réglez `BACKUP_COPY_DIR`, `npm run backup`. Procédure de restauration : [`docs/SAUVEGARDES.md`](docs/SAUVEGARDES.md).
 
 ## Nouveautés V7.6 — rappels clients et alertes
 
