@@ -81,6 +81,18 @@ const MATRIX = {
   /// Prévision de trésorerie, solde saisi, alerte de trésorerie.
   viewCashForecast: ["ADMIN", "MANAGER"],
   viewAuditLog: ["ADMIN"],
+
+  // ── Showroom et messagerie (V9) ──
+  /// Voir l'inventaire du showroom (lecture seule pour l'accueil et le responsable d'atelier).
+  viewShowroom: ["ADMIN", "MANAGER", "RECEPTION", "SHOWROOM_MANAGER", "SELLER"],
+  /// Créer une annonce et gérer SES annonces (photos, prix, statut). Le vendeur ne touche qu'aux siennes.
+  createListing: ["ADMIN", "SHOWROOM_MANAGER", "SELLER"],
+  /// Gérer TOUTES les annonces (y compris réattribuer le vendeur, archiver celles des autres).
+  manageAllListings: ["ADMIN", "SHOWROOM_MANAGER"],
+  /// Messagerie acheteurs : le vendeur ne voit que les conversations de ses annonces.
+  useShowroomMessages: ["ADMIN", "SHOWROOM_MANAGER", "SELLER"],
+  /// Lire et répondre à TOUTES les conversations du showroom.
+  readAllShowroomMessages: ["ADMIN", "SHOWROOM_MANAGER"],
 } as const satisfies Record<string, readonly Role[]>;
 
 export type Permission = keyof typeof MATRIX;

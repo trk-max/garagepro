@@ -25,6 +25,11 @@ enum Role {
   RECEPTION
   MECHANIC
   STOREKEEPER // magasinier
+  // ── Showroom (V9) ──
+  /// Vendeur : crée ses annonces et ne gère que les siennes (et leurs conversations).
+  SELLER
+  /// Responsable showroom : gère toutes les annonces et toutes les conversations du showroom.
+  SHOWROOM_MANAGER
 }
 
 enum WorkOrderStatus {

@@ -2,7 +2,12 @@ import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import pg from "pg";
 
-export const TEST_DB = "gp_test_db";
+/**
+ * Name of the throw-away database. TEST_DB_NAME lets two test runs share one PostgreSQL
+ * server without dropping each other's database (e.g. two working copies tested at once).
+ */
+const requested = process.env.TEST_DB_NAME ?? "";
+export const TEST_DB = /^gp_test_[a-z0-9_]{1,40}$/.test(requested) ? requested : "gp_test_db";
 
 /** Recreates the throw-away test database from prisma/migrations (exactly what production runs). */
 export default async function setup({ provide }: { provide: (key: "dbUrl", value: string) => void }) {
