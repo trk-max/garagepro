@@ -22,6 +22,25 @@
 
 > Photos et vidéos du site : dossier `public/site/` (voir « Photos et vidéos du site » plus bas). Pour mettre une **vidéo** dans ce README sur GitHub : modifiez le fichier sur github.com et glissez-déposez un `.mp4` (moins de 10 Mo) dans l'éditeur, GitHub crée le lien tout seul.
 
+## Utiliser GaragePro sur un autre PC (mêmes données)
+
+Il n'y a **qu'une seule base de données** (Supabase en ligne + sa copie sur le PC du garage, synchronisées toutes les 30 s). Un autre PC **n'installe rien** : il ouvre GaragePro dans une fenêtre, soit sur le PC du garage, soit sur le site en ligne. Ne lancez **pas** `setup.cmd` sur un autre PC : il créerait une base vide séparée.
+
+1. Sur le **PC du garage**, une fois :
+   ```
+   npm run shortcut
+   ```
+   → crée `GaragePro.cmd` dans le dossier du projet.
+2. Copiez `GaragePro.cmd` sur l'autre PC (clé USB, e-mail…), par exemple sur son Bureau, et double-cliquez dessus.
+   - **Au garage, sur le même Wi-Fi** : il ouvre le PC du garage (rapide, fonctionne même sans internet). Le hub (`start-hub.cmd`) doit tourner.
+   - **Ailleurs (maison, 4G…)** : il ouvre le site en ligne.
+   - Il vérifie que c'est bien GaragePro qui répond (un autre appareil à la même adresse n'est jamais ouvert).
+3. Connectez-vous avec votre compte habituel (une fois au garage, une fois en ligne : ce sont deux adresses).
+
+À savoir :
+- Réservez l'adresse du PC du garage dans la box (bail DHCP fixe) ; si elle change, refaites `npm run shortcut`.
+- Pour que le site en ligne s'ouvre sans compte Vercel : Vercel → projet → *Settings* → *Deployment Protection* → *Vercel Authentication* → ne protéger que les *Preview Deployments* (sinon chaque PC doit se connecter à Vercel).
+
 ## Nouveautés V7.7 — sauvegardes chiffrées, restauration testée
 
 Le PC du garage sauvegarde la base **chaque jour** : copie cohérente, **chiffrée** (AES-256, clé hors du projet), copiée sur un **2e emplacement** (clé USB, OneDrive…), et **restaurée pour de vrai dans une base jetable** pour prouver qu'elle est utilisable. Menu **Sauvegardes** (administrateur) avec alerte en cas de problème. Mise en place en 3 commandes : `npm run backup:key` (puis copiez la clé ailleurs), réglez `BACKUP_COPY_DIR`, `npm run backup`. Procédure de restauration : [`docs/SAUVEGARDES.md`](docs/SAUVEGARDES.md).

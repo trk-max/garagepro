@@ -29,3 +29,6 @@ storage/
 Thumbs.db
 .vscode/
 .idea/
+
+# shortcut for another PC (made by npm run shortcut, machine-specific)
+/GaragePro.cmd
