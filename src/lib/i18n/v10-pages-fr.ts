@@ -47,4 +47,17 @@ export const v10PagesFr = {
     next: "Suivant",
     first: "Retour au début",
   },
+  appointments: {
+    subtitle: "Les rendez-vous du jour, l'accueil des véhicules et la réservation en ligne.",
+    planning: "Planning du jour",
+    welcome: "Accueillir",
+    cancel: "Annuler",
+    settings: "Réglages des rendez-vous",
+    online: "Réservation en ligne",
+    on: "Ouverte",
+    off: "Fermée",
+    readOnly: "Seul un administrateur peut modifier ces réglages (Paramètres).",
+    perSlot: "{n} véhicule(s) par créneau de {m} min",
+    servicesLink: "Prestations proposées (Paramètres)",
+  },
 };

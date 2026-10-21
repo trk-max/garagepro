@@ -49,4 +49,17 @@ export const v10PagesEn: typeof v10PagesFr = {
     next: "Next",
     first: "Back to start",
   },
+  appointments: {
+    subtitle: "Today's bookings, vehicle check-in and online booking.",
+    planning: "Today's schedule",
+    welcome: "Check in",
+    cancel: "Cancel",
+    settings: "Booking settings",
+    online: "Online booking",
+    on: "Open",
+    off: "Closed",
+    readOnly: "Only an administrator can change these settings (Settings).",
+    perSlot: "{n} vehicle(s) per {m}-min slot",
+    servicesLink: "Services offered (Settings)",
+  },
 };
