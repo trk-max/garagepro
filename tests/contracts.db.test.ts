@@ -3,6 +3,7 @@
  * (employment = administrator + HR), status machine with legal review and signed scan, expiry
  * alerts, history and audit journal. Real PostgreSQL. Run: npm run test:db
  */
+import { inflateSync } from "node:zlib";
 import { describe, expect, it, vi } from "vitest";
 import { utcToZoned } from "@/lib/booking";
 import { readContractData } from "@/lib/contract-document";
@@ -37,6 +38,10 @@ vi.mock("@/server/storage", () => ({
     return f ? new Response(new Uint8Array(f.body), { headers: { "Content-Type": type, "Cache-Control": "private, max-age=86400, immutable" } }) : new Response("Not found", { status: 404 });
   },
 }));
+
+// Session of the API route tests: the signed-in user (re-read from the real database by getStaff).
+const session = vi.hoisted(() => ({ userId: null as string | null }));
+vi.mock("@/lib/auth", () => ({ auth: async () => (session.userId ? { user: { id: session.userId } } : null) }));
 
 const REPAIR_TPL = templateId("REPAIR", 1);
 const FLEET_TPL = templateId("FLEET", 1);
@@ -130,6 +135,51 @@ describe("contrat de réparation depuis l'ordre", () => {
     } finally {
       await setTemplateReview(admin, BLANK_TPL, false, null);
     }
+  });
+});
+
+describe("routes protégées : PDF et scan", () => {
+  it("PDF: 401 signed out, 403 without the page permission, 404-like 403 on another category, PDF for allowed roles", async () => {
+    const { GET: pdf } = await import("@/app/api/contracts/[id]/pdf/route");
+    const { GET: scan } = await import("@/app/api/contracts/[id]/scan/route");
+    type Handler = (r: Request, ctx: { params: Promise<{ id: string }> }) => Promise<Response>;
+    const call = (h: Handler, id: string) => h(new Request(`http://localhost/api/contracts/${id}/pdf`), { params: Promise.resolve({ id }) });
+    const reception = await makeUser("RECEPTION");
+    const hr = await makeUser("HR");
+    const mechanic = await makeUser("MECHANIC");
+    const { wo } = await makeWorkOrder();
+    const c = await createContract(reception, { templateId: REPAIR_TPL, workOrderId: wo.id, startDay: today(), fields: { authorizationToStart: "YES" } });
+
+    session.userId = null;
+    expect((await call(pdf, c.id)).status).toBe(401);
+    session.userId = mechanic.id;
+    expect((await call(pdf, c.id)).status).toBe(403);
+    session.userId = hr.id; // HR may open the contracts page, but not repair contracts
+    expect((await call(pdf, c.id)).status).toBe(403);
+    expect((await call(scan, c.id)).status).toBe(403);
+    session.userId = reception.id;
+    const res = await call(pdf, c.id);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Content-Type")).toBe("application/pdf");
+    expect(res.headers.get("Cache-Control")).toBe("private, no-store");
+    const bytes = Buffer.from(await res.arrayBuffer());
+    expect(bytes.subarray(0, 5).toString()).toBe("%PDF-");
+    // The "to be validated by a lawyer" line is printed (standard fonts: WinAnsi text written in hex).
+    const hex = (s: string) => Buffer.from(s, "latin1").toString("hex").toUpperCase();
+    const raw = bytes.toString("latin1");
+    const pages = [...raw.matchAll(/stream\r?\n([\s\S]*?)\r?\nendstream/g)]
+      .map((m) => {
+        try {
+          return inflateSync(Buffer.from(m[1]!, "latin1")).toString("latin1");
+        } catch {
+          return "";
+        }
+      })
+      .join("\n");
+    expect(pages).toContain(hex("Modèle à valider par un juriste — références".replace("—", "\x97")));
+    expect((await call(scan, c.id)).status).toBe(404); // no scan yet
+    expect((await call(pdf, "doesnotexist0000000000000")).status).toBe(404);
+    session.userId = null;
   });
 });
 

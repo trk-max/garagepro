@@ -1,3 +1,4 @@
+import { contractsEn } from "@/lib/i18n/contracts-en";
 import { v7En } from "@/lib/i18n/v7-en";
 import type { Dictionary } from "@/lib/i18n/fr";
 
@@ -924,5 +925,6 @@ export const en: Dictionary = {
     hubOffline: "Internet down: the garage keeps working locally",
     hubLastSync: "Last sync: {time}",
   },
+  ctr: contractsEn,
   v7: v7En,
 };

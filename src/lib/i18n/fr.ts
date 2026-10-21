@@ -1,3 +1,4 @@
+import { contractsFr } from "@/lib/i18n/contracts-fr";
 import { v7Fr } from "@/lib/i18n/v7-fr";
 export const fr = {
   common: {
@@ -922,6 +923,7 @@ export const fr = {
     hubOffline: "Internet coupé : le garage continue en local",
     hubLastSync: "Dernière synchro : {time}",
   },
+  ctr: contractsFr,
   v7: v7Fr,
 };
 

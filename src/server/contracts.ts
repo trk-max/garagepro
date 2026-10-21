@@ -2,7 +2,7 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import type { Prisma, Role } from "@prisma/client";
 import { utcToZoned } from "@/lib/booking";
-import { readContractData, type ContractDataJson, type ContractSnapshot, type GarageSnap, type PartySnap, type RepairSnap, type VehicleSnap } from "@/lib/contract-document";
+import { buildContractDoc, readContractData, type ContractDataJson, type ContractSnapshot, type GarageSnap, type PartySnap, type RepairSnap, type VehicleSnap } from "@/lib/contract-document";
 import { templateRows, type LegalRef } from "@/lib/contract-templates";
 import {
   accessForMove,
@@ -662,6 +662,49 @@ export async function getContract(actor: StaffUser, id: string) {
 }
 
 export type ContractDetail = NonNullable<Awaited<ReturnType<typeof getContract>>>;
+
+/** Printable content (PDF and page preview) of a contract already loaded with its access check. */
+export function contractDoc(c: ContractDetail) {
+  return buildContractDoc({
+    number: c.number,
+    category: c.category,
+    startDay: c.startDay,
+    endDay: c.endDay,
+    indefinite: c.indefinite,
+    data: c.data,
+    renewal: c.previous && c.renewalBasis ? { previousNumber: c.previous.number, basis: c.renewalBasis } : null,
+    template: { ...c.template, reviewedDay: c.template.reviewedAt ? todayIn(GARAGE_TZ, c.template.reviewedAt) : null },
+  });
+}
+
+/** Choices for the "new contract" form of one category (checked: the actor may create it). */
+export async function partyOptions(actor: StaffUser, category: ContractCategory, opts: { customerId?: string } = {}) {
+  assertAccess(actor, category, "manage");
+  const empty = { workOrders: [], companies: [], vehicles: [], users: [], suppliers: [], customers: [] };
+  if (category === "REPAIR") {
+    const workOrders = await prisma.workOrder.findMany({
+      where: { status: { not: "CANCELLED" } },
+      select: { id: true, number: true, vehicle: { select: { plate: true } }, customer: { select: { name: true } } },
+      orderBy: { createdAt: "desc" },
+      take: 200,
+    });
+    return { ...empty, workOrders };
+  }
+  if (category === "FLEET") {
+    const [companies, vehicles] = await Promise.all([
+      prisma.customer.findMany({ where: { isCompany: true }, select: { id: true, name: true }, orderBy: { name: "asc" }, take: 500 }),
+      opts.customerId ? prisma.vehicle.findMany({ where: { customerId: opts.customerId }, select: { id: true, plate: true, make: true, model: true }, orderBy: { plate: "asc" } }) : [],
+    ]);
+    return { ...empty, companies, vehicles };
+  }
+  if (category === "EMPLOYMENT") {
+    return { ...empty, users: await prisma.user.findMany({ where: { isActive: true }, select: { id: true, name: true, jobTitle: true }, orderBy: { name: "asc" } }) };
+  }
+  const suppliers = await prisma.supplier.findMany({ where: { isActive: true }, select: { id: true, name: true }, orderBy: { name: "asc" } });
+  if (category === "SUPPLIER") return { ...empty, suppliers };
+  const customers = await prisma.customer.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" }, take: 500 });
+  return { ...empty, suppliers, customers };
+}
 
 // ── Expiry alerts ────────────────────────────────────────────────────────────
 

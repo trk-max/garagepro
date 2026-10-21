@@ -1,3 +1,4 @@
+import { contractsAr } from "@/lib/i18n/contracts-ar";
 import { v7Ar } from "@/lib/i18n/v7-ar";
 import type { Dictionary } from "./fr";
 
@@ -924,5 +925,6 @@ export const ar: Dictionary = {
     hubOffline: "الإنترنت مقطوع: الورشة تواصل العمل محليًا",
     hubLastSync: "آخر مزامنة: {time}",
   },
+  ctr: contractsAr,
   v7: v7Ar,
 };
