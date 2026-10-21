@@ -29,9 +29,11 @@ export default async function NewContractPage({ searchParams }: PageProps) {
   const v = t.ctr;
   const carry = new URLSearchParams(Object.entries({ workOrder: workOrderId, customer: customerId, supplier: supplierId, user: userId }).filter((e): e is [string, string] => !!e[1]));
 
-  const tpl = sp.template && TEMPLATE_ID.test(sp.template) ? await getTemplate(staff, sp.template) : null;
+  let tpl = sp.template && TEMPLATE_ID.test(sp.template) ? await getTemplate(staff, sp.template) : null;
+  const templates = tpl ? [] : await listTemplates(staff, { category: sp.category });
+  // One template only for the asked category (repair from a work order, fleet from a company): open it.
+  if (!tpl && sp.category && templates.length === 1) tpl = templates[0]!;
   if (!tpl) {
-    const templates = await listTemplates(staff, { category: sp.category });
     return (
       <div className="mx-auto max-w-5xl space-y-4 p-4 sm:p-6">
         <PageHeader title={v.new}>

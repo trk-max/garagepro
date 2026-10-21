@@ -14,7 +14,9 @@ import { cn } from "@/lib/utils";
 import { contractExpiryAlerts, listContracts } from "@/server/contracts";
 import { getSettings } from "@/server/settings";
 
-type PageProps = { searchParams: Promise<{ c?: string; s?: string; e?: string }> };
+type PageProps = { searchParams: Promise<{ c?: string; s?: string; e?: string; supplier?: string; customer?: string; vehicle?: string }> };
+
+const CUID = /^[a-z0-9]{20,40}$/;
 
 /** Contracts the viewer may see (by category), with filters and the ones ending soon. */
 export default async function ContractsPage({ searchParams }: PageProps) {
@@ -24,9 +26,15 @@ export default async function ContractsPage({ searchParams }: PageProps) {
   const category = isContractCategory(sp.c) && visible.includes(sp.c) ? sp.c : undefined;
   const status = isContractStatus(sp.s) ? sp.s : undefined;
   const expiring = sp.e === "1";
+  // Links from a supplier / customer / vehicle: only that party's contracts.
+  const party = {
+    supplierId: sp.supplier && CUID.test(sp.supplier) ? sp.supplier : undefined,
+    customerId: sp.customer && CUID.test(sp.customer) ? sp.customer : undefined,
+    vehicleId: sp.vehicle && CUID.test(sp.vehicle) ? sp.vehicle : undefined,
+  };
   const [{ t, lang }, rows, soon, settings] = await Promise.all([
     getI18n(),
-    listContracts(staff, { category, status, expiring }),
+    listContracts(staff, { category, status, expiring, ...party }),
     contractExpiryAlerts(staff.role),
     getSettings(),
   ]);
@@ -40,6 +48,9 @@ export default async function ContractsPage({ searchParams }: PageProps) {
     if (c) p.set("c", c);
     if (s) p.set("s", s);
     if (e) p.set("e", e);
+    if (party.supplierId) p.set("supplier", party.supplierId);
+    if (party.customerId) p.set("customer", party.customerId);
+    if (party.vehicleId) p.set("vehicle", party.vehicleId);
     const q = p.toString();
     return `/garage/contrats${q ? `?${q}` : ""}`;
   };
@@ -55,7 +66,7 @@ export default async function ContractsPage({ searchParams }: PageProps) {
         )}
         {canCreate && (
           <Button asChild>
-            <Link href="/garage/contrats/nouveau">{v.new}</Link>
+            <Link href={party.supplierId ? `/garage/contrats/nouveau?category=SUPPLIER&supplier=${party.supplierId}` : "/garage/contrats/nouveau"}>{v.new}</Link>
           </Button>
         )}
       </PageHeader>
@@ -94,6 +105,9 @@ export default async function ContractsPage({ searchParams }: PageProps) {
       </nav>
       <form className="flex flex-wrap items-end gap-2" action="/garage/contrats">
         {category && <input type="hidden" name="c" value={category} />}
+        {party.supplierId && <input type="hidden" name="supplier" value={party.supplierId} />}
+        {party.customerId && <input type="hidden" name="customer" value={party.customerId} />}
+        {party.vehicleId && <input type="hidden" name="vehicle" value={party.vehicleId} />}
         {expiring && <input type="hidden" name="e" value="1" />}
         <NativeSelect name="s" defaultValue={status ?? ""} aria-label={v.anyStatus} className="w-auto">
           <option value="">{v.anyStatus}</option>

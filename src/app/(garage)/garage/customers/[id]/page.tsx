@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Wrench, QrCode, Plus, Activity, ShieldCheck } from "lucide-react";
+import { Wrench, QrCode, Plus, Activity, ShieldCheck, FileSignature } from "lucide-react";
+import { RelatedContracts } from "@/components/garage/contracts";
+import { canContract } from "@/lib/contracts";
 import { addVehicleAction, updateCustomerAction } from "@/actions/catalog";
 import { ActionForm } from "@/components/action-form";
 import { PlateChip, StatusBadge } from "@/components/garage/badges";
@@ -65,6 +67,13 @@ export default async function CustomerPage({ params }: PageProps) {
                         <Plus className="size-3.5" aria-hidden /> {t.customers.newWorkOrder}
                       </Link>
                     </Button>
+                    {canContract(staff.role, "REPAIR", "view") && (
+                      <Button asChild size="sm" variant="outline" className="ms-2 mt-2">
+                        <Link href={`/garage/contrats?vehicle=${v.id}`}>
+                          <FileSignature className="size-3.5" aria-hidden /> {t.ctr.nav}
+                        </Link>
+                      </Button>
+                    )}
                     {can(staff.role, "manageMaintenance") && (
                       <Button asChild size="sm" variant="outline" className="ms-2 mt-2">
                         <Link href={`/garage/vehicules/${v.id}/entretien`}>
@@ -155,6 +164,15 @@ export default async function CustomerPage({ params }: PageProps) {
         </div>
 
         <div className="space-y-6">
+        {/* V9: contracts of this customer (repair, fleet…), only the categories the viewer may see. */}
+        <RelatedContracts
+          staff={staff}
+          filter={{ customerId: customer.id }}
+          t={t}
+          lang={lang}
+          newHref={customer.isCompany && canContract(staff.role, "FLEET", "manage") ? `/garage/contrats/nouveau?category=FLEET&customer=${customer.id}` : null}
+          newLabel={t.ctr.createFleet}
+        />
         <Card className="h-fit">
           <CardTitle>{t.common.edit}</CardTitle>
           <ActionForm action={updateCustomerAction.bind(null, customer.id)} reset={false} className="space-y-4">

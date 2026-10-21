@@ -18,6 +18,8 @@ import { MediaUploader } from "@/components/garage/media-uploader";
 import { RepairPanels } from "@/components/garage/repair-panels";
 import { ProfitPanel } from "@/components/garage/profit-panel";
 import { WarrantyCard } from "@/components/garage/warranty";
+import { RelatedContracts } from "@/components/garage/contracts";
+import { canContract } from "@/lib/contracts";
 import { ReservationsCard } from "@/components/garage/reservations-card";
 import { VehicleQrCard } from "@/components/garage/vehicle-qr-card";
 import { TrackingCard } from "@/components/garage/tracking-card";
@@ -287,6 +289,16 @@ export default async function WorkOrderPage({ params }: PageProps) {
 
         {/* ── Warranties on this repair and its parts (Prompt 4/5) ── */}
         <WarrantyCard workOrderId={wo.id} staff={staff} t={t} lang={lang} />
+
+        {/* ── V9: repair contract prefilled from this order (customer, vehicle, lines TTC, warranty…) ── */}
+        <RelatedContracts
+          staff={staff}
+          filter={{ workOrderId: wo.id }}
+          t={t}
+          lang={lang}
+          newHref={canContract(staff.role, "REPAIR", "manage") && wo.status !== "CANCELLED" ? `/garage/contrats/nouveau?category=REPAIR&workOrder=${wo.id}` : null}
+          newLabel={t.ctr.createFromWorkOrder}
+        />
 
         {/* ── Direct expenses and real profit (Prompt 2/5) ── */}
         <ProfitPanel workOrderId={wo.id} staff={staff} t={t} lang={lang} />
