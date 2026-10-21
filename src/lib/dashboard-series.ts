@@ -54,3 +54,33 @@ export function startOfGarageDay(now: Date, timeZone = GARAGE_TZ): Date {
   const offset = wallAsUtc - Math.floor(now.getTime() / 1000) * 1000;
   return new Date(Date.UTC(+p.year!, +p.month! - 1, +p.day!) - offset);
 }
+
+/** "2026-10-21" for a date, in the garage's time zone. */
+export function dayKey(date: Date, timeZone = GARAGE_TZ): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
+}
+
+/** The last `count` day keys, oldest first, ending with the garage's day of `now`. */
+export function lastDays(now: Date, count: number, timeZone = GARAGE_TZ): string[] {
+  const [y, m, d] = dayKey(now, timeZone).split("-").map(Number) as [number, number, number];
+  return Array.from({ length: count }, (_, i) => new Date(Date.UTC(y, m - 1, d - (count - 1 - i))).toISOString().slice(0, 10));
+}
+
+/** Sum (or count, with weight 1) per day; items outside the days are ignored. */
+export function perDay<T>(days: string[], items: T[], at: (i: T) => Date | null, weight: (i: T) => number = () => 1, timeZone = GARAGE_TZ): number[] {
+  const index = new Map(days.map((d, i) => [d, i]));
+  const out = days.map(() => 0);
+  for (const it of items) {
+    const when = at(it);
+    if (!when) continue;
+    const i = index.get(dayKey(when, timeZone));
+    if (i !== undefined) out[i]! += weight(it);
+  }
+  return out;
+}
+
+/** Change from `previous` to `current` in %, one decimal; null when there is nothing to compare with. */
+export function changePercent(current: number, previous: number): number | null {
+  if (previous === 0) return null;
+  return Math.round(((current - previous) / previous) * 1000) / 10;
+}

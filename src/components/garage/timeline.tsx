@@ -4,7 +4,8 @@ import type { Dictionary } from "@/lib/i18n/fr";
 
 type EventWithActor = WorkOrderEvent & { actor: { name: string } | null };
 
-function describe(e: EventWithActor, t: Dictionary, lang: Lang): string {
+/** One line describing a repair-order event (also used by the dashboard activity feed). */
+export function describeEvent(e: Pick<WorkOrderEvent, "type" | "data">, t: Dictionary, lang: Lang): string {
   const d = (e.data ?? {}) as Record<string, unknown>;
   const str = (v: unknown) => (typeof v === "string" ? v : "");
   const statusLabel = (v: unknown) => (typeof v === "string" && v in t.status ? t.status[v as keyof Dictionary["status"]] : str(v));
@@ -38,7 +39,7 @@ export function Timeline({ events, t, lang }: { events: EventWithActor[]; t: Dic
               <span className="font-medium">
                 {e.actor?.name ?? (e.type === "CUSTOMER_MESSAGE" || e.type === "QUOTE_APPROVED" ? t.events.customer : t.events.system)}
               </span>{" "}
-              <span className="text-muted-foreground">{describe(e, t, lang)}</span>
+              <span className="text-muted-foreground">{describeEvent(e, t, lang)}</span>
             </p>
             {e.body && <p className="mt-1 whitespace-pre-line rounded-md bg-amber-50 px-3 py-2 dark:bg-amber-950/30">{e.body}</p>}
             <time className="text-xs text-muted-foreground">{formatDateTime(e.createdAt, lang)}</time>

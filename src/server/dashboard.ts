@@ -1,5 +1,5 @@
 import "server-only";
-import { lastMonths, monthKey, monthlyMoney, startOfGarageDay } from "@/lib/dashboard-series";
+import { lastDays, lastMonths, monthKey, monthlyMoney, perDay, startOfGarageDay } from "@/lib/dashboard-series";
 import { prisma } from "@/lib/prisma";
 import { lowStockParts } from "@/server/parts";
 import { ACTIVE_STATUSES } from "@/server/workflow";
@@ -84,4 +84,47 @@ export async function presentNow(now = new Date()) {
     else if (kind === "BREAK_START") onBreak++;
   }
   return { working, onBreak };
+}
+
+/**
+ * This week vs last week (garage days), for the top figures and the 7-day charts.
+ * Money only when `finance` is true: the queries are not even run for other roles.
+ */
+export async function weekOverview(opts: { finance: boolean }, now = new Date()) {
+  const days14 = lastDays(now, 14);
+  // 14 garage days back, plus a day of margin: the exact cut is done per garage day by perDay.
+  const since = new Date(startOfGarageDay(now).getTime() - 15 * 86_400_000);
+  const [orders, delivered, invoices, payments] = await Promise.all([
+    prisma.workOrder.findMany({ where: { createdAt: { gte: since } }, select: { createdAt: true } }),
+    prisma.workOrder.findMany({ where: { deliveredAt: { gte: since } }, select: { deliveredAt: true } }),
+    opts.finance ? prisma.invoice.findMany({ where: { issuedAt: { gte: since } }, select: { issuedAt: true, totalTtc: true } }) : [],
+    opts.finance ? prisma.payment.findMany({ where: { paidAt: { gte: since } }, select: { paidAt: true, amount: true } }) : [],
+  ]);
+  const split = (values: number[]) => ({ previous: values.slice(0, 7), current: values.slice(7) });
+  return {
+    days: days14.slice(7),
+    ordersIn: split(perDay(days14, orders, (o) => o.createdAt)),
+    ordersOut: split(perDay(days14, delivered, (o) => o.deliveredAt)),
+    invoiced: opts.finance ? split(perDay(days14, invoices, (i) => i.issuedAt, (i) => i.totalTtc)) : null,
+    collected: opts.finance ? split(perDay(days14, payments, (p) => p.paidAt, (p) => p.amount)) : null,
+  };
+}
+
+/** Latest customer invoices with what is still due (finance roles only). */
+export async function recentInvoices(take = 5) {
+  return prisma.invoice.findMany({
+    orderBy: { issuedAt: "desc" },
+    take,
+    select: { id: true, number: true, issuedAt: true, dueDate: true, totalTtc: true, paidAmount: true, status: true, customer: { select: { name: true } } },
+  });
+}
+
+/** Latest events of the repair orders (who did what), for the activity feed. */
+export async function recentActivity(opts: { finance: boolean }, take = 6) {
+  return prisma.workOrderEvent.findMany({
+    where: opts.finance ? {} : { type: { notIn: ["PAYMENT", "INVOICED"] } },
+    orderBy: { createdAt: "desc" },
+    take,
+    select: { id: true, type: true, data: true, createdAt: true, actor: { select: { name: true } }, workOrder: { select: { id: true, number: true, vehicle: { select: { plate: true } } } } },
+  });
 }

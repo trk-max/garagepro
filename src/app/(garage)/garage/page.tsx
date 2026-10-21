@@ -1,20 +1,23 @@
 import Link from "next/link";
-import { AlertTriangle, BellRing, CalendarClock, CalendarDays, CarFront, CheckCircle2, ClipboardCheck, Coins, Siren, Truck, UserCheck, Wallet } from "lucide-react";
+import { Activity as ActivityIcon, AlertTriangle, ArrowDownRight, ArrowUpRight, BellRing, CircleCheck, CalendarClock, CalendarDays, CarFront, CheckCircle2, ClipboardCheck, Coins, Siren, Truck, UserCheck, Wallet } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { PlateChip, StatusBadge } from "@/components/garage/badges";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/field";
 import { MoneyChart } from "@/components/garage/money-chart";
+import { describeEvent } from "@/components/garage/timeline";
+import { DailyBars, StepLines } from "@/components/garage/week-charts";
+import { changePercent } from "@/lib/dashboard-series";
 import { PlateSearch } from "@/components/garage/plate-search";
 import { LiveRefresh } from "@/components/live-refresh";
 import { siteMedia } from "@/lib/site-media";
 import { getSettings } from "@/server/settings";
-import { displayPlate, formatDateTime, formatMoney, formatQty, formatTime, woNumber } from "@/lib/format";
+import { displayPlate, fmt, formatDateTime, formatMoney, formatQty, formatTime, woNumber } from "@/lib/format";
 import { getI18n } from "@/lib/i18n/server";
 import { can } from "@/lib/permissions";
 import { requireStaff } from "@/lib/session";
 import { listAlerts } from "@/server/alerts";
-import { getDashboard, moneySeries, presentNow, todayAppointments } from "@/server/dashboard";
+import { getDashboard, moneySeries, presentNow, recentActivity, recentInvoices, todayAppointments, weekOverview } from "@/server/dashboard";
 import { overdueSummary } from "@/server/invoices";
 import { purchasingSummary } from "@/server/purchasing";
 import { ACTIVE_STATUSES } from "@/server/workflow";
@@ -24,7 +27,8 @@ type Stat = { label: string; value: string; icon: LucideIcon; href: string; tone
 export default async function DashboardPage() {
   const staff = await requireStaff();
   const role = staff.role;
-  const [{ t, lang }, d, overdue, purchasing, settings, money, appts, presence, alerts] = await Promise.all([
+  const finance = can(role, "viewFinance");
+  const [{ t, lang }, d, overdue, purchasing, settings, money, appts, presence, alerts, week, invoices, activity] = await Promise.all([
     getI18n(),
     getDashboard(),
     can(role, "viewFinance") ? overdueSummary() : null,
@@ -34,8 +38,21 @@ export default async function DashboardPage() {
     can(role, "viewAppointments") ? todayAppointments() : null,
     can(role, "manageTeam") ? presentNow() : null,
     can(role, "manageRepairFollowUp") ? listAlerts(undefined, role) : null,
+    can(role, "viewWorkOrders") ? weekOverview({ finance }) : null,
+    finance ? recentInvoices() : null,
+    can(role, "viewWorkOrders") ? recentActivity({ finance }) : null,
   ]);
   const db = t.v7.dash;
+  const sum = (v: number[]) => v.reduce((a, b) => a + b, 0);
+  const kpis: { label: string; value: string; change: number | null }[] = [];
+  if (week) {
+    kpis.push({ label: db.weekIn, value: String(sum(week.ordersIn.current)), change: changePercent(sum(week.ordersIn.current), sum(week.ordersIn.previous)) });
+    kpis.push({ label: db.weekOut, value: String(sum(week.ordersOut.current)), change: changePercent(sum(week.ordersOut.current), sum(week.ordersOut.previous)) });
+    if (week.invoiced && week.collected) {
+      kpis.push({ label: db.weekInvoiced, value: formatMoney(sum(week.invoiced.current), lang), change: changePercent(sum(week.invoiced.current), sum(week.invoiced.previous)) });
+      kpis.push({ label: db.weekCollected, value: formatMoney(sum(week.collected.current), lang), change: changePercent(sum(week.collected.current), sum(week.collected.previous)) });
+    }
+  }
   const media = siteMedia();
   const bannerPhoto = media.bandPhoto ?? media.heroPhoto;
 
@@ -109,6 +126,130 @@ export default async function DashboardPage() {
         </div>
       </section>
       <div className="mx-auto max-w-6xl p-6">
+        {kpis.length > 0 && (
+          <div className="mb-6 overflow-hidden rounded-lg border bg-card">
+            <div className={`grid grid-cols-2 divide-border lg:divide-x ${kpis.length > 2 ? "lg:grid-cols-4" : ""}`}>
+              {kpis.map((k) => (
+                <div key={k.label} className="border-b p-5 lg:border-b-0">
+                  <p className="text-sm text-muted-foreground">{k.label}</p>
+                  <p className="mt-3 text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl" dir="ltr">
+                    {k.value}
+                  </p>
+                  <p className="mt-3 flex items-center gap-1 text-xs text-muted-foreground">
+                    {k.change === null ? (
+                      <span>{db.noComparison}</span>
+                    ) : (
+                      <>
+                        <span className={`flex items-center gap-0.5 font-medium ${k.change >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`} dir="ltr">
+                          {k.change >= 0 ? <ArrowUpRight className="size-3.5" aria-hidden /> : <ArrowDownRight className="size-3.5" aria-hidden />}
+                          {Math.abs(k.change).toLocaleString(lang === "en" ? "en-GB" : "fr-FR")} %
+                        </span>
+                        {db.vsLastWeek}
+                      </>
+                    )}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {week && (
+          <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
+            {week.collected && (
+              <Card>
+                <CardTitle className="mb-1">{db.collectedTitle}</CardTitle>
+                <p className="mb-4 text-sm text-muted-foreground">{db.collectedHint}</p>
+                <DailyBars days={week.days} values={week.collected.current} lang={lang} format="money" />
+              </Card>
+            )}
+            <Card className={week.collected ? undefined : "lg:col-span-2"}>
+              <CardTitle className="mb-1">{db.flowTitle}</CardTitle>
+              <p className="mb-4 text-sm text-muted-foreground">{db.flowHint}</p>
+              <StepLines days={week.days} a={week.ordersIn.current} b={week.ordersOut.current} labels={[db.entered, db.delivered]} lang={lang} />
+            </Card>
+          </div>
+        )}
+
+        {(invoices || activity) && (
+          <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
+            {invoices && (
+              <Card>
+                <CardTitle className="mb-1">{db.recentInvoices}</CardTitle>
+                <p className="mb-3 text-sm text-muted-foreground">{db.recentInvoicesHint}</p>
+                {invoices.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">—</p>
+                ) : (
+                  <ul className="divide-y text-sm">
+                    {invoices.map((i) => (
+                      <li key={i.id}>
+                        <Link href={`/garage/invoices/${i.id}`} className="flex items-center gap-3 py-2.5 hover:bg-accent/30">
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate font-medium">{i.customer.name}</span>
+                            <span className="font-mono text-xs text-muted-foreground">{i.number}</span>
+                          </span>
+                          <span className="text-end">
+                            <span className="block font-medium tabular-nums" dir="ltr">{formatMoney(i.totalTtc, lang)}</span>
+                            <span className={`text-xs ${i.totalTtc - i.paidAmount > 0 ? "text-amber-700 dark:text-amber-400" : "text-emerald-700 dark:text-emerald-400"}`}>
+                              {i.totalTtc - i.paidAmount > 0 ? `${db.due} ${formatMoney(i.totalTtc - i.paidAmount, lang)}` : db.paid}
+                            </span>
+                          </span>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </Card>
+            )}
+            {finance && (
+              <Card>
+                <CardTitle className="mb-1">{db.billingHealth}</CardTitle>
+                {overdue && overdue.count > 0 ? (
+                  <>
+                    <p className="mb-4 text-sm text-muted-foreground">{fmt(db.billingLate, { n: overdue.count })}</p>
+                    <p className="text-2xl font-semibold tabular-nums text-red-700 dark:text-red-400" dir="ltr">{formatMoney(d.unpaidTotal, lang)}</p>
+                    <p className="text-xs text-muted-foreground">{t.dashboard.unpaid}</p>
+                    <Button asChild size="sm" variant="outline" className="mt-4">
+                      <Link href="/garage/invoices?status=OVERDUE">{t.dashboard.overdue}</Link>
+                    </Button>
+                  </>
+                ) : (
+                  <div className="flex flex-col items-center justify-center gap-3 py-8 text-center">
+                    <CircleCheck className="size-8 text-emerald-600 dark:text-emerald-400" aria-hidden />
+                    <p className="text-sm text-muted-foreground">{db.billingOk}</p>
+                  </div>
+                )}
+              </Card>
+            )}
+            {activity && (
+              <Card className={finance ? undefined : "lg:col-span-3"}>
+                <CardTitle className="mb-1 flex items-center gap-2">
+                  <ActivityIcon className="size-4 text-muted-foreground" aria-hidden /> {db.activity}
+                </CardTitle>
+                <p className="mb-3 text-sm text-muted-foreground">{db.activityHint}</p>
+                {activity.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">{db.noActivity}</p>
+                ) : (
+                  <ul className="divide-y text-sm">
+                    {activity.map((e) => (
+                      <li key={e.id}>
+                        <Link href={`/garage/work-orders/${e.workOrder.id}`} className="block py-2.5 hover:bg-accent/30">
+                          <span className="block">
+                            <span className="font-medium">{e.actor?.name ?? t.events.system}</span> <span className="text-muted-foreground">{describeEvent(e, t, lang)}</span>
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            <span className="font-mono">{woNumber(e.workOrder.number)}</span> · {displayPlate(e.workOrder.vehicle.plate)} · {formatDateTime(e.createdAt, lang)}
+                          </span>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </Card>
+            )}
+          </div>
+        )}
+
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           {stats.map(({ label, value, icon: Icon, href, tone }) => (
             <Link
