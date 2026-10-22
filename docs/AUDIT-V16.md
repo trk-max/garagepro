@@ -16,6 +16,8 @@ Ces tests vérifient le comportement **fautif actuel** ; en phase C, chaque test
 
 **Suivi des corrections — V16 Lot 3 (voir docs/RAPPORT-V16.md)** : n° 13 corrigé (le bon de réception passe la pièce manquante à « reçue », la rattache au bon, la réserve pour l’ordre et le signale ; A-12 inversé et déplacé dans `tests/delays-v16.db.test.ts`) ; n° 14 en partie (le magasinier met à jour les pièces manquantes avec le nouveau droit `managePartNeeds` ; le lien de sa cloche vers `/garage/suivi` reste refusé, A-13 réduit à cela). 25 réussies.
 
+**Suivi des corrections — V16 Lot 4 (voir docs/RAPPORT-V16.md)** : n° 3 corrigé pour les nouveaux ordres (garantie créée à la facture ; à la livraison seulement si la facture existe ; A-03 inversé) ; n° 19 corrigé (clé anti double clic du formulaire, vérifiée par le serveur ; A-20 inversé) ; n° 26 corrigé (date du paiement saisie, annulation d’un paiement par un responsable avec motif ; A-27 inversé) ; n° 27 corrigé pour les nouveaux acomptes (vrai paiement à la facture, daté du jour de l’acompte ; anciens acomptes laissés tels quels ; A-28 inversé). Tests inversés dans `tests/lot4-v16.db.test.ts`. Les reproductions qui livrent un ordre (A-08, A-26) utilisent un ordre « d’avant le Lot 4 ». 21 réussies.
+
 ## Bilan
 
 | Gravité | Nombre |

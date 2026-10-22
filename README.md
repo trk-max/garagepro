@@ -41,6 +41,34 @@ Il n'y a **qu'une seule base de données** (Supabase en ligne + sa copie sur le 
 - Réservez l'adresse du PC du garage dans la box (bail DHCP fixe) ; si elle change, refaites `npm run shortcut`.
 - Pour que le site en ligne s'ouvre sans compte Vercel : Vercel → projet → *Settings* → *Deployment Protection* → *Vercel Authentication* → ne protéger que les *Preview Deployments* (sinon chaque PC doit se connecter à Vercel).
 
+## Nouveautés V16 — Lot 4 : réception signée, restitution, facture et paiements
+
+- **Réception signée** : la fiche *Prise en charge* gagne les voyants allumés, les objets laissés, le nombre de clés et le **plafond d’autorisation** (DT TTC) ; la réponse aux frais de diagnostic est gardée. Bloc *Signature de la prise en charge* : le client signe **sur la tablette** (cadre de signature fait maison, image PNG légère). La prise en charge est alors **figée** (document HTML + empreinte SHA-256, « copie intacte » vérifiée à l’affichage), la fiche de réception et le km d’entrée sont **verrouillés**, et les photos de *Réception* ne se suppriment plus (seulement masquées). Nouveau droit `signIntake` (accueil, chef d’atelier, administrateur).
+- **Kilométrage** : un km d’entrée **inférieur au dernier relevé** du véhicule est refusé, sauf case « je confirme » (journalisée) ; le km du véhicule n’est jamais baissé en silence.
+- **Plafond signé** : un nouvel ordre peut passer *Réceptionné / Diagnostic → En réparation* sans devis si la réception est signée et que le total reste sous le plafond (lignes acceptées « pré-autorisées », journal).
+- **Photos par étape** : *Réception*, *Travaux*, *Restitution* (choix à l’envoi, proposé selon le statut).
+- **Restitution** (ordre *Prêt*) : km et carburant à la sortie, travaux expliqués, pièces remplacées (rendues / laissées / garantie), clés, propreté, **signature du client** → bon de restitution figé + imprimable. **Obligatoire avant *Livré*** pour les nouveaux ordres (réglage *Exiger le bon de restitution signé*, activé par défaut ; pas de dérogation). Nouveau droit `recordHandover`.
+- **Facture figée** : une facture émise ne peut plus être modifiée ni supprimée, **même en SQL direct** (trigger ; seuls « payé » et le statut bougent) ; empreinte SHA-256 et nature de la pièce par ligne dans la copie figée.
+- **Avoir** (droit `issueCreditNote` : administrateur, comptable) : *Factures › la facture › Émettre un avoir* + motif → avoir **AV-2026-0001** (numéros sans trou), la facture est gardée telle quelle et passe « Annulée par avoir » ; reste dû 0 ; ce qui avait été payé s’affiche « trop-perçu à rembourser ». Un ordre dont la facture est annulée ne peut pas être refacturé. Rapports, tableau de bord, fiche client et rentabilité déduisent les avoirs (jamais deux fois).
+- **Paiements** : **date du paiement** (un encaissement d’hier se saisit à sa vraie date), **anti double clic** côté serveur, **annulation d’un paiement** (droit `reversePayment` : chef d’atelier, administrateur ; ligne négative + motif, le paiement reste visible ; un ordre clôturé repasse *Livré*). L’**acompte** d’un nouvel ordre devient un **vrai paiement** à la création de la facture (daté du jour de l’acompte) et n’est plus déduit une deuxième fois.
+- **Gardiennage** : sur un ordre *Prêt*, la fiche montre le gardiennage dû (depuis le message « véhicule prêt » envoyé ou la case *Client prévenu*, après la franchise ; **jamais pendant une attente pièces imputable au garage**). Il est ajouté à la facture (ligne *Frais de gardiennage*) ; *Ne pas facturer le gardiennage* = droit `waiveStorageFee` + motif. Réglage *Ajouter le gardiennage à la facture*.
+- **Relances graduées** des factures échues (nouveaux ordres) : J+7, J+15, J+30 par SMS / e-mail (tâche des rappels), notées dans l’historique de la facture ; réglage *Relances automatiques*. **Balance âgée** (0–30, 31–60, 61–90, > 90 jours) et avoirs dans *Rapports*.
+- Les ordres ouverts **avant** la migration 28 gardent l’ancien comportement (pas de restitution exigée, acompte comme avant, pas de gardiennage automatique ni de relance graduée).
+- Plan : [docs/PLAN-V16-LOT4.md](docs/PLAN-V16-LOT4.md). Rapport : [docs/RAPPORT-V16.md](docs/RAPPORT-V16.md).
+
+### Mise à jour vers la V16 (Lot 4) — à faire une commande à la fois, dans cet ordre
+
+Le Lot 4 contient les Lots 1 à 3 : `db:cloud` applique les migrations 25 à 28 qui manquent.
+
+1. `npm install`
+2. `npm run db:cloud` — **avant le push** : ajoute la migration `28_signed_handover_billing` (et 25 à 27 si besoin) à la base en ligne (n’efface rien, rejouable).
+3. **Tout de suite après**, au garage : fermez puis relancez `start-hub.cmd` (le hub applique la migration à la base du PC). Le PC du garage doit connaître les tables `Signature`, `VehicleHandover`, `CreditNote` et le statut de facture « Annulée par avoir » **avant** que l’en-ligne les écrive.
+4. `npm run check`
+5. `git add -A` puis `git commit -m "V16 Lot 4 : réception signée, restitution, facture et paiements"` puis `git push` (dans la foulée).
+6. **Sans hub** (base locale seule) : `npx prisma db execute --file prisma/migrations/28_signed_handover_billing/migration.sql --schema prisma/schema.prisma` (après `25_workflow_v16`, `26_quotes`, `27_delays_refusal`).
+7. **Anciens acomptes non convertis** (ordres d’avant le Lot 4, laissés tels quels) — liste en lecture seule avec *Prisma Studio* (`npm run db:studio`, table `WorkOrder`, filtre `workflowLot4 = false` et `depositAmount > 0`) ou en SQL : `SELECT number, "depositAmount", "depositMethod", status FROM "WorkOrder" WHERE NOT "workflowLot4" AND "depositAmount" > 0 ORDER BY number;`. Pour ces ordres, l’acompte reste déduit du solde comme avant (pas de paiement créé).
+8. Dans l’application : *Paramètres › Parcours atelier* (restitution signée, gardiennage, relances), *Conditions de l’ordre de réparation* (frais de gardiennage par jour, franchise), puis *Équipe › Accès* pour les 5 nouveaux droits.
+
 ## Nouveautés V16 — Lot 3 : devis refusé, attente client, retards, attente pièces
 
 - **Frais annoncés** : *Paramètres › Parcours atelier › Frais de diagnostic* (DT HT, vide = aucun). À la réception, la case « Frais de diagnostic annoncés au client » (cochée par défaut) ajoute la ligne *Frais de diagnostic*, **acceptée dès la création** et facturable même si le devis est refusé. Un autre frais annoncé (démontage…) s’ajoute en main-d’œuvre avec la case « Frais annoncé au client », **seulement avant l’envoi du devis** (accueil / responsables). Le devis imprimé et le portail l’affichent à part (« dus même en cas de refus »).

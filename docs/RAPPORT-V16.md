@@ -308,3 +308,112 @@ Branche `feat/v16-consolidation` (suite des Lots 1 et 2). Plan suivi : [PLAN-V16
 - Un nouvel ordre dont une ligne acceptée attend une pièce passe **tout seul en *Attente pièces*** (réglage désactivable) ; le retour en réparation reste manuel.
 - Un **bon de réception** réserve désormais la pièce reçue pour l'ordre qui l'attendait (le stock « libre » baisse d'autant).
 - `reminderOptOut` (« refuse les rappels ») s'applique désormais aussi aux messages de changement de date (consigne reçue) ; les autres messages de service (véhicule prêt, devis) partent comme avant.
+
+
+---
+
+## Lot 4 — Réception signée, restitution, facture et paiements
+
+Branche `feat/v16-consolidation` (suite des Lots 1 à 3). Plan suivi : [PLAN-V16-LOT4.md](PLAN-V16-LOT4.md) (décisions du propriétaire : avoirs dans une table séparée `CreditNote`, `Invoice.workOrderId` gardé `@unique NOT NULL`, acompte → vrai paiement pour les nouveaux acomptes seulement, pas de gardiennage pendant une attente pièces imputable au garage). Aucune question bloquante : les contradictions avec le code ont un choix prudent (§ 9 du plan, rappelées au § 7 ci-dessous). Rien n'a été fusionné dans `main`, rien n'a été poussé, `db:cloud` n'a pas été lancé.
+
+### 1. Ce qui a été fait
+
+1. **Réception** : voyants allumés (12 codes), objets laissés, nombre de clés, **plafond d'autorisation** (millimes TTC), réponse aux frais de diagnostic (`diagnosticFeeAccepted`), date de l'acompte. Km d'entrée **inférieur au dernier relevé** : refus `mileageLower` sauf confirmation (case), journal `vehicle.mileageLowered` ; jamais de baisse silencieuse (création d'ordre, complément du véhicule).
+2. **Signature** (`Signature`, ajout seul, trigger ; la sync passe) : cadre de signature maison (`<canvas>` 600 × 220, PNG de quelques Ko, contrôle des octets PNG et 300 Ko max côté serveur, bien sous 4,5 Mo), image et document figé envoyés par `putObject`, `documentHash` SHA-256, IP, navigateur, employé. **Prise en charge signée** (`signIntake`) : document HTML figé (client, véhicule, km, carburant, carrosserie, voyants, objets, clés, plafond, frais, acompte, travaux, photos de réception, clauses, signataire, empreinte de l'image) + empreinte ; ensuite fiche de réception et km d'entrée **verrouillés** (`intakeLocked`), photos `INTAKE` non supprimables (`intakePhotoLocked`, masquables, journalisé), une nouvelle photo devient `WORK`. Document consultable (`/api/signatures/[id]/document`, équipe seulement, servi en bac à sable CSP), « copie intacte » recalculée à l'affichage.
+3. **Photos par étape** : `WorkOrderMedia.stage` (`INTAKE`, `WORK`, `DELIVERY`), choisi dans l'envoi de photos (proposé selon le statut), badge sur la fiche.
+4. **Plafond signé** (section 2 du prompt) : `Réceptionné / Diagnostic → En réparation` sans devis permis si la réception est signée et le total TTC ≤ plafond ; lignes en attente acceptées « pré-autorisées » (événement + journal `workOrder.preAuthorized`).
+5. **Restitution** (`VehicleHandover` + `Signature DELIVERY`, ajout seul) : km (≥ km d'entrée) et carburant à la sortie, checklist (travaux expliqués, pièces remplacées rendues / laissées / garantie / aucune, clés, propreté), remarques, signature, document figé + empreinte, `Vehicle.mileage` monté si plus haut ; bon imprimable `/garage/work-orders/[id]/restitution`. **`READY → DELIVERED` exige une restitution signée faite depuis le dernier passage à *Prêt*** (réglage `requireSignedHandover`, activé ; nouveaux ordres `workflowLot4` ; pas de dérogation, vérifié après la facture / le solde). Fenêtre de statut : « Bon de restitution signé exigé avant la livraison ». Droit `recordHandover`.
+6. **Facture** : lignes acceptées non annulées (Lot 2) + **nature de la pièce** dans la copie figée, **`snapshotHash`** (SHA-256, même JSON canonique que les devis), « copie intacte » sur la page. Trigger **`Invoice_frozen`** : `UPDATE` refusé si une autre colonne que `paidAmount` / `status` change, `DELETE` refusé, la synchronisation passe (`garagepro.sync = 'on'`).
+7. **Avoir** (`CreditNote`, ajout seul, droit `issueCreditNote` : ADMIN, ACCOUNTANT) : annule **toute** la facture, numéro `AV-2026-0001` (`Sequence credit-AAAA` + `assertCanNumberDocuments`, au PC du garage avec un hub), motif obligatoire, un seul par facture (unique), copie figée + empreinte ; la facture n'est ni modifiée ni supprimée, seul son statut passe **`CREDITED`** (« Annulée par avoir »). Reste dû 0, trop-perçu affiché ; ordre livré → clôturé. Avoir imprimable `/garage/invoices/[id]/avoir`. Rapports (CA = factures − avoirs de la période, ligne « Avoirs émis »), tableau de bord (CA du mois, 14 jours), fiche client, rentabilité, « à encaisser » (factures annulées exclues) : jamais compté deux fois.
+8. **Paiements** (`Payment` en ajout seul, trigger ; seule exception : l'auteur effacé quand un compte d'employé est supprimé) : **date du paiement** (champ date, jour du garage ; jamais dans le futur, pas plus d'un an avant la facture ; audit n° 26), **anti double clic** (clé `requestKey` unique envoyée par le formulaire ; un 2ᵉ envoi renvoie le même paiement, message « déjà enregistré » ; audit n° 19), **annulation** (`reversePayment` : ADMIN, MANAGER ; ligne négative liée `reversalOfId` unique, motif, statut recalculé, ordre `CLOSED` → `DELIVERED` automatique ; une annulation ne s'annule pas).
+9. **Acompte → vrai paiement** (audit n° 27, nouveaux ordres) : à la création de la facture, `Payment` `isDeposit` (mode de l'acompte, daté du jour où il a été reçu, plafonné au total) ; la règle de solde du Lot 1 ne déduit plus l'acompte de ces ordres (`depositOutstanding`). Anciens ordres : inchangés (voir § 5).
+10. **Gardiennage** (`lib/storage-fee.ts`) : départ = premier message « véhicule prêt » **envoyé** (ou « Client prévenu » noté à la main) pendant que l'ordre est *Prêt*, + `storageGraceHours` ; compté pendant *Prêt* et pendant une attente pièces **non** imputable au garage avec le véhicule gardé (décision du Lot 3) ; jamais pendant une attente imputable au garage (ou sans décision : imputable par défaut), un retour en atelier, ni si le véhicule a été restitué ; jours entamés × `storageFeePerDay`. Carte *Gardiennage* sur la fiche (*Prêt*, avant facture) ; ligne `isStorageFee` ajoutée **à la création de la facture** (réglage `autoStorageFee`, journal `workOrder.storageFee`) ; *Ne pas facturer le gardiennage* (`waiveStorageFee` + motif, journal).
+11. **Relances graduées** J+7 / J+15 / J+30 après l'échéance (`queueInvoiceReminders`, appelé par la tâche des rappels ; réglage `autoInvoiceReminders`) : plus haut niveau atteint, une fois (clé `invoice-remind:<id>:<niveau>`), ligne `InvoiceReminder` avec `level`, événement, journal ; factures des nouveaux ordres seulement, jamais à un client qui refuse les messages ; type « Relance de facture » dans *Historique des envois*.
+12. **Balance âgée** (0–30, 31–60, 61–90, > 90 jours depuis la date de facture) dans *Rapports* (fr / ar / en).
+13. **Garantie à la facture** (audit n° 3, nouveaux ordres) : créée à la facture ; à la livraison seulement si la facture existe.
+14. **Signatures réutilisées** : accord du devis par l'équipe → signature facultative sur tablette (`Signature QUOTE` + `QuoteApproval.signatureKey` écrit à la création de la preuve) ; décharge de sécurité (Lot 3) → signature sur tablette depuis la page de la décharge (`Signature SAFETY_WAIVER` + même événement que la case papier).
+15. **Hub** : `media-sync.mjs` copie aussi `Signature.imageKey` et `Signature.documentKey` (dans les deux sens).
+16. Réglages *Parcours atelier* (3 cases), 5 droits (MATRIX, `PERMISSION_GROUPS`, libellés fr / ar / en), textes fr / ar / en (`v16-lot4-*.ts`, erreurs, statut de facture, type de message), données de démonstration (réception signée, gardiennage dû, restitution signée + clôture, avoir + remboursement, chèque refusé).
+
+### 2. Fichiers modifiés / créés
+
+**Créés** : `prisma/migrations/28_signed_handover_billing/migration.sql`, `src/lib/billing.ts`, `src/lib/handover.ts`, `src/lib/storage-fee.ts`, `src/lib/i18n/v16-lot4-fr.ts` / `-ar.ts` / `-en.ts`, `src/server/signatures.ts`, `handover.ts`, `storage-fees.ts`, `src/actions/lot4.ts`, `src/app/api/signatures/[id]/[which]/route.ts`, pages `invoices/[id]/avoir`, `work-orders/[id]/restitution`, composants `signature-pad.tsx`, `lot4-cards.tsx`, `tests/lot4-v16.test.ts`, `tests/lot4-v16.db.test.ts`, `docs/PLAN-V16-LOT4.md`, `docs/media/v16/lot4/*` (18 captures).
+
+**Modifiés — fichiers partagés avec d'autres modules** (à surveiller lors des fusions) : `prisma/schema.prisma`, `scripts/hub/media-sync.mjs`, `src/lib/permissions.ts`, `src/lib/report.ts`, `src/lib/repair-order-forms.ts`, `src/lib/i18n/fr.ts` / `ar.ts` / `en.ts` (statut `CREDITED`, erreurs), `v16-*` (branchement `lot4`), `v103-*` (5 droits), `v7-*` (type de message), `src/server/work-orders.ts`, `workflow.ts`, `invoices.ts`, `quotes.ts`, `media.ts`, `repair-order.ts`, `reminders.ts`, `reports.ts`, `portal.ts`, `cash.ts`, `customers.ts`, `dashboard.ts`, `dashboard-v10.ts`, `profit.ts`, `tests/hub-sync.test.ts`.
+
+**Modifiés — autres** : `src/actions/catalog.ts` (paiement daté + clé), `work-orders.ts`, `repair-order.ts` ; API d'envoi de photos (`stage`) ; pages `work-orders/[id]` (+ `decharge`), `invoices/[id]` ; composants `badges`, `check-in-form`, `document-view`, `intake-card`, `intake-fields`, `media-uploader`, `quote-decision-dialog`, `report-view`, `settings-repair-order`, `status-dialog`, `timeline`, `vehicle-completion` ; tests existants adaptés (`agenda.db`, `cash.db`, `check-in-claims`, `delays-v16.db`, `repair-order`, `warranty.db`, `workflow-v16.db`, `audit-v16/reproductions.audit.ts`) ; `scripts/demo-data/demo.run.ts` ; `README.md`, `docs/AUDIT-V16.md`.
+
+### 3. Migration `28_signed_handover_billing`
+
+- Types créés : `SignatureKind`, `MediaStage`. Une valeur ajoutée à un type existant : `InvoiceStatus` + `CREDITED` (`ADD VALUE IF NOT EXISTS`, jamais utilisée dans le fichier).
+- Tables **ajout seul** `Signature`, `VehicleHandover`, `CreditNote` (trigger `_v16_lot4_readonly` : `UPDATE` / `DELETE` refusés sauf `garagepro.sync = 'on'`) ; `CreditNote.number` et `creditOfInvoiceId` uniques.
+- Colonnes : `WorkOrder.warningLights` (Json `[]`), `itemsLeft`, `keyCount`, `authorizationCeiling`, `diagnosticFeeAccepted`, `depositReceivedAt`, `workflowLot4` ; `WorkOrderMedia.stage` ; `WorkOrderLine.isStorageFee` ; `Invoice.snapshotHash` ; `Payment.requestKey` (unique), `isDeposit`, `reversalOfId` (unique, FK), `reason` ; `InvoiceReminder.level` ; `Setting.requireSignedHandover`, `autoStorageFee`, `autoInvoiceReminders` (true).
+- Triggers : `Invoice_frozen` (facture émise figée), `Payment_append_only`.
+- **Pas de backfill de données** : colonnes nullables ou avec défaut neutre ; `workflowLot4` ajoutée avec `DEFAULT false` (ordres existants à false **sans UPDATE**, rien dans le journal de sync), puis défaut `true`. Anciennes factures : `snapshotHash` vide (non recalculé : la forme JSON exacte de l'époque n'est pas garantie).
+- Bloc final `_sync_log_trg` identique à `24_accueil`. Rejouée deux fois sans erreur.
+
+### 4. Tests et résultats (chiffres réels, bases jetables `gp_test_v16l4*`)
+
+| Vérification | Résultat |
+|---|---|
+| `npx prisma generate` | OK (client 6.19.3) |
+| `npx tsc --noEmit` | 0 erreur |
+| `npx eslint src tests` | 0 problème |
+| `npm run check` | 57 fichiers, **557 tests réussis**, 15 ignorés (tests base / hub sans variable) |
+| `npm run test:db` (`TEST_DB_NAME=gp_test_v16l4`) | 31 fichiers, **268 tests réussis** (dont 17 nouveaux dans `lot4-v16.db.test.ts`) |
+| `npm run test:hub` (`TEST_HUB_DB_PREFIX=gp_test_v16l4_hub`) | **16 tests réussis** (dont « V16 Lot 4 : migration 28 rejouée deux fois sans rien journaliser ; ordres existants `workflowLot4 = false` sans UPDATE ; signatures, restitutions, avoirs dans les deux sens ; ajout seul des deux côtés ; facture figée qui laisse passer la sync (paiement en ligne → garage, avoir garage → en ligne) ; fichiers de signature copiés / rapatriés par `syncMedia` ») |
+| `node scripts/verify-migrations.mjs … gp_test_v16l4_migfinal` | 29 migrations, la 28 rejouée sans erreur ; structure identique au schéma Prisma |
+| Suite d'audit `tests/audit-v16` (`gp_test_v16l4_audit`) | **21 réussies** (25 avant : A-03, A-20, A-27, A-28 corrigés, inversés et déplacés dans `test:db`) |
+| `npx next build` | compilé sans erreur (nouvelles pages `invoices/[id]/avoir`, `work-orders/[id]/restitution`, route `/api/signatures/[id]/[which]`) |
+
+**Tests ajoutés** : unitaires (18) — gardiennage (départ au message + franchise, sans message, dans la franchise, attente imputable au garage / sans décision / véhicule restitué / imputable au client, retour en atelier), avoir (reste dû 0, trop-perçu), acompte compté une fois, statut après annulation, balance âgée, niveaux de relance, date de paiement, numéro d'avoir, km, plafond, voyants / checklist, restitution exigée, image de signature (vrai PNG, 300 Ko), droits, traductions. Base (17) — **facture émise non modifiable / non supprimable en SQL direct** (sauf `paidAmount` / `status` et la sync) ; **avoir** (droits, motif, AV-…-0001 puis 0002 sans trou, un seul, facture identique sauf statut, ajout seul, plus de paiement, rapport net) ; avoir d'un ordre livré → clôturé ; **livraison refusée sans restitution signée** (même avec dérogation), mécanicien refusé, km de sortie, signature vide, document figé + empreinte, ajout seul, puis livré → clôturé ; réglage désactivé / ordre d'avant le Lot 4 ; **gardiennage non compté pendant une attente pièces imputable au garage** (décision ou aucune) ; compté si imputable au client ; dispense motivée ; acompte → paiement daté, solde exact, clôture ; paiement daté + double envoi simultané = 1 paiement ; annulation (droits, motif, ligne négative, réouverture, jamais deux fois, ajout seul) ; A-03 garantie à la facture ; A-27 trésorerie non comptée deux fois ; réception signée (document, verrous, photos) ; km inférieur ; plafond signé ; signature de l'accord du devis ; relances graduées + balance âgée.
+
+**Contrôle des tests** (code retiré temporairement, puis remis — 17/17 ensuite) :
+- contrôle « facture émise figée » retiré du trigger (`RAISE` remplacés) → `lot4-v16.db.test.ts` : **1 échec / 16 réussis** (facture modifiée et supprimée en SQL direct) ;
+- contrôle « restitution signée exigée » retiré de `changeStatusTx` → **1 échec / 16 réussis** (livraison acceptée sans bon).
+
+**Vérification dans le navigateur** (`next start -p 3300` depuis la branche, base de démo `gp_test_v16l4_demo`, Edge sans interface piloté par le protocole DevTools ; serveur arrêté ensuite, hub du port 3000 jamais touché) : tablette 768 px en **français** — cadre de signature dessiné, « Prise en charge signée par … », fiche verrouillée ; en **arabe** (RTL) — « أمضى … وثيقة الاستلام », empreinte « نسخة سليمة » ; document figé ouvert (prise en charge, signataire, empreinte) ; ordre de démo avec voyants / objets / clés / plafond, « copie intacte » ; ordre *Prêt* facturé et payé → *Étape suivante : Livré* : « Bon de restitution signé exigé avant la livraison » ; restitution signée → *Livré* puis *Clôturé* tout seul ; bon de restitution imprimable ; gardiennage « 4 jour(s) × 20,000 DT = 80,000 DT » (prévenu il y a 6 jours, franchise 48 h) puis facture avec la ligne *Frais de gardiennage (4 jour(s))* ; paiement daté d'hier puis annulé (« Chèque refusé ») : ligne barrée « annulé » + ligne « Annulation −20,000 DT » ; avoir AV-2026-0002 (« Facture annulée par l'avoir … », trop-perçu à rembourser) et avoir imprimable ; *Rapports* (trimestre) : balance âgée 0–30 / 31–60 / 61–90 / > 90 jours en français et en arabe ; *Paramètres › Parcours atelier* : 3 nouveaux réglages. Captures : `docs/media/v16/lot4/`.
+
+### 5. Mise en production
+
+- **En ligne + garage (hub)** — dans cet ordre, sans attendre entre les étapes :
+  1. `npm run db:cloud` **avant** le `git push` (migration 28, et 25 à 27 si les Lots précédents n'y sont pas encore) ;
+  2. **tout de suite** au garage : fermer puis relancer `start-hub.cmd` (le hub applique la migration à la base du PC ; la valeur `CREDITED` et les 3 tables doivent exister au garage avant que l'en-ligne les écrive) ;
+  3. `git push`, puis vérifier le déploiement Vercel.
+- **Sans hub** : `npx prisma db execute --file prisma/migrations/28_signed_handover_billing/migration.sql --schema prisma/schema.prisma` (après 25, 26, 27).
+- **Anciens acomptes non convertis** (consigne : pas de backfill, à signaler) : la base réelle n'a pas été lue (interdit). Liste à sortir en lecture seule au garage : `SELECT number, "depositAmount", "depositMethod", status FROM "WorkOrder" WHERE NOT "workflowLot4" AND "depositAmount" > 0 ORDER BY number;` (ou *Prisma Studio*). Ces ordres gardent la règle du Lot 1 (acompte déduit du solde, aucun `Payment`).
+
+### 6. Points à vérifier à la main
+
+1. *Paramètres › Parcours atelier* : « Exiger le bon de restitution signé », « Ajouter le gardiennage à la facture », « Relances automatiques » cochés ; *Conditions de l'ordre de réparation* : frais de gardiennage par jour et franchise (défaut 20 DT / 48 h — à confirmer avant la mise en ligne).
+2. *Nouvel ordre* : voyants, objets, clés, plafond ; avec un véhicule connu, taper un km plus petit → case de confirmation obligatoire.
+3. Fiche de l'ordre sur la tablette › *Signature de la prise en charge* : nom + signature → « Prise en charge signée … », *Document signé* (empreinte « copie intacte ») ; la fiche *Prise en charge* et le km ne se modifient plus ; une photo de réception n'a plus de corbeille (cadenas), seulement *Masquer*.
+4. Ordre signé avec plafond 250 DT et lignes < 250 DT TTC : *Changer le statut… › En réparation* sans devis ; au-dessus : refusé.
+5. *Enregistrer l'accord* : déplier « Signature du client sur la tablette (facultatif) », signer → la signature est gardée avec la décision.
+6. Ordre *Prêt* : carte *Gardiennage* (ou « Client prévenu (téléphone / sur place) » si aucun SMS n'est parti) ; chef d'atelier : *Ne pas facturer le gardiennage* + motif. *Facturer* → ligne *Frais de gardiennage*.
+7. Ordre *Prêt* facturé et payé : *Étape suivante : Livré* refusée (« Bon de restitution signé exigé ») ; carte *Restitution du véhicule* : km, carburant, checklist, signature → *Livré* puis *Clôturé* ; *Imprimer le bon de restitution*.
+8. *Factures › une facture* : *Date du paiement* d'hier, *Encaisser* ; double clic rapide → un seul paiement ; chef d'atelier : *Annuler* un paiement + motif → ligne « Annulation » ; un ordre clôturé repasse *Livré*.
+9. Administrateur ou comptable : *Émettre un avoir* + motif → « Annulée par avoir », numéro AV-… ; *Voir l'avoir* (imprimable) ; *Rapports* : « Avoirs émis » et CA net.
+10. Nouvel ordre avec acompte → facture : un paiement « Acompte (réception) » daté du jour de l'acompte, reste dû = total − acompte.
+11. *Rapports* : bloc *Balance âgée* ; en arabe.
+12. *Historique des envois* : après une facture échue de plus de 7 jours (nouvel ordre), une ligne « Relance de facture » ; la facture montre la relance dans son historique.
+13. Avec le hub : signer une restitution **en ligne** puis vérifier au garage que l'image et le bon apparaissent (copie par la sync des fichiers) ; et l'inverse.
+
+### 7. Ce qui n'a pas été fait (et pourquoi)
+
+- **Avoir partiel** et **refacturation après avoir** : non (décision : avoir total ; `Invoice.workOrderId @unique` gardé → un ordre ne peut avoir qu'une facture). À trancher si le garage veut corriger une facture puis en refaire une.
+- **Acompte avant la facture** : l'acompte n'est pas un `Payment` tant que la facture n'existe pas (`Payment.invoiceId` obligatoire, aucune contrainte relâchée) ; il le devient à la facture, daté du jour reçu. La trésorerie ne le voit donc qu'à partir de la facturation.
+- **Gardiennage après la facture** : ce qui court entre la facture et la sortie n'est pas facturé (facture figée) — facturer au moment où le client vient chercher le véhicule.
+- **Document figé en PDF** : HTML figé (autorisé par le prompt), imprimable depuis le navigateur.
+- **Empreinte des anciennes factures** : non calculée (pas de backfill).
+- **Textes** : l'aide « acompte : à enregistrer comme paiement » de la fiche *Prise en charge* reste générale (pour les nouveaux ordres c'est automatique) ; les documents figés sont en français (comme les autres documents imprimés, audit n° 35).
+- **Problèmes de l'audit** encore ouverts liés à l'argent : n° 20 à 25 (timbre à 0 DT, timbre fournisseur, coûts rapports / rentabilité, solde de trésorerie des rapports, « en retard » double, plafond de réclamation) — hors du périmètre du Lot 4.
+
+### À savoir avant la mise en ligne (Lot 4)
+
+- Pour un **nouvel ordre**, plus de livraison sans **bon de restitution signé** (réglage désactivable) — même un responsable ne peut pas déroger : la restitution se fait depuis la fiche (*Prêt*).
+- Une **facture émise ne se corrige plus** : erreur → avoir (administrateur ou comptable), et l'ordre ne peut pas être refacturé.
+- Un **paiement ne se supprime plus** : il s'annule (ligne négative, motif). Le formulaire demande maintenant la **date** du paiement (aujourd'hui par défaut).
+- Le **gardiennage** (20 DT / jour après 48 h par défaut) sera ajouté **automatiquement** aux factures des nouveaux ordres dès que le client a été prévenu : vérifier les montants dans *Conditions de l'ordre de réparation* avant la mise en ligne, ou décocher le réglage.
+- Les **relances automatiques** de factures (J+7, J+15, J+30) partent par SMS / e-mail pour les nouveaux ordres ; décocher le réglage pour les garder à la main.
+- Bucket Supabase : les signatures (`image/png`) et documents figés (`text/html`) y sont envoyés ; vérifier qu'aucune restriction de type de fichier n'est réglée sur le bucket (non vérifiable d'ici).
