@@ -2,7 +2,6 @@ import "server-only";
 import nodemailer, { type Transporter } from "nodemailer";
 import { Resend } from "resend";
 import { type EmailLayout, renderEmailHtml } from "@/lib/email-template";
-import { getSettings } from "@/server/settings";
 
 /**
  * Transactional e-mail. Two senders, tried in this order:
@@ -154,6 +153,8 @@ type GarageDetails = { contact: EmailLayout["contact"]; logo: { contentType: str
 /** Garage details for the e-mail footer and logo; the e-mail still goes out if they can't be read. */
 async function garageDetails(): Promise<GarageDetails> {
   try {
+    // Loaded only when an e-mail is sent: importing the database client at module load reads .env.
+    const { getSettings } = await import("@/server/settings");
     const s = await getSettings();
     const [, contentType, base64] = s.logoDataUrl?.match(/^data:(image\/(?:png|jpeg|webp));base64,(.+)$/) ?? [];
     return {
