@@ -1,7 +1,7 @@
 import "server-only";
 import nodemailer, { type Transporter } from "nodemailer";
 import { Resend } from "resend";
-import { escapeHtml } from "@/lib/html-escape";
+import { type EmailLayout, renderEmailHtml } from "@/lib/email-template";
 
 /**
  * Transactional e-mail. Two senders, tried in this order:
@@ -68,14 +68,14 @@ export type EmailMessage = {
 
 export type EmailResult = { ok: true; id: string } | { ok: false; error: string };
 
-async function viaResend(message: EmailMessage): Promise<EmailResult> {
+async function viaResend(message: EmailMessage, details: GarageDetails): Promise<EmailResult> {
   resendClient ??= new Resend(process.env.RESEND_API_KEY);
   const { data, error } = await resendClient.emails.send({
     from: process.env.SUPPORT_FROM_EMAIL!,
     to: [message.to],
     subject: message.subject,
     text: message.text,
-    html: renderHtml(message),
+    html: renderHtml(message, details, false),
     ...(process.env.RESEND_REPLY_TO ? { replyTo: process.env.RESEND_REPLY_TO } : {}),
     ...(message.attachment ? { attachments: [{ filename: message.attachment.filename, content: Buffer.from(message.attachment.content) }] } : {}),
   });
@@ -89,7 +89,7 @@ async function viaResend(message: EmailMessage): Promise<EmailResult> {
   return { ok: true, id: data.id };
 }
 
-async function viaSmtp(message: EmailMessage): Promise<EmailResult> {
+async function viaSmtp(message: EmailMessage, details: GarageDetails): Promise<EmailResult> {
   // Gmail only sends as the account itself: the display name is free, the address is not.
   const name = (process.env.SMTP_FROM_NAME || message.brand || "Garage").replace(/["<>]/g, "");
   const info = await smtp().sendMail({
@@ -97,10 +97,13 @@ async function viaSmtp(message: EmailMessage): Promise<EmailResult> {
     to: message.to,
     subject: message.subject,
     text: message.text,
-    html: renderHtml(message),
+    html: renderHtml(message, details, true),
     ...(process.env.SMTP_REPLY_TO || process.env.RESEND_REPLY_TO ? { replyTo: process.env.SMTP_REPLY_TO || process.env.RESEND_REPLY_TO } : {}),
     // Content is always passed in memory (never a path/URL): no file or network access.
-    ...(message.attachment ? { attachments: [{ filename: message.attachment.filename, content: Buffer.from(message.attachment.content) }] } : {}),
+    attachments: [
+      ...inlineImages(details),
+      ...(message.attachment ? [{ filename: message.attachment.filename, content: Buffer.from(message.attachment.content) }] : []),
+    ],
   });
   if (info.rejected?.length) return { ok: false, error: "SMTP : adresse refusée" };
   return { ok: true, id: info.messageId };
@@ -116,9 +119,10 @@ const SMTP_HINTS: [RegExp, string][] = [
 export async function sendEmail(message: EmailMessage): Promise<EmailResult> {
   if (!emailConfigured()) return { ok: false, error: "Aucun envoi d'e-mail configuré : ajoutez SMTP_USER/SMTP_PASS (Gmail) ou RESEND_API_KEY dans .env" };
   const errors: string[] = [];
+  const details = await garageDetails();
   if (resendConfigured()) {
     try {
-      const r = await viaResend(message);
+      const r = await viaResend(message, details);
       if (r.ok) return r;
       errors.push(r.error);
     } catch (error) {
@@ -127,7 +131,7 @@ export async function sendEmail(message: EmailMessage): Promise<EmailResult> {
   }
   if (smtpConfigured()) {
     try {
-      const r = await viaSmtp(message);
+      const r = await viaSmtp(message, details);
       if (r.ok) return r;
       errors.push(r.error);
     } catch (error) {
@@ -142,27 +146,63 @@ export async function sendEmail(message: EmailMessage): Promise<EmailResult> {
   return { ok: false, error: errors.join(" · ") };
 }
 
-/** Minimal, mail-client-safe HTML (inline styles, no external assets). */
-function renderHtml({ text, brand, subject }: EmailMessage): string {
-  const body = escapeHtml(text)
-    .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" style="color:#e10600">$1</a>')
-    .replace(/\n/g, "<br>");
-  const rtl = /[؀-ۿ]/.test(text);
-  return `<!doctype html>
-<html lang="${rtl ? "ar" : "fr"}" dir="${rtl ? "rtl" : "ltr"}">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${escapeHtml(subject)}</title></head>
-<body style="margin:0;background:#f1f5f9;font-family:Arial,Helvetica,sans-serif;color:#0f172a">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="padding:24px 12px">
-    <tr><td align="center">
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:12px;overflow:hidden">
-        <tr><td style="background:#0b0c10;color:#ffffff;padding:18px 24px;font-size:18px;font-weight:bold">
-          <span style="display:inline-block;background:#e10600;border-radius:6px;padding:2px 8px;margin-${rtl ? "left" : "right"}:8px">${escapeHtml((brand ?? "G").trim().charAt(0).toUpperCase() || "G")}</span>${escapeHtml(brand ?? "")}
-        </td></tr>
-        <tr><td style="padding:24px;font-size:15px;line-height:1.6">${body}</td></tr>
-        <tr><td style="padding:14px 24px;background:#f8fafc;color:#64748b;font-size:12px">${escapeHtml(brand ?? "")}</td></tr>
-      </table>
-    </td></tr>
-  </table>
-</body>
-</html>`;
+const LOGO_CID = "garage-logo";
+const PRODUCT_CID = "garagepro-logo";
+const PRODUCT_LOGO_PATH = "/icons/icon-192.png";
+
+type Image = { contentType: string; content: Buffer };
+type GarageDetails = {
+  contact: EmailLayout["contact"];
+  /** The garage's own logo (Paramètres), embedded through SMTP only. */
+  logo: Image | null;
+  /** GaragePro monogram: read from public/ (garage PC) for an inline attachment… */
+  productLogo: Image | null;
+  /** …or loaded from the public site when the file is not on disk (online) or for Resend. */
+  productLogoUrl: string | null;
+};
+
+/** Garage details for the e-mail footer and logos; the e-mail still goes out if they can't be read. */
+async function garageDetails(): Promise<GarageDetails> {
+  const details: GarageDetails = { contact: undefined, logo: null, productLogo: null, productLogoUrl: null };
+  try {
+    const { readFile } = await import("node:fs/promises");
+    const path = await import("node:path");
+    details.productLogo = { contentType: "image/png", content: await readFile(path.join(process.cwd(), "public", PRODUCT_LOGO_PATH)) };
+  } catch {
+    /* not on disk: the public URL below is used */
+  }
+  try {
+    // Loaded only when an e-mail is sent: importing the database client at module load reads .env.
+    const { getSettings } = await import("@/server/settings");
+    const s = await getSettings();
+    const [, contentType, base64] = s.logoDataUrl?.match(/^data:(image\/(?:png|jpeg|webp));base64,(.+)$/) ?? [];
+    details.contact = { address: s.address, phone: s.phone, email: s.email };
+    details.logo = contentType && base64 ? { contentType, content: Buffer.from(base64, "base64") } : null;
+    const { getBaseUrl } = await import("@/lib/base-url");
+    const base = await getBaseUrl();
+    // Only a public https address can be fetched by the customer's mail client (not localhost).
+    if (/^https:\/\//.test(base) && !/localhost|127\.0\.0\.1/.test(base)) details.productLogoUrl = `${base.replace(/\/$/, "")}${PRODUCT_LOGO_PATH}`;
+  } catch {
+    /* footer without contact details */
+  }
+  return details;
+}
+
+/** Layout in src/lib/email-template.ts. Inline (cid) images only through SMTP; Resend gets the public URL. */
+function renderHtml({ text, brand, subject }: EmailMessage, details: GarageDetails, inline: boolean): string {
+  return renderEmailHtml({
+    subject,
+    text,
+    brand,
+    contact: details.contact,
+    logoCid: inline && details.logo ? LOGO_CID : null,
+    productLogoSrc: inline && details.productLogo ? `cid:${PRODUCT_CID}` : details.productLogoUrl,
+  });
+}
+
+function inlineImages(details: GarageDetails) {
+  return [
+    ...(details.logo ? [{ filename: `logo.${details.logo.contentType.split("/")[1]}`, content: details.logo.content, contentType: details.logo.contentType, cid: LOGO_CID }] : []),
+    ...(details.productLogo ? [{ filename: "garagepro.png", content: details.productLogo.content, contentType: details.productLogo.contentType, cid: PRODUCT_CID }] : []),
+  ];
 }

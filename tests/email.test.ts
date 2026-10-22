@@ -24,6 +24,12 @@ vi.mock("nodemailer", () => ({
   },
 }));
 
+vi.mock("@/server/settings", () => ({
+  getSettings: async () => ({ garageName: "911 Garages", address: "Zone industrielle", phone: "+216 22 000 000", email: null, logoDataUrl: null }),
+}));
+
+vi.mock("@/lib/base-url", () => ({ getBaseUrl: async () => "https://garage.example" }));
+
 const load = async () => {
   vi.resetModules();
   return import("@/server/email");
