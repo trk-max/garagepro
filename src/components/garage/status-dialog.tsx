@@ -21,6 +21,8 @@ export type StatusChoice = {
   reassembly?: boolean;
   /** V16 Lot 3 — a refused SAFETY line: the signed waiver must be confirmed (by someone allowed to). */
   waiver?: { canSign: boolean; href: string } | null;
+  /** V16 Lot 5 — back to the workshop after the quality check: the cause (list) is mandatory. */
+  rework?: boolean;
 };
 
 /** Native <dialog> shell shared by the status and the line dialogs (Escape / click outside close). */
@@ -188,6 +190,24 @@ export function StatusDialog({
                 <p className="text-xs">{t.v16.lot3.refusal.waiverOnlyStaff}</p>
               )}
             </div>
+          )}
+
+          {choice?.rework && (
+            <label className="grid gap-1.5 text-sm font-medium">
+              <span>
+                {t.v16.lot5.rework.cause} <span className="text-gp-danger-ink">*</span>
+              </span>
+              <select name="reworkCause" required defaultValue="" className="h-11 rounded-[14px] border border-gp-line bg-gp-card px-3 text-sm">
+                <option value="" disabled>
+                  {t.v16.lot5.rework.choose}
+                </option>
+                {(Object.keys(t.v16.lot5.rework.causes) as (keyof typeof t.v16.lot5.rework.causes)[]).map((k) => (
+                  <option key={k} value={k}>
+                    {t.v16.lot5.rework.causes[k]}
+                  </option>
+                ))}
+              </select>
+            </label>
           )}
 
           {needReason && (

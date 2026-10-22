@@ -58,6 +58,20 @@ export function describeEvent(e: Pick<WorkOrderEvent, "type" | "data">, t: Dicti
       if (d.preAuthorized) return fmt(l4.preAuthorized, { amount: formatMoney(typeof d.ceiling === "number" ? d.ceiling : 0, lang) });
       if (d.creditNote) return fmt(l4.creditNote, { number: str(d.creditNote), reason: str(d.reason) });
       if (typeof d.invoiceReminder === "number") return fmt(t.v16.lot4.reminder.level, { level: d.invoiceReminder });
+      // V16 Lot 5: comeback link / dismissal / unlink, inspection, low rating.
+      const l5 = t.v16.lot5;
+      if (d.comeback && typeof d.comeback === "object") {
+        const cb = d.comeback as { number?: number; category?: string };
+        const cat = typeof cb.category === "string" && cb.category in l5.comeback.categories ? l5.comeback.categories[cb.category as keyof typeof l5.comeback.categories] : "";
+        return fmt(l5.comeback.events.linked, { number: String(cb.number ?? "").padStart(4, "0"), category: cat });
+      }
+      if (d.comebackDismissed) return l5.comeback.events.dismissed;
+      if (d.comebackUnlinked) return l5.comeback.events.unlinked;
+      if (d.inspection && typeof d.inspection === "object") {
+        const i = d.inspection as { name?: string; started?: boolean; red?: number; orange?: number; green?: number };
+        return i.started ? fmt(l5.inspection.events.started, { name: i.name ?? "" }) : fmt(l5.inspection.events.completed, { name: i.name ?? "", red: i.red ?? 0, orange: i.orange ?? 0, green: i.green ?? 0 });
+      }
+      if (typeof d.lowRating === "number") return fmt(l5.comeback.events.lowRating, { rating: d.lowRating });
       return d.quoteSent
         ? fmt(t.v16.quote.events.sent, {
             kind: (d.kind === "SUPPLEMENT" ? t.v16.quote.kind.SUPPLEMENT : t.v16.quote.kind.INITIAL).toLowerCase(),
@@ -89,6 +103,11 @@ export function eventDetails(e: Pick<WorkOrderEvent, "data">, t: Dictionary, lan
   if (d.reassembled === false) out.push(t.v16.lot3.refusal.events.notReassembled);
   if (d.announcedFee) out.push(t.v16.lot3.refusal.announcedFee);
   if (d.partsWait && d.garageCaused) out.push(t.v16.lot3.parts.garageCaused);
+  // V16 Lot 5 — rework after the quality check: number and cause.
+  if (typeof d.rework === "number") {
+    const causes = t.v16.lot5.rework.causes;
+    out.push(fmt(t.v16.lot5.rework.event, { n: d.rework, cause: typeof d.reworkCause === "string" && d.reworkCause in causes ? causes[d.reworkCause as keyof typeof causes] : "—" }));
+  }
   return out;
 }
 

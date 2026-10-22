@@ -1,3 +1,4 @@
+import { isReworkMove } from "@/lib/lot5";
 import Link from "next/link";
 import { CalendarClock, ChevronRight, Images, Play, Timer, Trash2 } from "lucide-react";
 import { deleteMediaAction, workshopStatusAction, workshopStatusFormAction } from "@/actions/workshop";
@@ -160,7 +161,7 @@ export default async function WorkshopPage({ searchParams }: PageProps) {
                       <StatusDialog
                         key={o.to}
                         action={workshopStatusFormAction.bind(null, wo.id)}
-                        choices={[{ to: o.to, label: t.status[o.to], reason: true }]}
+                        choices={[{ to: o.to, label: t.status[o.to], reason: true, rework: wo.workflowLot5 && isReworkMove(wo.status, o.to) }]}
                         canOverride={false}
                         variant="secondary"
                         triggerClassName="h-8 px-3 text-sm"

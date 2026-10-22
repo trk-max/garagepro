@@ -19,6 +19,7 @@ import { getTrackingView, type TrackingView } from "@/server/portal";
 import { ClientForecasts } from "@/components/agenda/client-forecasts";
 import { trackingForecasts } from "@/server/agenda";
 import { getPortalWorkOrderId } from "@/server/portal-session";
+import { portalInspections } from "@/server/inspections";
 
 export const dynamic = "force-dynamic";
 
@@ -38,7 +39,14 @@ export default async function TrackerPage() {
   if (!workOrderId) redirect("/suivi");
 
   // V12: upcoming maintenance of THIS order's vehicle only (the session is bound to one work order).
-  const [view, { t, lang }, rated, upcoming] = await Promise.all([getLang().then((l) => getTrackingView(workOrderId, l)), getI18n(), hasFeedback(workOrderId), trackingForecasts(workOrderId).catch(() => [])]);
+  const [view, { t, lang }, rated, upcoming, inspections] = await Promise.all([
+    getLang().then((l) => getTrackingView(workOrderId, l)),
+    getI18n(),
+    hasFeedback(workOrderId),
+    trackingForecasts(workOrderId).catch(() => []),
+    // V16 Lot 5 — red / orange / green inspection (checked points only, photo only when visible to the customer).
+    portalInspections(workOrderId).catch(() => []),
+  ]);
   if (!view) redirect("/suivi");
 
   const ready = view.status === "READY";
@@ -220,6 +228,36 @@ export default async function TrackerPage() {
           <CheckCircle2 className="size-5 shrink-0" aria-hidden />
           {fmt(t.v16.portalQuote.last, { date: formatDateTime(view.lastDecision.createdAt, lang), decision: t.v16.quote.decision[view.lastDecision.decision], amount: formatMoney(view.lastDecision.amountApprovedTtc, lang) })}
         </p>
+      )}
+
+      {/* ── V16 Lot 5: inspection (red / orange / green), what was proposed in the quote ── */}
+      {inspections.length > 0 && (
+        <section className="rounded-[24px] border border-gp-line bg-gp-card p-5 text-gp-ink shadow-gp" data-testid="portal-inspection">
+          <h2 className="font-semibold">{t.v16.lot5.inspection.portalTitle}</h2>
+          <p className="mb-3 text-xs text-muted-foreground">{t.v16.lot5.inspection.portalIntro}</p>
+          {inspections.map((insp) => (
+            <ul key={insp.id} className="divide-y divide-gp-line text-sm">
+              {insp.results.map((r) => (
+                <li key={r.id} className="flex flex-wrap items-center gap-2 py-2" data-color={r.color}>
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${r.color === "RED" ? "bg-gp-danger-bg text-gp-danger-ink" : r.color === "ORANGE" ? "bg-amber-500/15 text-amber-800 dark:text-amber-300" : "bg-gp-success-bg text-gp-success-ink"}`}
+                  >
+                    {t.v16.lot5.inspection.colors[r.color]}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    {r.label}
+                    {r.note && <span className="block text-xs text-muted-foreground">{r.note}</span>}
+                    {r.quoted && <span className="block text-xs font-medium text-gp-accent-ink">{t.v16.lot5.inspection.portalQuoted}</span>}
+                  </span>
+                  {r.mediaId && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <a href={`/api/media/${r.mediaId}`} target="_blank" rel="noopener"><img src={`/api/media/${r.mediaId}`} alt={r.label} className="size-14 rounded-md object-cover" /></a>
+                  )}
+                </li>
+              ))}
+            </ul>
+          ))}
+        </section>
       )}
 
       {/* ── Invoice ── */}

@@ -101,6 +101,9 @@ export function ReportView({ data, t, lang }: { data: Data; t: Dictionary; lang:
         </Card>
       )}
 
+      {/* ── V16 Lot 5: steering KPIs (real data only, « — » when there is not enough) ── */}
+      {data.kpis && <KpiBlock k={data.kpis} data={data} t={t} lang={lang} />}
+
       <div className="grid gap-6 lg:grid-cols-2">
         {/* ── Money ── */}
         <Card>
@@ -157,7 +160,9 @@ export function ReportView({ data, t, lang }: { data: Data; t: Dictionary; lang:
               [r.turnaround, data.cars.turnaroundHours !== null ? fmt(r.hours, { n: data.cars.turnaroundHours }) : "—"],
               [r.newCustomers, String(data.cars.newCustomers)],
               [r.returning, String(data.cars.returning)],
-              [r.comebacks, String(data.cars.comebacks), data.cars.comebacks ? "text-brand-500" : undefined],
+              // V16 Lot 5 — real comebacks (orders linked to a previous one); the former heuristic is shown as « revisites ».
+              [t.v16.lot5.kpi.comeback, data.kpis?.comeback.rate == null ? "—" : `${data.kpis.comeback.rate} % (${data.cars.comebacks})`, data.cars.comebacks ? "text-brand-500" : undefined],
+              [t.v16.lot5.kpi.revisits, String(data.cars.revisits)],
               // V16 Lot 3 — delivered on the FIRST promised date (and on the current one).
               [t.v16.lot3.promise.kpi, data.cars.promise.pctInitial === null ? "—" : fmt(t.v16.lot3.promise.kpiValue, { n: data.cars.promise.onTimeInitial, total: data.cars.promise.withPromise, pct: data.cars.promise.pctInitial })],
               [t.v16.lot3.promise.kpiCurrent, data.cars.promise.pctCurrent === null ? "—" : fmt(t.v16.lot3.promise.kpiValue, { n: data.cars.promise.onTimeCurrent, total: data.cars.promise.withCurrent, pct: data.cars.promise.pctCurrent })],
@@ -314,6 +319,65 @@ function Kpi({ label, value, delta, hint, vs }: { label: string; value: string; 
         {hint}
       </p>
     </div>
+  );
+}
+
+function KpiBlock({ k, data, t, lang }: { k: NonNullable<Data["kpis"]>; data: Data; t: Dictionary; lang: Lang }) {
+  const v = t.v16.lot5.kpi;
+  const none = v.none;
+  const num = (n: number) => n.toLocaleString(lang === "ar" ? "ar-TN" : "fr-FR");
+  const pct = (n: number | null) => (n === null ? none : `${num(n)} %`);
+  const aged = data.money.aged;
+  const overdue = aged ? aged.d31_60.amount + aged.d61_90.amount + aged.d90_plus.amount : null;
+  const tiles: { label: string; value: string; sub?: string }[] = [
+    { label: v.lineApproval, value: pct(k.lineApproval.rate), sub: k.lineApproval.decided ? fmt(v.lineApprovalSub, { approved: k.lineApproval.approved, decided: k.lineApproval.decided, amount: pct(k.lineApproval.amountRate) }) : undefined },
+    { label: v.aro, value: k.aro === null ? none : formatMoney(k.aro, lang) },
+    {
+      label: v.promise,
+      value: pct(data.cars.promise.pctInitial),
+      sub: data.cars.promise.withPromise ? fmt(t.v16.lot3.promise.kpiValue, { n: data.cars.promise.onTimeInitial, total: data.cars.promise.withPromise, pct: data.cars.promise.pctInitial ?? 0 }) : undefined,
+    },
+    { label: v.comeback, value: pct(k.comeback.rate), sub: k.comeback.opened ? fmt(v.comebackSub, { n: k.comeback.count, total: k.comeback.opened }) : undefined },
+    { label: v.efficiency, value: pct(k.efficiency.rate), sub: k.efficiency.clocked ? fmt(v.efficiencySub, { sold: num(k.efficiency.sold), clocked: num(k.efficiency.clocked) }) : undefined },
+    { label: v.noShow, value: pct(k.noShow.rate), sub: k.noShow.base ? fmt(v.noShowSub, { n: k.noShow.count, total: k.noShow.base }) : undefined },
+    { label: v.aged, value: aged ? formatMoney(aged.total, lang) : none, sub: aged && overdue ? fmt(v.agedOver30, { amount: formatMoney(overdue, lang) }) : undefined },
+  ];
+  return (
+    <Card data-testid="kpi-block">
+      <CardTitle>{v.title}</CardTitle>
+      <p className="mb-3 text-xs text-muted-foreground">{v.intro}</p>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {tiles.map((x) => (
+          <div key={x.label} className="rounded-[14px] border border-gp-line p-3" data-testid="kpi">
+            <p className="text-xs text-muted-foreground">{x.label}</p>
+            <p className="mt-1 text-xl font-semibold tabular-nums" dir="ltr">{x.value}</p>
+            {x.sub && <p className="mt-0.5 text-xs text-muted-foreground">{x.sub}</p>}
+          </div>
+        ))}
+      </div>
+      {k.efficiency.technicians.length > 0 && (
+        <table className="mt-4 w-full text-sm">
+          <thead>
+            <tr className="text-start text-xs text-muted-foreground">
+              <th className="py-1 text-start font-normal">{v.technician}</th>
+              <th className="py-1 text-end font-normal">{v.sold}</th>
+              <th className="py-1 text-end font-normal">{v.clocked}</th>
+              <th className="py-1 text-end font-normal">%</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            {k.efficiency.technicians.map((x) => (
+              <tr key={x.userId}>
+                <td className="py-1.5">{x.name}</td>
+                <td className="py-1.5 text-end tabular-nums">{num(x.sold)} h</td>
+                <td className="py-1.5 text-end tabular-nums">{num(x.clocked)} h</td>
+                <td className="py-1.5 text-end tabular-nums">{pct(x.efficiency)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </Card>
   );
 }
 

@@ -30,7 +30,8 @@ import { listPartNeeds } from "@/server/follow-up";
 import { laborSummary } from "@/server/labor";
 import { partOptions } from "@/server/parts";
 import { supplierOptions } from "@/server/purchasing";
-import { QC_KEYS, getQualityCheck } from "@/server/quality";
+import { QC_KEYS, getQualityCheck, qualityPoints } from "@/server/quality";
+import { LABOR_KINDS, parseExtraResults, reworkCount } from "@/lib/lot5";
 import { isFinal } from "@/server/workflow";
 import { PROMISE_REASONS } from "@/lib/delays";
 import { lastPartsWaitDecision } from "@/server/delays";
@@ -38,6 +39,9 @@ import { lastPartsWaitDecision } from "@/server/delays";
 type Wo = {
   id: string;
   status: WorkOrderStatus;
+  /** V16 Lot 5 */
+  workflowLot5?: boolean;
+  comebackOfWorkOrderId?: string | null;
   insurerName: string | null;
   insuranceClaimRef: string | null;
   insuranceRequestedAt: Date | null;
@@ -50,6 +54,10 @@ const day = (d: Date | null, tz: string) => (d ? utcToZoned(d, tz).date : "");
 
 /** Work order: time per mechanic, quality control, insurance, missing parts. */
 export async function RepairPanels({ wo, staff, t, lang, tz }: { wo: Wo; staff: StaffUser; t: Dictionary; lang: Lang; tz: string }) {
+  // V16 Lot 5: points set in the settings and the rework counter (from the status events, append-only).
+  const [points, statusEvents] = await Promise.all([qualityPoints(), prisma.workOrderEvent.findMany({ where: { workOrderId: wo.id, type: "STATUS_CHANGED" }, select: { type: true, data: true } })]);
+  const reworks = reworkCount(statusEvents);
+  const l5 = t.v16.lot5;
   const [labor, qc, needs, parts, suppliers, users, supervision, orderLines, waitDecision] = await Promise.all([
     laborSummary(wo.id),
     getQualityCheck(wo.id),
@@ -74,7 +82,33 @@ export async function RepairPanels({ wo, staff, t, lang, tz }: { wo: Wo; staff: 
   const missingElapsed = labor.suggestedElapsedX100 - labor.billedX100;
   const missingPerson = labor.suggestedPersonX100 - labor.billedX100;
   const twoBases = labor.mechanics >= 2 && labor.suggestedPersonX100 !== labor.suggestedElapsedX100;
-  const qcDone = !!qc && qc.roadTest !== null && QC_KEYS.every((k) => qc[k]);
+  const extra = parseExtraResults(qc?.extraPoints);
+  const lot5 = !!wo.workflowLot5;
+  const qcDone =
+    !!qc &&
+    qc.roadTest !== null &&
+    QC_KEYS.every((k) => qc[k]) &&
+    (!lot5 || ((qc.roadTest !== "DONE" || (qc.roadTestKm ?? 0) > 0) && points.every((p) => extra[p.key]?.ok)));
+  const kindSelect = (
+    <NativeSelect name="kind" defaultValue={wo.comebackOfWorkOrderId ? "REWORK" : ""} aria-label={l5.labor.kind}>
+      <option value="">{l5.labor.kindAny}</option>
+      {LABOR_KINDS.map((k) => (
+        <option key={k} value={k}>
+          {l5.labor.kinds[k]}
+        </option>
+      ))}
+    </NativeSelect>
+  );
+  const lineSelect = (
+    <NativeSelect name="workOrderLineId" defaultValue="" aria-label={l5.labor.line}>
+      <option value="">{l5.labor.lineAny}</option>
+      {orderLines.map((l) => (
+        <option key={l.id} value={l.id}>
+          {l.description}
+        </option>
+      ))}
+    </NativeSelect>
+  );
   const nowLocal = utcToZoned(new Date(), tz);
   const nowInput = `${nowLocal.date}T${nowLocal.time}`;
 
@@ -89,9 +123,13 @@ export async function RepairPanels({ wo, staff, t, lang, tz }: { wo: Wo; staff: 
               <Timer className="size-4" aria-hidden /> {v.labor.stop} · {fmt(v.labor.running, { time: formatTime(mine.startedAt, lang, tz) })}
             </ActionButton>
           ) : (
-            <ActionButton action={startLaborAction.bind(null, wo.id)}>
-              <Timer className="size-4" aria-hidden /> {v.labor.start}
-            </ActionButton>
+            <ActionForm action={startLaborAction.bind(null, wo.id)} silent className="flex flex-wrap items-end gap-2" data-testid="labor-start">
+              <Field label={l5.labor.kind}>{kindSelect}</Field>
+              <Field label={l5.labor.line}>{lineSelect}</Field>
+              <Button type="submit">
+                <Timer className="size-4" aria-hidden /> {v.labor.start}
+              </Button>
+            </ActionForm>
           ))}
           {labor.running
             .filter((e) => e.userId !== staff.id)
@@ -168,6 +206,8 @@ export async function RepairPanels({ wo, staff, t, lang, tz }: { wo: Wo; staff: 
               {labor.entries.map((e) => (
                 <li key={e.id} className={cn("flex flex-wrap items-center gap-2", e.voidedAt && "text-muted-foreground line-through")}>
                   <span>{e.user.name}</span>
+                  {e.kind && <span className="rounded-full bg-gp-panel px-2 text-xs">{l5.labor.kinds[e.kind]}</span>}
+                  {e.line && <span className="text-xs text-muted-foreground">{e.line.description}</span>}
                   <span className="tabular-nums">
                     {formatDateTime(e.startedAt, lang, tz)} → {e.endedAt ? formatTime(e.endedAt, lang, tz) : "…"}
                   </span>
@@ -209,6 +249,8 @@ export async function RepairPanels({ wo, staff, t, lang, tz }: { wo: Wo; staff: 
               <Field label={v.labor.to}>
                 <Input type="datetime-local" name="to" required defaultValue={nowInput} />
               </Field>
+              <Field label={l5.labor.kind}>{kindSelect}</Field>
+              <Field label={l5.labor.line}>{lineSelect}</Field>
               <div>
                 <Button type="submit" size="sm">
                   {t.common.add}
@@ -234,6 +276,7 @@ export async function RepairPanels({ wo, staff, t, lang, tz }: { wo: Wo; staff: 
         ) : (
           <p className="mb-3 text-sm text-amber-700 dark:text-amber-400">{v.quality.notApproved}</p>
         )}
+        <p className="mb-3 text-xs text-muted-foreground" data-testid="rework-count">{reworks ? fmt(l5.quality.reworks, { n: reworks }) : l5.quality.noReworks}</p>
         {final ? null : (
           <>
             <ActionForm action={saveQualityCheckAction.bind(null, wo.id)} reset={false} className="space-y-3">
@@ -245,6 +288,12 @@ export async function RepairPanels({ wo, staff, t, lang, tz }: { wo: Wo; staff: 
                 <label className="flex items-center gap-2">
                   <input type="radio" name="roadTest" value="NOT_NEEDED" defaultChecked={qc?.roadTest === "NOT_NEEDED"} className="size-4 accent-brand-500" /> {v.quality.roadTestNotNeeded}
                 </label>
+                {/* V16 Lot 5 — distance of the road test (mandatory when done, new orders). */}
+                <label className="flex items-center gap-2">
+                  {l5.quality.roadTestKm}
+                  <Input type="number" name="roadTestKm" min={0} max={500} inputMode="numeric" defaultValue={qc?.roadTestKm ?? ""} className="h-9 w-24" dir="ltr" />
+                  <span className="text-xs text-muted-foreground">{lot5 ? l5.quality.roadTestKmHint : ""}</span>
+                </label>
               </fieldset>
               <div className="grid gap-2 text-sm sm:grid-cols-2">
                 {QC_KEYS.map((k) => (
@@ -254,6 +303,19 @@ export async function RepairPanels({ wo, staff, t, lang, tz }: { wo: Wo; staff: 
                   </label>
                 ))}
               </div>
+              {points.length > 0 && (
+                <fieldset className="text-sm" disabled={!can(staff, "fillQualityCheck")} data-testid="qc-extra">
+                  <legend className="mb-1 font-medium">{l5.quality.extraTitle}</legend>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {points.map((p) => (
+                      <label key={p.key} className="flex min-h-10 items-center gap-3 border px-3 py-2">
+                        <input type="checkbox" name={`qp:${p.key}`} defaultChecked={extra[p.key]?.ok ?? false} className="size-5 accent-brand-500" />
+                        {p.label}
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
+              )}
               <Field label={v.quality.notes}>
                 <Textarea name="notes" rows={2} maxLength={1000} defaultValue={qc?.notes ?? ""} />
               </Field>

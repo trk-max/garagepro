@@ -32,6 +32,10 @@ import { createListing, setListingStatus } from "@/server/showroom";
 import { createTicket, listReasons } from "@/server/accueil";
 import { createPlan } from "@/server/maintenance";
 import { createPackage, addPackageLine } from "@/server/admin";
+import { linkComeback } from "@/server/comebacks";
+import { completeInspection, convertResultToLine, saveResult, startInspection } from "@/server/inspections";
+import { createFeedback } from "@/server/claims";
+import { queueSatisfactionSurveys } from "@/server/reminders";
 
 /** V16 Lot 4 — a real PNG « signature » (scribble) drawn here, like the tablet canvas would send it (data URL). */
 function signaturePng(seedValue: number): string {
@@ -210,7 +214,7 @@ it("demo data", async () => {
     if (i % 3 === 0 && pkg) await step("forfait", () => applyPackage(wo.id, pkg.id, S.chef!));
     else for (const l of pick(lineSets)) await step("ligne", () => addLine(wo.id, l.type === "PART" ? { type: "PART", partId: P[(l as { sku: string }).sku]!.id, quantityX100: Q(l.q) } : { type: "LABOR", description: (l as { d: string }).d, quantityX100: Q(l.q), unitPrice: DT((l as { p: number }).p) }, S.chef!));
     for (const s of ["IN_PROGRESS", "QUALITY_CONTROL"] as WorkOrderStatus[]) await step("statut", () => changeStatus(wo.id, s, S.chef!));
-    await step("qc", () => saveQualityCheck(S.chef!, wo.id, { roadTest: "DONE", fluidsOk: true, warningsOk: true, toolsRemoved: true, workVerified: true, billingVerified: true }));
+    await step("qc", () => saveQualityCheck(S.chef!, wo.id, { roadTest: "DONE", roadTestKm: 6, fluidsOk: true, warningsOk: true, toolsRemoved: true, workVerified: true, billingVerified: true }));
     await step("qc ok", () => approveQualityCheck(S.chef!, wo.id));
     await step("prêt", () => changeStatus(wo.id, "READY", S.chef!));
     const inv = await step("facture", () => createInvoice(wo.id, admin));
@@ -307,11 +311,11 @@ it("demo data", async () => {
       if (first) await step("ligne annulée", () => removeLine(first.id, S.chef!, "Démo : pièce fournie par le client"));
     }
     if (["WASHING", "READY", "READY_INVOICED", "READY_BALANCE", "READY_STORAGE", "HANDED_OVER", "CREDITED", "REVERSED"].includes(label)) {
-      await step("qc", () => saveQualityCheck(S.chef!, wo.id, { roadTest: "DONE", fluidsOk: true, warningsOk: true, toolsRemoved: true, workVerified: true, billingVerified: true }));
+      await step("qc", () => saveQualityCheck(S.chef!, wo.id, { roadTest: "DONE", roadTestKm: 6, fluidsOk: true, warningsOk: true, toolsRemoved: true, workVerified: true, billingVerified: true }));
       await step("qc ok", () => approveQualityCheck(S.chef!, wo.id));
       await step("statut", () => changeStatus(wo.id, label === "WASHING" ? "WASHING" : "READY", S.chef!));
     }
-    if (label === "QUALITY_CONTROL") await step("qc partiel", () => saveQualityCheck(S.karim!, wo.id, { roadTest: "DONE", fluidsOk: true, warningsOk: false, toolsRemoved: true, workVerified: true, billingVerified: false }));
+    if (label === "QUALITY_CONTROL") await step("qc partiel", () => saveQualityCheck(S.karim!, wo.id, { roadTest: "DONE", roadTestKm: 6, fluidsOk: true, warningsOk: false, toolsRemoved: true, workVerified: true, billingVerified: false }));
     if (label === "READY_INVOICED" || label === "READY_BALANCE") await step("facture", () => createInvoice(wo.id, admin));
     if (label === "READY_BALANCE") {
       const inv = await prisma.invoice.findUnique({ where: { workOrderId: wo.id } });
@@ -401,6 +405,90 @@ it("demo data", async () => {
   }
   await step("solde", () => recordCashBalance(admin, { amount: DT(12_500), asOf: iso(new Date(Date.now() - DAY)), note: "Caisse + banque (démo)" }));
 
+  // ── V16 Lot 5 — qualité, suivi et pilotage ──
+  // Quality points set in the settings (on top of the 6 fixed points).
+  await prisma.setting.update({ where: { id: "garage" }, data: { qualityPoints: [{ key: "pression-des-pneus", label: "Pression des pneus contrôlée" }, { key: "niveau-lave-glace", label: "Niveau lave-glace complété" }] } });
+  const lot5: Record<string, { id: string; plate: string; pin: string | null }> = {};
+  const keep = async (label: string, id: string) => {
+    const f = await prisma.workOrder.findUniqueOrThrow({ where: { id }, include: { vehicle: true } });
+    lot5[label] = { id, plate: f.vehicle.plate, pin: f.trackingPin };
+  };
+  const newWo = (k: number, complaint: string) => {
+    const c = customers[40 + k]!;
+    return step(`ordre lot5 ${k}`, async () =>
+      createWorkOrder({ customerId: c.id, vehicleId: c.vehicles[0]!.id, complaint, priority: "NORMAL", mileageIn: Math.max(140_000 + k * 1000, ((await prisma.vehicle.findUnique({ where: { id: c.vehicles[0]!.id }, select: { mileage: true } }))?.mileage ?? 0) + 150), mechanicId: mechs[k % 3]!.id }, S.accueil!),
+    );
+  };
+  // 1) Red / orange / green inspection: red and orange points turned into quote lines, the quote sent (portal).
+  const insp = await newWo(0, "Démo — inspection complète avant voyage");
+  if (insp) {
+    await step("diagnostic", () => changeStatus(insp.id, "DIAGNOSIS", S.chef!));
+    const inspId = await step("inspection", () => startInspection(S.karim!, insp.id, "inspection-standard"));
+    if (inspId) {
+      const res = await prisma.inspectionResult.findMany({ where: { inspectionId: inspId }, orderBy: { position: "asc" } });
+      for (const [i, r] of res.entries()) {
+        const color = r.pointKey === "brakes-front" ? "RED" : r.pointKey === "wipers" || r.pointKey === "tires-rear" ? "ORANGE" : "GREEN";
+        const note = color === "RED" ? "Plaquettes usées à 2 mm" : color === "ORANGE" ? (r.pointKey === "wipers" ? "Balais qui laissent des traces" : "Usure 4 mm, à prévoir") : null;
+        await step(`point ${i}`, () => saveResult(S.karim!, r.id, { color: color as never, note }));
+      }
+      const red = res.find((r) => r.pointKey === "brakes-front");
+      if (red) await step("point rouge → devis", () => convertResultToLine(S.accueil!, red.id, { type: "LABOR", description: "Remplacement plaquettes AV (inspection)", quantityX100: Q(1), unitPrice: DT(45) }));
+      const wip = res.find((r) => r.pointKey === "wipers");
+      if (wip) await step("point orange → devis", () => convertResultToLine(S.accueil!, wip.id, { type: "LABOR", description: "Balais d'essuie-glace", quantityX100: Q(0.5), unitPrice: DT(30) }));
+      await step("inspection terminée", () => completeInspection(S.karim!, inspId));
+      await step("devis inspection", () => changeStatus(insp.id, "QUOTE_SENT", S.chef!));
+    }
+    await keep("INSPECTION", insp.id);
+  }
+  // 2) Comeback: previous order of the same vehicle delivered 9 days ago → suggestion on a new order (not linked);
+  //    and a second pair already linked, with rework labour at 0 DT.
+  for (const [k, linkIt] of [[1, false], [2, true]] as const) {
+    const prev = await newWo(k, "Démo — bruit au freinage");
+    if (!prev) continue;
+    await step("ligne", () => addLine(prev.id, { type: "LABOR", description: "Remplacement plaquettes AV", quantityX100: Q(1), unitPrice: DT(40) }, S.chef!));
+    await prisma.workOrder.update({ where: { id: prev.id }, data: { status: "DELIVERED", deliveredAt: new Date(Date.now() - 9 * DAY), createdAt: new Date(Date.now() - 10 * DAY) } });
+    const back = await newWo(k, "Démo — le bruit au freinage est revenu");
+    if (!back) continue;
+    if (linkIt) {
+      await step("retour atelier", () => linkComeback(S.accueil!, back.id, prev.id, "WORKMANSHIP"));
+      await step("reprise", () => addLine(back.id, { type: "LABOR", description: "Reprise montage plaquettes (non facturée)", quantityX100: Q(1), unitPrice: DT(40) }, S.chef!));
+    }
+    await keep(linkIt ? "COMEBACK_LINKED" : "COMEBACK_SUGGESTED", back.id);
+  }
+  // 3) Rework after the quality check (cause + counter), then back in QUALITY_CONTROL.
+  const rw = await newWo(3, "Démo — reprise après contrôle qualité");
+  if (rw) {
+    await step("ligne", () => addLine(rw.id, { type: "LABOR", description: "Remplacement silent-blocs", quantityX100: Q(2), unitPrice: DT(35) }, S.chef!));
+    await step("devis", () => changeStatus(rw.id, "QUOTE_SENT", S.chef!));
+    const pend = await prisma.workOrderLine.findMany({ where: { workOrderId: rw.id, approvalStatus: "PENDING" }, select: { id: true } });
+    await step("accord", () => recordStaffDecision(rw.id, { approvedLineIds: pend.map((l) => l.id), approverName: "Client démo", channel: "IN_PERSON" }, S.accueil!));
+    await step("cq", () => changeStatus(rw.id, "QUALITY_CONTROL", S.chef!));
+    await step("reprise", () => changeStatus(rw.id, "IN_PROGRESS", S.chef!, { reason: "Claquement à l’essai routier", reworkCause: "ROAD_TEST" }));
+    await step("cq 2", () => changeStatus(rw.id, "QUALITY_CONTROL", S.chef!));
+    await keep("REWORK", rw.id);
+  }
+  // 4) Delivered 4 days ago → satisfaction survey queued (no SMS / e-mail on the demo: « not sent » + reason, never a
+  //    fake send); a rating of 2 → internal alert « Avis clients à traiter ».
+  const sv = await newWo(4, "Démo — vidange (enquête J+3)");
+  if (sv) {
+    await prisma.workOrder.update({ where: { id: sv.id }, data: { status: "DELIVERED", deliveredAt: new Date(Date.now() - 4 * DAY) } });
+    await step("enquête", () => queueSatisfactionSurveys(new Date()));
+    await keep("SURVEY", sv.id);
+  }
+  const low = await newWo(5, "Démo — climatisation");
+  if (low) {
+    await prisma.workOrder.update({ where: { id: low.id }, data: { status: "DELIVERED", deliveredAt: new Date(Date.now() - 2 * DAY) } });
+    await step("note basse", () => createFeedback({ rating: 2, comment: "La clim ne refroidit toujours pas bien." }, { ip: "127.0.0.1", workOrderId: low.id }));
+  }
+  // 5) Time clocked (chronometers) on the orders delivered this month, with a kind: technician efficiency in Rapports.
+  const recent = await prisma.workOrder.findMany({ where: { id: { in: history }, deliveredAt: { gte: new Date(Date.now() - 28 * DAY) } }, select: { id: true, mechanicId: true, deliveredAt: true, lines: { where: { type: "LABOR" }, select: { quantityX100: true } } } });
+  for (const [i, w] of recent.entries()) {
+    if (!w.mechanicId) continue;
+    const hours = Math.max(0.5, w.lines.reduce((s, l) => s + l.quantityX100, 0) / 100) * (0.8 + (i % 4) * 0.15);
+    const start = new Date(w.deliveredAt!.getTime() - DAY);
+    await step("pointage", () => addLaborEntry(S.chef!, { workOrderId: w.id, userId: w.mechanicId!, startedAt: start, endedAt: new Date(start.getTime() + Math.min(hours, 9) * 3_600_000), kind: "WORK" }));
+  }
+
   // ── Rendez-vous (aujourd'hui et demain), service réservable ──
   const service = await prisma.bookableService.create({ data: { name: "Vidange", nameAr: "تغيير الزيت", durationMin: 60, priceFrom: DT(120) } });
   const slot = (d: number, h: number) => { const x = new Date(Date.now() + d * DAY); x.setUTCHours(h, 0, 0, 0); return x; };
@@ -411,6 +499,10 @@ it("demo data", async () => {
     [1, 8, "Anis", "Chebbi", nextPlate(), null],
   ] as const;
   let ref = 1;
+  // V16 Lot 5 — past appointments of the month (honoured / no-show / cancelled): no-show rate in Rapports.
+  for (const [d, st] of [[-3, "CHECKED_IN"], [-5, "CHECKED_IN"], [-6, "NO_SHOW"], [-8, "CHECKED_IN"], [-12, "CANCELLED"], [-15, "CHECKED_IN"], [-20, "NO_SHOW"]] as const) {
+    await prisma.appointment.create({ data: { reference: `RDV-DEMO-P${ref++}`, serviceId: service.id, startAt: slot(d, 10), endAt: slot(d, 11), status: st, firstName: "Client", lastName: "Passé", phone: "98123456", plate: nextPlate() } });
+  }
   for (const [d, h, fn, ln, plate, customerId] of appts) {
     await prisma.appointment.create({ data: { reference: `RDV-DEMO-${ref++}`, serviceId: service.id, startAt: slot(d, h), endAt: slot(d, h + 1), firstName: fn, lastName: ln, phone: "98123456", plate, customerId, vehicleId: customerId ? customers[20]!.vehicles[0]!.id : null } });
   }
@@ -442,6 +534,7 @@ it("demo data", async () => {
     accounts: staffDef.map(([k, , role]) => ({ email: `${k}@demo.tn`, role })),
     company: "flotte@medina.tn",
     current,
+    lot5,
     rdvPlate,
     history: historyCount,
     counts: {

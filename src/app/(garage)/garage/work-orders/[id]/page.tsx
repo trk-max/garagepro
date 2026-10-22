@@ -1,3 +1,4 @@
+import { isReworkMove } from "@/lib/lot5";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Activity, Ban, CheckCircle2, Eye, EyeOff, FileText, MessageCircle, Printer, Trash2 } from "lucide-react";
@@ -66,6 +67,9 @@ import { handoverSinceReady, listHandovers } from "@/server/handover";
 import { documentIntact, latestSignature } from "@/server/signatures";
 import { orderStorageFee } from "@/server/storage-fees";
 import { handoverMissing } from "@/server/workflow";
+import { ComebackCard, InspectionCard } from "@/components/garage/lot5-cards";
+import { comebackView } from "@/server/comebacks";
+import { inspectionsFor, listTemplates } from "@/server/inspections";
 
 type PageProps = { params: Promise<{ id: string }> };
 
@@ -95,6 +99,8 @@ export default async function WorkOrderPage({ params }: PageProps) {
   // V16 Lot 3: date changes (promise and parts), refused SAFETY lines still waiting for the signed waiver.
   const db = prisma as unknown as Prisma.TransactionClient;
   // V16 Lot 4: intake signature (frozen document), handovers, storage fee due before invoicing.
+  // V16 Lot 5: comeback (suggestion / link, rework counter), inspections and their templates.
+  const [comeback, inspections, templates] = await Promise.all([comebackView(wo.id), inspectionsFor(wo.id), listTemplates(true)]);
   const [quotes, quoteState, revisions, waiverMissing, intakeSig, handovers, handoverDone, storage, readyNotices] = await Promise.all([
     quoteHistory(wo.id),
     orderQuoteState(wo.id),
@@ -155,6 +161,8 @@ export default async function WorkOrderPage({ params }: PageProps) {
     block: o.needsApproval ? "approvalMissing" : o.to === "DELIVERED" ? (needHandover ? "handoverMissing" : block) : null,
     reassembly: asksReassembly(wo.status, o.to),
     waiver: o.to === "READY" && waiverMissing.length > 0 ? { canSign: can(staff, "recordSafetyWaiver"), href: `/garage/work-orders/${wo.id}/decharge` } : null,
+    // V16 Lot 5: back to the workshop after the quality check → cause (list), new orders.
+    rework: wo.workflowLot5 && isReworkMove(wo.status, o.to),
   }));
   const nextChoice = next ? choices.find((c) => c.to === next) : undefined;
   const canOverride = can(staff, "deliverWithBalance");
@@ -235,7 +243,7 @@ export default async function WorkOrderPage({ params }: PageProps) {
 
           <div className="flex flex-wrap items-center gap-2">
             {nextChoice &&
-              (nextChoice.reason || nextChoice.block || nextChoice.reassembly || nextChoice.waiver ? (
+              (nextChoice.reason || nextChoice.block || nextChoice.reassembly || nextChoice.waiver || nextChoice.rework ? (
                 <StatusDialog
                   action={changeStatusFormAction.bind(null, wo.id)}
                   choices={choices}
@@ -335,8 +343,9 @@ export default async function WorkOrderPage({ params }: PageProps) {
                       <Td>
                         <span className={voided ? "line-through" : undefined}>{line.description}</span>
                         {line.part && <span className="ms-2 font-mono text-xs text-muted-foreground">{line.part.sku}</span>}
-                        {(line.priority || line.partCondition || line.isAnnouncedFee || (line.stockDeferred && line.partId && line.approvalStatus === "PENDING")) && (
+                        {(line.priority || line.partCondition || line.isAnnouncedFee || line.isRework || (line.stockDeferred && line.partId && line.approvalStatus === "PENDING")) && (
                           <span className="mt-0.5 flex flex-wrap gap-x-2 text-xs text-muted-foreground">
+                            {line.isRework && <span className="font-medium text-gp-accent-ink" data-testid="rework-badge">{t.v16.lot5.comeback.reworkBadge}</span>}
                             {line.isAnnouncedFee && <span className="font-medium text-gp-accent-ink">{t.v16.lot3.refusal.announcedFee}</span>}
                             {line.priority && <span className={line.priority === "SAFETY" ? "font-medium text-gp-danger-ink" : undefined}>{t.v16.quote.priority[line.priority]}</span>}
                             {line.partCondition && <span>{t.v16.quote.condition[line.partCondition]}</span>}
@@ -422,6 +431,8 @@ export default async function WorkOrderPage({ params }: PageProps) {
                 parts={parts}
                 laborRate={settings.laborRate}
                 canAnnounceFee={wo.workflowV16 && (wo.status === "RECEIVED" || wo.status === "DIAGNOSIS") && can(staff, "manageQuotes")}
+                comeback={!!wo.comebackOfWorkOrderId}
+                canBillRework={can(staff, "manageComebacks")}
               />
               {packages.length > 0 && (
                 <ActionForm action={applyPackageAction.bind(null, wo.id)} silent className="flex flex-wrap items-end gap-2">
@@ -443,6 +454,24 @@ export default async function WorkOrderPage({ params }: PageProps) {
             </div>
           )}
         </Card>
+
+        {/* ── V16 Lot 5: comeback (retour atelier) — suggested when the same vehicle was delivered < 30 days ago ── */}
+        {comeback && <ComebackCard workOrderId={wo.id} view={comeback} canManage={can(staff, "manageComebacks")} final={final} t={t} lang={lang} />}
+
+        {/* ── V16 Lot 5: red / orange / green inspection (a red / orange point → quote line) ── */}
+        {(inspections.length > 0 || (!final && can(staff, "performInspection"))) && (
+          <InspectionCard
+            workOrderId={wo.id}
+            inspections={inspections}
+            templates={templates.map((tp) => ({ id: tp.id, name: tp.name }))}
+            parts={parts}
+            canInspect={can(staff, "performInspection")}
+            canQuote={can(staff, "manageQuotes") && !linesLocked}
+            final={final}
+            t={t}
+            lang={lang}
+          />
+        )}
 
         {/* ── V16 Lot 2: quote versions and the customer's decisions (who, when, channel, amount, lines) ── */}
         <QuotePanel

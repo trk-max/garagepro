@@ -22,12 +22,17 @@ export function LineAdder({
   parts,
   laborRate,
   canAnnounceFee = false,
+  comeback = false,
+  canBillRework = false,
 }: {
   action: (form: FormData) => Promise<Result>;
   parts: PartOption[];
   laborRate: number;
   /** V16 Lot 3 — offer « frais annoncé au client » (labour, before the quote, manageQuotes). */
   canAnnounceFee?: boolean;
+  /** V16 Lot 5 — order linked as a comeback: labour is rework, 0 DT unless « bill it » is ticked (manageComebacks). */
+  comeback?: boolean;
+  canBillRework?: boolean;
 }) {
   const { t, lang } = useI18n();
   const [type, setType] = useState<LineType>("LABOR");
@@ -98,6 +103,17 @@ export function LineAdder({
               <span className="block text-xs text-muted-foreground">{t.v16.lot3.refusal.announcedFeeHint}</span>
             </span>
           </label>
+        )}
+        {type === "LABOR" && comeback && (
+          <div className="self-end pb-2 text-sm" data-testid="rework-labour">
+            <p className="text-xs text-gp-accent-ink">{t.v16.lot5.comeback.labourFree}</p>
+            {canBillRework && (
+              <label className="mt-1 flex items-start gap-2">
+                <input type="checkbox" name="billRework" className="mt-0.5 size-4" />
+                <span>{t.v16.lot5.comeback.billRework}</span>
+              </label>
+            )}
+          </div>
         )}
         {type === "PART" && (
           <Field label={t.v16.quote.conditionLabel}>

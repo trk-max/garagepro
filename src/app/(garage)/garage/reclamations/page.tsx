@@ -2,6 +2,9 @@ import Link from "next/link";
 import { ClaimStatus } from "@prisma/client";
 import { Star } from "lucide-react";
 import { updateClaimAction } from "@/actions/claims";
+import { handleFeedbackAction } from "@/actions/lot5";
+import { isLowRating } from "@/lib/lot5";
+import { Input } from "@/components/ui/input";
 import { ActionForm } from "@/components/action-form";
 import { PlateChip } from "@/components/garage/badges";
 import { Button } from "@/components/ui/button";
@@ -98,7 +101,7 @@ export default async function ClaimsAdminPage({ searchParams }: PageProps) {
               <span className="text-sm text-muted-foreground">/ 5 · {feedback.count}</span>
             </p>
           </Card>
-          <Card>
+          <Card id="avis">
             <CardTitle>{c.feedbackList}</CardTitle>
             {feedback.latest.length === 0 ? (
               <p className="text-sm text-muted-foreground">{c.noFeedback}</p>
@@ -113,6 +116,21 @@ export default async function ClaimsAdminPage({ searchParams }: PageProps) {
                       <time className="ms-auto text-xs text-muted-foreground">{formatDateTime(f.createdAt, lang)}</time>
                     </p>
                     {f.comment && <p className="mt-1 whitespace-pre-line">{f.comment}</p>}
+                    {/* V16 Lot 5 — a rating of 3 or less is an internal alert until someone follows it up. */}
+                    {isLowRating(f.rating) &&
+                      (f.handledAt ? (
+                        <p className="mt-1 text-xs text-gp-success-ink">{fmt(t.v16.lot5.feedback.handled, { date: formatDateTime(f.handledAt, lang), note: f.handledNote ?? "" })}</p>
+                      ) : (
+                        <div className="mt-2 rounded-[12px] bg-gp-danger-bg p-2" data-testid="low-rating">
+                          <p className="text-xs font-medium text-gp-danger-ink">{t.v16.lot5.feedback.toHandle}</p>
+                          <ActionForm action={handleFeedbackAction.bind(null, f.id)} className="mt-1 flex flex-wrap gap-2">
+                            <Input name="note" required minLength={3} maxLength={500} placeholder={t.v16.lot5.feedback.note} className="h-9 min-w-40 flex-1" />
+                            <Button type="submit" size="sm" variant="outline">
+                              {t.v16.lot5.feedback.handle}
+                            </Button>
+                          </ActionForm>
+                        </div>
+                      ))}
                     <p className="mt-1 text-xs text-muted-foreground">
                       {f.customer?.name ?? f.name ?? ""}
                       {f.workOrder && (
