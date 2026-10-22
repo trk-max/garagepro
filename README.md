@@ -41,6 +41,30 @@ Il n'y a **qu'une seule base de données** (Supabase en ligne + sa copie sur le 
 - Réservez l'adresse du PC du garage dans la box (bail DHCP fixe) ; si elle change, refaites `npm run shortcut`.
 - Pour que le site en ligne s'ouvre sans compte Vercel : Vercel → projet → *Settings* → *Deployment Protection* → *Vercel Authentication* → ne protéger que les *Preview Deployments* (sinon chaque PC doit se connecter à Vercel).
 
+## Nouveautés V16 — Lot 5 : qualité, suivi et pilotage
+
+- **Contrôle qualité** : kilomètres parcourus pendant l’**essai routier** (obligatoire quand l’essai est fait) ; *Paramètres › Contrôle qualité* : **points en plus** des 6 points actuels (un par ligne), à cocher pour valider le contrôle ; un point ajouté plus tard n’annule pas un contrôle déjà validé.
+- **Reprise** : renvoyer un ordre du contrôle qualité (ou *Prêt*) en réparation demande, en plus du motif, une **cause** dans une liste (travail incomplet, malfaçon, pièce défectueuse, essai routier, propreté, autre). Le **compteur de reprises** s’affiche sur le contrôle qualité et dans l’historique.
+- **Retour atelier** : quand un véhicule revient **moins de 30 jours** après une livraison, la fiche propose « Retour atelier ? » (catégorie : même panne, malfaçon, pièce défaillante, autre) → *Lier* ou *Ce n’est pas un retour*. Sur un ordre lié, la **main-d’œuvre de reprise est ajoutée à 0 DT** (badge « Reprise »), sauf case *Facturer cette main-d’œuvre* (droit `manageComebacks` : accueil, chef d’atelier, administrateur). Lien retiré seulement avec un motif.
+- **Inspection rouge / orange / vert** : bloc *Inspection* de la fiche (droit `performInspection`, mécanicien compris) : modèle « Inspection standard » (15 points) ou vos modèles (*Paramètres › Modèles d’inspection*, droit `manageInspections`) ; pour chaque point une couleur, une note et une **photo** (réduite sur le téléphone, rangée avec les photos de l’ordre). Un point rouge / orange devient une **ligne du devis en attente** (priorité *Sécurité* / *Conseillé*) avec *Ajouter au devis* (droit `manageQuotes` : c’est l’accueil qui chiffre). Le client voit l’inspection sur son **suivi en ligne** (photo seulement si elle est visible au client).
+- **Suivi client** (par la file des messages, jamais à un client qui refuse les messages, jamais de faux envoi sans SMS / e-mail) : **enquête de satisfaction** 3 jours après la livraison (lien du suivi où se trouve la note), **relance des travaux refusés** 30 puis 90 jours après la livraison (pas si le véhicule est revenu depuis). Réglages dans *Paramètres*. Une **note ≤ 3** apparaît dans *À traiter* (« Avis clients à traiter ») jusqu’à *Marquer comme traité* (*Réclamations*).
+- **Pilotage** (*Rapports*) : taux d’acceptation des lignes de devis, montant moyen par ordre facturé (ARO), livrés à la date promise initiale, **taux de retour atelier** (ordres liés ; l’ancien chiffre reste affiché sous le nom « revisites »), efficacité des techniciens (heures vendues / heures pointées, par technicien), taux de no-show, balance âgée. « — » quand il n’y a pas assez de données.
+- **Pointage** : nature du temps (diagnostic, travaux, reprise, garantie) et ligne travaillée, facultatives, au démarrage du chrono et dans la saisie après coup.
+- Les ordres ouverts **avant** la migration 29 gardent l’ancien contrôle qualité (pas de km ni de points en plus, pas de cause de reprise) et ne reçoivent pas d’enquête.
+- Plan : [docs/PLAN-V16-LOT5.md](docs/PLAN-V16-LOT5.md). Rapport (avec le résumé des 5 lots) : [docs/RAPPORT-V16.md](docs/RAPPORT-V16.md).
+
+### Mise à jour vers la V16 (Lot 5) — à faire une commande à la fois, dans cet ordre
+
+Le Lot 5 contient les Lots 1 à 4 : `db:cloud` applique les migrations 25 à 29 qui manquent.
+
+1. `npm install`
+2. `npm run db:cloud` — **avant le push** : ajoute la migration `29_quality_followup` (et 25 à 28 si besoin) à la base en ligne (n’efface rien, rejouable).
+3. **Tout de suite après**, au garage : fermez puis relancez `start-hub.cmd` (le hub applique la migration à la base du PC). Le PC du garage doit connaître les tables `InspectionTemplate`, `Inspection`, `InspectionResult` et les nouvelles colonnes **avant** que l’en-ligne les écrive.
+4. `npm run check`
+5. `git add -A` puis `git commit -m "V16 Lot 5 : qualité, suivi et pilotage"` puis `git push` (dans la foulée).
+6. **Sans hub** (base locale seule) : `npx prisma db execute --file prisma/migrations/29_quality_followup/migration.sql --schema prisma/schema.prisma` (après `25_workflow_v16`, `26_quotes`, `27_delays_refusal`, `28_signed_handover_billing`).
+7. Dans l’application : *Paramètres* › *Contrôle qualité* (points en plus, enquête, relances) et *Modèles d’inspection* ; *Équipe › Accès* pour les 3 nouveaux droits.
+
 ## Nouveautés V16 — Lot 4 : réception signée, restitution, facture et paiements
 
 - **Réception signée** : la fiche *Prise en charge* gagne les voyants allumés, les objets laissés, le nombre de clés et le **plafond d’autorisation** (DT TTC) ; la réponse aux frais de diagnostic est gardée. Bloc *Signature de la prise en charge* : le client signe **sur la tablette** (cadre de signature fait maison, image PNG légère). La prise en charge est alors **figée** (document HTML + empreinte SHA-256, « copie intacte » vérifiée à l’affichage), la fiche de réception et le km d’entrée sont **verrouillés**, et les photos de *Réception* ne se suppriment plus (seulement masquées). Nouveau droit `signIntake` (accueil, chef d’atelier, administrateur).

@@ -18,6 +18,8 @@ Ces tests vérifient le comportement **fautif actuel** ; en phase C, chaque test
 
 **Suivi des corrections — V16 Lot 4 (voir docs/RAPPORT-V16.md)** : n° 3 corrigé pour les nouveaux ordres (garantie créée à la facture ; à la livraison seulement si la facture existe ; A-03 inversé) ; n° 19 corrigé (clé anti double clic du formulaire, vérifiée par le serveur ; A-20 inversé) ; n° 26 corrigé (date du paiement saisie, annulation d’un paiement par un responsable avec motif ; A-27 inversé) ; n° 27 corrigé pour les nouveaux acomptes (vrai paiement à la facture, daté du jour de l’acompte ; anciens acomptes laissés tels quels ; A-28 inversé). Tests inversés dans `tests/lot4-v16.db.test.ts`. Les reproductions qui livrent un ordre (A-08, A-26) utilisent un ordre « d’avant le Lot 4 ». 21 réussies.
 
+**Suivi des corrections — V16 Lot 5 (voir docs/RAPPORT-V16.md)** : aucun problème de cette liste corrigé (le n° 10 — montants vus par le mécanicien — n’était ni petit ni sans risque ; seule précaution : chiffrer un point d’inspection est réservé au droit `manageQuotes`). Les reproductions qui passent par le contrôle qualité donnent maintenant les km de l’essai (règle du Lot 5). 21 réussies. Bilan des 5 lots et liste des 28 problèmes encore ouverts : fin de docs/RAPPORT-V16.md.
+
 ## Bilan
 
 | Gravité | Nombre |

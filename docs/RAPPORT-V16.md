@@ -1,5 +1,17 @@
 # RAPPORT V16 — Parcours atelier traçable
 
+## Résumé pour le propriétaire (les 5 lots)
+
+Tout est sur la branche `feat/v16-consolidation` : **rien n'est fusionné dans `main`, rien n'est poussé, `npm run db:cloud` n'a jamais été lancé, la base du garage et Supabase n'ont jamais été touchées.** Les essais ont été faits sur des bases jetables `gp_test_v16l1*` à `gp_test_v16l5*`. Les anciens ordres (ouverts avant chaque migration) gardent leur ancien comportement ; les nouvelles règles valent pour les nouveaux ordres.
+
+- **Lot 1 — Statuts et motifs** : 3 statuts en plus (*Attente client*, *Devis refusé*, *Clôturé*) ; un droit par passage (le mécanicien ne livre plus et n'annule plus) ; motif obligatoire pour annuler, refuser, renvoyer en atelier ; livraison seulement avec une facture soldée (ou dérogation motivée d'un responsable) ; clôture automatique quand c'est payé ; plus aucune modification d'un ordre sans trace dans le journal ; message « véhicule prêt » par la file des messages.
+- **Lot 2 — Devis et accord** : devis numérotés et versionnés (D2026-…), copie figée + empreinte ; le client accepte ou refuse **ligne par ligne** (portail ou téléphone / sur place, jamais le mécanicien) ; preuve de l'accord non modifiable ; une ligne acceptée ne se supprime plus ; un supplément = un nouveau devis ; on ne facture que ce qui est accepté ; la pièce sort du stock à l'accord (réservée avant).
+- **Lot 3 — Refus, retards, pièces** : frais de diagnostic annoncés à la réception (seuls facturés si le devis est refusé) ; décharge de sécurité si une ligne *Sécurité* est refusée ; chaque changement de date promise = un motif + une trace + un message au client ; date de la pièce visible par le client ; passage automatique en *Attente pièces* ; KPI « livré à la date promise initiale ».
+- **Lot 4 — Réception, restitution, argent** : réception signée sur tablette (figée, verrouillée), plafond d'autorisation, bon de restitution signé avant la livraison, facture émise impossible à modifier (même en SQL), avoirs AV-…, paiements datés, anti double clic, annulation de paiement motivée, acompte = vrai paiement, gardiennage (jamais pendant une attente imputable au garage), relances J+7/15/30, balance âgée.
+- **Lot 5 — Qualité, suivi, pilotage** : contrôle qualité avec km d'essai et points du garage, cause et compteur de reprise ; retour atelier proposé sous 30 jours (main-d'œuvre de reprise à 0 DT par défaut) ; inspection rouge / orange / vert avec photo, un point rouge / orange devient une ligne du devis, visible par le client ; enquête de satisfaction J+3, relance des travaux refusés à 30 / 90 jours (consentement respecté), alerte des notes ≤ 3 ; bloc *Pilotage* dans les rapports ; pointage par nature et par ligne.
+
+**Ordre de mise en production (une seule fois pour les 5 lots)** : `npm install` → `npm run db:cloud` (migrations 25 à 29) **avant** le `git push` → **tout de suite** au garage : fermer puis relancer `start-hub.cmd` → `npm run check` → `git push` → vérifier le déploiement Vercel. Sans hub : `npx prisma db execute --file prisma/migrations/<NN_nom>/migration.sql --schema prisma/schema.prisma` pour 25, 26, 27, 28 puis 29, dans cet ordre. Les vérifications à la main des 5 lots sont regroupées à la fin de ce rapport (§ « Vérifications à la main — les 5 lots »).
+
 ## Lot 1 — Statuts, motifs et trous d'audit
 
 Branche `feat/v16-consolidation`. Plan suivi : [PLAN-V16-LOT1.md](PLAN-V16-LOT1.md) (décisions du propriétaire du 22/10/2026). Rien n'a été fusionné dans `main`, rien n'a été poussé, `db:cloud` n'a pas été lancé.
@@ -417,3 +429,186 @@ Branche `feat/v16-consolidation` (suite des Lots 1 à 3). Plan suivi : [PLAN-V16
 - Le **gardiennage** (20 DT / jour après 48 h par défaut) sera ajouté **automatiquement** aux factures des nouveaux ordres dès que le client a été prévenu : vérifier les montants dans *Conditions de l'ordre de réparation* avant la mise en ligne, ou décocher le réglage.
 - Les **relances automatiques** de factures (J+7, J+15, J+30) partent par SMS / e-mail pour les nouveaux ordres ; décocher le réglage pour les garder à la main.
 - Bucket Supabase : les signatures (`image/png`) et documents figés (`text/html`) y sont envoyés ; vérifier qu'aucune restriction de type de fichier n'est réglée sur le bucket (non vérifiable d'ici).
+
+
+---
+
+## Lot 5 — Qualité, suivi et pilotage
+
+Branche `feat/v16-consolidation` (suite des Lots 1 à 4). Plan suivi : [PLAN-V16-LOT5.md](PLAN-V16-LOT5.md). Aucune question bloquante : les contradictions avec le code ont un choix prudent (§ 8 du plan, rappelées au § 7 ci-dessous). Rien n'a été fusionné dans `main`, rien n'a été poussé, `db:cloud` n'a pas été lancé.
+
+### 1. Ce qui a été fait
+
+1. **Contrôle qualité** : `QualityCheck.roadTestKm` (km parcourus à l'essai, obligatoire si l'essai est fait, 1 à 500 km, `roadTestKmRequired`) ; **points réglables** dans *Paramètres › Contrôle qualité* (`Setting.qualityPoints`, un point par ligne, clés stables), **en plus des 6 points actuels** (colonnes inchangées) ; résultats dans `QualityCheck.extraPoints` avec le libellé copié. Validation refusée tant qu'un point réglé n'est pas coché ; un point ajouté **après** la validation n'annule pas le passage à *Prêt* (on vérifie les points enregistrés). Nouveaux ordres seulement (`workflowLot5`).
+2. **Reprise** : `QUALITY_CONTROL / WASHING / READY → IN_PROGRESS` demande, en plus du motif du Lot 1, une **cause** (travail incomplet, malfaçon, pièce défectueuse, essai routier, propreté, autre ; `reworkCauseRequired`). **Compteur de reprises** calculé depuis les événements de statut (ajout seul : pas de compteur partagé qui pourrait s'écraser à la synchronisation), écrit dans l'événement (`rework`, `reworkCause`) et le journal ; jamais envoyé au portail. Fenêtre de statut de la fiche et de l'atelier mobile.
+3. **Retour atelier** : `WorkOrder.comebackOfWorkOrderId` + `comebackCategory` (`SAME_FAULT`, `WORKMANSHIP`, `PART_FAILURE`, `OTHER`) + qui / quand. Carte « Retour atelier ? » proposée automatiquement quand le même véhicule a été **livré moins de 30 jours** avant l'ouverture (nouveaux ordres) ; *Lier* (droit `manageComebacks`), *Ce n'est pas un retour* (événement, la proposition ne revient pas), *Retirer le lien* avec motif. **Main-d'œuvre de reprise non facturée par défaut** : sur un ordre lié, une ligne de main-d'œuvre est créée à **0 DT** et marquée `isRework` (badge « Reprise ») ; *Facturer cette main-d'œuvre* = droit `manageComebacks`, journalisé. Les pièces restent facturées.
+4. **Taux de retour atelier** (`lib/report.ts`) : ordres de la période liés à un ordre précédent / ordres ouverts. L'ancienne heuristique (même véhicule revenu sous 30 jours) est gardée et affichée sous le nom **« revisites »**.
+5. **Inspection rouge / orange / vert** : tables `InspectionTemplate`, `Inspection`, `InspectionResult` ; modèle **« Inspection standard »** (15 points) créé par la migration ; modèles réglables (*Paramètres › Modèles d'inspection*, droit `manageInspections`). Sur la fiche (droit `performInspection`, mécanicien compris) : couleur + note + **photo** par point (photo réduite dans le navigateur, envoyée par la route existante des photos → `putObject` → `WorkOrderMedia`, donc déjà copiée par `media-sync.mjs`), *Terminer l'inspection* (chaque point doit avoir une couleur). Point rouge / orange → **ligne de devis `PENDING`** avec priorité `SAFETY` / `RECOMMENDED` par `addLine` (même chemin que les autres lignes : réservation de la pièce, contrôle qualité remis à zéro, journal) — droit `manageQuotes`, une seule ligne par point (double clic refusé), couleur verrouillée ensuite. **Portail** : bloc « Inspection de votre véhicule » (couleur en toutes lettres, note, photo si visible au client, « Proposé dans le devis »).
+6. **Suivi client** (file existante `queueItems`, *Historique des envois*) : **enquête de satisfaction J+3** après la livraison (`SURVEY`, une fois par ordre, ordres livrés il y a 3 à 7 jours — le suivi en ligne où se trouve le formulaire de note reste ouvert 7 jours —, pas si l'ordre est déjà noté, réglage `autoSatisfactionSurvey`) ; **relance des travaux refusés** à 30 puis 90 jours après la livraison (`REFUSED_LINES`, plus haut palier atteint, rien après 120 jours, pas si le véhicule est revenu depuis, lignes *Sécurité* d'abord, réglage `autoRefusedLineReminders`). **Jamais** à un client qui refuse les messages (`reminderOptOut`) ; sans SMS / e-mail configuré, ligne « non envoyé + raison » (jamais de faux envoi) ; avec un hub, c'est le hub qui envoie.
+7. **Alerte interne note ≤ 3** : ligne « Avis clients (note ≤ 3) à traiter » dans *À traiter* (cloche, droit `manageClaims`, 30 derniers jours) ; note dans l'historique de l'ordre ; *Réclamations › Marquer comme traité* + note (`CustomerFeedback.handledAt / handledById / handledNote`, journal).
+8. **KPI** (`lib/report.ts` `buildKpis`, bloc *Pilotage* des *Rapports*, fr / ar / en) : taux d'acceptation des lignes (lignes décidées des devis envoyés dans la période, hors frais annoncés et gardiennage ; en nombre et en montant), **ARO** (CA HT net des avoirs / factures), livrés à la date promise initiale (Lot 3), taux de retour atelier, **efficacité des techniciens** (heures de main-d'œuvre facturées avec un prix / heures pointées aux chronos ; global et par technicien), **taux de no-show** (RDV non honorés / RDV non annulés de la période), balance âgée (Lot 4). Données réelles seulement, **« — »** quand le dénominateur est nul (jamais un 0 % inventé).
+9. **Pointage** : `LaborEntry.workOrderLineId` et `kind` (`DIAGNOSIS`, `WORK`, `REWORK`, `WARRANTY`), facultatifs, au démarrage du chrono et dans la saisie après coup (REWORK proposé sur un ordre lié à un retour) ; une ligne d'un autre ordre est refusée ; affichés dans le détail du temps.
+10. 3 droits (MATRIX, `PERMISSION_GROUPS`, libellés fr / ar / en) : `manageComebacks` (ADMIN, MANAGER, RECEPTION), `performInspection` (ADMIN, MANAGER, RECEPTION, MECHANIC), `manageInspections` (ADMIN, MANAGER). `audit()` dans la même transaction partout. Textes fr / ar / en (`v16-lot5-*.ts`, erreurs, types de messages, *À traiter*).
+11. Données de démonstration : points du garage, inspection avec un point rouge et un orange mis au devis, deux retours atelier (proposé / lié avec reprise à 0 DT), une reprise après contrôle, enquête en file, note de 2/5, temps pointé, rendez-vous passés (no-show).
+
+### 2. Fichiers modifiés / créés
+
+**Créés** : `prisma/migrations/29_quality_followup/migration.sql`, `src/lib/lot5.ts`, `src/server/comebacks.ts`, `src/server/inspections.ts`, `src/actions/lot5.ts`, `src/components/garage/lot5-cards.tsx`, `inspection-photo.tsx`, `settings-lot5.tsx`, `src/lib/i18n/v16-lot5-fr.ts` / `-ar.ts` / `-en.ts`, `tests/lot5-v16.test.ts`, `tests/lot5-v16.db.test.ts`, `docs/PLAN-V16-LOT5.md`, `docs/media/v16/lot5/*` (16 captures).
+
+**Modifiés — fichiers partagés avec d'autres modules** (à surveiller lors des fusions) : `prisma/schema.prisma`, `src/lib/permissions.ts`, `src/lib/report.ts`, `src/lib/todo.ts`, `src/lib/validators.ts`, `src/lib/i18n/fr.ts` / `ar.ts` / `en.ts` (erreurs), `v16-*` (branchement `lot5`), `v103-*` (3 droits), `v7-*` (2 types de messages), `todo-*`, `src/server/work-orders.ts` (cause de reprise, main-d'œuvre de reprise, `addLineTx`), `quality.ts`, `reminders.ts`, `reports.ts`, `claims.ts`, `labor.ts`, `portal.ts` (clés internes), `todo.ts`, `todo-details.ts`, `tests/hub-sync.test.ts`. `scripts/hub/media-sync.mjs` **inchangé** (photos d'inspection = `WorkOrderMedia`).
+
+**Modifiés — autres** : `src/actions/follow-up.ts`, `work-orders.ts`, `workshop.ts` ; pages `work-orders/[id]`, `atelier`, `settings`, `reclamations`, `suivi/vehicule` ; composants `line-adder`, `repair-panels`, `report-view`, `status-dialog`, `timeline`, `shell/todo-icons` ; tests existants adaptés (km de l'essai et cause de reprise dans `delays-v16.db`, `lot4-v16.db`, `skills.db`, `team.db`, `workflow-v16.db`, `audit-v16/reproductions.audit.ts` ; « revisites » dans `v5-features` ; transaction de la note dans `check-in-claims`) ; `scripts/demo-data/demo.run.ts` ; `README.md`, `docs/AUDIT-V16.md`.
+
+### 3. Migration `29_quality_followup`
+
+- Types créés (jamais d'`ALTER TYPE … ADD VALUE`) : `ComebackCategory`, `LaborKind`, `InspectionColor`.
+- Tables `InspectionTemplate`, `Inspection` (FK ordre CASCADE, modèle SET NULL), `InspectionResult` (FK inspection CASCADE, photo `WorkOrderMedia` et ligne `WorkOrderLine` SET NULL ; un résultat par point).
+- Colonnes : `WorkOrder.comebackOfWorkOrderId` (FK SET NULL, index), `comebackCategory`, `comebackLinkedAt`, `comebackLinkedById`, `workflowLot5` ; `WorkOrderLine.isRework` (false) ; `QualityCheck.roadTestKm`, `extraPoints` (`{}`) ; `LaborEntry.workOrderLineId` (FK SET NULL), `kind` ; `CustomerFeedback.handledAt`, `handledById`, `handledNote` ; `Setting.qualityPoints` (`[]`), `autoSatisfactionSurvey` (true), `autoRefusedLineReminders` (true).
+- **Pas de backfill** : colonnes nullables ou avec un défaut neutre ; `workflowLot5` ajoutée avec `DEFAULT false` (ordres existants à false **sans UPDATE**, rien dans le journal de sync), puis défaut `true`. Une seule ligne écrite : le modèle « Inspection standard » à **id fixe** (`inspection-standard`), `ON CONFLICT DO NOTHING`, écrit avec `garagepro.sync = 'on'` (même ligne créée par la migration au garage et en ligne, rien de journalisé, aucun conflit).
+- Bloc final `_sync_log_trg` identique à `24_accueil` (pose la sync sur les 3 tables). Rejouée deux fois sans erreur.
+
+### 4. Tests et résultats (chiffres réels, bases jetables `gp_test_v16l5*`)
+
+| Vérification | Résultat |
+|---|---|
+| `npx prisma generate` | OK (client 6.19.3) |
+| `npx tsc --noEmit` | 0 erreur |
+| `npx eslint src tests` | 0 problème |
+| `npm run check` | 58 fichiers, **571 tests réussis**, 16 ignorés (tests base / hub sans variable) |
+| `npm run test:db` (`TEST_DB_NAME=gp_test_v16l5`) | 32 fichiers, **279 tests réussis** (dont 11 nouveaux dans `lot5-v16.db.test.ts`) |
+| `npm run test:hub` (`TEST_HUB_DB_PREFIX=gp_test_v16l5_hub`) | **17 tests réussis** (dont « V16 Lot 5 : migration 29 rejouée deux fois sans rien journaliser ; modèle par défaut identique des deux côtés ; ordres existants `workflowLot5 = false` sans UPDATE ; inspections, lien de retour atelier, ligne de reprise, nature du temps, km de l'essai / points, suite d'une note basse dans les deux sens ») |
+| `node scripts/verify-migrations.mjs … gp_test_v16l5_mig` | 30 migrations, la 29 rejouée sans erreur ; structure identique au schéma Prisma |
+| Suite d'audit `tests/audit-v16` (`gp_test_v16l5_audit`) | **21 réussies** (inchangé : aucun problème de l'audit corrigé par ce lot) |
+| `npx next build` | compilé sans erreur |
+
+**Tests ajoutés** : unitaires (14) — points réglés (lignes → clés stables, doublons, données invalides), points tous cochés, km de l'essai (fait / pas nécessaire / ancien ordre / bornes), reprise et compteur depuis les événements, clés internes jamais au portail, candidat retour atelier (< 30 jours, le plus récent, jamais lui-même), **main-d'œuvre de reprise non facturée par défaut**, couleur → priorité, fenêtre de l'enquête (3 à 7 jours), paliers des relances (30 / 90 / rien après 120), KPI sur un jeu chiffré et « — » sans données, taux de retour / revisites dans le rapport, droits, traductions. Base (11) — km obligatoire, point réglé exigé, point ajouté après la validation sans effet sur *Prêt* ; ancien ordre inchangé ; cause de reprise obligatoire, compteur 1 puis 2, journal ; retour atelier (proposition, mécanicien refusé, lien, double lien refusé, main-d'œuvre à 0 DT, pièce au prix, « facturer » refusé au mécanicien et accepté à l'accueil, retrait motivé) ; « ce n'est pas un retour », > 30 jours, ancien ordre ; inspection complète (modèle de la migration, rouge + note + photo, incomplète refusée, mécanicien refusé pour chiffrer, point vert refusé, double ajout refusé, ligne `PENDING` `SAFETY`, couleur verrouillée, ligne dans le devis envoyé, portail avec / sans photo visible) ; enquête (réglage, une fois, opt-out, déjà noté, trop tôt, ancien ordre) ; note ≤ 3 (alerte, événement, mécanicien refusé, traité + journal) ; relance des travaux refusés (opt-out, véhicule revenu, une fois, ligne refusée seulement) ; nature / ligne du temps (ligne d'un autre ordre refusée) ; KPI sur une période isolée (mai 2020).
+
+**Contrôle des tests** (code retiré temporairement, puis remis par `git checkout` — 14/14 et 11/11 ensuite) :
+- règle « main-d'œuvre de reprise non facturée par défaut » retirée (`reworkLine` garde le prix) → `lot5-v16.test.ts` : **1 échec / 13 réussis** ; `lot5-v16.db.test.ts` : **1 échec / 10 réussis** ;
+- filtre « l'enquête respecte le refus des messages » retiré de `queueSatisfactionSurveys` → `lot5-v16.db.test.ts` : **1 échec / 10 réussis**.
+
+**Vérification dans le navigateur** (`next start -p 3300` lancé depuis la branche, base de démo `gp_test_v16l5_demo`, Edge sans interface piloté par le protocole DevTools ; serveur arrêté ensuite, hub du port 3000 jamais touché) : chef d'atelier, PC en **français** — fiche d'un ordre inspecté : 15 points (1 rouge, 2 orange, 12 verts), « Dans le devis : Remplacement plaquettes AV (inspection) · En attente », « Dans le devis : Balais d'essuie-glace · En attente » ; ordre en contrôle qualité : « Reprises après contrôle : 1 », points du garage « Pression des pneus contrôlée », « Niveau lave-glace complété », km de l'essai saisi (8) et points cochés puis enregistrés (relus après rechargement : 8, [oui, oui]) ; fenêtre *Changer le statut… › En réparation* : liste des 6 causes ; carte « Retour atelier ? » (livré le 13 oct., OR-0187) → *Lier* → « Retour atelier de OR-0187 (Même panne), lié le 22 oct. 2026 » ; ligne « Reprise montage plaquettes » badge *Reprise* à 0,000 DT ; administrateur — *Rapports* (30 jours) bloc *Pilotage* : acceptation des lignes 78,4 % (29 / 37, 93,9 % du montant), ARO 176,219 DT, date promise initiale 66,7 %, retour atelier 4,8 % (2 / 42), efficacité 151,3 % (14 h vendues / 9,3 h pointées, par technicien), no-show 25 % (2 / 8), balance âgée ; même bloc en **arabe** ; *Paramètres* (points du contrôle, modèles d'inspection) ; *Historique des envois* : « Enquête de satisfaction … non envoyé · Aucun canal configuré » (la démo n'a ni SMS ni e-mail : jamais de faux envoi) ; *Réclamations* : note 2/5 « à traiter » ; *À traiter* : « Avis clients (note ≤ 3) à traiter 1 » ; **portail au téléphone (390 px)** en **français** puis en **arabe** (sens RTL, sans débordement horizontal) : bloc d'inspection (couleurs en toutes lettres, « Proposé dans le devis ») et devis à valider avec la ligne de l'inspection *Sécurité*. Captures : `docs/media/v16/lot5/`.
+
+### 5. Mise en production
+
+- **En ligne + garage (hub)** — dans cet ordre, sans attendre entre les étapes :
+  1. `npm run db:cloud` **avant** le `git push` (migration 29, et 25 à 28 si les Lots précédents n'y sont pas encore) ;
+  2. **tout de suite** au garage : fermer puis relancer `start-hub.cmd` (le hub applique la migration à la base du PC ; les 3 tables et les nouvelles colonnes doivent exister au garage avant que l'en-ligne les écrive) ;
+  3. `git push`, puis vérifier le déploiement Vercel.
+- **Sans hub** : `npx prisma db execute --file prisma/migrations/29_quality_followup/migration.sql --schema prisma/schema.prisma` (après 25, 26, 27, 28).
+
+### 6. Points à vérifier à la main (Lot 5)
+
+Voir la liste regroupée des 5 lots ci-dessous (n° 51 à 63).
+
+### 7. Ce qui n'a pas été fait (et pourquoi)
+
+- **Audit n° 10** (montants et prix d'achat visibles par le mécanicien) : non traité — ce n'est ni petit ni sans risque (refonte de la fiche, du formulaire d'ajout de ligne et des listes de pièces). Seule précaution prise : chiffrer un point d'inspection est réservé à `manageQuotes`.
+- **Date de refus par ligne** : il n'y en a pas (un refus par le garage n'écrit pas de preuve client) ; la relance compte depuis la **livraison**.
+- **Libellés des modèles d'inspection** : ce sont des données (en français dans le modèle par défaut) ; ils s'affichent tels quels sur le portail arabe. Un modèle en arabe peut être créé dans *Paramètres*.
+- **KPI** : les heures vendues sont attribuées au mécanicien de l'ordre (les lignes n'ont pas d'auteur) ; l'efficacité compare les heures facturées de la période aux heures pointées de la période (pas ordre par ordre) — un garage qui ne pointe pas tout verra plus de 100 %.
+- **Modèles d'inspection** : réglés dans *Paramètres*, page réservée à l'administrateur (`manageSettings`) ; le droit `manageInspections` du chef d'atelier n'a pas encore d'écran à lui.
+- **Retour atelier sur les anciens ordres** : jamais proposé automatiquement (non-rétroactivité) ; le lien manuel n'existe que depuis la carte de proposition.
+- Erreur connue de la démo sans lien avec ce lot : « publication: listingIncomplete » (annonce showroom de démonstration incomplète).
+
+### À savoir avant la mise en ligne (Lot 5)
+
+- Pour un **nouvel ordre**, le contrôle qualité demande les **km de l'essai** quand l'essai est fait, et un renvoi en réparation demande une **cause** (liste) en plus du motif.
+- Sur un ordre **lié comme retour atelier**, la main-d'œuvre est ajoutée à **0 DT** sauf case *Facturer* (accueil / chef d'atelier / administrateur).
+- **Enquête de satisfaction** et **relance des travaux refusés** partent automatiquement (SMS / e-mail) aux clients qui n'ont pas refusé les messages ; décocher les réglages pour les arrêter.
+- Le **mécanicien** peut faire une inspection et proposer une couleur, mais seul l'accueil (ou un responsable) met un point au devis avec un prix.
+
+---
+
+## Vérifications à la main — les 5 lots (liste regroupée)
+
+**Lot 1 — statuts, motifs, journal**
+1. *Paramètres › Parcours atelier* : « travaux sans devis » décoché, « livrer seulement avec facture soldée » coché ; enregistrer.
+2. Compte **mécanicien**, ordre *Prêt* › *Changer le statut…* : seul « En réparation » (avec motif et cause) ; ni annulation ni livraison ; même chose dans *Atelier*.
+3. **Accueil**, ordre *Prêt* facturé avec un reste dû › *Étape suivante : Livré* : « Reste à payer … », *Valider* grisé.
+4. **Chef d'atelier**, même ordre › « Livrer quand même » + motif : *Livré* ; historique « Livré par dérogation » + motif.
+5. Encaisser le reste : l'ordre passe tout seul *Clôturé*.
+6. Nouvel ordre : « En réparation » n'est pas proposé depuis *Réceptionné* sans devis (ni plafond signé).
+7. Ordre en devis › *Attente client* puis *Devis refusé* (motif).
+8. Ordre accepté › icône ⊘ d'une ligne ancienne › motif : ligne barrée, totaux recalculés.
+9. Portail d'un ordre annulé / refusé : le statut s'affiche, **jamais le motif**.
+10. *Journal* : filtres *Lignes des ordres*, *Photos des ordres*, *Messages des clients* ; date promise avant → après.
+11. *Historique des envois* : « Véhicule prêt » avec son vrai statut.
+12. Interface en **arabe** : filtres des 3 statuts, fenêtre de statut (RTL).
+13. *À traiter* : « Devis en attente de la décision du client », « Véhicules livrés sans facture soldée ».
+14. *Équipe › Accès* : les droits du parcours (Lots 1 à 5) réglables par employé.
+
+**Lot 2 — devis et accord**
+15. Nouvel ordre, 2 lignes (priorité, nature) › *Devis envoyé* : D…-… v1, « copie intacte » ; *Historique des envois* : « Devis à valider ».
+16. *Changer le statut…* : « En réparation » bloqué « Pas encore d'accord du client enregistré ».
+17. Portail au téléphone : refuser une ligne (total qui change), nom, *Valider ma décision* ; recommencer en arabe.
+18. **Accueil** › *Enregistrer l'accord* (téléphone, une ligne refusée, note) ; **mécanicien** : pas de bouton.
+19. Ligne acceptée : seulement l'annulation motivée ; ligne refusée : aucune action.
+20. Ligne ajoutée en réparation : bandeau « Supplément », *Facturer* grisé, *Devis envoyé* → supplément v2, impression v2.
+21. Pièce au devis : réservée (*Stock*), sortie à l'accord, libérée si refusée.
+22. Avec le hub : accord du client **en ligne** pendant que le garage est déconnecté → au retour « Accord du client reçu » au garage.
+23. En ligne avec un hub : *Renvoyer le devis* → « Le devis se numérote au garage ».
+24. Bloc *Devis et accords* en arabe.
+
+**Lot 3 — refus, retards, pièces**
+25. *Paramètres › Parcours atelier* : frais de diagnostic (ex. 30), décharge et attente pièces automatiques cochées.
+26. *Nouvel ordre* : case « Frais de diagnostic annoncés » cochée → ligne *Frais annoncé* acceptée.
+27. Devis imprimé : « Frais annoncés à la réception ».
+28. Portail : tout refuser → *Devis refusé* ; facture = frais seulement.
+29. Décharge imprimable ; *Prêt* demande « Véhicule remonté » et « Décharge signée » (mécanicien refusé).
+30. *Attente client* → *Devis refusé* + motif ; réservation libérée ; sans frais → livré sans facture → *Clôturé*.
+31. Date promise changée sans motif → message ; avec motif → *Changements de date* + message.
+32. Pièce manquante liée à une ligne acceptée avec date → *Attente pièces* automatique ; date sur le portail fr / ar.
+33. *Pendant l'attente des pièces* : « Véhicule restitué » (+ imputable au garage).
+34. Bon de réception de la pièce manquante → *Reçue*, réservée pour l'ordre.
+35. **Magasinier** : met à jour une pièce manquante.
+36. *Rapports* : « Livrés à la date promise initiale ».
+37. Client qui refuse les rappels : date changée → « client non prévenu », aucun envoi.
+
+**Lot 4 — réception, restitution, argent**
+38. *Paramètres* : restitution signée, gardiennage à la facture, relances ; *Conditions* : 20 DT / jour, 48 h (à confirmer).
+39. *Nouvel ordre* : voyants, objets, clés, plafond ; km plus petit que le dernier → case de confirmation.
+40. Tablette : *Signature de la prise en charge* → document « copie intacte », fiche et km verrouillés, photo de réception sans corbeille.
+41. Ordre signé avec plafond : *En réparation* sans devis sous le plafond, refusé au-dessus.
+42. *Enregistrer l'accord* avec signature sur la tablette.
+43. Ordre *Prêt* : carte *Gardiennage* (ou « Client prévenu ») ; *Ne pas facturer* + motif ; facture avec la ligne de gardiennage.
+44. *Livré* refusé sans bon de restitution ; restitution signée → *Livré* puis *Clôturé* ; bon imprimable.
+45. Paiement daté d'hier ; double clic = un paiement ; *Annuler* un paiement + motif.
+46. Administrateur / comptable : *Émettre un avoir* + motif → AV-… ; avoir imprimable ; *Rapports* nets.
+47. Nouvel ordre avec acompte → facture : paiement « Acompte (réception) » daté du jour de l'acompte.
+48. *Rapports* : balance âgée (fr / ar).
+49. Facture échue de plus de 7 jours (nouvel ordre) : « Relance de facture » dans *Historique des envois*.
+50. Avec le hub : restitution signée **en ligne** → image et bon visibles au garage (et l'inverse).
+
+**Lot 5 — qualité, suivi, pilotage**
+51. *Paramètres › Contrôle qualité* : saisir 2 points (un par ligne), laisser « Enquête de satisfaction » et « Relancer les travaux refusés » cochés ; enregistrer.
+52. Nouvel ordre en *Contrôle qualité* : « Essai effectué » sans km → message ; avec km et les 2 points cochés → *Valider le contrôle* possible ; sans un des points → refusé.
+53. *Changer le statut… › En réparation* depuis le contrôle qualité : cause obligatoire (liste) + motif ; le contrôle affiche « Reprises après contrôle : 1 » ; l'historique « Reprise n° 1 : … ».
+54. Ouvrir un ordre pour un véhicule livré il y a moins de 30 jours : carte « Retour atelier ? » → choisir la catégorie → *Lier* ; ou *Ce n'est pas un retour* (la carte disparaît).
+55. Sur l'ordre lié, ajouter une main-d'œuvre : ligne à **0,000 DT** badge *Reprise* ; avec *Facturer cette main-d'œuvre* coché (accueil) : prix normal ; un **mécanicien** ne voit pas la case.
+56. Fiche › *Inspection* › *Commencer l'inspection* (mécanicien) : couleurs, notes, *Ajouter une photo* au téléphone ; *Terminer* refusé tant qu'un point n'a pas de couleur.
+57. Avec l'**accueil**, point rouge › *Ajouter au devis* (prix) : ligne *Sécurité* « En attente » ; *Devis envoyé* ; portail au téléphone en **français** puis en **arabe** : bloc *Inspection* et la ligne au devis.
+58. *Paramètres › Modèles d'inspection* : créer un modèle (un point par ligne), le désactiver.
+59. Ordre livré il y a 3 jours (nouvel ordre, client sans refus des messages) : *Historique des envois* « Enquête de satisfaction » (envoyée, ou « non envoyé » + raison sans SMS / e-mail) ; client « refuse les rappels » : rien.
+60. Ordre livré il y a 30 jours avec une ligne refusée : « Relance travaux refusés » ; pas si le véhicule est revenu depuis.
+61. Note de 2/5 laissée sur le suivi : *À traiter* « Avis clients (note ≤ 3) à traiter » ; *Réclamations* › *Marquer comme traité* + note → la ligne disparaît.
+62. *Rapports* (30 jours) : bloc *Pilotage* (acceptation des lignes, ARO, date promise, retour atelier, efficacité par technicien, no-show, balance âgée), « — » sur une période vide ; en arabe.
+63. Fiche › *Temps passé* : démarrer le chrono avec une nature (*Reprise*) et une ligne ; elles apparaissent dans le détail des pointages.
+
+## Ce qui n'a pas été fait — les 5 lots
+
+- **Lot 1** : la garantie reste liée à la livraison pour les ordres d'avant le Lot 4 ; journal en arabe en partie (noms de champs bruts) ; pas de langue enregistrée par client (messages en français) ; « Livrés sans facture soldée » limité aux ordres V16.
+- **Lot 2** : numérotation d'un devis en ligne avec un hub refusée (au garage seulement) ; passage en réparation après un accord fait en ligne fait au garage (un clic) ; découverte du technicien = note + photo + ligne en attente (pas d'écran dédié) ; statut `EXPIRED` calculé à l'affichage.
+- **Lot 3** : pas de retour automatique en réparation à l'arrivée de la pièce ; pas de besoin « reçu en partie » ; lien de la cloche du magasinier vers `/garage/suivi` toujours refusé (n° 14) ; messages au client en français.
+- **Lot 4** : avoir total seulement, pas de refacturation après avoir (`Invoice.workOrderId @unique` gardé) ; acompte = paiement seulement à la facture ; gardiennage couru après la facture non facturé ; document figé en HTML (pas PDF) ; pas d'empreinte pour les anciennes factures ; anciens acomptes non convertis (liste SQL dans le README) ; bucket Supabase à vérifier (types `image/png`, `text/html`).
+- **Lot 5** : audit n° 10 non traité ; relance des refus comptée depuis la livraison ; modèles d'inspection en français (données) ; efficacité par période, pas par ordre ; écran des modèles réservé à l'administrateur.
+
+## Problèmes de l'audit V16 encore ouverts après les 5 lots
+
+Sur 42 problèmes reproduits : **corrigés** n° 1, 2, 4, 7, 9, 13, 19, 26 ; **corrigés pour les nouveaux ordres** n° 3 (garantie à la facture) et 27 (acompte = vrai paiement) ; **en partie** n° 11 et 12 (stock : réservation atomique pour les nouveaux devis, anciens ordres inchangés), 14 (le magasinier met à jour les pièces manquantes ; lien de sa cloche toujours refusé), 36 (filtres du journal traduits, détails bruts). **Encore ouverts (28)** :
+
+- Bloquant : aucun bloquant entièrement ouvert ; n° 11 et 12 restent possibles sur les ordres d'avant la V16 (sortie de stock à l'ajout).
+- Importants : n° 5 (deux ordres ouverts pour le même véhicule), 6 (double accueil d'un RDV), 8 (plan d'entretien V7.6 non mis à jour à la livraison), **10 (montants et prix d'achat visibles par le mécanicien)**, 15 (double réception d'un bon), 16 (facture fournisseur sur le bon d'un autre fournisseur), 18 (suggestion de recommander une pièce déjà commandée), 21 (timbre de la facture fournisseur), 22 (coût des pièces différent Rapports / Rentabilité), 23 (solde de trésorerie des Rapports), 25 (réclamation de garantie sans plafond), 29 (accès sur mesure gardés après changement de rôle), 32 (CIN des employés visible par le chef d'atelier), 37 (fiche ordre surchargée — encore plus longue avec les blocs ajoutés), 38 (séquences pair / impair du hub pour les réclamations de garantie et annonces).
+- Mineurs : n° 17 (bon partiel impossible à solder), 20 (timbre sur une facture à 0), 24 (« en retard » calculé de deux façons), 28 (deux définitions de « présent »), 30 (RH qui se délivre sa propre attestation), 31 (congé pour un employé désactivé), 33 (bloc « Stock pièces » montré sans droit), 34 (liens qui renvoient à l'accueil), 35 (documents imprimés en français), 39 (`X-Forwarded-For` sans proxy sur le hub), 40 (blocage d'un compte par un tiers), 41 (`0_init` non rejouable, sans effet), 42 (clés étrangères sans index).
+
+La suite `tests/audit-v16` (21 reproductions encore vraies) les rejoue : `TEST_DATABASE_URL=… TEST_DB_NAME=gp_test_… npx vitest run --config tests/audit-v16/vitest.config.ts`.
