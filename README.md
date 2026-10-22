@@ -41,6 +41,27 @@ Il n'y a **qu'une seule base de données** (Supabase en ligne + sa copie sur le 
 - Réservez l'adresse du PC du garage dans la box (bail DHCP fixe) ; si elle change, refaites `npm run shortcut`.
 - Pour que le site en ligne s'ouvre sans compte Vercel : Vercel → projet → *Settings* → *Deployment Protection* → *Vercel Authentication* → ne protéger que les *Preview Deployments* (sinon chaque PC doit se connecter à Vercel).
 
+## Nouveautés V16 — parcours atelier traçable (Lot 1 : statuts, motifs, journal)
+
+- **3 nouveaux statuts** : *Attente client* (pas de réponse au devis), *Devis refusé* (motif obligatoire ; remontage, contrôle qualité complet, puis *Prêt*), *Clôturé* (livré **et** facture soldée — automatique, au paiement ou à la livraison). Tous les anciens passages sont conservés ; *Annuler* est possible à toute étape avant la livraison (motif obligatoire, refusé si une facture existe, comme avant).
+- **Un droit par décision**, réglable par employé (*Équipe › Accès*) : devis, annuler, livrer, livrer malgré un solde, clôturer. Par défaut : le mécanicien garde les étapes techniques mais ne peut plus **ni annuler ni livrer** ; la réception et le chef d’atelier peuvent **facturer** ; seuls l’administrateur et le chef d’atelier peuvent livrer par dérogation.
+- **Fenêtre « Changer le statut… »** sur la fiche de l’ordre (et motif sur l’atelier mobile) : seulement les passages permis ; motif demandé quand il faut (annulation, devis refusé, retour en atelier après le contrôle qualité ou après *Prêt*, travaux lancés sur un devis sans accord enregistré). Le motif est gardé dans l’historique et le journal ; il **n’est jamais montré au client**.
+- **Livraison** (nouveaux ordres) : refusée sans facture ou avec un reste à payer (l’acompte de la réception est déduit) ; dérogation d’un responsable avec motif, tracée. Les ordres ouverts **avant** la V16 ne sont pas bloqués (non-rétroactivité).
+- **Travaux sans devis** (nouveaux ordres) : *Réceptionné / Diagnostic → En réparation* désactivé par défaut (*Paramètres › Parcours atelier*).
+- **Lignes** : une ligne qui faisait partie de l’accord du client est **annulée** (barrée, avec son motif), plus jamais supprimée ; elle sort des totaux, de la facture, du devis imprimé et du suivi client. Ajouter ou retirer une ligne annule la validation du contrôle qualité.
+- **Journal** : modification du diagnostic / de la date promise (avant → après), lignes, forfaits, photos (suppression, visibilité), accord du devis en ligne (adresse IP et navigateur, un seul accord en cas de double clic), message du client, message « véhicule prêt » (désormais dans *Historique des envois*, avec statut, erreur et nouvel essai).
+- Date promise initiale conservée ; « À traiter » : *Devis en attente de la décision du client*, *Véhicules livrés sans facture soldée*. Rapport : [docs/RAPPORT-V16.md](docs/RAPPORT-V16.md).
+
+### Mise à jour vers la V16 (Lot 1) — à faire une commande à la fois, dans cet ordre
+
+1. `npm install`
+2. `npm run db:cloud` — **avant le push** : ajoute la migration `25_workflow_v16` à la base en ligne (n’efface rien, rejouable).
+3. **Tout de suite après**, au garage : fermez puis relancez `start-hub.cmd` (le hub applique la migration à la base du PC du garage). Le PC du garage doit connaître les nouveaux statuts **avant** que l’en-ligne puisse les écrire ; sinon une ligne de synchronisation reste en échec.
+4. `npm run check`
+5. `git add -A` puis `git commit -m "V16 Lot 1 : parcours atelier"` puis `git push` (dans la foulée).
+6. **Sans hub** (base locale seule, ou PC qui ne lance pas le hub) : `npx prisma db execute --file prisma/migrations/25_workflow_v16/migration.sql --schema prisma/schema.prisma`
+7. Dans l’application : *Paramètres* › *Parcours atelier* (les deux interrupteurs), puis *Équipe* › *Accès* si un employé doit garder un droit particulier (ex. un mécanicien qui livre).
+
 ## Nouveautés V15 — file d'attente de l'accueil (borne, écran de salle, appel des clients)
 
 - **Borne d'entrée** (`/accueil/borne`, tablette plein écran, sans compte) : gros boutons par motif (dépôt, récupération, devis / question, paiement, autre — catalogue modifiable fr / ar / en), plaque facultative (grand clavier) ou QR du véhicule, rendez-vous du jour reconnu (« Bonjour, votre RDV de 8 h 30 est enregistré »), ticket en grand (A-12), SMS « c'est votre tour » **seulement avec le consentement** du client, impression facultative (imprimante réseau ESC/POS).

@@ -10,6 +10,8 @@ npx vitest run --config tests/audit-v16/vitest.config.ts        → 30 tests ré
 ```
 Ces tests vérifient le comportement **fautif actuel** ; en phase C, chaque test sera inversé (test de régression) au moment de la correction. Ils ne font pas partie de `npm run test:db`.
 
+**Suivi des corrections — V16 Lot 1 (voir docs/RAPPORT-V16.md)** : corrigés n° 1, 2, 4, 7, 9 (tests A-01, A-04, A-07, A-09 et la moitié « livraison sans facture » de A-02/A-03 inversés et déplacés dans `tests/workflow-v16.db.test.ts`, qui fait partie de `npm run test:db`) ; en partie n° 3, 27 et 36. Il reste 26 reproductions dans `tests/audit-v16` (26 réussies = 26 problèmes encore présents ou en partie).
+
 ## Bilan
 
 | Gravité | Nombre |
