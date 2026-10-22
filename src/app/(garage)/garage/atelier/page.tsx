@@ -64,7 +64,7 @@ export default async function WorkshopPage({ searchParams }: PageProps) {
             quoteApproved: !!wo.quoteApprovedAt,
             allowWorkWithoutQuote: settings.allowWorkWithoutQuote,
             invoiced: false,
-          }).filter((o) => o.to !== "CANCELLED" && o.to !== "DELIVERED");
+          }).filter((o) => o.to !== "CANCELLED" && o.to !== "DELIVERED" && !o.needsApproval);
           const nextOption = options.find((o) => o.to === NEXT_STEP[wo.status]);
           const next = nextOption && !nextOption.reason ? nextOption.to : undefined;
           const alternatives = options.filter((o) => o.to !== next);

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { CalendarClock, CheckCircle2, FileText, Gauge, LogOut, MessageCircle, Phone, PartyPopper, UserRound } from "lucide-react";
-import { approveQuoteAction, customerMessageAction, portalLogoutAction } from "@/actions/portal";
+import { approveQuoteAction, customerMessageAction, decideQuoteAction, portalLogoutAction } from "@/actions/portal";
+import { PortalQuoteDecision } from "@/components/portal/quote-decision";
 import { ActionButton, ActionForm } from "@/components/action-form";
 import { PlateChip } from "@/components/garage/badges";
 import { LiveRefresh } from "@/components/live-refresh";
@@ -8,7 +9,7 @@ import { MediaGallery } from "@/components/portal/media-gallery";
 import { RepairStepper } from "@/components/portal/repair-stepper";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/field";
-import { displayPlate, fmt, formatDateTime, formatKm, formatMoney, formatQty, woNumber } from "@/lib/format";
+import { displayPlate, fmt, formatDate, formatDateTime, formatKm, formatMoney, formatQty, woNumber } from "@/lib/format";
 import type { Dictionary } from "@/lib/i18n/fr";
 import { getI18n, getLang } from "@/lib/i18n/server";
 import { ClaimForm } from "@/components/portal/claim-form";
@@ -26,6 +27,9 @@ function eventLabel(e: TrackingView["events"][number], t: Dictionary): string {
     const to = (e.data as { to?: keyof Dictionary["status"] } | null)?.to;
     return to ? t.status[to] : "";
   }
+  // V16 Lot 2: a decision on a quote (accepted, partly, refused).
+  const decision = e.type === "QUOTE_APPROVED" ? (e.data as { decision?: keyof Dictionary["v16"]["quote"]["decision"] } | null)?.decision : undefined;
+  if (decision && decision in t.v16.quote.decision) return t.v16.quote.decision[decision];
   return t.portal.timeline[e.type as keyof Dictionary["portal"]["timeline"]] ?? "";
 }
 
@@ -159,6 +163,43 @@ export default async function TrackerPage() {
             )}
           </div>
         </section>
+      )}
+
+      {/* ── V16 Lot 2: versioned quote, the customer decides line by line ── */}
+      {view.quoteV16 && (
+        <section className="rounded-[24px] bg-gp-card p-5 text-gp-ink ring-2 ring-gp-accent" data-testid="portal-quote">
+          <h2 className="font-semibold text-foreground">
+            {view.quoteV16.kind === "SUPPLEMENT" ? t.v16.portalQuote.supplementTitle : t.v16.portalQuote.title}
+            <span className="ms-2 font-mono text-xs font-normal text-muted-foreground" dir="ltr">
+              {view.quoteV16.number} · v{view.quoteV16.version}
+            </span>
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">{t.v16.portalQuote.intro}</p>
+          {view.quoteV16.validUntil && <p className="mt-1 text-xs text-muted-foreground">{fmt(t.v16.portalQuote.validUntil, { date: formatDate(view.quoteV16.validUntil, lang) })}</p>}
+          {view.quoteV16.previousTtc !== null && (
+            <p className="mt-2 text-sm">
+              {t.v16.quote.previous} : <span className="tabular-nums" dir="ltr">{formatMoney(view.quoteV16.previousTtc, lang)}</span>
+            </p>
+          )}
+          {view.quoteV16.expired ? (
+            <p className="mt-4 rounded-[16px] bg-gp-panel p-3 text-sm">{t.v16.portalQuote.expired}</p>
+          ) : (
+            <PortalQuoteDecision action={decideQuoteAction} quoteId={view.quoteV16.id} lines={view.quoteV16.lines} stampDuty={view.quoteV16.stampDuty} defaultName={view.customer.name} />
+          )}
+          {phone && (
+            <Button asChild variant="outline" className="mt-3 h-11 w-full">
+              <a href={`tel:${phone}`}>
+                <Phone className="size-4" aria-hidden /> {t.portal.call}
+              </a>
+            </Button>
+          )}
+        </section>
+      )}
+      {!view.quoteV16 && view.workflowV16 && view.lastDecision && !delivered && (
+        <p className="flex items-center gap-3 rounded-[20px] bg-gp-panel p-4 text-sm text-gp-ink" data-testid="portal-last-decision">
+          <CheckCircle2 className="size-5 shrink-0" aria-hidden />
+          {fmt(t.v16.portalQuote.last, { date: formatDateTime(view.lastDecision.createdAt, lang), decision: t.v16.quote.decision[view.lastDecision.decision], amount: formatMoney(view.lastDecision.amountApprovedTtc, lang) })}
+        </p>
       )}
 
       {/* ── Invoice ── */}

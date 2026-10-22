@@ -20,7 +20,8 @@ export default async function RepairOrderPage({ params }: PageProps) {
   const [wo, settings, { t }] = await Promise.all([getWorkOrder(id), getSettings(), getI18n()]);
   if (!wo) notFound();
   // V16: voided lines are not part of the work any more.
-  const liveLines = wo.lines.filter((l) => !l.voidedAt);
+  // V16 Lot 2: nor the lines the customer refused.
+  const liveLines = wo.lines.filter((l) => !l.voidedAt && l.approvalStatus !== "REFUSED");
 
   const linesTtc = liveLines.length ? computeTotals(liveLines, settings.stampDuty).totalTtc : null;
   const registry = settings.registryNumber ? `${settings.registryNumber}${settings.registryCity ? ` (${settings.registryCity})` : ""}` : null;

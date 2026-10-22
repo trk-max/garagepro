@@ -51,6 +51,8 @@ import { packageOptions } from "@/server/admin";
 import { partOptions } from "@/server/parts";
 import { getSettings } from "@/server/settings";
 import { getVehicleHistoryFor, getWorkOrder, listMechanics, voidOnlyLineIds } from "@/server/work-orders";
+import { orderQuoteState, quoteHistory } from "@/server/quotes";
+import { QuotePanel } from "@/components/garage/quote-panel";
 import { NEXT_STEP, availableTransitions, balanceDue, deliveryBlock, isDelivered, isFinal } from "@/server/workflow";
 
 type PageProps = { params: Promise<{ id: string }> };
@@ -77,7 +79,10 @@ export default async function WorkOrderPage({ params }: PageProps) {
     getBaseUrl().catch(() => null),
   ]);
   if (!wo) notFound();
-  const customerApproval = wo.events.find((e) => e.type === "QUOTE_APPROVED");
+  // V16 Lot 2: versions and decisions; may the work start (decision recorded on the latest quote)?
+  const [quotes, quoteState] = await Promise.all([quoteHistory(wo.id), orderQuoteState(wo.id)]);
+  // Orders opened before V16: the one-click agreement banner of Lot 1 (V16 orders: the quote panel).
+  const customerApproval = wo.workflowV16 ? undefined : wo.events.find((e) => e.type === "QUOTE_APPROVED");
   const unreadCustomerMessages = wo.events.filter((e) => e.type === "CUSTOMER_MESSAGE").slice(0, 3);
 
   const final = isFinal(wo.status);
@@ -85,17 +90,23 @@ export default async function WorkOrderPage({ params }: PageProps) {
   const canInvoice = can(staff, "createInvoice");
   const canSeeInvoice = can(staff, "viewClientInvoices");
   // V16: voided lines stay on the page (struck through) but count nowhere.
-  const liveLines = wo.lines.filter((l) => !l.voidedAt);
+  // V16 Lot 2: refused lines are kept (the customer's answer) but count nowhere either.
+  const liveLines = wo.lines.filter((l) => !l.voidedAt && l.approvalStatus !== "REFUSED");
   const totals = computeTotals(liveLines, settings.stampDuty);
+  const pendingLines = wo.workflowV16 ? liveLines.filter((l) => l.approvalStatus === "PENDING") : [];
+  const pendingTtc = pendingLines.length ? computeTotals(pendingLines, 0).totalTtc : 0;
+  const approvedCount = liveLines.filter((l) => l.approvalStatus === "APPROVED").length;
+  const quoteApproved = wo.workflowV16 ? quoteState.allowsWork : !!wo.quoteApprovedAt;
+  const lastDecision = quotes.find((h) => h.status !== "SUPERSEDED")?.approvals.at(-1);
   const next = NEXT_STEP[wo.status];
   // V16: only the moves this user may make (permission per move), the reason when required, and the delivery check.
   const block = deliveryBlock({ requirePaidBeforeDelivery: settings.requirePaidBeforeDelivery, workflowV16: wo.workflowV16, invoice: wo.invoice, depositAmount: wo.depositAmount });
   const choices: StatusChoice[] = availableTransitions(wo.status, staff, {
     workflowV16: wo.workflowV16,
-    quoteApproved: !!wo.quoteApprovedAt,
+    quoteApproved,
     allowWorkWithoutQuote: settings.allowWorkWithoutQuote,
     invoiced: !!wo.invoice,
-  }).map((o) => ({ to: o.to, label: t.status[o.to], reason: o.reason, block: o.to === "DELIVERED" ? block : null }));
+  }).map((o) => ({ to: o.to, label: t.status[o.to], reason: o.reason, block: o.needsApproval ? "approvalMissing" : o.to === "DELIVERED" ? block : null }));
   const nextChoice = next ? choices.find((c) => c.to === next) : undefined;
   const canOverride = can(staff, "deliverWithBalance");
   const balanceText = formatMoney(balanceDue(wo.invoice, wo.depositAmount) ?? 0, lang);
@@ -124,6 +135,17 @@ export default async function WorkOrderPage({ params }: PageProps) {
           </div>
           <StatusStepper status={wo.status} t={t} className="rounded-[18px] bg-gp-panel px-2 py-4" />
           {!wo.workflowV16 && !final && <p className="text-xs text-gp-muted">{t.v16.status.legacy}</p>}
+          {/* V16 Lot 2: the customer's decision arrived (e.g. on the portal, synchronised from online) — the work may start. */}
+          {wo.workflowV16 && (wo.status === "QUOTE_SENT" || wo.status === "WAITING_CUSTOMER") && quoteApproved && lastDecision && (
+            <p className="flex items-center gap-2 rounded-[14px] bg-gp-success-bg px-3 py-2 text-sm text-gp-success-ink">
+              <CheckCircle2 className="size-4" aria-hidden /> {fmt(t.v16.quote.received, { decision: t.v16.quote.decision[lastDecision.decision], date: formatDateTime(lastDecision.createdAt, lang) })}
+            </p>
+          )}
+          {wo.workflowV16 && pendingLines.length > 0 && approvedCount > 0 && !final && (
+            <p className="flex items-center gap-2 rounded-[14px] bg-gp-accent-tint px-3 py-2 text-sm text-gp-accent-ink" data-testid="pending-supplement">
+              <FileText className="size-4" aria-hidden /> {fmt(t.v16.quote.pendingSupplement, { amount: formatMoney(pendingTtc, lang) })}
+            </p>
+          )}
           {customerApproval && !isDelivered(wo.status) && (
             <p className="flex items-center gap-2 rounded-[14px] bg-gp-success-bg px-3 py-2 text-sm text-gp-success-ink">
               <CheckCircle2 className="size-4" aria-hidden /> {fmt(t.tracking.customerApproved, { date: formatDateTime(customerApproval.createdAt, lang) })}
@@ -204,7 +226,7 @@ export default async function WorkOrderPage({ params }: PageProps) {
               ) : (
                 canInvoice &&
                 wo.status !== "CANCELLED" && (
-                  <ActionButton size="sm" action={createInvoiceAction.bind(null, wo.id)} disabled={liveLines.length === 0}>
+                  <ActionButton size="sm" action={createInvoiceAction.bind(null, wo.id)} disabled={liveLines.length === 0 || pendingLines.length > 0} title={pendingLines.length > 0 ? fmt(t.errors.pendingLines, { count: pendingLines.length }) : undefined}>
                     <FileText className="size-4" aria-hidden /> {t.workOrders.createInvoice}
                   </ActionButton>
                 )
@@ -233,6 +255,7 @@ export default async function WorkOrderPage({ params }: PageProps) {
                   <Th className="text-end">{t.common.quantity}</Th>
                   <Th className="text-end">{t.common.unitPrice}</Th>
                   <Th className="text-end">{t.invoices.totalHt}</Th>
+                  {wo.workflowV16 && <Th>{t.v16.quote.agreement}</Th>}
                   {!linesLocked && <Th />}
                 </tr>
               </thead>
@@ -240,12 +263,21 @@ export default async function WorkOrderPage({ params }: PageProps) {
                 {wo.lines.map((line) => {
                   // V16: a voided line stays visible, greyed and struck through, with its reason; it counts nowhere.
                   const voided = !!line.voidedAt;
+                  const refused = line.approvalStatus === "REFUSED";
+                  const struck = voided || refused;
                   return (
-                    <tr key={line.id} className={voided ? "text-muted-foreground" : undefined} data-voided={voided || undefined}>
+                    <tr key={line.id} className={struck ? "text-muted-foreground" : undefined} data-voided={voided || undefined} data-approval={line.approvalStatus}>
                       <Td className="text-xs text-muted-foreground">{t.lineType[line.type]}</Td>
                       <Td>
                         <span className={voided ? "line-through" : undefined}>{line.description}</span>
                         {line.part && <span className="ms-2 font-mono text-xs text-muted-foreground">{line.part.sku}</span>}
+                        {(line.priority || line.partCondition || (line.stockDeferred && line.partId && line.approvalStatus === "PENDING")) && (
+                          <span className="mt-0.5 flex flex-wrap gap-x-2 text-xs text-muted-foreground">
+                            {line.priority && <span className={line.priority === "SAFETY" ? "font-medium text-gp-danger-ink" : undefined}>{t.v16.quote.priority[line.priority]}</span>}
+                            {line.partCondition && <span>{t.v16.quote.condition[line.partCondition]}</span>}
+                            {line.stockDeferred && line.partId && line.approvalStatus === "PENDING" && <span>{t.v16.quote.reserved}</span>}
+                          </span>
+                        )}
                         {voided && (
                           <span className="mt-0.5 block text-xs">
                             {fmt(t.v16.line.voided, { date: formatDateTime(line.voidedAt!, lang), reason: line.voidReason ?? "" })}
@@ -254,10 +286,21 @@ export default async function WorkOrderPage({ params }: PageProps) {
                       </Td>
                       <Td className={`text-end tabular-nums${voided ? " line-through" : ""}`}>{formatQty(line.quantityX100, lang)}</Td>
                       <Td className={`text-end tabular-nums${voided ? " line-through" : ""}`} dir="ltr">{formatMoney(line.unitPrice, lang)}</Td>
-                      <Td className={`text-end font-medium tabular-nums${voided ? " line-through" : ""}`} dir="ltr">{formatMoney(lineTotalHt(line), lang)}</Td>
+                      <Td className={`text-end font-medium tabular-nums${struck ? " line-through" : ""}`} dir="ltr">{formatMoney(lineTotalHt(line), lang)}</Td>
+                      {wo.workflowV16 && (
+                        <Td className="text-xs">
+                          {!voided && (
+                            <span
+                              className={`rounded-full px-2 py-0.5 ${line.approvalStatus === "APPROVED" ? "bg-gp-success-bg text-gp-success-ink" : refused ? "bg-gp-danger-bg text-gp-danger-ink" : "bg-gp-panel text-gp-muted"}`}
+                            >
+                              {t.v16.quote.lineStatus[line.approvalStatus]}
+                            </span>
+                          )}
+                        </Td>
+                      )}
                       {!linesLocked && (
                         <Td className="w-10">
-                          {voided ? null : voidOnly.has(line.id) ? (
+                          {voided || refused ? null : voidOnly.has(line.id) ? (
                             <VoidLineDialog action={removeLineAction.bind(null, wo.id, line.id)} label={t.v16.line.void} trigger={<Ban className="size-4 text-muted-foreground" />} />
                           ) : (
                             <ActionButton
@@ -298,6 +341,12 @@ export default async function WorkOrderPage({ params }: PageProps) {
                 <dt>{t.invoices.totalTtc}</dt>
                 <dd className="tabular-nums" dir="ltr">{formatMoney(totals.totalTtc, lang)}</dd>
               </div>
+              {pendingTtc > 0 && (
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <dt>{t.v16.quote.pendingTotal}</dt>
+                  <dd className="tabular-nums" dir="ltr">{formatMoney(pendingTtc, lang)}</dd>
+                </div>
+              )}
             </dl>
           )}
 
@@ -324,6 +373,23 @@ export default async function WorkOrderPage({ params }: PageProps) {
             </div>
           )}
         </Card>
+
+        {/* ── V16 Lot 2: quote versions and the customer's decisions (who, when, channel, amount, lines) ── */}
+        <QuotePanel
+          workOrderId={wo.id}
+          legacy={!wo.workflowV16}
+          history={quotes}
+          pendingLines={final || wo.invoice ? [] : pendingLines.map((l) => ({ id: l.id, description: l.description, quantityX100: l.quantityX100, unitPrice: l.unitPrice, taxRateBp: l.taxRateBp, priority: l.priority, partCondition: l.partCondition }))}
+          openQuoteId={quoteState.openQuoteId}
+          waiting={wo.status === "QUOTE_SENT" || wo.status === "WAITING_CUSTOMER"}
+          stampDuty={approvedCount > 0 ? 0 : settings.stampDuty}
+          customer={{ name: wo.customer.name, phone: wo.customer.phone }}
+          canResend={can(staff, "manageQuotes")}
+          canRecord={can(staff, "recordQuoteApproval")}
+          showMoney
+          t={t}
+          lang={lang}
+        />
 
         {/* ── V14: assisted assignment (required skills, mechanics sorted by level / presence / load, supervisor) ── */}
         <SkillAssignSection workOrderId={wo.id} staff={staff} t={t} lang={lang} />

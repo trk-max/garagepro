@@ -24,6 +24,24 @@ export function describeEvent(e: Pick<WorkOrderEvent, "type" | "data">, t: Dicti
       return fmt(t.events.INVOICED, { number: str(d.number) });
     case "PAYMENT":
       return fmt(t.events.PAYMENT, { amount: formatMoney(typeof d.amount === "number" ? d.amount : 0, lang) });
+    // V16 Lot 2: decision on a versioned quote (portal or staff), with its number and the accepted amount.
+    case "QUOTE_APPROVED":
+      return typeof d.decision === "string" && d.decision in t.v16.quote.decision
+        ? fmt(t.v16.quote.events.decided, {
+            number: str(d.number),
+            decision: t.v16.quote.decision[d.decision as keyof Dictionary["v16"]["quote"]["decision"]],
+            amount: formatMoney(typeof d.amount === "number" ? d.amount : 0, lang),
+          })
+        : t.events.QUOTE_APPROVED;
+    case "NOTE":
+      return d.quoteSent
+        ? fmt(t.v16.quote.events.sent, {
+            kind: (d.kind === "SUPPLEMENT" ? t.v16.quote.kind.SUPPLEMENT : t.v16.quote.kind.INITIAL).toLowerCase(),
+            number: str(d.number),
+            version: typeof d.version === "number" ? d.version : 1,
+            amount: formatMoney(typeof d.totalTtc === "number" ? d.totalTtc : 0, lang),
+          })
+        : t.events.NOTE;
     default:
       return t.events[e.type];
   }

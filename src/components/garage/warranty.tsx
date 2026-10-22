@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AGREED_LINE } from "@/lib/quote";
 import { ShieldCheck } from "lucide-react";
 import { createWarrantyAction } from "@/actions/warranties";
 import { ActionForm } from "@/components/action-form";
@@ -59,7 +60,7 @@ export async function WarrantyCard({ workOrderId, staff, t, lang }: { workOrderI
   const [list, suppliers, lines] = await Promise.all([
     listWarranties(staff, { workOrderId }),
     supplierOptions(),
-    prisma.workOrderLine.findMany({ where: { workOrderId, type: "PART", voidedAt: null }, select: { id: true, description: true }, orderBy: { position: "asc" } }),
+    prisma.workOrderLine.findMany({ where: { workOrderId, type: "PART", ...AGREED_LINE }, select: { id: true, description: true }, orderBy: { position: "asc" } }),
   ]);
   return (
     <Card>

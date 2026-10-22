@@ -15,8 +15,8 @@ export type StatusChoice = {
   label: string;
   /** A reason is mandatory for this move. */
   reason: boolean;
-  /** Delivery refused as it is (V16): "noInvoice" | "balanceDue". */
-  block?: "noInvoice" | "balanceDue" | null;
+  /** Delivery refused as it is (V16): "noInvoice" | "balanceDue" (a manager may override); V16 Lot 2: "approvalMissing" (no override: record the agreement first). */
+  block?: "noInvoice" | "balanceDue" | "approvalMissing" | null;
 };
 
 /** Native <dialog> shell shared by the status and the line dialogs (Escape / click outside close). */
@@ -91,8 +91,9 @@ export function StatusDialog({
   const { pending, submit } = useSubmit(action, () => ref.current?.close());
   const choice = choices.find((c) => c.to === to);
   const blocked = choice?.block ?? null;
-  const needReason = !!choice?.reason || (blocked !== null && override);
-  const refused = blocked !== null && !override;
+  const overridable = blocked === "noInvoice" || blocked === "balanceDue";
+  const needReason = !!choice?.reason || (overridable && override);
+  const refused = blocked !== null && !(overridable && override);
 
   return (
     <>
@@ -138,8 +139,8 @@ export function StatusDialog({
 
           {blocked && (
             <div role="alert" className="grid gap-2 rounded-[14px] bg-gp-accent-tint px-3 py-2 text-sm text-gp-accent-ink">
-              <p>{blocked === "noInvoice" ? v.noInvoice : v.balanceDue.replace("{amount}", balanceText ?? "")}</p>
-              {canOverride ? (
+              <p>{blocked === "approvalMissing" ? t.v16.quote.approvalMissing : blocked === "noInvoice" ? v.noInvoice : v.balanceDue.replace("{amount}", balanceText ?? "")}</p>
+              {!overridable ? null : canOverride ? (
                 <label className="flex items-start gap-2 font-medium">
                   <input type="checkbox" name="override" checked={override} onChange={(e) => setOverride(e.target.checked)} className="mt-0.5 size-4" />
                   {v.override}

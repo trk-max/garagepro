@@ -13,6 +13,10 @@ import type { PartOption } from "@/server/parts";
 
 type Result = { ok: true; data: { redirectTo?: string; warning?: string } } | { ok: false; error: string };
 
+// Same lists as lib/quote (not imported here: that file uses Node's crypto, server only).
+const LINE_PRIORITY_KEYS = ["SAFETY", "RECOMMENDED", "WATCH"] as const;
+const PART_CONDITION_KEYS = ["NEW", "USED", "EXCHANGE", "REUSED", "CUSTOMER_SUPPLIED"] as const;
+
 export function LineAdder({
   action,
   parts,
@@ -70,6 +74,32 @@ export function LineAdder({
       <Button type="submit" className="gap-1">
         <Plus className="size-4" aria-hidden /> {t.common.add}
       </Button>
+
+      {/* V16 Lot 2 — shown to the customer on the quote (both optional). */}
+      <div className="grid gap-3 sm:col-span-full sm:grid-cols-2">
+        <Field label={t.v16.quote.priorityLabel}>
+          <NativeSelect name="priority" defaultValue="">
+            <option value="">—</option>
+            {LINE_PRIORITY_KEYS.map((p) => (
+              <option key={p} value={p}>
+                {t.v16.quote.priority[p]}
+              </option>
+            ))}
+          </NativeSelect>
+        </Field>
+        {type === "PART" && (
+          <Field label={t.v16.quote.conditionLabel}>
+            <NativeSelect name="partCondition" defaultValue="">
+              <option value="">—</option>
+              {PART_CONDITION_KEYS.map((c) => (
+                <option key={c} value={c}>
+                  {t.v16.quote.condition[c]}
+                </option>
+              ))}
+            </NativeSelect>
+          </Field>
+        )}
+      </div>
     </ActionForm>
   );
 }

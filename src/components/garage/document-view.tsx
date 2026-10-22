@@ -1,4 +1,4 @@
-import type { LineType } from "@prisma/client";
+import type { LinePriority, LineType, PartCondition } from "@prisma/client";
 import { displayPlate, fmt, formatDate, formatKm, formatMoney, formatQty, woNumber, type Lang } from "@/lib/format";
 import type { Dictionary } from "@/lib/i18n/fr";
 import { DocFooter, DocLogo } from "@/components/garage/doc-brand";
@@ -13,12 +13,14 @@ export type DocumentData = {
   customer: { name: string; phone: string; address: string | null; taxId: string | null };
   vehicle: { plate: string; make: string; model: string; mileage: number | null };
   workOrderNumber: number;
-  lines: { type: LineType; description: string; quantityX100: number; unitPrice: number; totalHt: number }[];
+  lines: { type: LineType; description: string; quantityX100: number; unitPrice: number; totalHt: number; priority?: LinePriority | null; partCondition?: PartCondition | null }[];
   totals: { totalHt: number; taxByRate: { rateBp: number; base?: number; tax: number }[]; stampDuty: number; totalTtc: number };
   /** V10.6 (invoice): due date (null = on receipt), frozen legal mentions, amount in French words. */
   dueDate?: Date | null;
   legal?: SnapshotLegal;
   amountWords?: string | null;
+  /** V16 Lot 2 (versioned quote): version, validity date, and for a supplement the old / new totals. */
+  quote?: { version: number; validUntil: Date | null; previousTtc: number | null; newTotalTtc: number | null; supplement: boolean; sha256: string };
 };
 
 /** A4 printable quote / invoice. Print with the browser (Ctrl+P → PDF). */
@@ -50,6 +52,7 @@ export function DocumentView({ doc, t, lang, logo }: { doc: DocumentData; t: Dic
         <div className="text-end">
           <p className="text-2xl font-bold uppercase tracking-wide">{title}</p>
           <p className="font-mono">{doc.number}</p>
+          {doc.quote && <p className="text-xs">{fmt(t.v16.quote.printVersion, { version: doc.quote.version })}{doc.quote.supplement ? ` · ${t.v16.quote.kind.SUPPLEMENT}` : ""}</p>}
           <p>{formatDate(doc.date, lang)}</p>
           {doc.dueDate !== undefined && (
             <p>
@@ -108,6 +111,13 @@ export function DocumentView({ doc, t, lang, logo }: { doc: DocumentData; t: Dic
               <td className="px-2 py-2">
                 {line.description}
                 <span className="ms-2 text-xs text-zinc-500">({t.lineType[line.type]})</span>
+                {(line.priority || line.partCondition) && (
+                  <span className="block text-xs text-zinc-500">
+                    {line.priority && <span className={line.priority === "SAFETY" ? "font-semibold text-red-700" : undefined}>{t.v16.quote.priority[line.priority]}</span>}
+                    {line.priority && line.partCondition && " · "}
+                    {line.partCondition && t.v16.quote.condition[line.partCondition]}
+                  </span>
+                )}
               </td>
               <td className="px-2 py-2 text-end tabular-nums">{formatQty(line.quantityX100, lang)}</td>
               <td className="px-2 py-2 text-end tabular-nums" dir="ltr">{money(line.unitPrice)}</td>
@@ -143,15 +153,34 @@ export function DocumentView({ doc, t, lang, logo }: { doc: DocumentData; t: Dic
           <dd className="tabular-nums" dir="ltr">{money(doc.totals.stampDuty)}</dd>
         </div>
         <div className="flex justify-between border-t pt-2 text-base font-bold">
-          <dt>{t.invoices.totalTtc}</dt>
+          <dt>{doc.quote?.supplement ? t.v16.quote.supplement : t.invoices.totalTtc}</dt>
           <dd className="tabular-nums" dir="ltr">{money(doc.totals.totalTtc)}</dd>
         </div>
+        {doc.quote?.previousTtc != null && (
+          <div className="flex justify-between text-zinc-600">
+            <dt>{t.v16.quote.previous}</dt>
+            <dd className="tabular-nums" dir="ltr">{money(doc.quote.previousTtc)}</dd>
+          </div>
+        )}
+        {doc.quote?.newTotalTtc != null && (
+          <div className="flex justify-between font-semibold">
+            <dt>{t.v16.quote.newTotal}</dt>
+            <dd className="tabular-nums" dir="ltr">{money(doc.quote.newTotalTtc)}</dd>
+          </div>
+        )}
       </dl>
       </div>
 
       <InvoiceMentions t={t} amountWords={doc.amountWords} paymentTerms={doc.legal?.paymentTerms} penaltyText={doc.legal?.penaltyText} />
 
-      <p className="mt-8 text-center text-xs text-zinc-500">{doc.kind === "quote" ? t.invoices.quoteValidity : t.invoices.thanks}</p>
+      <p className="mt-8 text-center text-xs text-zinc-500">
+        {doc.kind === "quote" ? (doc.quote?.validUntil ? fmt(t.v16.quote.printValid, { date: formatDate(doc.quote.validUntil, lang) }) : t.invoices.quoteValidity) : t.invoices.thanks}
+      </p>
+      {doc.quote && (
+        <p className="mt-1 text-center font-mono text-[10px] text-zinc-400" dir="ltr">
+          SHA-256 {doc.quote.sha256}
+        </p>
+      )}
       <DocFooter garage={doc.garage} text={doc.garage.footer} taxIdLabel={t.common.taxId} />
     </article>
   );
