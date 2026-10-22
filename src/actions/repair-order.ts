@@ -42,6 +42,10 @@ export async function saveWorkflowSettingsAction(form: FormData): Promise<Action
       diagnosticFee: optionalMoney.parse(form.get("diagnosticFee") ?? "") || null,
       requireSafetyWaiver: form.get("requireSafetyWaiver") === "on",
       autoWaitingParts: form.get("autoWaitingParts") === "on",
+      // V16 Lot 4
+      requireSignedHandover: form.get("requireSignedHandover") === "on",
+      autoStorageFee: form.get("autoStorageFee") === "on",
+      autoInvoiceReminders: form.get("autoInvoiceReminders") === "on",
     });
     revalidatePath("/garage/settings");
     return { ok: true, data: null };

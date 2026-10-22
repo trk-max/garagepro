@@ -29,12 +29,15 @@ const safePath = (root, key) => {
 export async function syncMedia(local, { root = path.join(process.cwd(), "storage"), config = mediaConfig(), fetchImpl = fetch } = {}) {
   if (!config) return { skipped: true, uploaded: 0, downloaded: 0 };
   const done = new Set(await getState(local, "mediaSynced", []));
-  // Repair photos/videos, showroom photos/documents (V9) and certificate files (V14) share the same storage.
+  // Repair photos/videos, showroom photos/documents (V9), certificate files (V14) and the customer signatures with
+  // their frozen documents (V16 Lot 4: intake, handover, quote, safety waiver) share the same storage.
   const { rows } = await local.query(
     `SELECT key, type FROM (
        SELECT "storageKey" AS key, "contentType" AS type, "createdAt" FROM "WorkOrderMedia"
        UNION ALL SELECT "storageKey", "contentType", "createdAt" FROM "ListingMedia"
        UNION ALL SELECT "fileKey", "fileType", "createdAt" FROM "SkillCertificate" WHERE "fileKey" IS NOT NULL AND "fileType" IS NOT NULL
+       UNION ALL SELECT "imageKey", 'image/png', "signedAt" FROM "Signature"
+       UNION ALL SELECT "documentKey", 'text/html; charset=utf-8', "signedAt" FROM "Signature" WHERE "documentKey" IS NOT NULL
      ) m ORDER BY "createdAt" DESC`,
   );
   const headers = { Authorization: `Bearer ${config.key}`, apikey: config.key };

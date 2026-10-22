@@ -64,6 +64,17 @@ const MATRIX = {
   deliverWithBalance: ["ADMIN", "MANAGER"],
   /// Clôturer un ordre livré dont la facture est soldée (sinon automatique au paiement).
   closeWorkOrder: ["ADMIN", "MANAGER", "RECEPTION"],
+  // ── V16 Lot 4 — réception signée, restitution, facture et paiements ──
+  /// Faire signer la prise en charge sur la tablette (document figé + empreinte ; la réception est ensuite verrouillée).
+  signIntake: ["ADMIN", "MANAGER", "RECEPTION"],
+  /// Bon de restitution signé (km, carburant, checklist, signature) : exigé avant « Livré » pour les nouveaux ordres.
+  recordHandover: ["ADMIN", "MANAGER", "RECEPTION"],
+  /// Émettre un avoir qui annule une facture émise (motif obligatoire) : jamais la réception par défaut.
+  issueCreditNote: ["ADMIN", "ACCOUNTANT"],
+  /// Annuler un paiement (ligne négative, motif obligatoire, journalisée).
+  reversePayment: ["ADMIN", "MANAGER"],
+  /// Ne pas facturer le gardiennage calculé (motif obligatoire, journalisé).
+  waiveStorageFee: ["ADMIN", "MANAGER"],
   /// Comptes du portail entreprise d'un client.
   manageCompanyAccess: ["ADMIN", "MANAGER"],
 
@@ -216,9 +227,9 @@ export function normaliseOverrides(role: Role, wanted: Partial<Record<string, Ov
 
 /** Display groups for the "Accès" editor (every permission appears exactly once). */
 export const PERMISSION_GROUPS = {
-  workshop: ["viewWorkOrders", "useWorkshop", "printQuote", "uploadMedia", "obdDiagnose", "viewAppointments", "manageAppointments", "manageTracking", "manageRepairFollowUp", "reportMissingPart", "logOwnLabor", "manageLabor", "fillQualityCheck", "approveQualityCheck", "manageClaims", "manageWarranties", "manageQuotes", "recordQuoteApproval", "recordSafetyWaiver", "managePartNeeds", "cancelWorkOrder", "deliverWorkOrder", "deliverWithBalance", "closeWorkOrder"],
+  workshop: ["viewWorkOrders", "useWorkshop", "printQuote", "uploadMedia", "obdDiagnose", "viewAppointments", "manageAppointments", "manageTracking", "manageRepairFollowUp", "reportMissingPart", "logOwnLabor", "manageLabor", "fillQualityCheck", "approveQualityCheck", "manageClaims", "manageWarranties", "manageQuotes", "recordQuoteApproval", "recordSafetyWaiver", "managePartNeeds", "cancelWorkOrder", "deliverWorkOrder", "deliverWithBalance", "closeWorkOrder", "signIntake", "recordHandover", "waiveStorageFee"],
   customers: ["viewCustomers", "manageMaintenance", "viewAgenda", "manageAgenda", "configureAgenda", "manageVehicleQr", "viewNotifications", "manageCompanyAccess"],
-  money: ["viewFinance", "viewClientInvoices", "createInvoice", "recordPayment", "sendReminder", "manageExpenses", "viewWarrantyMoney", "viewCashForecast", "readCashForecast", "viewProfit", "viewReports"],
+  money: ["viewFinance", "viewClientInvoices", "createInvoice", "recordPayment", "reversePayment", "issueCreditNote", "sendReminder", "manageExpenses", "viewWarrantyMoney", "viewCashForecast", "readCashForecast", "viewProfit", "viewReports"],
   stock: ["viewStock", "manageStock", "reserveStock", "viewSuppliers", "manageSuppliers", "requestPurchase", "approvePurchase", "receiveGoods", "viewSupplierInvoices", "manageSupplierInvoices", "paySupplier"],
   team: ["useTimeClock", "manageTeam", "showClockKiosk", "issueCertificates", "viewSkills", "manageSkills", "overrideSkillBlock"],
   contracts: ["viewContracts", "reviewContractTemplates"],

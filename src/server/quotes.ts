@@ -25,6 +25,7 @@ import { consumeReservations, releaseAllFor, releaseForLine, workOrderStockMove 
 import { acceptedLineWaitsForPart, autoWaitingPartsOn } from "@/server/delays";
 import { resetQualityApproval } from "@/server/quality";
 import { reserveAttempt } from "@/server/rate-limit";
+import { parseSignaturePng, recordSignatureTx, storeSignatureFiles } from "@/server/signatures";
 import { deliverPending, queueItems, realSender, type Item, type Sender } from "@/server/reminders";
 
 /**
@@ -192,6 +193,8 @@ export type DecisionInput = {
   userAgent?: string | null;
   /** From the portal: an expired quote cannot be accepted any more. */
   portal?: boolean;
+  /** V16 Lot 4 — storage key of the customer's signature drawn on the tablet (staff form), kept on the proof. */
+  signatureKey?: string | null;
 };
 
 /**
@@ -239,6 +242,7 @@ export async function recordDecisionTx(tx: Tx, actor: AuditActor, input: Decisio
       userAgent: input.userAgent?.slice(0, 300) ?? null,
       note: input.note?.trim().slice(0, 1000) || null,
       quoteHash: q.snapshotHash,
+      signatureKey: input.signatureKey ?? null,
     },
     select: { id: true, createdAt: true },
   });
@@ -388,10 +392,16 @@ export async function refuseOpenQuoteTx(tx: Tx, actor: AuditActor, workOrderId: 
  * checked by the action: never a mechanic by default). Quotes the pending lines first when no open quote holds
  * them (order still in quote from before Lot 2, insurance, work without quote). Effects applied at once.
  */
-export async function recordStaffDecision(workOrderId: string, input: Omit<DecisionInput, "workOrderId" | "portal" | "quoteId"> & { quoteId?: string | null }, actor: StaffUser) {
+export async function recordStaffDecision(
+  workOrderId: string,
+  input: Omit<DecisionInput, "workOrderId" | "portal" | "quoteId" | "signatureKey"> & { quoteId?: string | null; /** V16 Lot 4 — optional tablet signature (PNG data URL). */ signatureImage?: string | null },
+  actor: StaffUser,
+) {
   if (input.channel === "PORTAL") throw new AppError("invalid", {}, 422);
   // Checked here too (not only by the action): whoever calls it, a mechanic never records an agreement by default.
   if (!can(actor, "recordQuoteApproval")) throw new AppError("forbidden", {}, 403);
+  // V16 Lot 4: the customer may also sign on the tablet — file stored first, Signature QUOTE written with the proof.
+  const files = input.signatureImage ? await storeSignatureFiles(workOrderId, parseSignaturePng(input.signatureImage)) : null;
   return prisma.$transaction(async (tx) => {
     const wo = await tx.workOrder.findUnique({ where: { id: workOrderId }, select: { status: true, workflowV16: true } });
     if (!wo) throw new AppError("notFound", {}, 404);
@@ -399,7 +409,8 @@ export async function recordStaffDecision(workOrderId: string, input: Omit<Decis
     if (!wo.workflowV16) throw new AppError("legacyQuote", {}, 409);
     await reapplyApprovals(tx, workOrderId);
     const sent = await sendQuoteTx(tx, actor, workOrderId, { channel: input.channel, notify: false, allowExpired: true });
-    const r = await recordDecisionTx(tx, actor, { ...input, workOrderId, quoteId: input.quoteId ?? sent.quote.id, portal: false });
+    const r = await recordDecisionTx(tx, actor, { ...input, workOrderId, quoteId: input.quoteId ?? sent.quote.id, portal: false, signatureKey: files?.imageKey ?? null });
+    if (files) await recordSignatureTx(tx, actor, { workOrderId, kind: "QUOTE", signerName: input.approverName.trim().slice(0, 120), files, refId: r.approvalId, ip: input.ip, userAgent: input.userAgent });
     const status = await applyDecisionEffects(tx, actor, workOrderId, { stock: true, status: true }, r.at);
     return { ...r, status };
   });

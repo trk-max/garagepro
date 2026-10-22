@@ -73,7 +73,7 @@ export function customerVisibleEvents<E extends { type: string; data: unknown }>
  * V16 — internal data never sent to the customer: the reason of a status change (cancel, refused quote,
  * back to the workshop, delivery override…) and the override details stay for the team only.
  */
-const INTERNAL_EVENT_KEYS = ["reason", "override", "block", "balanceDue", "approval", "auto", "voided", "refusedLines", "reassembled", "autoParts", "announcedFee"];
+const INTERNAL_EVENT_KEYS = ["reason", "override", "block", "balanceDue", "approval", "auto", "voided", "refusedLines", "reassembled", "autoParts", "announcedFee", "reopened"];
 export function customerEventData(data: unknown): unknown {
   if (!data || typeof data !== "object" || Array.isArray(data)) return data;
   return Object.fromEntries(Object.entries(data as Record<string, unknown>).filter(([k]) => !INTERNAL_EVENT_KEYS.includes(k)));

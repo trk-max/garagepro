@@ -80,7 +80,8 @@ describe("Trésorerie — données incomplètes et droits", () => {
   it("invoice without due date: issue date + payment terms, reported", async () => {
     const admin = (await makeUser("ADMIN")) as { id: string; name: string; email: string; role: "ADMIN" };
     const inv = await invoicedOrder(admin, 10_000);
-    await prisma.invoice.update({ where: { id: inv.id }, data: { dueDate: null } });
+    // V16 Lot 4: an issued invoice is frozen (trigger); test set-up of an old invoice written like the hub sync.
+    await prisma.$transaction([prisma.$queryRawUnsafe(`SELECT set_config('garagepro.sync', 'on', true)`), prisma.invoice.update({ where: { id: inv.id }, data: { dueDate: null } })]);
     const f = await cashForecast(admin, { scenario: "OPTIMISTIC", horizon: 90 });
     const item = f.result.items.find((i) => i.id === inv.id)!;
     const terms = (await prisma.setting.findUniqueOrThrow({ where: { id: "garage" } })).paymentTermsDays;

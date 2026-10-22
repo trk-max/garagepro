@@ -11,6 +11,9 @@ import { isCloudWithHub } from "@/server/hub";
 import { sendSmsDetailed, toE164, type Channel } from "@/server/notify";
 import { getSettings } from "@/server/settings";
 import { ACTIVE_STATUSES } from "@/server/workflow";
+import { formatMoney } from "@/lib/format";
+import { reminderLevel } from "@/lib/billing";
+import { audit } from "@/server/audit";
 
 /**
  * Automatic customer reminders (Prompt 2/5, step D): maintenance due (date or
@@ -66,7 +69,8 @@ export type Item = {
   // V16: "READY" = « votre véhicule est prêt » (after the move to READY), journalised like the others.
   // V16 Lot 2: "QUOTE" = « devis / supplément à valider » (link + code), "QUOTE_REMINDER" = one reminder after QUOTE_WAIT_DAYS.
   // V16 Lot 3: "PROMISE" = the promised date changed, "PART_DATE" = a missing part's expected date changed.
-  kind: "MAINTENANCE" | "APPOINTMENT" | "DELIVERY" | "AGENDA" | "QUEUE" | "READY" | "QUOTE" | "QUOTE_REMINDER" | "PROMISE" | "PART_DATE";
+  // V16 Lot 4: "INVOICE_REMINDER" = graduated reminder of an overdue invoice (J+7, J+15, J+30).
+  kind: "MAINTENANCE" | "APPOINTMENT" | "DELIVERY" | "AGENDA" | "QUEUE" | "READY" | "QUOTE" | "QUOTE_REMINDER" | "PROMISE" | "PART_DATE" | "INVOICE_REMINDER";
   dedupeKey: string;
   phone: string | null;
   email: string | null;
@@ -259,9 +263,61 @@ export type RunResult = { skipped?: string; queued: number; sent: number; failed
 
 export async function runReminders(now = new Date(), sender: Sender = realSender): Promise<RunResult> {
   if (isCloudWithHub()) return { skipped: "Le hub du garage envoie les rappels (évite les doublons).", queued: 0, sent: 0, failed: 0, channels: sender.channels() };
-  const queued = await queueItems(await collectDue(now), sender);
+  const queued = (await queueItems(await collectDue(now), sender)) + (await queueInvoiceReminders(now, sender));
   const { sent, failed } = await deliverPending(now, sender);
   return { queued, sent, failed, channels: sender.channels() };
+}
+
+const DAY = 86_400_000;
+
+/**
+ * V16 Lot 4 — graduated reminders of overdue customer invoices: 7, 15 and 30 days after the due date (the highest
+ * level reached, once each — dedupe key invoice-remind:<id>:<level>). Invoices of the orders of Lot 4 on only (no
+ * wave of messages on the history the day it goes live), setting autoInvoiceReminders, never to a customer who
+ * refuses automatic messages. Each queued reminder is also written in the invoice's reminder history
+ * (InvoiceReminder, level) and in the journal. Returns the number of messages queued.
+ */
+export async function queueInvoiceReminders(now = new Date(), sender: Sender = realSender): Promise<number> {
+  const s = await getSettings();
+  if (!s.autoInvoiceReminders) return 0;
+  const cut = new Date(now.getTime() - 7 * DAY);
+  const invoices = await prisma.invoice.findMany({
+    where: {
+      status: { in: ["ISSUED", "PARTIAL"] },
+      workOrder: { workflowLot4: true },
+      customer: { reminderOptOut: false },
+      OR: [{ dueDate: { lt: cut } }, { dueDate: null, issuedAt: { lt: cut } }],
+    },
+    select: { id: true, number: true, totalTtc: true, paidAmount: true, dueDate: true, issuedAt: true, workOrderId: true, customer: { select: { id: true, phone: true, email: true } }, workOrder: { select: { vehicleId: true } } },
+    take: 1000,
+  });
+  const configured = sender.channels();
+  let queued = 0;
+  for (const inv of invoices) {
+    const days = Math.floor((now.getTime() - (inv.dueDate ?? inv.issuedAt).getTime()) / DAY);
+    const level = reminderLevel(days);
+    const balance = inv.totalTtc - inv.paidAmount;
+    if (!level || balance <= 0) continue;
+    const dedupeKey = `invoice-remind:${inv.id}:${level}`;
+    if (await prisma.notification.count({ where: { dedupeKey } })) continue;
+    const body = fmt(fr.v16.lot4.reminder.sms, { garage: s.garageName, number: inv.number, amount: formatMoney(balance, "fr"), days, phone: s.phone ?? "" }).trim();
+    queued += await prisma.$transaction(async (tx) => {
+      const n = await queueItems(
+        [{ kind: "INVOICE_REMINDER", dedupeKey, phone: inv.customer.phone, email: inv.customer.email, customerId: inv.customer.id, vehicleId: inv.workOrder.vehicleId, workOrderId: inv.workOrderId, subject: `${s.garageName} : facture ${inv.number}`, body }],
+        sender,
+        tx,
+      );
+      if (n === 0) return 0;
+      const channel = configured.includes("SMS") && inv.customer.phone ? "SMS" : configured.includes("EMAIL") && inv.customer.email ? "EMAIL" : null;
+      if (channel) {
+        const r = await tx.invoiceReminder.create({ data: { invoiceId: inv.id, channel, message: body, level, actorId: null }, select: { id: true } });
+        await tx.workOrderEvent.create({ data: { workOrderId: inv.workOrderId, actorId: null, type: "NOTE", body: `[${channel}] ${body}`, data: { invoiceReminder: level } } });
+        await audit(tx, null, "invoice.autoReminder", "InvoiceReminder", r.id, { after: { invoice: inv.number, level, daysLate: days, balance, channel } });
+      }
+      return n;
+    });
+  }
+  return queued;
 }
 
 /** Staff: send a failed message again (counts as a new series of attempts). */

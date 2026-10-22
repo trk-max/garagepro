@@ -25,6 +25,8 @@ import { createInvoice } from "@/server/invoices";
 import { parseIntakeForm } from "@/lib/repair-order-forms";
 import { getSettings } from "@/server/settings";
 import { zonedToUtc } from "@/lib/booking";
+import { headers } from "next/headers";
+import { clientIp } from "@/server/portal-session";
 import { z } from "zod";
 import {
   type StatusChangeOptions,
@@ -91,6 +93,8 @@ export async function createWorkOrderAction(form: FormData): Promise<ActionResul
         intake: parseIntakeForm(form),
         // V16 Lot 3 — diagnostic fee announced at reception (box ticked by default when the fee is set).
         diagnosticFee: raw.diagnosticFee === "on",
+        // V16 Lot 4 — mileage lower than the last reading, confirmed by the desk.
+        confirmLowerMileage: raw.confirmLowerMileage === "on",
       },
       actor,
     );
@@ -108,7 +112,7 @@ export async function completeVehicleAction(workOrderId: string, form: FormData)
     const raw = formToObject(form);
     const fill = vehicleCompletionSchema.parse(prefixed(raw, "f_"));
     const mileageIn = raw.mileageIn === undefined || raw.mileageIn === "" ? undefined : createWorkOrderSchema.shape.mileageIn.parse(raw.mileageIn);
-    await completeVehicleInfo(id.parse(workOrderId), fill, mileageIn, actor);
+    await completeVehicleInfo(id.parse(workOrderId), fill, mileageIn, actor, raw.confirmLowerMileage === "on");
     refresh(workOrderId);
     return { ok: true, data: {} };
   } catch (error) {
@@ -262,7 +266,13 @@ export async function recordQuoteDecisionAction(workOrderId: string, form: FormD
     const actor = await requirePermission("recordQuoteApproval");
     const input = staffDecisionSchema.parse(formToObject(form));
     const approvedLineIds = form.getAll("accept").map(String).filter((x) => /^[a-z0-9]{10,40}$/i.test(x)).slice(0, 200);
-    await recordStaffDecision(id.parse(workOrderId), { ...input, approvedLineIds }, actor);
+    // V16 Lot 4: optional signature drawn on the tablet (PNG data URL), kept with the proof (QuoteApproval.signatureKey).
+    const signature = form.get("signature");
+    await recordStaffDecision(
+      id.parse(workOrderId),
+      { ...input, approvedLineIds, signatureImage: typeof signature === "string" && signature ? signature : null, ip: await clientIp(), userAgent: (await headers()).get("user-agent") },
+      actor,
+    );
     refresh(workOrderId);
     return { ok: true, data: {} };
   } catch (error) {

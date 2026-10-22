@@ -20,11 +20,12 @@ import { agreeAll, makeUser, makeWorkOrder, prisma } from "./helpers/db";
 const QC_OK = { roadTest: "DONE" as const, fluidsOk: true, warningsOk: true, toolsRemoved: true, workVerified: true, billingVerified: true };
 const code = (p: Promise<unknown>) => p.then(() => "ok", (e: { code?: string }) => e.code ?? String(e));
 const status = async (id: string) => (await prisma.workOrder.findUniqueOrThrow({ where: { id } })).status;
-const setFlow = (data: { allowWorkWithoutQuote?: boolean; requirePaidBeforeDelivery?: boolean; stampDuty?: number }) =>
+const setFlow = (data: { allowWorkWithoutQuote?: boolean; requirePaidBeforeDelivery?: boolean; stampDuty?: number; requireSignedHandover?: boolean }) =>
   prisma.setting.upsert({ where: { id: "garage" }, update: data, create: { id: "garage", ...data } });
 
-beforeAll(() => setFlow({ allowWorkWithoutQuote: false, requirePaidBeforeDelivery: true, stampDuty: 1000 }));
-afterAll(() => setFlow({ allowWorkWithoutQuote: false, requirePaidBeforeDelivery: true }));
+// V16 Lot 4: the signed handover (bon de restitution) is tested in lot4-v16.db.test.ts; here the Lot 1 delivery rules.
+beforeAll(() => setFlow({ allowWorkWithoutQuote: false, requirePaidBeforeDelivery: true, stampDuty: 1000, requireSignedHandover: false }));
+afterAll(() => setFlow({ allowWorkWithoutQuote: false, requirePaidBeforeDelivery: true, requireSignedHandover: true }));
 
 /** New (V16) order brought to READY the normal way: quote → recorded agreement (Lot 2) → work → QC. */
 async function readyOrder(manager: Awaited<ReturnType<typeof makeUser>>, unitPrice = 100_000) {
@@ -48,7 +49,7 @@ describe("V16 — droits par transition (régression A-01)", () => {
     const { wo: other } = await makeWorkOrder({ status: "IN_PROGRESS" });
     expect(await code(changeStatus(other.id, "CANCELLED", mech, { reason: "Essai mécanicien" }))).toBe("statusForbidden");
     const { wo: legacy } = await makeWorkOrder({ status: "READY" });
-    await prisma.workOrder.update({ where: { id: legacy.id }, data: { workflowV16: false } });
+    await prisma.workOrder.update({ where: { id: legacy.id }, data: { workflowV16: false, workflowLot4: false } });
     expect(await code(changeStatus(legacy.id, "DELIVERED", mech))).toBe("statusForbidden");
     const { wo: quote } = await makeWorkOrder({ status: "QUOTE_SENT" });
     expect(await code(changeStatus(quote.id, "IN_PROGRESS", mech, { reason: "je commence" }))).toBe("statusForbidden");
@@ -109,7 +110,7 @@ describe("V16 — devis et non-rétroactivité", () => {
       await setFlow({ allowWorkWithoutQuote: false });
     }
     const { wo: legacy } = await makeWorkOrder();
-    await prisma.workOrder.update({ where: { id: legacy.id }, data: { workflowV16: false } });
+    await prisma.workOrder.update({ where: { id: legacy.id }, data: { workflowV16: false, workflowLot4: false } });
     await changeStatus(legacy.id, "IN_PROGRESS", admin);
     expect(await status(legacy.id)).toBe("IN_PROGRESS");
   });
@@ -133,7 +134,7 @@ describe("V16 — devis et non-rétroactivité", () => {
     const rec = await makeUser("RECEPTION");
     const manager = await makeUser("MANAGER");
     const { wo } = await makeWorkOrder();
-    await prisma.workOrder.update({ where: { id: wo.id }, data: { workflowV16: false } });
+    await prisma.workOrder.update({ where: { id: wo.id }, data: { workflowV16: false, workflowLot4: false } });
     await changeStatus(wo.id, "DIAGNOSIS", rec);
     await changeStatus(wo.id, "QUOTE_SENT", rec);
     await changeStatus(wo.id, "IN_PROGRESS", rec); // no reason for an old order
@@ -207,7 +208,8 @@ describe("V16 — livraison, dérogation, clôture (régression A-02)", () => {
     const { wo } = await readyOrder(manager, 100_000);
     const inv = await createInvoice(wo.id, manager);
     const total = (await prisma.invoice.findUniqueOrThrow({ where: { id: inv.id } })).totalTtc;
-    await prisma.workOrder.update({ where: { id: wo.id }, data: { depositAmount: 20_000 } });
+    // Deposit NOT turned into a payment (order opened before Lot 4: Lot 1 rule; Lot 4 → lot4-v16.db.test.ts).
+    await prisma.workOrder.update({ where: { id: wo.id }, data: { depositAmount: 20_000, workflowLot4: false } });
     await recordPayment(inv.id, { amount: total - 20_000, method: "CASH" }, manager);
     await changeStatus(wo.id, "DELIVERED", manager);
     expect(await status(wo.id)).toBe("CLOSED");
@@ -305,7 +307,7 @@ describe("V16 — journal d'audit et portail", () => {
   it("A-07 accord du devis par le client : deux clics simultanés → un seul accord ; IP et navigateur journalisés", async () => {
     // Order opened before V16: the one-click agreement of Lot 1.
     const { wo } = await makeWorkOrder({ status: "QUOTE_SENT" });
-    await prisma.workOrder.update({ where: { id: wo.id }, data: { workflowV16: false } });
+    await prisma.workOrder.update({ where: { id: wo.id }, data: { workflowV16: false, workflowLot4: false } });
     const results = await Promise.allSettled([approveQuoteByCustomer(wo.id, { ip: "41.1.1.1", userAgent: "UA-1" }), approveQuoteByCustomer(wo.id, { ip: "41.1.1.1", userAgent: "UA-1" })]);
     expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
     expect(await prisma.workOrderEvent.count({ where: { workOrderId: wo.id, type: "QUOTE_APPROVED" } })).toBe(1);

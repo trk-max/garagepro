@@ -11,6 +11,9 @@ export const dynamic = "force-dynamic";
 
 type Ctx = { params: Promise<{ id: string }> };
 
+/** V16 Lot 4 — stage chosen in the uploader (reception, work, delivery); anything else = from the order's status. */
+const parseStage = (v: unknown) => (v === "INTAKE" || v === "WORK" || v === "DELIVERY" ? v : null);
+
 /** POST /api/work-orders/:id/media (multipart: file, caption, visible) — used from the mechanic's phone. */
 export async function POST(request: Request, { params }: Ctx) {
   try {
@@ -29,7 +32,7 @@ export async function POST(request: Request, { params }: Ctx) {
     const caption = String(form.get("caption") ?? "").trim().slice(0, 200) || undefined;
     const media = await addMedia(
       id,
-      { bytes: Buffer.from(await file.arrayBuffer()), caption, visibleToCustomer: form.get("visible") !== "false" },
+      { bytes: Buffer.from(await file.arrayBuffer()), caption, visibleToCustomer: form.get("visible") !== "false", stage: parseStage(form.get("stage")) },
       actor,
     );
     return NextResponse.json({ id: media.id }, { status: 201 });

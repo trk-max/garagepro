@@ -14,6 +14,8 @@ const body = z.object({
   storageKey: z.string().max(200),
   caption: z.string().max(200).optional(),
   visible: z.boolean().default(true),
+  // V16 Lot 4 — reception / work / delivery (empty = from the order's status).
+  stage: z.enum(["INTAKE", "WORK", "DELIVERY"]).nullish(),
 });
 
 /** POST /api/work-orders/:id/media/complete — after a direct upload: verify the file, then record it. */
@@ -25,7 +27,7 @@ export async function POST(request: Request, { params }: Ctx) {
     if (!parsed.success) return NextResponse.json({ error: "badType" }, { status: 422 });
     const media = await finishDirectUpload(
       id,
-      { storageKey: parsed.data.storageKey, caption: parsed.data.caption?.trim() || undefined, visibleToCustomer: parsed.data.visible },
+      { storageKey: parsed.data.storageKey, caption: parsed.data.caption?.trim() || undefined, visibleToCustomer: parsed.data.visible, stage: parsed.data.stage ?? null },
       actor,
     );
     return NextResponse.json({ id: media.id }, { status: 201 });

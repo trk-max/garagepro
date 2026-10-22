@@ -101,6 +101,12 @@ export const v103En: typeof v103Fr = {
       deliverWorkOrder: "Deliver the vehicle",
       deliverWithBalance: "Deliver despite an unpaid invoice (override with a reason)",
       closeWorkOrder: "Close a delivered and paid order",
+      // V16 Lot 4 — signed intake, handover, invoice and payments.
+      signIntake: "Have the intake signed on the tablet (locks the intake)",
+      recordHandover: "Hand the vehicle back: signed handover form",
+      issueCreditNote: "Issue a credit note (cancels an invoice, with a reason)",
+      reversePayment: "Cancel a payment (with a reason)",
+      waiveStorageFee: "Do not charge the storage fee (with a reason)",
     },
   },
   dash: {

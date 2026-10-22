@@ -4,6 +4,11 @@ import { consumeReservations, releaseAllFor, releaseForLine, reserveForLine, wor
 import { approvalAllowsWork, deliverQuoteNotice, reapplyApprovals, refuseOpenQuoteTx, sendQuoteTx, settleDeferredStock } from "@/server/quotes";
 import { recordRevisionTx } from "@/server/delays";
 import { linesNeedingWaiver, promiseRevisionNeeded, sameMinute, waiverLineIds } from "@/lib/delays";
+import { depositOutstanding } from "@/lib/billing";
+import { mileageLowerThanKnown, withinCeiling } from "@/lib/handover";
+import { computeTotals } from "@/lib/format";
+import { handoverSinceReady } from "@/server/handover";
+import { intakeSigned } from "@/server/signatures";
 import { audit } from "@/server/audit";
 import { assertQualityApproved, resetQualityApproval } from "@/server/quality";
 import { createAutoRepairWarranty } from "@/server/warranties";
@@ -24,6 +29,7 @@ import {
   balanceDue,
   cleanReason,
   deliveryBlock,
+  handoverMissing,
   isApprovalMove,
   isFinal,
   reasonRequired,
@@ -213,6 +219,8 @@ export type CreateWorkOrderInput = {
    * « Frais de diagnostic », accepted at once and billable even if the quote is refused.
    */
   diagnosticFee?: boolean;
+  /** V16 Lot 4 — the check-in mileage is lower than the vehicle's last reading and the desk confirmed it. */
+  confirmLowerMileage?: boolean;
 };
 
 /**
@@ -224,19 +232,24 @@ export async function completeVehicleInfo(
   fill: { vin?: string; year?: number; fuel?: FuelType; color?: string },
   mileageIn: number | undefined,
   actor: StaffUser,
+  confirmLowerMileage = false,
 ) {
   return prisma.$transaction(async (tx) => {
     const wo = await tx.workOrder.findUnique({
       where: { id: workOrderId },
-      select: { status: true, mileageIn: true, vehicleId: true, vehicle: { select: { vin: true, year: true, fuel: true, color: true } } },
+      select: { status: true, mileageIn: true, vehicleId: true, vehicle: { select: { vin: true, year: true, fuel: true, color: true, mileage: true } } },
     });
     if (!wo) throw new AppError("notFound", {}, 404);
     if (isFinal(wo.status)) throw new AppError("final", {}, 409);
+    // V16 Lot 4: the check-in mileage is part of the signed intake; never lowered without a confirmation.
+    if (mileageIn !== undefined && mileageIn !== wo.mileageIn && (await intakeSigned(tx, workOrderId))) throw new AppError("intakeLocked", {}, 409);
+    if (mileageIn !== undefined && mileageLowerThanKnown(mileageIn, wo.vehicle.mileage) && !confirmLowerMileage) throw new AppError("mileageLower", { km: wo.vehicle.mileage! }, 409);
+    const { mileage: knownMileage, ...vehicleBefore } = wo.vehicle;
     const data = Object.fromEntries(Object.entries(fill).filter(([, v]) => v !== undefined && v !== ""));
     if (Object.keys(data).length) {
       await tx.vehicle.update({ where: { id: wo.vehicleId }, data });
       await audit(tx, actor, "vehicle.update", "Vehicle", wo.vehicleId, {
-        before: Object.fromEntries(Object.keys(data).map((k) => [k, wo.vehicle[k as keyof typeof wo.vehicle] ?? null])),
+        before: Object.fromEntries(Object.keys(data).map((k) => [k, vehicleBefore[k as keyof typeof vehicleBefore] ?? null])),
         after: data,
       });
     }
@@ -244,8 +257,11 @@ export async function completeVehicleInfo(
     if (mileageIn !== undefined) {
       await tx.workOrder.update({ where: { id: workOrderId }, data: { mileageIn } });
       await tx.vehicle.update({ where: { id: wo.vehicleId }, data: { mileage: mileageIn } });
+      if (mileageLowerThanKnown(mileageIn, knownMileage)) {
+        await audit(tx, actor, "vehicle.mileageLowered", "Vehicle", wo.vehicleId, { before: { mileage: knownMileage }, after: { mileage: mileageIn, confirmed: true, workOrderId } });
+      }
     }
-    assertVehicleComplete({ ...wo.vehicle, ...data }, km);
+    assertVehicleComplete({ ...vehicleBefore, ...data }, km);
   });
 }
 
@@ -274,7 +290,12 @@ export async function createWorkOrder(input: CreateWorkOrderInput, actor: StaffU
 
     let vehicleId = input.vehicleId;
     if (vehicleId) {
-      const vehicle = await tx.vehicle.findUnique({ where: { id: vehicleId }, select: { customerId: true, vin: true, year: true, fuel: true, color: true } });
+      const vehicle = await tx.vehicle.findUnique({ where: { id: vehicleId }, select: { customerId: true, vin: true, year: true, fuel: true, color: true, mileage: true } });
+      // V16 Lot 4: a check-in mileage lower than the last reading is never written without a confirmation.
+      if (mileageLowerThanKnown(input.mileageIn, vehicle?.mileage) && !input.confirmLowerMileage) throw new AppError("mileageLower", { km: vehicle!.mileage! }, 409);
+      if (vehicle && mileageLowerThanKnown(input.mileageIn, vehicle.mileage)) {
+        await audit(tx, actor, "vehicle.mileageLowered", "Vehicle", vehicleId, { before: { mileage: vehicle.mileage }, after: { mileage: input.mileageIn, confirmed: true, atCheckIn: true } });
+      }
       if (!vehicle || vehicle.customerId !== customerId) throw new AppError("invalid");
       const fill = Object.fromEntries(Object.entries(input.completeVehicle ?? {}).filter(([, v]) => v !== undefined && v !== ""));
       if (Object.keys(fill).length) {
@@ -284,7 +305,7 @@ export async function createWorkOrder(input: CreateWorkOrderInput, actor: StaffU
           after: fill,
         });
       }
-      if (input.requireCompleteVehicle) assertVehicleComplete({ ...vehicle, ...fill }, input.mileageIn);
+      if (input.requireCompleteVehicle) assertVehicleComplete({ ...vehicle!, ...fill }, input.mileageIn);
     } else {
       if (!input.newVehicle) throw new AppError("invalid");
       if (input.requireCompleteVehicle) assertVehicleComplete(input.newVehicle, input.mileageIn);
@@ -314,6 +335,9 @@ export async function createWorkOrder(input: CreateWorkOrderInput, actor: StaffU
         createdById: actor.id,
         trackingPin: generatePin(),
         ...intakeData(input.intake),
+        // V16 Lot 4: the deposit becomes a payment dated today at the invoice; the diagnostic fee answer is kept.
+        ...(input.intake?.depositAmount ? { depositReceivedAt: new Date() } : {}),
+        diagnosticFeeAccepted: (await tx.setting.findUnique({ where: { id: "garage" }, select: { diagnosticFee: true } }))?.diagnosticFee ? !!input.diagnosticFee : null,
       },
       select: { id: true },
     });
@@ -357,6 +381,11 @@ function intakeData(i: IntakeForm | undefined) {
     estimateTtc: i.estimateTtc ?? null,
     depositAmount: i.depositAmount ?? null,
     depositMethod: i.depositAmount ? (i.depositMethod ?? "CASH") : null,
+    // V16 Lot 4
+    warningLights: (i.warningLights ?? []) as unknown as Prisma.InputJsonValue,
+    itemsLeft: i.itemsLeft ?? null,
+    keyCount: i.keyCount ?? null,
+    authorizationCeiling: i.authorizationCeiling ?? null,
   };
 }
 
@@ -384,8 +413,17 @@ export async function changeStatus(workOrderId: string, to: WorkOrderStatus, act
 }
 
 async function workflowSettings(tx: Tx) {
-  const s = await tx.setting.findUnique({ where: { id: "garage" }, select: { allowWorkWithoutQuote: true, requirePaidBeforeDelivery: true, requireSafetyWaiver: true } });
-  return { allowWorkWithoutQuote: s?.allowWorkWithoutQuote ?? false, requirePaidBeforeDelivery: s?.requirePaidBeforeDelivery ?? true, requireSafetyWaiver: s?.requireSafetyWaiver ?? true };
+  const s = await tx.setting.findUnique({
+    where: { id: "garage" },
+    select: { allowWorkWithoutQuote: true, requirePaidBeforeDelivery: true, requireSafetyWaiver: true, requireSignedHandover: true, stampDuty: true },
+  });
+  return {
+    allowWorkWithoutQuote: s?.allowWorkWithoutQuote ?? false,
+    requirePaidBeforeDelivery: s?.requirePaidBeforeDelivery ?? true,
+    requireSafetyWaiver: s?.requireSafetyWaiver ?? true,
+    requireSignedHandover: s?.requireSignedHandover ?? true,
+    stampDuty: s?.stampDuty ?? 0,
+  };
 }
 
 async function changeStatusTx(workOrderId: string, to: WorkOrderStatus, actor: StaffUser, opts: StatusChangeOptions): Promise<{ quoteNotice: string | null }> {
@@ -405,7 +443,9 @@ async function changeStatusTx(workOrderId: string, to: WorkOrderStatus, actor: S
         workflowV16: true,
         quoteApprovedAt: true,
         depositAmount: true,
-        invoice: { select: { id: true, totalTtc: true, paidAmount: true } },
+        workflowLot4: true,
+        readyAt: true,
+        invoice: { select: { id: true, totalTtc: true, paidAmount: true, status: true } },
         // Voided lines already gave their parts back, and parts still in reservation (V16 quote) never left
         // the shelf: never returned twice.
         lines: { where: { partId: { not: null }, voidedAt: null, stockDeferred: false }, select: { partId: true, quantityX100: true } },
@@ -418,8 +458,10 @@ async function changeStatusTx(workOrderId: string, to: WorkOrderStatus, actor: S
     // V16: one permission per move (customisable per employee), checked for EVERY order (audit n° 1).
     if (!can(actor, transitionPermission(wo.status, to))) throw new AppError("statusForbidden", {}, 403);
     const settings = await workflowSettings(tx);
-    // New orders only (non-retroactive): no work straight from reception / diagnosis unless allowed.
-    if (workWithoutQuoteBlocked(wo.status, to, { workflowV16: wo.workflowV16, ...settings })) throw new AppError("workWithoutQuote", {}, 409);
+    // New orders only (non-retroactive): no work straight from reception / diagnosis unless allowed — or, V16 Lot 4,
+    // under the authorization ceiling signed at reception (the lines present now are pre-authorised by it).
+    const ceiling = workWithoutQuoteBlocked(wo.status, to, { workflowV16: wo.workflowV16, ...settings }) ? await ceilingAllows(tx, workOrderId, settings.stampDuty) : null;
+    if (workWithoutQuoteBlocked(wo.status, to, { workflowV16: wo.workflowV16, ...settings, withinCeiling: !!ceiling })) throw new AppError("workWithoutQuote", {}, 409);
     // V16 Lot 2 (new orders): the work starts only on a RECORDED agreement (portal or staff form) on the latest
     // quote, with at least one accepted line — never on a simple click any more (replaces the Lot 1 reason).
     if (wo.workflowV16 && isApprovalMove(wo.status, to) && !(await approvalAllowsWork(tx, workOrderId))) throw new AppError("approvalRequired", {}, 409);
@@ -429,13 +471,15 @@ async function changeStatusTx(workOrderId: string, to: WorkOrderStatus, actor: S
     }
 
     // V16 delivery check (new orders, setting on): invoice issued and settled, deposit deducted — or a traced override.
+    // V16 Lot 4: the deposit of the new orders is already a payment on the invoice (never deducted twice).
+    const deposit = depositOutstanding(wo);
     let override: { block: "noInvoice" | "balanceDue"; due: number } | null = null;
     if (to === "DELIVERED") {
       // V16 Lot 3: nothing billable (refused quote without announced fee) → no invoice needed.
       const billable = wo.invoice ? true : await hasBillableLines(tx, workOrderId, wo.workflowV16);
-      const block = deliveryBlock({ ...settings, workflowV16: wo.workflowV16, invoice: wo.invoice, depositAmount: wo.depositAmount, billable });
+      const block = deliveryBlock({ ...settings, workflowV16: wo.workflowV16, invoice: wo.invoice && wo.invoice.status === "CREDITED" ? { totalTtc: 0, paidAmount: 0 } : wo.invoice, depositAmount: deposit, billable });
       if (block) {
-        const due = balanceDue(wo.invoice, wo.depositAmount) ?? 0;
+        const due = balanceDue(wo.invoice, deposit) ?? 0;
         if (!opts.override) {
           throw block === "noInvoice" ? new AppError("deliveryNoInvoice", {}, 409) : new AppError("deliveryBalanceDue", { amount: formatMoney(due, "fr") }, 409);
         }
@@ -444,7 +488,12 @@ async function changeStatusTx(workOrderId: string, to: WorkOrderStatus, actor: S
         override = { block, due };
       }
     }
-    if (to === "CLOSED" && (balanceDue(wo.invoice, wo.depositAmount) ?? 1) > 0) throw new AppError("notSettled", {}, 409);
+    // V16 Lot 4: a signed handover (bon de restitution) since the order became READY (setting, new orders). Checked
+    // after the invoice / balance (Lot 1 messages first); the manager's override covers the balance, never this.
+    if (to === "DELIVERED" && handoverMissing({ requireSignedHandover: settings.requireSignedHandover, workflowLot4: wo.workflowLot4, handoverDone: await handoverSinceReady(tx, workOrderId, wo.readyAt) })) {
+      throw new AppError("handoverRequired", {}, 409);
+    }
+    if (to === "CLOSED" && (balanceDue(wo.invoice, deposit) ?? 1) > 0) throw new AppError("notSettled", {}, 409);
 
     // Mandatory quality control: "Ready" only after the checklist is validated by a manager
     // (also after a refused quote: the car was put back together, the FULL check applies).
@@ -492,7 +541,15 @@ async function changeStatusTx(workOrderId: string, to: WorkOrderStatus, actor: S
     // Delivered or cancelled: parts still reserved for it become available again.
     if (to === "CANCELLED" || to === "DELIVERED") await releaseAllFor(tx, actor, workOrderId, to === "CANCELLED" ? "ordre annulé" : "véhicule livré");
     // Delivered: automatic repair warranty when set in Paramètres (0 = off), once per order.
-    if (to === "DELIVERED") await createAutoRepairWarranty(tx, actor, workOrderId, now);
+    // V16 Lot 4 (audit n° 3): new orders get it at the invoice; at delivery only if the invoice exists (idempotent).
+    if (to === "DELIVERED" && (!wo.workflowLot4 || wo.invoice)) await createAutoRepairWarranty(tx, actor, workOrderId, now);
+    // V16 Lot 4: work started under the signed ceiling — the lines present now are accepted by it (journalised).
+    if (ceiling) {
+      const { count: pre } = await tx.workOrderLine.updateMany({ where: { workOrderId, voidedAt: null, approvalStatus: "PENDING" }, data: { approvalStatus: "APPROVED" } });
+      await settleDeferredStock(tx, actor, workOrderId);
+      const e = await tx.workOrderEvent.create({ data: { workOrderId, actorId: actor.id, type: "NOTE", data: { preAuthorized: true, ceiling: ceiling.ceiling, totalTtc: ceiling.totalTtc, lines: pre } }, select: { id: true } });
+      await audit(tx, actor, "workOrder.preAuthorized", "WorkOrderEvent", e.id, { after: { workOrderId, ceiling: ceiling.ceiling, totalTtc: ceiling.totalTtc, lines: pre } });
+    }
 
     // Cancelling puts every consumed part back on the shelf.
     if (to === "CANCELLED") {
@@ -524,6 +581,17 @@ async function changeStatusTx(workOrderId: string, to: WorkOrderStatus, actor: S
   });
 }
 
+/** V16 Lot 4 — the order's total TTC fits under the authorization ceiling of its SIGNED intake (else null). */
+async function ceilingAllows(tx: Tx, workOrderId: string, stampDuty: number): Promise<{ ceiling: number; totalTtc: number } | null> {
+  const wo = await tx.workOrder.findUnique({
+    where: { id: workOrderId },
+    select: { authorizationCeiling: true, lines: { where: { voidedAt: null, approvalStatus: { not: "REFUSED" } }, select: { quantityX100: true, unitPrice: true, taxRateBp: true } } },
+  });
+  if (!wo?.authorizationCeiling) return null;
+  const totalTtc = computeTotals(wo.lines, stampDuty).totalTtc;
+  return withinCeiling({ ceiling: wo.authorizationCeiling, intakeSigned: await intakeSigned(tx, workOrderId), totalTtc }) ? { ceiling: wo.authorizationCeiling, totalTtc } : null;
+}
+
 /**
  * V16 — automatic closing: a DELIVERED order whose invoice is settled (payments + deposit ≥ total) becomes
  * CLOSED. Called after a delivery and after each payment (server/invoices.ts), in the same transaction.
@@ -531,12 +599,13 @@ async function changeStatusTx(workOrderId: string, to: WorkOrderStatus, actor: S
 export async function closeIfSettled(tx: Tx, workOrderId: string, actor: { id: string; name: string } | null) {
   const wo = await tx.workOrder.findUnique({
     where: { id: workOrderId },
-    select: { status: true, workflowV16: true, depositAmount: true, invoice: { select: { totalTtc: true, paidAmount: true } } },
+    select: { status: true, workflowV16: true, workflowLot4: true, depositAmount: true, invoice: { select: { totalTtc: true, paidAmount: true, status: true } } },
   });
   if (!wo || wo.status !== "DELIVERED") return false;
   // V16 Lot 3: a new order with nothing billable (refused quote, no announced fee) owes nothing: closed too.
   const nothingToBill = !wo.invoice && wo.workflowV16 && !(await hasBillableLines(tx, workOrderId, true));
-  if (!nothingToBill && (!wo.invoice || (balanceDue(wo.invoice, wo.depositAmount) ?? 1) > 0)) return false;
+  // V16 Lot 4: an invoice cancelled by a credit note is settled too (prompt: « facture soldée (ou avoir) »).
+  if (!nothingToBill && (!wo.invoice || (balanceDue(wo.invoice, depositOutstanding(wo)) ?? 1) > 0)) return false;
   const { count } = await tx.workOrder.updateMany({ where: { id: workOrderId, status: "DELIVERED" }, data: { status: "CLOSED" } });
   if (!count) return false;
   await event(tx, workOrderId, actor?.id ?? null, "STATUS_CHANGED", { from: "DELIVERED", to: "CLOSED", auto: true });
@@ -632,6 +701,8 @@ export async function updateMeta(
       where: { id: workOrderId },
       select: { diagnosis: true, priority: true, promisedAt: true, promisedAtInitial: true, mileageIn: true },
     });
+    // V16 Lot 4: the check-in mileage belongs to the signed intake (frozen document): no change afterwards.
+    if (input.mileageIn !== undefined && input.mileageIn !== before.mileageIn && (await intakeSigned(tx, workOrderId))) throw new AppError("intakeLocked", {}, 409);
     const data = {
       diagnosis: input.diagnosis ?? null,
       priority: input.priority,

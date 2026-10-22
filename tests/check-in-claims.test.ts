@@ -26,6 +26,7 @@ vi.mock("@/lib/prisma", () => {
     workOrder: { create: async () => (db.createdOrders++, { id: "wo-new" }) },
     workOrderEvent: { create: async () => ({}) },
     auditLog: { create: async () => ({}) }, // journal
+    setting: { findUnique: async () => null }, // V16 Lot 4: diagnostic fee answer (no fee set)
   };
   return {
     prisma: {

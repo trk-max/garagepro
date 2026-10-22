@@ -1,6 +1,7 @@
 import "server-only";
 import { addDays, utcToZoned, zonedToUtc } from "@/lib/booking";
 import { LIVE_LINE } from "@/lib/quote";
+import { agedBalance } from "@/lib/billing";
 import { prisma } from "@/lib/prisma";
 import { PERIOD_DAYS, buildReport, type ReportPeriod, type ReportRows } from "@/lib/report";
 import { lowStockParts } from "@/server/parts";
@@ -47,6 +48,8 @@ export async function getReport(period: ReportPeriod, now = new Date()) {
     prevInvoices,
     prevPayments,
     prevCreated,
+    creditNotes,
+    prevCreditNotes,
   ] = await Promise.all([
     prisma.invoice.findMany({ where: { issuedAt: range }, select: { totalHt: true, totalTtc: true, paidAmount: true, issuedAt: true } }),
     prisma.payment.findMany({ where: { paidAt: range }, select: { amount: true, method: true, paidAt: true } }),
@@ -82,7 +85,7 @@ export async function getReport(period: ReportPeriod, now = new Date()) {
     }),
     prisma.supplierInvoice.aggregate({ where: { issuedAt: range }, _sum: { totalTtc: true } }),
     prisma.supplierPayment.aggregate({ where: { paidAt: range }, _sum: { amount: true } }),
-    prisma.invoice.findMany({ where: { status: { in: ["ISSUED", "PARTIAL"] } }, select: { totalTtc: true, paidAmount: true, dueDate: true } }),
+    prisma.invoice.findMany({ where: { status: { in: ["ISSUED", "PARTIAL"] } }, select: { totalTtc: true, paidAmount: true, dueDate: true, issuedAt: true, status: true } }),
     lowStockParts(),
     prisma.appointment.findMany({ where: { startAt: range }, select: { status: true } }),
     prisma.customer.count({ where: { createdAt: range } }),
@@ -96,6 +99,9 @@ export async function getReport(period: ReportPeriod, now = new Date()) {
     prisma.invoice.findMany({ where: { issuedAt: prevRange }, select: { totalHt: true, totalTtc: true, paidAmount: true, issuedAt: true } }),
     prisma.payment.findMany({ where: { paidAt: prevRange }, select: { amount: true, method: true, paidAt: true } }),
     prisma.workOrder.count({ where: { createdAt: prevRange } }),
+    // V16 Lot 4: credit notes (avoirs) deducted from the invoiced revenue of THEIR period.
+    prisma.creditNote.findMany({ where: { issuedAt: range }, select: { totalHt: true, totalTtc: true, issuedAt: true } }),
+    prisma.creditNote.findMany({ where: { issuedAt: prevRange }, select: { totalHt: true, totalTtc: true, issuedAt: true } }),
   ]);
 
   // Previous visit of each car (to spot returning customers and comebacks).
@@ -118,6 +124,9 @@ export async function getReport(period: ReportPeriod, now = new Date()) {
 
   const rows: ReportRows = {
     invoices,
+    creditNotes,
+    // V16 Lot 4: aged balance (0–30, 31–60, 61–90, > 90 days since the invoice date) of what is still owed now.
+    aged: agedBalance(unpaid, now),
     payments,
     created: createdRaw.map((w) => ({
       id: w.id,
@@ -156,7 +165,7 @@ export async function getReport(period: ReportPeriod, now = new Date()) {
 
   const report = buildReport(
     rows,
-    { invoices: prevInvoices, payments: prevPayments, received: prevCreated },
+    { invoices: prevInvoices, payments: prevPayments, received: prevCreated, creditNotes: prevCreditNotes },
     { start, days, timeZone },
   );
   return { period, start, end: now, timeZone, garageName: settings.garageName, lowStock: lowStock.slice(0, 8), ...report };

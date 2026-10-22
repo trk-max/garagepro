@@ -6,17 +6,19 @@
  * inversés, sont dans tests/workflow-v16.db.test.ts (npm run test:db). Les reproductions restantes suivent le
  * nouveau parcours (devis → accord avec motif ; livraison sans facture = dérogation tracée d'un responsable).
  * V16 Lot 3 : A-12 corrigé (test inversé dans tests/delays-v16.db.test.ts) ; A-13 en partie.
+ * V16 Lot 4 : A-03 (garantie à la facture), A-20 (double clic : clé du formulaire), A-27 (paiement daté) et A-28
+ * (acompte = vrai paiement) corrigés ; tests inversés dans tests/lot4-v16.db.test.ts. Les reproductions qui livrent
+ * un ordre utilisent un ordre « d'avant le Lot 4 » (pas de bon de restitution exigé).
  */
 import { beforeAll, describe, expect, it } from "vitest";
 import { can } from "@/lib/permissions";
 import { stateAfter } from "@/lib/timeclock";
 import { ipFromHeaders } from "@/lib/client-ip";
 import { checkInAppointment } from "@/server/booking";
-import { cashForecast, recordCashBalance } from "@/server/cash";
 import { issueCertificate } from "@/server/certificates";
 import { presentNow } from "@/server/dashboard";
 import { createExpense, ensureOccurrences, payOccurrence } from "@/server/expenses";
-import { createInvoice, countOverdue, recordPayment } from "@/server/invoices";
+import { createInvoice, countOverdue } from "@/server/invoices";
 import { requestLeave } from "@/server/leaves";
 import { createPlan } from "@/server/maintenance";
 import { createPart, reservePart } from "@/server/parts";
@@ -55,14 +57,6 @@ async function readyOrder(manager: Awaited<ReturnType<typeof makeUser>>, unitPri
 }
 
 describe("Ordres de réparation", () => {
-  it("A-03 garantie : absente si la facture est faite sans livraison (A-02 « livré sans facture » corrigé au Lot 1 : voir tests/workflow-v16.db.test.ts)", async () => {
-    const manager = await makeUser("MANAGER");
-    const admin = await makeUser("ADMIN");
-    const { wo: invoicedNotDelivered } = await readyOrder(manager);
-    await createInvoice(invoicedNotDelivered.id, admin);
-    expect(await prisma.warranty.count({ where: { workOrderId: invoicedNotDelivered.id } })).toBe(0);
-  });
-
   it("A-05 deux ordres ouverts en même temps pour le même véhicule", async () => {
     const rec = await makeUser("RECEPTION");
     const { wo, customer, vehicle } = await makeWorkOrder({ status: "IN_PROGRESS" });
@@ -90,6 +84,7 @@ describe("Ordres de réparation", () => {
   it("A-08 livraison : le plan d'entretien (V7.6) n'est pas mis à jour par l'ordre livré (vidange)", async () => {
     const manager = await makeUser("MANAGER");
     const { wo, vehicle } = await readyOrder(manager);
+    await prisma.workOrder.update({ where: { id: wo.id }, data: { workflowLot4: false } }); // V16 Lot 4: no handover in this reproduction
     const plan = await createPlan(manager, vehicle.id, { kind: "OIL", intervalKm: 10_000, intervalDays: 365, lastDoneAt: new Date(Date.now() - 400 * 86_400_000), lastDoneKm: 10_000 });
     await addLine(wo.id, { type: "LABOR", description: "Vidange moteur", quantityX100: 100, unitPrice: 30_000 }, manager).catch(() => undefined);
     await changeStatus(wo.id, "DELIVERED", manager, { override: true, reason: "Audit : livraison sans facture (dérogation)" });
@@ -180,18 +175,6 @@ describe("Stock et achats", () => {
 });
 
 describe("Argent", () => {
-  it("A-20 double clic sur « encaisser » un acompte partiel : deux paiements", async () => {
-    const admin = await makeUser("ADMIN");
-    const { wo } = await makeWorkOrder();
-    await addLine(wo.id, { type: "LABOR", description: "MO", quantityX100: 100, unitPrice: 500_000 }, admin);
-    await agreeAll(wo.id, admin); // V16 Lot 2: the customer's agreement before invoicing
-    const inv = await createInvoice(wo.id, admin);
-    await Promise.all([recordPayment(inv.id, { amount: 100_000, method: "CASH" }, admin), recordPayment(inv.id, { amount: 100_000, method: "CASH" }, admin)]);
-    const after = await prisma.invoice.findUniqueOrThrow({ where: { id: inv.id }, include: { payments: true } });
-    expect(after.payments.length).toBe(2);
-    expect(after.paidAmount).toBe(200_000);
-  });
-
   it("A-21 réparation gratuite (0 DT) : le client est facturé 1,000 DT de timbre", async () => {
     const admin = await makeUser("ADMIN");
     const { wo } = await makeWorkOrder();
@@ -266,6 +249,7 @@ describe("Argent", () => {
   it("A-26 réclamation de garantie à 0 DT réclamé : acceptée pour 50 000 DT, sans plafond", async () => {
     const manager = await makeUser("ADMIN");
     const { wo } = await readyOrder(manager);
+    await prisma.workOrder.update({ where: { id: wo.id }, data: { workflowLot4: false } }); // V16 Lot 4: order opened before Lot 4 (warranty at delivery)
     await changeStatus(wo.id, "DELIVERED", manager, { override: true, reason: "Audit : livraison sans facture (dérogation)" });
     const w = await prisma.warranty.findFirstOrThrow({ where: { workOrderId: wo.id } });
     const claim = await openClaim(manager, w.id, "Bruit revenu");
@@ -275,33 +259,6 @@ describe("Argent", () => {
     expect((await prisma.warrantyClaim.findUniqueOrThrow({ where: { id: claim.id } })).amountAccepted).toBe(50_000_000);
   });
 
-  it("A-27 paiement : la date est toujours « maintenant » → un encaissement d'hier saisi aujourd'hui s'ajoute au solde d'hier", async () => {
-    const admin = await makeUser("ADMIN");
-    await prisma.cashBalance.deleteMany();
-    const yesterday = day(new Date(Date.now() - 86_400_000));
-    await recordCashBalance(admin, { amount: 1_000_000, asOf: yesterday, note: "inclut l'espèce de 200 DT reçue hier" });
-    const before = (await cashForecast(admin, { scenario: "NORMAL", horizon: 30 })).result.opening;
-    const { wo } = await makeWorkOrder();
-    await addLine(wo.id, { type: "LABOR", description: "MO", quantityX100: 100, unitPrice: 300_000 }, admin);
-    await agreeAll(wo.id, admin); // V16 Lot 2: the customer's agreement before invoicing
-    const inv = await createInvoice(wo.id, admin);
-    await recordPayment(inv.id, { amount: 200_000, method: "CASH" }, admin);
-    const after = (await cashForecast(admin, { scenario: "NORMAL", horizon: 30 })).result.opening;
-    console.log("A-27 ouverture avant", before, "après", after);
-    expect(after! - before!).toBe(200_000);
-  });
-
-  it("A-28 acompte saisi à l'ordre : jamais enregistré comme paiement (facture entière « à encaisser »)", async () => {
-    const admin = await makeUser("ADMIN");
-    const { wo } = await makeWorkOrder();
-    await prisma.workOrder.update({ where: { id: wo.id }, data: { depositAmount: 100_000 } as never });
-    await addLine(wo.id, { type: "LABOR", description: "MO", quantityX100: 100, unitPrice: 420_000 }, admin);
-    await agreeAll(wo.id, admin); // V16 Lot 2: the customer's agreement before invoicing
-    const created = await createInvoice(wo.id, admin);
-    const inv = await prisma.invoice.findUniqueOrThrow({ where: { id: created.id } });
-    expect(inv.paidAmount).toBe(0);
-    expect(await prisma.payment.count({ where: { invoiceId: inv.id } })).toBe(0);
-  });
 });
 
 describe("Équipe / accès", () => {

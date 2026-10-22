@@ -2,6 +2,7 @@ import { z } from "zod";
 import { PaymentMethod } from "@prisma/client";
 import { PARTS_ORIGINS, REPAIR_AMOUNT_LIMITS, cleanBodyZones, cleanRepairClauses, MAX_CLAUSES, type BodyZone, type PartsOrigin, type RepairClause } from "@/lib/repair-order";
 import { money, optionalMoney, optionalText } from "@/lib/validators";
+import { cleanWarningLights, type WarningLight } from "@/lib/handover";
 
 /** Form readers of the repair order (V10.6): check-in, work order page, Paramètres. */
 
@@ -14,6 +15,10 @@ const intakeSchema = z.object({
   estimateTtc: optionalMoney,
   depositAmount: optionalMoney,
   depositMethod: z.preprocess(empty, z.nativeEnum(PaymentMethod).optional()),
+  // V16 Lot 4
+  itemsLeft: optionalText(500),
+  keyCount: z.preprocess(empty, z.coerce.number().int().min(0).max(20).optional()),
+  authorizationCeiling: optionalMoney,
 });
 
 export type IntakeForm = {
@@ -26,19 +31,24 @@ export type IntakeForm = {
   depositMethod?: PaymentMethod;
   /** undefined = field absent from the form; null = emptied. */
   customerNationalId?: string | null;
+  /** V16 Lot 4 — warning lights on, items left in the car, keys handed over, authorization ceiling (millimes TTC). */
+  warningLights?: WarningLight[];
+  itemsLeft?: string;
+  keyCount?: number;
+  authorizationCeiling?: number;
 };
 
 /** Reads the intake fields (same names in the check-in form and on the work order page). */
 export function parseIntakeForm(form: FormData): IntakeForm {
   const raw: Record<string, string> = {};
-  for (const k of ["fuelLevel", "partsOrigin", "bodyDamageNotes", "estimateTtc", "depositAmount", "depositMethod"]) {
+  for (const k of ["fuelLevel", "partsOrigin", "bodyDamageNotes", "estimateTtc", "depositAmount", "depositMethod", "itemsLeft", "keyCount", "authorizationCeiling"]) {
     const v = form.get(k);
     if (typeof v === "string") raw[k] = v;
   }
   const parsed = intakeSchema.parse(raw);
   const cin = form.get("customerNationalId");
   const nationalId = typeof cin === "string" ? cin.trim().slice(0, 30) || null : undefined;
-  return { ...parsed, bodyChecklist: cleanBodyZones(form.getAll("bodyChecklist")), customerNationalId: nationalId };
+  return { ...parsed, bodyChecklist: cleanBodyZones(form.getAll("bodyChecklist")), customerNationalId: nationalId, warningLights: cleanWarningLights(form.getAll("warningLights")) };
 }
 
 const intIn = (l: { min: number; max: number }) => z.coerce.number().int().min(l.min).max(l.max);

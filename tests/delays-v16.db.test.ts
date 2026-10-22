@@ -30,13 +30,14 @@ const FEE = 30_000;
 type Actor = Awaited<ReturnType<typeof makeUser>>;
 const setS = (data: { diagnosticFee?: number | null; requireSafetyWaiver?: boolean; autoWaitingParts?: boolean }) => prisma.setting.update({ where: { id: "garage" }, data });
 
-beforeAll(() => prisma.setting.upsert({ where: { id: "garage" }, update: { stampDuty: STAMP, allowWorkWithoutQuote: false, requirePaidBeforeDelivery: true }, create: { id: "garage", stampDuty: STAMP } }));
+// V16 Lot 4: the signed handover before delivery is tested in lot4-v16.db.test.ts (setting off here).
+beforeAll(() => prisma.setting.upsert({ where: { id: "garage" }, update: { stampDuty: STAMP, allowWorkWithoutQuote: false, requirePaidBeforeDelivery: true, requireSignedHandover: false }, create: { id: "garage", stampDuty: STAMP } }));
 afterEach(() => {
   delete process.env.TWILIO_ACCOUNT_SID;
   delete process.env.TWILIO_AUTH_TOKEN;
   delete process.env.TWILIO_FROM;
 });
-afterAll(() => setS({ diagnosticFee: null, requireSafetyWaiver: true, autoWaitingParts: true }));
+afterAll(() => prisma.setting.update({ where: { id: "garage" }, data: { diagnosticFee: null, requireSafetyWaiver: true, autoWaitingParts: true, requireSignedHandover: true } }));
 
 /** SMS « configured » (nothing is sent: the server functions only queue; delivery happens after the commit). */
 const smsOn = () => {

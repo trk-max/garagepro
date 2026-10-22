@@ -12,6 +12,11 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { installHub } from "../scripts/hub/init.mjs";
 // @ts-expect-error plain JS script without types
 import { syncOnce, topoOrder } from "../scripts/hub/sync-engine.mjs";
+// @ts-expect-error plain JS script without types
+import { syncMedia } from "../scripts/hub/media-sync.mjs";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import os from "node:os";
+import { vi } from "vitest";
 
 const BASE = process.env.TEST_PG_URL;
 /** Names of the throw-away databases: TEST_HUB_DB_PREFIX lets two working copies run this test on one server at once. */
@@ -395,6 +400,100 @@ describe.skipIf(!BASE)("garage hub ↔ online database", () => {
     // The proof cannot be changed afterwards, on either side (the sync itself may).
     await expect(local.query(`UPDATE "PromiseRevision" SET reason='OTHER' WHERE id='r27b'`)).rejects.toThrow(/append-only/);
     await expect(cloud.query(`DELETE FROM "PromiseRevision" WHERE id='r27a'`)).rejects.toThrow(/append-only/);
+  }, 30_000);
+
+  it("V16 Lot 4: migration 28 replays twice; signatures, handovers and credit notes travel both ways, append-only on both sides; the frozen invoice lets the sync pass; signature files copied by the media sync", async () => {
+    const logged = async (db: pg.Client) => Number((await one(db, `SELECT count(*) FROM "_sync_log"`)).count);
+    const before = await logged(local);
+    for (const db of [local, cloud]) for (let i = 0; i < 2; i++) await db.query(migrationSql("28_signed_handover_billing"));
+    expect(await logged(local)).toBe(before);
+    for (const tbl of ["Signature", "VehicleHandover", "CreditNote"]) {
+      const trg = await local.query(`SELECT 1 FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid WHERE t.tgname = '_sync_log_trg' AND c.relname = $1`, [tbl]);
+      expect(trg.rowCount).toBe(1);
+    }
+    // Orders opened before migration 28 keep the old rules (workflowLot4 false, written without an UPDATE); new ones true.
+    const pre = await freshDb(admin, `${HUB}_l4pre`, allMigrations.filter((m) => parseInt(m) < 28));
+    try {
+      await addCustomer(pre, "cp", "Avant");
+      await addVehicle(pre, "vp", "100TU0028", "cp");
+      await addWorkOrder(pre, "wp", "cp", "vp");
+      await pre.query(migrationSql("28_signed_handover_billing"));
+      await addWorkOrder(pre, "wq", "cp", "vp");
+      expect((await pre.query(`SELECT id, "workflowLot4" FROM "WorkOrder" ORDER BY id`)).rows).toEqual([
+        { id: "wp", workflowLot4: false },
+        { id: "wq", workflowLot4: true },
+      ]);
+    } finally {
+      await pre.end();
+      await admin.query(`DROP DATABASE IF EXISTS ${HUB}_l4pre WITH (FORCE)`);
+    }
+
+    await addCustomer(local, "c28", "Client restitution");
+    await addVehicle(local, "v28", "280TU2800", "c28");
+    await addWorkOrder(local, "w28", "c28", "v28");
+    expect(await one(local, `SELECT "workflowLot4" FROM "WorkOrder" WHERE id='w28'`)).toEqual({ workflowLot4: true });
+    // Garage (offline): intake signed, invoice issued. Online at the same time: the handover signed on a tablet.
+    await local.query(`INSERT INTO "Signature"(id, "workOrderId", kind, "signerName", "imageKey", "documentKey", "documentHash") VALUES ('s28a', 'w28', 'INTAKE', 'Client', 'signatures/w28/a.png', 'signatures/w28/a.html', 'h1')`);
+    await local.query(`INSERT INTO "Invoice"(id, number, "workOrderId", "customerId", "totalHt", "totalTax", "stampDuty", "totalTtc", snapshot, "snapshotHash") VALUES ('i28', 'F2026-0901', 'w28', 'c28', 100000, 19000, 1000, 120000, '{}', 'h')`);
+    let r = await syncOnce(local, cloud);
+    expect(r.errors).toEqual([]);
+    await cloud.query(`INSERT INTO "Signature"(id, "workOrderId", kind, "signerName", "imageKey", "documentHash", "refId") VALUES ('s28b', 'w28', 'DELIVERY', 'Client', 'signatures/w28/b.png', 'h2', 'h28')`);
+    await cloud.query(`INSERT INTO "VehicleHandover"(id, "workOrderId", "mileageOut", "signatureId") VALUES ('h28', 'w28', 51000, 's28b')`);
+    // Online: a payment on the invoice (paidAmount / status: the only columns allowed to move).
+    await cloud.query(`INSERT INTO "Payment"(id, "invoiceId", amount, method) VALUES ('p28', 'i28', 120000, 'CASH')`);
+    await cloud.query(`UPDATE "Invoice" SET "paidAmount" = 120000, status = 'PAID' WHERE id = 'i28'`);
+
+    r = await syncOnce(local, cloud);
+    expect(r.errors).toEqual([]);
+    for (const db of [local, cloud]) {
+      expect((await db.query(`SELECT id, kind FROM "Signature" WHERE "workOrderId"='w28' ORDER BY id`)).rows).toEqual([
+        { id: "s28a", kind: "INTAKE" },
+        { id: "s28b", kind: "DELIVERY" },
+      ]);
+      expect(await one(db, `SELECT "mileageOut" FROM "VehicleHandover" WHERE id='h28'`)).toEqual({ mileageOut: 51000 });
+      expect(await one(db, `SELECT "paidAmount", status, "totalTtc" FROM "Invoice" WHERE id='i28'`)).toEqual({ paidAmount: 120000, status: "PAID", totalTtc: 120000 });
+    }
+    // Credit note issued at the garage (status CREDITED on the invoice) travels online.
+    await local.query(`INSERT INTO "CreditNote"(id, number, "creditOfInvoiceId", "customerId", reason, "totalHt", "totalTax", "stampDuty", "totalTtc", snapshot, "snapshotHash") VALUES ('cn28', 'AV-2026-0001', 'i28', 'c28', 'Erreur', 100000, 19000, 1000, 120000, '{}', 'h')`);
+    await local.query(`UPDATE "Invoice" SET status = 'CREDITED' WHERE id = 'i28'`);
+    r = await syncOnce(local, cloud);
+    expect(r.errors).toEqual([]);
+    expect(await one(cloud, `SELECT number FROM "CreditNote" WHERE id='cn28'`)).toEqual({ number: "AV-2026-0001" });
+    expect(await one(cloud, `SELECT status FROM "Invoice" WHERE id='i28'`)).toEqual({ status: "CREDITED" });
+    // Frozen on both sides outside the sync; append-only proofs on both sides.
+    for (const db of [local, cloud]) {
+      await expect(db.query(`UPDATE "Invoice" SET "totalTtc" = 1 WHERE id='i28'`)).rejects.toThrow(/cannot be modified/);
+      await expect(db.query(`DELETE FROM "Invoice" WHERE id='i28'`)).rejects.toThrow(/cannot be deleted/);
+      await expect(db.query(`UPDATE "Signature" SET "signerName"='x' WHERE id='s28a'`)).rejects.toThrow(/append-only/);
+      await expect(db.query(`DELETE FROM "VehicleHandover" WHERE id='h28'`)).rejects.toThrow(/append-only/);
+      await expect(db.query(`UPDATE "CreditNote" SET reason='x' WHERE id='cn28'`)).rejects.toThrow(/append-only/);
+      await expect(db.query(`UPDATE "Payment" SET amount = 1 WHERE id='p28'`)).rejects.toThrow(/append-only/);
+    }
+    // The sync itself may write a frozen column (whole-row copy with garagepro.sync = 'on').
+    await local.query("BEGIN");
+    await local.query("SET LOCAL garagepro.sync = 'on'");
+    await local.query(`UPDATE "Invoice" SET "dueDate" = now() WHERE id='i28'`);
+    await local.query("ROLLBACK");
+
+    // Signature image + frozen document: copied to the online bucket by the hub's file sync.
+    const root = mkdtempSync(path.join(os.tmpdir(), "gp-sig-"));
+    mkdirSync(path.join(root, "signatures/w28"), { recursive: true });
+    writeFileSync(path.join(root, "signatures/w28/a.png"), "PNG");
+    writeFileSync(path.join(root, "signatures/w28/a.html"), "<html>");
+    const posted: string[] = [];
+    const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
+      if (init?.method === "POST") {
+        posted.push(url);
+        return new Response("{}", { status: 200 });
+      }
+      if (url.endsWith("signatures/w28/b.png")) return new Response("PNG2", { status: 200 });
+      return new Response("nope", { status: 404 });
+    });
+    const m = await syncMedia(local, { root, config: { url: "https://x.supabase.co", key: "k", bucket: "media" }, fetchImpl });
+    expect(m.errors).toEqual([]);
+    expect(posted.some((u) => u.endsWith("signatures/w28/a.png"))).toBe(true);
+    expect(posted.some((u) => u.endsWith("signatures/w28/a.html"))).toBe(true);
+    expect(m.downloaded).toBeGreaterThanOrEqual(1); // the DELIVERY signature drawn online comes down to the garage PC
   }, 30_000);
 
   it("a database without a hub logs nothing", async () => {

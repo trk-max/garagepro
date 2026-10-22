@@ -101,6 +101,12 @@ export const v103Ar: typeof v103Fr = {
       deliverWorkOrder: "تسليم السيارة",
       deliverWithBalance: "التسليم رغم فاتورة غير مسددة (استثناء مع سبب)",
       closeWorkOrder: "غلق أمر مسلَّم ومسدَّد",
+      // V16 Lot 4 — الاستلام الممضى، التسليم، الفاتورة والدفعات.
+      signIntake: "إمضاء وثيقة الاستلام على اللوحة (يُقفل الاستلام)",
+      recordHandover: "تسليم السيارة: وصل تسليم ممضى",
+      issueCreditNote: "إصدار فاتورة تعديلية (تُلغي فاتورة، مع السبب)",
+      reversePayment: "إلغاء دفعة (مع السبب)",
+      waiveStorageFee: "عدم احتساب معاليم الحراسة (مع السبب)",
     },
   },
   dash: {

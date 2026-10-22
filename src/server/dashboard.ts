@@ -11,7 +11,7 @@ export async function getDashboard() {
   const endOfDay = new Date(startOfDay.getTime() + 86_400_000);
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-  const [byStatus, dueToday, revenue, unpaid, lowStock, recent] = await Promise.all([
+  const [byStatus, dueToday, revenue, unpaid, lowStock, recent, credited] = await Promise.all([
     countByStatus(),
     prisma.workOrder.count({
       where: { status: { in: ACTIVE_STATUSES }, promisedAt: { gte: startOfDay, lt: endOfDay } },
@@ -28,6 +28,8 @@ export async function getDashboard() {
         mechanic: { select: { name: true } },
       },
     }),
+    // V16 Lot 4: credit notes of the month are deducted from the month's revenue.
+    prisma.creditNote.aggregate({ where: { issuedAt: { gte: startOfMonth } }, _sum: { totalHt: true } }),
   ]);
 
   const inShop = ACTIVE_STATUSES.reduce((sum, s) => sum + byStatus[s], 0);
@@ -37,7 +39,7 @@ export async function getDashboard() {
     inShop,
     ready: byStatus.READY,
     dueToday,
-    revenueMonthHt: revenue._sum.totalHt ?? 0,
+    revenueMonthHt: (revenue._sum.totalHt ?? 0) - (credited._sum.totalHt ?? 0),
     unpaidTotal: unpaid.reduce((sum, i) => sum + (i.totalTtc - i.paidAmount), 0),
     lowStock,
     recent,
@@ -84,7 +86,13 @@ export async function weekOverview(opts: { finance: boolean }, now = new Date())
   const [orders, delivered, invoices, payments] = await Promise.all([
     prisma.workOrder.findMany({ where: { createdAt: { gte: since } }, select: { createdAt: true } }),
     prisma.workOrder.findMany({ where: { deliveredAt: { gte: since } }, select: { deliveredAt: true } }),
-    opts.finance ? prisma.invoice.findMany({ where: { issuedAt: { gte: since } }, select: { issuedAt: true, totalTtc: true } }) : [],
+    // V16 Lot 4: credit notes count negatively on their day (never twice).
+    opts.finance
+      ? Promise.all([
+          prisma.invoice.findMany({ where: { issuedAt: { gte: since } }, select: { issuedAt: true, totalTtc: true } }),
+          prisma.creditNote.findMany({ where: { issuedAt: { gte: since } }, select: { issuedAt: true, totalTtc: true } }),
+        ]).then(([i, c]) => [...i, ...c.map((n) => ({ issuedAt: n.issuedAt, totalTtc: -n.totalTtc }))])
+      : [],
     opts.finance ? prisma.payment.findMany({ where: { paidAt: { gte: since } }, select: { paidAt: true, amount: true } }) : [],
   ]);
   const split = (values: number[]) => ({ previous: values.slice(0, 7), current: values.slice(7) });

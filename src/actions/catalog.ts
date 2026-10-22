@@ -3,7 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { AppError, toActionError, type ActionResult } from "@/lib/http";
-import { LANG_COOKIE } from "@/lib/i18n/server";
+import { LANG_COOKIE, getI18n } from "@/lib/i18n/server";
+import { utcToZoned, zonedToUtc } from "@/lib/booking";
+import { getSettings } from "@/server/settings";
 import { requirePermission } from "@/lib/session";
 import {
   customerSchema,
@@ -27,7 +29,15 @@ import { audit } from "@/server/audit";
 import { createPart, moveStock, updatePart } from "@/server/parts";
 import { prisma } from "@/lib/prisma";
 
-type Result = ActionResult<{ redirectTo?: string }>;
+type Result = ActionResult<{ redirectTo?: string; warning?: string }>;
+
+/** V16 Lot 4 — the payment date typed (garage day): today = now; another day = that day at noon, garage time. */
+async function paymentDate(day: string): Promise<Date | undefined> {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return undefined;
+  const tz = (await getSettings()).timezone;
+  if (day === utcToZoned(new Date(), tz).date) return undefined;
+  return zonedToUtc(day, "12:00", tz);
+}
 
 const done = (redirectTo?: string): Result => {
   revalidatePath("/garage", "layout");
@@ -137,8 +147,13 @@ export async function moveStockAction(partId: string, form: FormData): Promise<R
 export async function recordPaymentAction(invoiceId: string, form: FormData): Promise<Result> {
   try {
     const actor = await requirePermission("recordPayment");
-    await recordPayment(id.parse(invoiceId), paymentSchema.parse(formToObject(form)), actor);
+    const raw = formToObject(form);
+    // V16 Lot 4: real date of the payment (garage day; today = now) and the form's anti double-click key.
+    const paidAt = await paymentDate(typeof raw.paidAt === "string" ? raw.paidAt : "");
+    const key = typeof raw.requestKey === "string" && /^[A-Za-z0-9_-]{8,80}$/.test(raw.requestKey) ? raw.requestKey : null;
+    const r = await recordPayment(id.parse(invoiceId), { ...paymentSchema.parse(raw), paidAt, requestKey: key }, actor);
     revalidatePath(`/garage/invoices/${invoiceId}`);
+    if (r.duplicate) return { ok: true, data: { warning: (await getI18n()).t.v16.lot4.payment.duplicate } };
     return done();
   } catch (error) {
     return toActionError(error);

@@ -25,7 +25,7 @@ const PROFIT_SELECT = {
   vehicleId: true,
   customer: { select: { name: true } },
   vehicle: { select: { plate: true, make: true, model: true } },
-  invoice: { select: { number: true, totalHt: true, issuedAt: true, payments: { select: { amount: true, payer: true } } } },
+  invoice: { select: { number: true, totalHt: true, issuedAt: true, payments: { select: { amount: true, payer: true } }, creditNote: { select: { totalHt: true } } } },
   lines: { where: { ...LIVE_LINE }, select: { type: true, quantityX100: true, unitPrice: true, unitCost: true, partId: true, part: { select: { costPrice: true } } } },
   expenses: { where: { voidedAt: null }, select: { amount: true } },
   laborEntries: { where: { voidedAt: null }, select: { userId: true, startedAt: true, endedAt: true, user: { select: { hourlyCost: true } } } },
@@ -44,7 +44,8 @@ async function config(): Promise<Config> {
 
 function profitOf(row: Row, cfg: Config, now = new Date()): Profit {
   return computeProfit({
-    invoiceTotalHt: row.invoice?.totalHt ?? null,
+    // V16 Lot 4: an invoice cancelled by a credit note brings no revenue (payments then refunded: reversals).
+    invoiceTotalHt: row.invoice ? row.invoice.totalHt - (row.invoice.creditNote?.totalHt ?? 0) : null,
     lines: row.lines.map((l) => ({
       type: l.type,
       quantityX100: l.quantityX100,

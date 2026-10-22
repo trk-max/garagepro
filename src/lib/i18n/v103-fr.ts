@@ -102,6 +102,12 @@ export const v103Fr = {
       deliverWorkOrder: "Livrer le véhicule",
       deliverWithBalance: "Livrer malgré une facture non soldée (dérogation avec motif)",
       closeWorkOrder: "Clôturer un ordre livré et soldé",
+      // V16 Lot 4 — réception signée, restitution, facture et paiements.
+      signIntake: "Faire signer la prise en charge sur la tablette (verrouille la réception)",
+      recordHandover: "Restituer le véhicule : bon de restitution signé",
+      issueCreditNote: "Émettre un avoir (annule une facture, avec motif)",
+      reversePayment: "Annuler un paiement (avec motif)",
+      waiveStorageFee: "Ne pas facturer le gardiennage (avec motif)",
     } satisfies Record<Permission, string>,
   },
   dash: {

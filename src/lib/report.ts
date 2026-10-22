@@ -1,5 +1,6 @@
 import { classifyComplaint, type ProblemCategory } from "@/lib/report-categories";
 import { promiseKpi } from "@/lib/delays";
+import type { AgedBalance } from "@/lib/billing";
 
 /**
  * Garage report: pure aggregation of rows loaded by server/reports.ts, so the
@@ -12,6 +13,10 @@ export const PERIOD_DAYS: Record<ReportPeriod, number> = { day: 1, week: 7, mont
 
 export type ReportRows = {
   invoices: { totalHt: number; totalTtc: number; paidAmount: number; issuedAt: Date }[];
+  /** V16 Lot 4 — credit notes issued in the period: deducted from the invoiced revenue (never counted twice). */
+  creditNotes?: { totalHt: number; totalTtc: number; issuedAt: Date }[];
+  /** V16 Lot 4 — aged balance of the invoices still owed (now). */
+  aged?: AgedBalance;
   payments: { amount: number; method: string; paidAt: Date }[];
   /** Work orders created in the period. */
   created: {
@@ -71,10 +76,14 @@ export function delta(now: number, before: number): number | null {
 
 export type Insight = { tone: "good" | "warn" | "info"; key: string; vars: Record<string, string | number> };
 
-export function buildReport(rows: ReportRows, previous: Pick<ReportRows, "invoices" | "payments"> & { received: number }, opts: { start: Date; days: number; timeZone: string }) {
+export function buildReport(rows: ReportRows, previous: Pick<ReportRows, "invoices" | "payments" | "creditNotes"> & { received: number }, opts: { start: Date; days: number; timeZone: string }) {
   // ── Money ──
-  const invoicedTtc = sum(rows.invoices, (i) => i.totalTtc);
-  const invoicedHt = sum(rows.invoices, (i) => i.totalHt);
+  // V16 Lot 4: revenue = invoices of the period − credit notes of the period (an invoice and its credit note in
+  // two periods: + then −; never twice).
+  const credits = rows.creditNotes ?? [];
+  const creditedTtc = sum(credits, (c) => c.totalTtc);
+  const invoicedTtc = sum(rows.invoices, (i) => i.totalTtc) - creditedTtc;
+  const invoicedHt = sum(rows.invoices, (i) => i.totalHt) - sum(credits, (c) => c.totalHt);
   const collected = sum(rows.payments, (p) => p.amount);
   const byMethod = [...countByAmount(rows.payments).entries()].map(([method, amount]) => ({ method, amount })).sort((a, b) => b.amount - a.amount);
   const labourHt = sum(rows.lines.filter((l) => l.type === "LABOR"), lineHt);
@@ -92,6 +101,10 @@ export function buildReport(rows: ReportRows, previous: Pick<ReportRows, "invoic
   for (const inv of rows.invoices) {
     const i = index.get(localDay(inv.issuedAt, opts.timeZone));
     if (i !== undefined) series[i]!.invoicedTtc += inv.totalTtc;
+  }
+  for (const c of credits) {
+    const i = index.get(localDay(c.issuedAt, opts.timeZone));
+    if (i !== undefined) series[i]!.invoicedTtc -= c.totalTtc;
   }
   for (const wo of rows.created) {
     const i = index.get(localDay(wo.createdAt, opts.timeZone));
@@ -156,7 +169,7 @@ export function buildReport(rows: ReportRows, previous: Pick<ReportRows, "invoic
   const satisfied = pct(ratings.filter((r) => r >= 4).length, ratings.length);
 
   // ── Comparison with the previous period ──
-  const prevInvoiced = sum(previous.invoices, (i) => i.totalTtc);
+  const prevInvoiced = sum(previous.invoices, (i) => i.totalTtc) - sum(previous.creditNotes ?? [], (c) => c.totalTtc);
   const prevReceived = previous.received;
   const prevCollected = sum(previous.payments, (p) => p.amount);
 
@@ -180,7 +193,10 @@ export function buildReport(rows: ReportRows, previous: Pick<ReportRows, "invoic
       invoicedTtc,
       invoicedHt,
       invoices: rows.invoices.length,
-      avgTicket: rows.invoices.length ? Math.round(invoicedTtc / rows.invoices.length) : 0,
+      avgTicket: rows.invoices.length ? Math.round(sum(rows.invoices, (i) => i.totalTtc) / rows.invoices.length) : 0,
+      // V16 Lot 4
+      credits: { count: credits.length, ttc: creditedTtc },
+      aged: rows.aged ?? null,
       collected,
       byMethod,
       labourHt,

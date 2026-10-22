@@ -7,6 +7,8 @@ import type { StaffUser } from "@/lib/session";
 import { readRepairClauses, repairTermsChanged, type BodyZone, type PartsOrigin, type RepairClause } from "@/lib/repair-order";
 import { audit } from "@/server/audit";
 import { isFinal } from "@/server/workflow";
+import { intakeSigned } from "@/server/signatures";
+import type { WarningLight } from "@/lib/handover";
 
 /**
  * Prise en charge / ordre de réparation (V10.6). Every change is audited in the same transaction.
@@ -24,6 +26,11 @@ export type IntakeInput = {
   depositMethod?: PaymentMethod;
   /** CIN of the customer (stored on the customer file): undefined = unchanged, null = cleared. */
   customerNationalId?: string | null;
+  /** V16 Lot 4 */
+  warningLights?: WarningLight[];
+  itemsLeft?: string;
+  keyCount?: number;
+  authorizationCeiling?: number;
 };
 
 const INTAKE_SELECT = {
@@ -34,14 +41,27 @@ const INTAKE_SELECT = {
   estimateTtc: true,
   depositAmount: true,
   depositMethod: true,
+  // V16 Lot 4
+  warningLights: true,
+  itemsLeft: true,
+  keyCount: true,
+  authorizationCeiling: true,
 } as const;
 
 /** Check-in details of an open work order (not once delivered or cancelled). */
 export async function updateIntake(workOrderId: string, input: IntakeInput, actor: StaffUser) {
   await prisma.$transaction(async (tx) => {
-    const wo = await tx.workOrder.findUnique({ where: { id: workOrderId }, select: { status: true, customerId: true, customer: { select: { nationalId: true } }, ...INTAKE_SELECT } });
+    const wo = await tx.workOrder.findUnique({
+      where: { id: workOrderId },
+      select: { status: true, customerId: true, workflowLot4: true, invoice: { select: { id: true } }, customer: { select: { nationalId: true } }, ...INTAKE_SELECT },
+    });
     if (!wo) throw new AppError("notFound", {}, 404);
     if (isFinal(wo.status)) throw new AppError("final", {}, 409);
+    // V16 Lot 4: once the customer signed the intake on the tablet, the intake is frozen (document + SHA-256).
+    if (await intakeSigned(tx, workOrderId)) throw new AppError("intakeLocked", {}, 409);
+    // V16 Lot 4: the deposit of a new order becomes a payment at the invoice; once invoiced, record a payment.
+    const depositChanged = (input.depositAmount ?? null) !== wo.depositAmount;
+    if (depositChanged && wo.workflowLot4 && wo.invoice) throw new AppError("depositAfterInvoice", {}, 409);
     const data = {
       fuelLevel: input.fuelLevel ?? null,
       partsOrigin: input.partsOrigin ?? null,
@@ -50,10 +70,27 @@ export async function updateIntake(workOrderId: string, input: IntakeInput, acto
       estimateTtc: input.estimateTtc ?? null,
       depositAmount: input.depositAmount ?? null,
       depositMethod: input.depositAmount ? (input.depositMethod ?? "CASH") : null,
+      // V16 Lot 4
+      warningLights: (input.warningLights ?? []) as unknown as Prisma.InputJsonValue,
+      itemsLeft: input.itemsLeft ?? null,
+      keyCount: input.keyCount ?? null,
+      authorizationCeiling: input.authorizationCeiling ?? null,
     };
-    await tx.workOrder.update({ where: { id: workOrderId }, data });
+    await tx.workOrder.update({ where: { id: workOrderId }, data: { ...data, ...(depositChanged ? { depositReceivedAt: input.depositAmount ? new Date() : null } : {}) } });
     const { customer } = wo;
-    const before = { fuelLevel: wo.fuelLevel, partsOrigin: wo.partsOrigin, bodyChecklist: wo.bodyChecklist, bodyDamageNotes: wo.bodyDamageNotes, estimateTtc: wo.estimateTtc, depositAmount: wo.depositAmount, depositMethod: wo.depositMethod };
+    const before = {
+      fuelLevel: wo.fuelLevel,
+      partsOrigin: wo.partsOrigin,
+      bodyChecklist: wo.bodyChecklist,
+      bodyDamageNotes: wo.bodyDamageNotes,
+      estimateTtc: wo.estimateTtc,
+      depositAmount: wo.depositAmount,
+      depositMethod: wo.depositMethod,
+      warningLights: wo.warningLights,
+      itemsLeft: wo.itemsLeft,
+      keyCount: wo.keyCount,
+      authorizationCeiling: wo.authorizationCeiling,
+    };
     await audit(tx, actor, "workOrder.intake", "WorkOrder", workOrderId, { before, after: data });
     const nationalId = input.customerNationalId;
     if (nationalId !== undefined && nationalId !== customer.nationalId) {
@@ -143,6 +180,10 @@ export async function saveWorkflowSettings(
     diagnosticFee?: number | null;
     requireSafetyWaiver?: boolean;
     autoWaitingParts?: boolean;
+    /** V16 Lot 4 — signed handover before delivery, storage fee on the invoice, graduated invoice reminders. */
+    requireSignedHandover?: boolean;
+    autoStorageFee?: boolean;
+    autoInvoiceReminders?: boolean;
   },
 ) {
   if (!can(actor, "manageSettings")) throw new AppError("forbidden", {}, 403);
@@ -154,6 +195,9 @@ export async function saveWorkflowSettings(
       diagnosticFee: s.diagnosticFee,
       requireSafetyWaiver: s.requireSafetyWaiver,
       autoWaitingParts: s.autoWaitingParts,
+      requireSignedHandover: s.requireSignedHandover,
+      autoStorageFee: s.autoStorageFee,
+      autoInvoiceReminders: s.autoInvoiceReminders,
     };
     await tx.setting.update({ where: { id: "garage" }, data: input });
     await audit(tx, actor, "settings.workflow", "Setting", "garage", { before, after: input });

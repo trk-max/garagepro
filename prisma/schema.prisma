@@ -107,6 +107,7 @@ enum InvoiceStatus {
   ISSUED
   PARTIAL
   PAID
+  CREDITED // V16 Lot 4 — annulée par un avoir (la facture elle-même n'est jamais modifiée ni supprimée)
 }
 
 enum PaymentMethod {
@@ -245,6 +246,8 @@ model Customer {
   vehicles     Vehicle[]
   workOrders   WorkOrder[]
   invoices     Invoice[]
+  /// V16 Lot 4 — avoirs.
+  creditNotes  CreditNote[]
   appointments Appointment[]
   claims       CustomerClaim[]
   feedbacks    CustomerFeedback[]
@@ -349,6 +352,18 @@ model WorkOrder {
   /// V16 — règles bloquantes du parcours V16 (travaux sans devis, facture / solde à la livraison) :
   /// false pour les OR ouverts avant la migration 25 (non-rétroactivité), true pour les nouveaux.
   workflowV16          Boolean         @default(true)
+  /// V16 Lot 4 — réception : voyants allumés (codes, src/lib/handover.ts), objets laissés, nombre de clés,
+  /// plafond d'autorisation (millimes TTC, valable une fois la réception signée), frais de diagnostic acceptés
+  /// (null = pas de frais proposés), date de l'acompte (il devient un paiement daté de ce jour à la facture).
+  warningLights         Json            @default("[]")
+  itemsLeft             String?
+  keyCount              Int?
+  authorizationCeiling  Int?
+  diagnosticFeeAccepted Boolean?
+  depositReceivedAt     DateTime?
+  /// V16 Lot 4 — règles du Lot 4 (restitution signée avant livraison, acompte = vrai paiement, gardiennage,
+  /// relances graduées, garantie à la facture) : false pour les OR ouverts avant la migration 28, true ensuite.
+  workflowLot4          Boolean         @default(true)
   createdAt            DateTime        @default(now())
   updatedAt            DateTime        @updatedAt
 
@@ -377,6 +392,9 @@ model WorkOrder {
   quotes         Quote[]
   /// V16 Lot 3 — changements de la date promise et des dates prévues des pièces (ajout seul).
   promiseRevisions PromiseRevision[]
+  /// V16 Lot 4 — signatures (ajout seul) et bons de restitution (ajout seul).
+  signatures       Signature[]
+  handovers        VehicleHandover[]
 
   @@index([status, updatedAt(sort: Desc)])
   @@index([mechanicId, status])
@@ -420,6 +438,8 @@ model WorkOrderLine {
   /// V16 Lot 3 — frais annoncés au client à la réception (diagnostic, démontage annoncé) : acceptés dès la
   /// création, facturables même si le devis est refusé. false pour toutes les lignes d'avant la migration 27.
   isAnnouncedFee Boolean  @default(false)
+  /// V16 Lot 4 — ligne de gardiennage ajoutée à la facturation (jours × frais / jour). false pour les lignes d'avant.
+  isStorageFee   Boolean            @default(false)
   createdAt    DateTime @default(now())
 
   workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
@@ -575,6 +595,90 @@ model QuoteApproval {
   @@index([workOrderId, createdAt])
 }
 
+// ── V16 Lot 4 — réception signée, restitution, avoirs ───────────────────────
+
+enum SignatureKind {
+  INTAKE
+  QUOTE
+  DELIVERY
+  SAFETY_WAIVER
+}
+
+enum MediaStage {
+  INTAKE
+  WORK
+  DELIVERY
+}
+
+/// V16 Lot 4 — signature du client sur tablette (canvas) : PREUVE en ajout seul (trigger "Signature_readonly",
+/// la synchronisation du hub passe). Image PNG et document figé (prise en charge / bon de restitution, HTML)
+/// stockés par putObject ; documentHash = SHA-256 du document signé (ou de l'image s'il n'y a pas de document).
+model Signature {
+  id           String        @id @default(cuid())
+  workOrderId  String
+  kind         SignatureKind
+  signerName   String
+  imageKey     String        @unique
+  documentKey  String?
+  documentHash String
+  /// Preuve liée : QuoteApproval (QUOTE), VehicleHandover (DELIVERY), événement de la décharge (SAFETY_WAIVER).
+  refId        String?
+  ip           String?
+  userAgent    String?
+  /// Employé qui a présenté la tablette (simple identifiant : la preuve ne bouge jamais).
+  recordedById String?
+  signedAt     DateTime      @default(now())
+
+  workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Restrict)
+
+  @@index([workOrderId, kind, signedAt])
+}
+
+/// V16 Lot 4 — bon de restitution (ajout seul) : km et carburant à la sortie, checklist, signature DELIVERY.
+model VehicleHandover {
+  id             String   @id @default(cuid())
+  workOrderId    String
+  mileageOut     Int
+  /// Quarts (1 = 1/4 … 4 = 4/4).
+  fuelLevelOut   Int?
+  /// { workExplained, oldParts: RETURNED | LEFT | WARRANTY | NONE, keysReturned, clean } (src/lib/handover.ts).
+  checklist      Json     @default("{}")
+  notes          String?
+  signatureId    String?
+  handedOverById String?
+  createdAt      DateTime @default(now())
+
+  workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Restrict)
+
+  @@index([workOrderId, createdAt])
+}
+
+/// V16 Lot 4 — avoir (ajout seul) : annule TOUTE une facture émise sans la modifier ni la supprimer.
+/// Numéro « AV-2026-0001 » (Sequence credit-AAAA + assertCanNumberDocuments), motif obligatoire.
+model CreditNote {
+  id                String   @id @default(cuid())
+  number            String   @unique
+  creditOfInvoiceId String   @unique
+  customerId        String
+  /// Ordre de la facture annulée (information ; la facture garde son lien).
+  workOrderId       String?
+  reason            String
+  totalHt           Int
+  totalTax          Int
+  stampDuty         Int
+  totalTtc          Int
+  snapshot          Json
+  snapshotHash      String
+  createdById       String?
+  issuedAt          DateTime @default(now())
+
+  creditOf Invoice  @relation(fields: [creditOfInvoiceId], references: [id], onDelete: Restrict)
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Restrict)
+
+  @@index([issuedAt(sort: Desc)])
+  @@index([customerId])
+}
+
 model WorkOrderEvent {
   id          String    @id @default(cuid())
   workOrderId String
@@ -700,11 +804,16 @@ model Invoice {
   dueDate     DateTime?
   /// Copie figée des lignes et de l'en-tête au moment de la facturation.
   snapshot    Json
+  /// V16 Lot 4 — empreinte SHA-256 de la copie figée (null pour les factures d'avant le Lot 4).
+  /// Une facture émise ne change plus (trigger "Invoice_frozen" : seuls paidAmount et status bougent).
+  snapshotHash String?
 
   workOrder WorkOrder         @relation(fields: [workOrderId], references: [id], onDelete: Restrict)
   customer  Customer          @relation(fields: [customerId], references: [id], onDelete: Restrict)
   payments  Payment[]
   reminders InvoiceReminder[]
+  /// V16 Lot 4 — avoir qui annule cette facture (au plus un : avoir total).
+  creditNote CreditNote?
 
   @@index([issuedAt(sort: Desc)])
   @@index([status, dueDate])
@@ -719,6 +828,8 @@ model InvoiceReminder {
   message   String
   actorId   String?
   sentAt    DateTime        @default(now())
+  /// V16 Lot 4 — relance graduée automatique (7, 15 ou 30 jours après l'échéance) ; null = relance à la main.
+  level     Int?
 
   invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   actor   User?   @relation(fields: [actorId], references: [id], onDelete: SetNull)
@@ -736,9 +847,19 @@ model Payment {
   payer     String        @default("CUSTOMER")
   actorId   String?
   paidAt    DateTime      @default(now())
+  /// V16 Lot 4 — clé envoyée par le formulaire : un double clic n'enregistre qu'un paiement.
+  requestKey   String?       @unique
+  /// V16 Lot 4 — acompte de la réception devenu un vrai paiement à la création de la facture.
+  isDeposit    Boolean       @default(false)
+  /// V16 Lot 4 — annulation d'un paiement (ligne négative, ajout seul : trigger "Payment_append_only") :
+  /// le paiement annulé et le motif.
+  reversalOfId String?       @unique
+  reason       String?
 
   invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   actor   User?   @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  reversalOf Payment? @relation("PaymentReversal", fields: [reversalOfId], references: [id], onDelete: Restrict)
+  reversedBy Payment? @relation("PaymentReversal")
 
   @@index([invoiceId])
 }
@@ -872,6 +993,11 @@ model Setting {
   diagnosticFee             Int?
   requireSafetyWaiver       Boolean @default(true)
   autoWaitingParts          Boolean @default(true)
+  /// V16 Lot 4 — bon de restitution signé exigé avant « Livré » ; gardiennage ajouté à la facture ; relances
+  /// graduées J+7 / J+15 / J+30 des factures (nouveaux OR).
+  requireSignedHandover     Boolean   @default(true)
+  autoStorageFee            Boolean   @default(true)
+  autoInvoiceReminders      Boolean   @default(true)
   openingHours           Json     @default("{\"0\":null,\"1\":{\"open\":\"08:00\",\"close\":\"17:00\"},\"2\":{\"open\":\"08:00\",\"close\":\"17:00\"},\"3\":{\"open\":\"08:00\",\"close\":\"17:00\"},\"4\":{\"open\":\"08:00\",\"close\":\"17:00\"},\"5\":{\"open\":\"08:00\",\"close\":\"17:00\"},\"6\":{\"open\":\"08:00\",\"close\":\"13:00\"}}")
   updatedAt              DateTime @updatedAt
 }
@@ -1038,6 +1164,9 @@ model WorkOrderMedia {
   caption           String?
   visibleToCustomer Boolean   @default(true)
   uploadedById      String?
+  /// V16 Lot 4 — moment de la photo : réception, travaux, restitution (null = photo d'avant le Lot 4).
+  /// Après la signature de la réception, une photo INTAKE ne se supprime plus (seulement masquée).
+  stage             MediaStage?
   createdAt         DateTime  @default(now())
 
   workOrder  WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)

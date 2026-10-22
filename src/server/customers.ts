@@ -71,7 +71,7 @@ export async function customerOption(id: string): Promise<CustomerOption | null>
 }
 
 export async function getCustomer(id: string) {
-  const [customer, invoiced] = await Promise.all([
+  const [customer, invoiced, credited] = await Promise.all([
     prisma.customer.findUnique({
       where: { id },
       include: {
@@ -84,9 +84,11 @@ export async function getCustomer(id: string) {
       },
     }),
     prisma.invoice.aggregate({ where: { customerId: id }, _sum: { totalTtc: true } }),
+    // V16 Lot 4: credit notes cancel invoices (never counted twice).
+    prisma.creditNote.aggregate({ where: { customerId: id }, _sum: { totalTtc: true } }),
   ]);
   if (!customer) return null;
-  return { ...customer, totalInvoiced: invoiced._sum.totalTtc ?? 0 };
+  return { ...customer, totalInvoiced: (invoiced._sum.totalTtc ?? 0) - (credited._sum.totalTtc ?? 0) };
 }
 
 const CUSTOMER_AUDIT = { name: true, phone: true, email: true, address: true, taxId: true, nationalId: true, notes: true, isCompany: true, reminderOptOut: true } as const;

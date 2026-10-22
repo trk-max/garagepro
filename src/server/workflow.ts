@@ -1,4 +1,4 @@
-import type { WorkOrderStatus } from "@prisma/client";
+import type { InvoiceStatus, WorkOrderStatus } from "@prisma/client";
 import { can, type Permission, type PermSubject } from "@/lib/permissions";
 
 /**
@@ -126,14 +126,28 @@ export function cleanReason(reason: string | null | undefined): string | null {
 }
 
 /** New orders cannot start work straight from reception / diagnosis unless the garage allows it (Paramètres). */
-export function workWithoutQuoteBlocked(from: WorkOrderStatus, to: WorkOrderStatus, ctx: { workflowV16: boolean; allowWorkWithoutQuote: boolean }): boolean {
-  return ctx.workflowV16 && !ctx.allowWorkWithoutQuote && (from === "RECEIVED" || from === "DIAGNOSIS") && to === "IN_PROGRESS";
+export function workWithoutQuoteBlocked(from: WorkOrderStatus, to: WorkOrderStatus, ctx: { workflowV16: boolean; allowWorkWithoutQuote: boolean; withinCeiling?: boolean }): boolean {
+  // V16 Lot 4: allowed under the authorization ceiling signed at reception (lib/handover withinCeiling).
+  return ctx.workflowV16 && !ctx.allowWorkWithoutQuote && !ctx.withinCeiling && (from === "RECEIVED" || from === "DIAGNOSIS") && to === "IN_PROGRESS";
 }
 
-/** What the customer still owes: invoice total − payments − deposit taken at reception (never below 0). */
-export function balanceDue(invoice: { totalTtc: number; paidAmount: number } | null, depositAmount: number | null | undefined): number | null {
+/**
+ * What the customer still owes: invoice total − payments − deposit taken at reception (never below 0).
+ * V16 Lot 4: pass the deposit that is NOT already a payment (lib/billing depositOutstanding: 0 for the orders whose
+ * deposit became a Payment at the invoice — never counted twice); an invoice cancelled by a credit note owes nothing.
+ */
+export function balanceDue(invoice: { totalTtc: number; paidAmount: number; status?: InvoiceStatus } | null, depositAmount: number | null | undefined): number | null {
   if (!invoice) return null;
+  if (invoice.status === "CREDITED") return 0;
   return Math.max(0, invoice.totalTtc - invoice.paidAmount - (depositAmount ?? 0));
+}
+
+/**
+ * V16 Lot 4 — READY → DELIVERED needs a signed handover (bon de restitution) made since the order became READY
+ * (setting requireSignedHandover, on by default; orders of Lot 4 on only — older orders are never blocked).
+ */
+export function handoverMissing(input: { requireSignedHandover: boolean; workflowLot4: boolean; handoverDone: boolean }): boolean {
+  return input.requireSignedHandover && input.workflowLot4 && !input.handoverDone;
 }
 
 export type DeliveryBlock = "noInvoice" | "balanceDue" | null;
@@ -164,7 +178,7 @@ export const asksReassembly = (from: WorkOrderStatus, to: WorkOrderStatus) => fr
 export function availableTransitions(
   from: WorkOrderStatus,
   subject: PermSubject,
-  ctx: TransitionContext & { allowWorkWithoutQuote: boolean; invoiced: boolean },
+  ctx: TransitionContext & { allowWorkWithoutQuote: boolean; invoiced: boolean; withinCeiling?: boolean },
 ): TransitionOption[] {
   return TRANSITIONS[from]
     .filter((to) => can(subject, transitionPermission(from, to)))

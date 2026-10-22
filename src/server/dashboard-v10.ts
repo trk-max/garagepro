@@ -102,10 +102,11 @@ export async function revenueByMonth(viewer: Viewer, year: number): Promise<Reve
   const zone = await tz();
   const w = yearWindow(year, zone);
   const [invoices, payments] = await Promise.all([
-    prisma.invoice.findMany({ where: { issuedAt: { gte: w.from, lt: w.to } }, select: { issuedAt: true, totalTtc: true, paidAmount: true } }),
+    prisma.invoice.findMany({ where: { issuedAt: { gte: w.from, lt: w.to } }, select: { issuedAt: true, totalTtc: true, paidAmount: true, status: true } }),
     paymentsBetween(w.from, w.to),
   ]);
-  return revenueByMonthFrom(year, invoices, payments, zone);
+  // V16 Lot 4: an invoice cancelled by a credit note is no longer « pending ».
+  return revenueByMonthFrom(year, invoices.map((i) => (i.status === "CREDITED" ? { ...i, totalTtc: Math.min(i.totalTtc, i.paidAmount) } : i)), payments, zone);
 }
 
 /** Monthly target (Setting.monthlyRevenueTarget, 0 = none) vs payments received this garage month so far. */

@@ -543,7 +543,7 @@ export const v7Fr = {
     message: "Message",
     status: "Statut",
     retry: "Réessayer",
-    kinds: { MAINTENANCE: "Entretien", APPOINTMENT: "Rendez-vous", DELIVERY: "Livraison prévue", AGENDA: "Agenda d’entretien", READY: "Véhicule prêt", QUOTE: "Devis à valider", QUOTE_REMINDER: "Relance devis", PROMISE: "Date promise modifiée", PART_DATE: "Date prévue d’une pièce" },
+    kinds: { MAINTENANCE: "Entretien", APPOINTMENT: "Rendez-vous", DELIVERY: "Livraison prévue", AGENDA: "Agenda d’entretien", READY: "Véhicule prêt", QUOTE: "Devis à valider", QUOTE_REMINDER: "Relance devis", PROMISE: "Date promise modifiée", PART_DATE: "Date prévue d’une pièce", INVOICE_REMINDER: "Relance de facture" },
     statuses: { PENDING: "en attente", SENDING: "en cours", SENT: "envoyé", FAILED: "échec", SKIPPED: "non envoyé" },
   },
   reminderSettings: {

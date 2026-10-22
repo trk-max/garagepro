@@ -1,3 +1,4 @@
+import { v16Lot4Fr } from "@/lib/i18n/v16-lot4-fr";
 /** V16 — parcours atelier traçable (Lot 1 : statuts, motifs, journal). */
 export const v16Fr = {
   status: {
@@ -194,4 +195,6 @@ export const v16Fr = {
       announced: "Frais annoncés à la réception (dus même en cas de refus) : {amount}",
     },
   },
+  // ── Lot 4 : réception signée, restitution, facture et paiements ──
+  lot4: v16Lot4Fr,
 };

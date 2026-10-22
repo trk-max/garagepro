@@ -47,7 +47,7 @@ export async function loadForecastInput(now = new Date()): Promise<ForecastInput
     after ? prisma.supplierPayment.findMany({ where: { paidAt: { gte: after } }, select: { amount: true, paidAt: true } }) : [],
     after ? prisma.expenseOccurrence.findMany({ where: { paidAt: { gte: after } }, select: { amount: true, paidAmount: true, paidAt: true } }) : [],
     after ? prisma.warrantyRefund.findMany({ where: { receivedAt: { gte: after }, voidedAt: null }, select: { amount: true, receivedAt: true } }) : [],
-    prisma.invoice.findMany({ where: { status: { not: "PAID" } }, select: { id: true, number: true, totalTtc: true, paidAmount: true, dueDate: true, issuedAt: true, customer: { select: { name: true } } } }),
+    prisma.invoice.findMany({ where: { status: { in: ["ISSUED", "PARTIAL"] } }, select: { id: true, number: true, totalTtc: true, paidAmount: true, dueDate: true, issuedAt: true, customer: { select: { name: true } } } }),
     prisma.supplierInvoice.findMany({ where: { status: { not: "PAID" } }, select: { id: true, number: true, totalTtc: true, paidAmount: true, dueDate: true, issuedAt: true, supplier: { select: { name: true } } } }),
     prisma.expenseOccurrence.findMany({
       where: { paidAt: null, dueDate: { lte: dayToDbDate(until) }, expense: { active: true } },

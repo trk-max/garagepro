@@ -17,6 +17,7 @@ describe("Garantie automatique à la livraison", () => {
   it("off by default: delivering creates no warranty", async () => {
     const admin = await makeUser("ADMIN");
     const { wo } = await makeWorkOrder({ status: "READY" });
+      await prisma.workOrder.update({ where: { id: wo.id }, data: { workflowLot4: false } }); // V16 Lot 4: order opened before Lot 4
     await changeStatus(wo.id, "DELIVERED", admin, { override: true, reason: "Test : livraison sans facture (dérogation V16)" });
     expect(await prisma.warranty.count({ where: { workOrderId: wo.id } })).toBe(0);
   });
@@ -26,6 +27,7 @@ describe("Garantie automatique à la livraison", () => {
     try {
       const admin = await makeUser("ADMIN");
       const { wo } = await makeWorkOrder({ status: "READY" });
+      await prisma.workOrder.update({ where: { id: wo.id }, data: { workflowLot4: false } }); // V16 Lot 4: order opened before Lot 4
       await prisma.workOrder.update({ where: { id: wo.id }, data: { mileageIn: 80_000 } });
       await changeStatus(wo.id, "DELIVERED", admin, { override: true, reason: "Test : livraison sans facture (dérogation V16)" });
       const rows = await prisma.warranty.findMany({ where: { workOrderId: wo.id } });
@@ -49,6 +51,7 @@ describe("Garantie automatique à la livraison", () => {
     try {
       const admin = await makeUser("ADMIN");
       const { wo } = await makeWorkOrder({ status: "READY" });
+      await prisma.workOrder.update({ where: { id: wo.id }, data: { workflowLot4: false } }); // V16 Lot 4: order opened before Lot 4
       await changeStatus(wo.id, "DELIVERED", admin, { override: true, reason: "Test : livraison sans facture (dérogation V16)" });
       const [w] = await listWarranties(admin, { workOrderId: wo.id });
       expect(w).toMatchObject({ endKm: null, endsAt: null });

@@ -107,6 +107,7 @@ describe("détection des remplacements", () => {
     const { wo, vehicle } = await makeWorkOrder({ status: "READY" });
     await prisma.workOrder.update({ where: { id: wo.id }, data: { mileageIn: 30_000 } });
     await prisma.workOrderLine.create({ data: { workOrderId: wo.id, approvalStatus: "APPROVED", type: "LABOR", description: `Plaquettes ${item.code.toLowerCase()}`, quantityX100: 100, unitPrice: 50_000 } });
+    await prisma.workOrder.update({ where: { id: wo.id }, data: { workflowLot4: false } }); // V16 Lot 4: no signed handover in this test
     await changeStatus(wo.id, "DELIVERED", admin, { override: true, reason: "Test : livraison sans facture (dérogation V16)" }); // V16: no invoice here → traced override
     const f = await current(vehicle.id, item.id);
     expect(f).toMatchObject({ method: "REFERENCE", dueKm: 40_000, lastDoneKm: 30_000, status: "PROPOSED" });

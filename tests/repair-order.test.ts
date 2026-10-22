@@ -118,9 +118,10 @@ describe("prise en charge", () => {
       depositAmount: 100_000,
       depositMethod: "CARD",
       customerNationalId: null,
+      warningLights: [], // V16 Lot 4
     });
     const g = new FormData();
-    expect(parseIntakeForm(g)).toEqual({ bodyChecklist: [], customerNationalId: undefined });
+    expect(parseIntakeForm(g)).toEqual({ bodyChecklist: [], customerNationalId: undefined, warningLights: [] });
     g.set("fuelLevel", "5");
     expect(() => parseIntakeForm(g)).toThrow();
     const h = new FormData();
