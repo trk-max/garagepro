@@ -13,7 +13,7 @@ import { countLongWaits } from "@/server/accueil";
 import { countLowRatings, countOpenClaims } from "@/server/claims";
 import { countExpiringContracts } from "@/server/contracts";
 import { countLateRepairs } from "@/server/follow-up";
-import { countOverdue } from "@/server/invoices";
+import { countPaymentFollowUp } from "@/server/payment-promises";
 import { unreadForStaff } from "@/server/messaging";
 import { ACTIVE_STATUSES } from "@/server/workflow";
 
@@ -43,7 +43,14 @@ export const TODO_WHERE = {
   // V16 — only orders following the V16 rules: a delivered one that is not CLOSED was delivered by override
   // (no invoice or balance due). Older delivered orders are not listed (non-retroactive).
   waitingCustomer: { status: "WAITING_CUSTOMER" } satisfies Prisma.WorkOrderWhereInput,
-  deliveredUnpaid: { status: "DELIVERED", workflowV16: true } satisfies Prisma.WorkOrderWhereInput,
+  // Settled orders are CLOSED automatically (closeIfSettled after the delivery, each payment and a credit note; a
+  // reversed payment reopens them to DELIVERED). The invoice condition guards against a settled invoice whose order
+  // stayed DELIVERED (e.g. a payment that arrived by the hub synchronisation): only "no invoice yet" or "money due".
+  deliveredUnpaid: {
+    status: "DELIVERED",
+    workflowV16: true,
+    OR: [{ invoice: null }, { invoice: { status: { in: ["ISSUED", "PARTIAL"] } } }],
+  } satisfies Prisma.WorkOrderWhereInput,
   missingParts: { status: { in: ["NEEDED", "ORDERED"] }, workOrder: { status: { in: ACTIVE_STATUSES } } } satisfies Prisma.WorkOrderPartNeedWhereInput,
   insuranceWaiting: { status: "WAITING_INSURANCE", insuranceDecision: null } satisfies Prisma.WorkOrderWhereInput,
   certificateFields: { isActive: true, OR: [{ jobTitle: null }, { jobTitle: "" }, { hireDate: null }] } satisfies Prisma.UserWhereInput,
@@ -76,7 +83,7 @@ async function countVehicleInfo(): Promise<number> {
   const rows = await prisma.workOrder.findMany({
     where: TODO_WHERE.activeOrders,
     select: { vehicle: { select: { vin: true, year: true, fuel: true, color: true } } },
-    take: 500,
+    take: 1000, // same window as the rows of todo-details (count = rows)
   });
   return rows.filter((r) => missingVehicleInfo(r.vehicle).length > 0).length;
 }
@@ -95,7 +102,8 @@ function counter(key: TodoKey, actor: TodoActor, now: Date): Promise<number> {
     case "lateRepairs": return countLateRepairs(now);
     case "missingParts": return prisma.workOrderPartNeed.count({ where: TODO_WHERE.missingParts });
     case "insuranceWaiting": return prisma.workOrder.count({ where: TODO_WHERE.insuranceWaiting });
-    case "overdueInvoices": return countOverdue(now);
+    // Paiements partiels: one list per invoice (promise passed / overdue without a promise / partly paid or promised).
+    case "overdueInvoices": case "paymentPromisesDue": case "partialPayments": return countPaymentFollowUp(key, now);
     case "openClaims": return countOpenClaims();
     case "lowRatings": return countLowRatings(now);
     case "unreadMessages": return unreadForStaff(actor);

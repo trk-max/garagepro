@@ -853,9 +853,14 @@ export async function reportStats(from: string, to: string) {
 }
 
 /** « À traiter » : customers waiting longer than the threshold (today). */
-export async function countLongWaits(now = new Date()) {
+/** Tickets of today still waiting longer than the alert threshold (count and « À traiter » rows share it). */
+export async function countLongWaitsWhere(now = new Date()) {
   const [settings, qs] = await Promise.all([getSettings(), getQueueSettings()]);
-  return prisma.queueTicket.count({ where: { day: dayKey(now, settings.timezone), status: "WAITING", takenAt: { lt: new Date(now.getTime() - qs.waitAlertMin * 60_000) } } });
+  return { day: dayKey(now, settings.timezone), status: "WAITING", takenAt: { lt: new Date(now.getTime() - qs.waitAlertMin * 60_000) } };
+}
+
+export async function countLongWaits(now = new Date()) {
+  return prisma.queueTicket.count({ where: await countLongWaitsWhere(now) });
 }
 
 /** Dashboard block « Accueil ». */

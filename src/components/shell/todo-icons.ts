@@ -3,7 +3,7 @@ import {
   IdCard, Mail, MessageSquareWarning, PackagePlus, PackageSearch, ShieldAlert, ShieldCheck, ShoppingCart, TriangleAlert, Umbrella,
   Ticket, UserRoundSearch, HandCoins,
 } from "lucide-react";
-import { Award, GraduationCap, UserCog } from "lucide-react";
+import { Award, CalendarX, GraduationCap, UserCog, Wallet } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { TodoKey } from "@/lib/todo";
 
@@ -19,6 +19,9 @@ export const TODO_ICONS: Record<TodoKey, LucideIcon> = {
   missingParts: PackageSearch,
   insuranceWaiting: Umbrella,
   overdueInvoices: FileText,
+  // Paiements partiels
+  paymentPromisesDue: CalendarX,
+  partialPayments: Wallet,
   openClaims: MessageSquareWarning,
   // V16 Lot 5
   lowRatings: MessageSquareWarning,

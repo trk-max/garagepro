@@ -3,7 +3,7 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import type { Role } from "@prisma/client";
-import { groupTodos, TODO_DEFS, TODO_KEYS, todoKeysFor, type TodoCounts } from "@/lib/todo";
+import { groupTodos, isTodoKey, TODO_DEFS, TODO_KEYS, todoKeysFor, type TodoCounts } from "@/lib/todo";
 import { helpAr } from "@/lib/i18n/help-ar";
 import { helpEn } from "@/lib/i18n/help-en";
 import { helpFr } from "@/lib/i18n/help-fr";
@@ -32,7 +32,8 @@ describe("V10.4 à traiter — visibility", () => {
     expect(todoKeysFor("MECHANIC")).toEqual(["vehicleInfo", "warrantyOpen"]);
     expect(todoKeysFor("SELLER")).toEqual(["unreadMessages"]);
     expect(todoKeysFor("STOREKEEPER")).toEqual(["missingParts", "lowStock"]);
-    expect(todoKeysFor("ACCOUNTANT")).toEqual(["overdueInvoices", "contractsExpiring"]);
+    // Paiements partiels: whoever sees the customer invoices sees the missed promises and the partly paid invoices too.
+    expect(todoKeysFor("ACCOUNTANT")).toEqual(["paymentPromisesDue", "overdueInvoices", "partialPayments", "contractsExpiring"]);
     expect(todoKeysFor("ADMIN")).toEqual([...TODO_KEYS]);
   });
 
@@ -66,6 +67,19 @@ describe("V10.4 à traiter — grouping", () => {
       const page = (TODO_DEFS[k].href.split("?")[0] ?? "").replace("/garage", "");
       expect(existsSync(path.resolve("src/app/(garage)/garage", `.${page}`, "page.tsx")), k).toBe(true);
     }
+  });
+
+  it("each item leads to the page of its exact records (bell + overview), the module link is kept", () => {
+    expect(existsSync(path.resolve("src/app/(garage)/garage/a-traiter/[key]/page.tsx"))).toBe(true);
+    const list = groupTodos(all, "ADMIN");
+    for (const i of [...list.incomplete, ...list.approval]) {
+      expect(i.target).toBe(`/garage/a-traiter/${i.key}`);
+      expect(i.href).toBe(TODO_DEFS[i.key].href);
+      expect(isTodoKey(i.key)).toBe(true);
+    }
+    expect(isTodoKey("nope")).toBe(false);
+    // Only the missed promise is red.
+    expect(list.incomplete.filter((i) => i.tone === "danger").map((i) => i.key)).toEqual(["paymentPromisesDue"]);
   });
 
   it("every item is translated in the 3 languages", () => {

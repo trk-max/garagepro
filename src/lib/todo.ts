@@ -11,7 +11,8 @@ export type TodoGroup = "incomplete" | "approval";
 export const TODO_KEYS = [
   // A. Incomplete
   "vehicleInfo", "quoteWaiting", "waitingCustomer", "readyNotDelivered", "deliveredUnpaid", "lateRepairs", "missingParts", "insuranceWaiting",
-  "overdueInvoices", "openClaims", "lowRatings", "unreadMessages", "warrantyOpen", "contractDrafts", "contractsExpiring",
+  // Paiements partiels — promesse dépassée (en rouge), en retard sans promesse, partiellement payées / paiement promis.
+  "paymentPromisesDue", "overdueInvoices", "partialPayments", "openClaims", "lowRatings", "unreadMessages", "warrantyOpen", "contractDrafts", "contractsExpiring",
   "certificateFields", "lowStock", "backup", "agendaDue", "agendaParts",
   // V14 — compétences
   "skillCertificates", "skillWarnings",
@@ -24,8 +25,16 @@ export const TODO_KEYS = [
 ] as const;
 export type TodoKey = (typeof TODO_KEYS)[number];
 
-/** `visible` takes a role or the signed-in user (role + per-user overrides, V10.3). */
-type Def = { group: TodoGroup; href: string; visible: (who: PermSubject) => boolean };
+/**
+ * `visible` takes a role or the signed-in user (role + per-user overrides, V10.3). `href` = the module's page (old
+ * links, kept); the bell and the « À traiter » page open todoHref(key): the exact records of the item.
+ * `tone` "danger": shown in red (a promise the customer did not keep).
+ */
+type Def = { group: TodoGroup; href: string; visible: (who: PermSubject) => boolean; tone?: "danger" };
+
+/** Page listing EXACTLY the records of an item (plate, vehicle, customer, number, key figure, direct link). */
+export const todoHref = (key: TodoKey) => `/garage/a-traiter/${key}`;
+export const isTodoKey = (k: string): k is TodoKey => (TODO_KEYS as readonly string[]).includes(k);
 
 const followUp = (r: PermSubject) => can(r, "manageRepairFollowUp");
 const contracts = (access: "view" | "manage" | "approve") => (r: PermSubject) => can(r, "viewContracts") && contractCategoriesFor(r, access).length > 0;
@@ -44,6 +53,9 @@ export const TODO_DEFS: Record<TodoKey, Def> = {
   missingParts: { group: "incomplete", href: "/garage/suivi", visible: (r) => followUp(r) || can(r, "manageStock") },
   insuranceWaiting: { group: "incomplete", href: "/garage/work-orders?status=WAITING_INSURANCE", visible: followUp },
   overdueInvoices: { group: "incomplete", href: "/garage/invoices?status=OVERDUE", visible: (r) => can(r, "viewClientInvoices") },
+  // Paiements partiels — date du prochain paiement passée sans paiement ; factures partiellement payées / paiement promis.
+  paymentPromisesDue: { group: "incomplete", href: "/garage/invoices?status=OVERDUE", visible: (r) => can(r, "viewClientInvoices"), tone: "danger" },
+  partialPayments: { group: "incomplete", href: "/garage/invoices?status=PARTIAL", visible: (r) => can(r, "viewClientInvoices") },
   openClaims: { group: "incomplete", href: "/garage/reclamations", visible: (r) => can(r, "manageClaims") },
   // V16 Lot 5 — note ≤ 3 laissée par un client (30 derniers jours), pas encore traitée.
   lowRatings: { group: "incomplete", href: "/garage/reclamations", visible: (r) => can(r, "manageClaims") },
@@ -75,13 +87,14 @@ export const TODO_DEFS: Record<TodoKey, Def> = {
 export const todoKeysFor = (who: PermSubject): TodoKey[] => TODO_KEYS.filter((k) => TODO_DEFS[k].visible(who));
 
 export type TodoCounts = Partial<Record<TodoKey, number>>;
-export type TodoItem = { key: TodoKey; group: TodoGroup; href: string; count: number };
+/** `href` = the module's page; `target` = the exact records (todoHref). */
+export type TodoItem = { key: TodoKey; group: TodoGroup; href: string; target: string; count: number; tone?: "danger" };
 export type TodoList = { incomplete: TodoItem[]; approval: TodoItem[]; total: number };
 
 /** Non-zero items of the person (or role), in the fixed order, split in the two sections. */
 export function groupTodos(counts: TodoCounts, who: PermSubject): TodoList {
   const items = todoKeysFor(who)
-    .map((key) => ({ key, group: TODO_DEFS[key].group, href: TODO_DEFS[key].href, count: counts[key] ?? 0 }))
+    .map((key): TodoItem => ({ key, group: TODO_DEFS[key].group, href: TODO_DEFS[key].href, target: todoHref(key), count: counts[key] ?? 0, ...(TODO_DEFS[key].tone ? { tone: TODO_DEFS[key].tone } : {}) }))
     .filter((i) => i.count > 0);
   return {
     incomplete: items.filter((i) => i.group === "incomplete"),
