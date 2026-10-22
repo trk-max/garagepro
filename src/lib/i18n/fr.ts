@@ -1,3 +1,4 @@
+import { paymentsFr } from "@/lib/i18n/payments-fr";
 import { v10Fr } from "@/lib/i18n/v10-fr";
 import { v103Fr } from "@/lib/i18n/v103-fr";
 import { todoFr } from "@/lib/i18n/todo-fr";
@@ -444,6 +445,9 @@ export const fr = {
     noLines: "Ajoutez au moins une ligne avant de facturer.",
     alreadyInvoiced: "Cet ordre est déjà facturé.",
     overpaid: "Le montant dépasse le reste dû.",
+    promiseDate: "Date du prochain paiement impossible : aujourd’hui ou plus tard (un an au plus).",
+    promiseAmount: "Le montant promis doit être positif et ne pas dépasser le reste dû.",
+    promiseSettled: "Cette facture est soldée ou annulée : rien à promettre.",
     lastAdmin: "Impossible : le garage doit garder au moins un administrateur actif.",
     ownRole: "Vous ne pouvez pas changer votre propre rôle. Demandez à un autre administrateur.",
     ownDelete: "Vous ne pouvez pas supprimer votre propre compte. Demandez à un autre administrateur.",
@@ -1021,6 +1025,8 @@ export const fr = {
   v103: v103Fr,
   /** V10.4 — menu du compte (Aide) et liste « À traiter ». */
   todo: todoFr,
+  /** Paiements partiels — date du prochain paiement promise. */
+  pay: paymentsFr,
   /** V10.5 — stock : modifier une pièce, liste complète. */
   stockList: stockListFr,
   /** V10.6 — kit juridique : prise en charge, conditions de l'ordre de réparation, mentions de la facture. */

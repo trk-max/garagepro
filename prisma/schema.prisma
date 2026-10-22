@@ -401,6 +401,8 @@ model WorkOrder {
   quotes         Quote[]
   /// V16 Lot 3 — changements de la date promise et des dates prévues des pièces (ajout seul).
   promiseRevisions PromiseRevision[]
+  /// Paiements partiels — dates de prochain paiement promises par le client (ajout seul).
+  paymentPromises  PaymentPromise[]
   /// V16 Lot 4 — signatures (ajout seul) et bons de restitution (ajout seul).
   signatures       Signature[]
   handovers        VehicleHandover[]
@@ -830,12 +832,36 @@ model Invoice {
   customer  Customer          @relation(fields: [customerId], references: [id], onDelete: Restrict)
   payments  Payment[]
   reminders InvoiceReminder[]
+  /// Paiements partiels — promesses de paiement (ajout seul ; la dernière compte). Aucune colonne ajoutée à Invoice.
+  paymentPromises PaymentPromise[]
   /// V16 Lot 4 — avoir qui annule cette facture (au plus un : avoir total).
   creditNote CreditNote?
 
   @@index([issuedAt(sort: Desc)])
   @@index([status, dueDate])
   @@index([customerId])
+}
+
+/// Paiements partiels — le client promet de payer (le reste de) la facture tel jour. AJOUT SEUL (trigger
+/// "PaymentPromise_readonly", sauf la synchro du hub) : la dernière ligne compte, les précédentes restent l'historique.
+model PaymentPromise {
+  id           String   @id @default(cuid())
+  invoiceId    String
+  workOrderId  String
+  /// Jour promis (midi, heure du garage).
+  promisedAt   DateTime
+  /// Montant promis en millimes (null = le reste dû).
+  amount       Int?
+  note         String?
+  recordedById String?
+  createdAt    DateTime @default(now())
+
+  invoice   Invoice   @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+  workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Restrict)
+
+  @@index([invoiceId, createdAt])
+  @@index([workOrderId, createdAt])
+  @@index([promisedAt])
 }
 
 /// Relance client pour retard de paiement (historique).

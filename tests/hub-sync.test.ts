@@ -553,6 +553,39 @@ describe.skipIf(!BASE)("garage hub ↔ online database", () => {
     }
   }, 30_000);
 
+  it("Paiements partiels: migration 30 replays twice; payment promises (append-only) travel both ways", async () => {
+    const logged = async (db: pg.Client) => Number((await one(db, `SELECT count(*) FROM "_sync_log"`)).count);
+    const before = await logged(local);
+    for (const db of [local, cloud]) for (let i = 0; i < 2; i++) await db.query(migrationSql("30_payment_promises"));
+    expect(await logged(local)).toBe(before);
+    const trg = await local.query(`SELECT 1 FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid WHERE t.tgname = '_sync_log_trg' AND c.relname = 'PaymentPromise'`);
+    expect(trg.rowCount).toBe(1);
+
+    await addCustomer(local, "c30", "Client paiement partiel");
+    await addVehicle(local, "v30", "300TU3000", "c30");
+    await addWorkOrder(local, "w30", "c30", "v30");
+    await local.query(`INSERT INTO "Invoice"(id, number, "workOrderId", "customerId", "totalHt", "totalTax", "stampDuty", "totalTtc", snapshot) VALUES ('i30', 'F2026-0930', 'w30', 'c30', 250000, 49000, 1000, 300000, '{}')`);
+    await local.query(`INSERT INTO "Payment"(id, "invoiceId", amount, method) VALUES ('p30', 'i30', 100000, 'CASH')`);
+    await local.query(`UPDATE "Invoice" SET "paidAmount" = 100000, status = 'PARTIAL' WHERE id = 'i30'`);
+    // Garage (hub): first promise; online at the same time (from outside): a newer promise.
+    await local.query(`INSERT INTO "PaymentPromise"(id, "invoiceId", "workOrderId", "promisedAt", amount, note) VALUES ('pp30a', 'i30', 'w30', '2026-11-05 11:00:00', 50000, 'Salaire')`);
+    let r = await syncOnce(local, cloud);
+    expect(r.errors).toEqual([]);
+    await cloud.query(`INSERT INTO "PaymentPromise"(id, "invoiceId", "workOrderId", "promisedAt", amount) VALUES ('pp30b', 'i30', 'w30', '2026-11-12 11:00:00', NULL)`);
+    r = await syncOnce(local, cloud);
+    expect(r.errors).toEqual([]);
+    for (const db of [local, cloud]) {
+      expect((await db.query(`SELECT id, amount FROM "PaymentPromise" WHERE "invoiceId"='i30' ORDER BY id`)).rows).toEqual([
+        { id: "pp30a", amount: 50000 },
+        { id: "pp30b", amount: null },
+      ]);
+      expect(await one(db, `SELECT "paidAmount", status FROM "Invoice" WHERE id='i30'`)).toEqual({ paidAmount: 100000, status: "PARTIAL" });
+      // Append-only on both sides (the synchronisation alone may write).
+      await expect(db.query(`UPDATE "PaymentPromise" SET amount = 1 WHERE id='pp30a'`)).rejects.toThrow(/append-only/);
+      await expect(db.query(`DELETE FROM "PaymentPromise" WHERE id='pp30b'`)).rejects.toThrow(/append-only/);
+    }
+  }, 30_000);
+
   it("a database without a hub logs nothing", async () => {
     const plain = await freshDb(admin, `${HUB}_plain`, allMigrations);
     try {

@@ -1,0 +1,26 @@
+/** Paiements partiels — date du prochain paiement promise par le client (facture, ordre, liste des factures). */
+export const paymentsFr = {
+  promise: {
+    title: "Prochain paiement",
+    hint: "Date à laquelle le client promet de payer. La dernière date enregistrée compte ; les précédentes restent dans l’historique. Si elle passe sans paiement, la facture revient en rouge dans « À traiter ».",
+    day: "Date du prochain paiement",
+    amount: "Montant promis (DT, facultatif)",
+    amountHint: "Vide = tout le reste dû ({amount}).",
+    note: "Note (facultatif)",
+    submit: "Enregistrer la date",
+    history: "Historique des promesses",
+    none: "Aucune date promise pour l’instant.",
+    on: "le {date}",
+    rest: "le reste dû",
+    overdue: "Promesse de paiement dépassée",
+    overdueSince: "Promis le {date} — dépassée de {days} j",
+    kept: "Promesse tenue : un paiement a été reçu depuis. Fixez la prochaine date si un reste est dû.",
+    waiting: "En attente",
+    by: "par {name}",
+    recordedAt: "enregistrée le {date}",
+    toSet: "À fixer",
+    remind: "Relancer le client",
+    invoiceOf: "Facture {number}",
+    noRight: "Seules les personnes qui encaissent peuvent fixer la date.",
+  },
+};

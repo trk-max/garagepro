@@ -1,3 +1,4 @@
+import { paymentsAr } from "@/lib/i18n/payments-ar";
 import { v10Ar } from "@/lib/i18n/v10-ar";
 import { v103Ar } from "@/lib/i18n/v103-ar";
 import { todoAr } from "@/lib/i18n/todo-ar";
@@ -446,6 +447,9 @@ export const ar: Dictionary = {
     noLines: "أضف سطرًا واحدًا على الأقل قبل الفوترة.",
     alreadyInvoiced: "هذا الأمر مفوتر مسبقًا.",
     overpaid: "المبلغ يتجاوز الباقي.",
+    promiseDate: "تاريخ الدفعة القادمة غير ممكن: اليوم أو بعده (سنة على الأكثر).",
+    promiseAmount: "يجب أن يكون المبلغ الموعود موجبًا وألا يتجاوز الباقي.",
+    promiseSettled: "هذه الفاتورة مسددة أو ملغاة: لا شيء للوعد به.",
     lastAdmin: "غير ممكن: يجب أن يبقى مدير نشط واحد على الأقل.",
     ownRole: "لا يمكنك تغيير دورك بنفسك. اطلب ذلك من مدير آخر.",
     ownDelete: "لا يمكنك حذف حسابك بنفسك. اطلب ذلك من مدير آخر.",
@@ -1022,6 +1026,8 @@ export const ar: Dictionary = {
   v103: v103Ar,
   /** V10.4 — menu du compte (Aide) et liste « À traiter ». */
   todo: todoAr,
+  /** Paiements partiels — date du prochain paiement promise. */
+  pay: paymentsAr,
   /** V10.5 — stock : modifier une pièce, liste complète. */
   stockList: stockListAr,
   /** V10.6 — kit juridique : prise en charge, conditions de l'ordre de réparation, mentions de la facture. */

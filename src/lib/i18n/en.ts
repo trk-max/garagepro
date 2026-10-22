@@ -1,3 +1,4 @@
+import { paymentsEn } from "@/lib/i18n/payments-en";
 import { v10En } from "@/lib/i18n/v10-en";
 import { v103En } from "@/lib/i18n/v103-en";
 import { todoEn } from "@/lib/i18n/todo-en";
@@ -446,6 +447,9 @@ export const en: Dictionary = {
     noLines: "Add at least one line before invoicing.",
     alreadyInvoiced: "This work order is already invoiced.",
     overpaid: "The amount is more than the balance due.",
+    promiseDate: "Impossible next payment date: today or later (one year at most).",
+    promiseAmount: "The promised amount must be positive and not more than the balance due.",
+    promiseSettled: "This invoice is settled or cancelled: nothing to promise.",
     lastAdmin: "Not possible: the garage must keep at least one active administrator.",
     ownRole: "You cannot change your own role. Ask another administrator.",
     ownDelete: "You cannot delete your own account. Ask another administrator.",
@@ -1022,6 +1026,8 @@ export const en: Dictionary = {
   v103: v103En,
   /** V10.4 — menu du compte (Aide) et liste « À traiter ». */
   todo: todoEn,
+  /** Paiements partiels — date du prochain paiement promise. */
+  pay: paymentsEn,
   /** V10.5 — stock : modifier une pièce, liste complète. */
   stockList: stockListEn,
   /** V10.6 — kit juridique : prise en charge, conditions de l'ordre de réparation, mentions de la facture. */
