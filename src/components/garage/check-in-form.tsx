@@ -20,11 +20,13 @@ type Props = {
   initialCustomer: CustomerOption | null;
   mechanics: { id: string; name: string }[];
   preset?: { vehicleId?: string; plate?: string };
+  /** V16 Lot 3 — diagnostic fee of Paramètres, formatted (null = none): proposed, box ticked by default. */
+  diagnosticFee?: string | null;
 };
 
 const NEW = "__new";
 
-export function CheckInForm({ initialCustomer, mechanics, preset }: Props) {
+export function CheckInForm({ initialCustomer, mechanics, preset, diagnosticFee }: Props) {
   const { t } = useI18n();
   const [customer, setCustomer] = useState<CustomerOption | null>(initialCustomer);
   const [vehicleId, setVehicleId] = useState(initialCustomer && preset?.vehicleId ? preset.vehicleId : NEW);
@@ -154,6 +156,12 @@ export function CheckInForm({ initialCustomer, mechanics, preset }: Props) {
             <p className="mb-3 mt-1 text-xs text-muted-foreground">{t.legal.intake.intro}</p>
             <IntakeFields t={t} />
           </details>
+          {diagnosticFee && (
+            <label className="flex items-start gap-2 rounded-[14px] border border-gp-line p-3 text-sm">
+              <input type="checkbox" name="diagnosticFee" defaultChecked className="mt-0.5 size-4" />
+              {t.v16.lot3.refusal.diagnosticAccept.replace("{amount}", diagnosticFee)}
+            </label>
+          )}
           <Button type="submit" className="mt-2">
             {t.common.create}
           </Button>

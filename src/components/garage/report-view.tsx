@@ -140,6 +140,9 @@ export function ReportView({ data, t, lang }: { data: Data; t: Dictionary; lang:
               [r.newCustomers, String(data.cars.newCustomers)],
               [r.returning, String(data.cars.returning)],
               [r.comebacks, String(data.cars.comebacks), data.cars.comebacks ? "text-brand-500" : undefined],
+              // V16 Lot 3 — delivered on the FIRST promised date (and on the current one).
+              [t.v16.lot3.promise.kpi, data.cars.promise.pctInitial === null ? "—" : fmt(t.v16.lot3.promise.kpiValue, { n: data.cars.promise.onTimeInitial, total: data.cars.promise.withPromise, pct: data.cars.promise.pctInitial })],
+              [t.v16.lot3.promise.kpiCurrent, data.cars.promise.pctCurrent === null ? "—" : fmt(t.v16.lot3.promise.kpiValue, { n: data.cars.promise.onTimeCurrent, total: data.cars.promise.withCurrent, pct: data.cars.promise.pctCurrent })],
               [r.appointments, fmt(r.apptStats, data.cars.appointments)],
             ]}
           />

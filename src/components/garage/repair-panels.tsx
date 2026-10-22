@@ -4,6 +4,7 @@ import {
   addLaborEntryAction,
   addPartNeedAction,
   addSuggestedLaborLineAction,
+  partsWaitDecisionAction,
   approveQualityCheckAction,
   saveQualityCheckAction,
   startLaborAction,
@@ -31,6 +32,8 @@ import { partOptions } from "@/server/parts";
 import { supplierOptions } from "@/server/purchasing";
 import { QC_KEYS, getQualityCheck } from "@/server/quality";
 import { isFinal } from "@/server/workflow";
+import { PROMISE_REASONS } from "@/lib/delays";
+import { lastPartsWaitDecision } from "@/server/delays";
 
 type Wo = {
   id: string;
@@ -47,7 +50,7 @@ const day = (d: Date | null, tz: string) => (d ? utcToZoned(d, tz).date : "");
 
 /** Work order: time per mechanic, quality control, insurance, missing parts. */
 export async function RepairPanels({ wo, staff, t, lang, tz }: { wo: Wo; staff: StaffUser; t: Dictionary; lang: Lang; tz: string }) {
-  const [labor, qc, needs, parts, suppliers, users, supervision] = await Promise.all([
+  const [labor, qc, needs, parts, suppliers, users, supervision, orderLines, waitDecision] = await Promise.all([
     laborSummary(wo.id),
     getQualityCheck(wo.id),
     listPartNeeds(wo.id),
@@ -56,7 +59,14 @@ export async function RepairPanels({ wo, staff, t, lang, tz }: { wo: Wo; staff: 
     prisma.user.findMany({ where: { isActive: true }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
     // V14: supervisor of the order (indicator on the quality check) and the « supervisor verifies » rule.
     prisma.workOrder.findUnique({ where: { id: wo.id }, select: { supervisor: { select: { name: true } } } }).then(async (w) => (w?.supervisor ? { name: w.supervisor.name, verifies: (await prisma.setting.findUnique({ where: { id: "garage" }, select: { skillSupervisorVerifies: true } }))?.skillSupervisorVerifies ?? false } : null)),
+    // V16 Lot 3: the order lines a missing part can be tied to, and the « keep / hand back » decision.
+    prisma.workOrderLine.findMany({ where: { workOrderId: wo.id, voidedAt: null, approvalStatus: { not: "REFUSED" } }, orderBy: [{ position: "asc" }, { createdAt: "asc" }], select: { id: true, description: true } }),
+    lastPartsWaitDecision(wo.id),
   ]);
+  const l3 = t.v16.lot3;
+  const canUpdateNeeds = can(staff, "manageRepairFollowUp") || can(staff, "managePartNeeds");
+  const openNeeds = needs.some((n) => n.status === "NEEDED" || n.status === "ORDERED");
+  const lineName = (id: string | null) => (id ? (orderLines.find((l) => l.id === id)?.description ?? null) : null);
   const approver = qc?.approvedById ? await prisma.user.findUnique({ where: { id: qc.approvedById }, select: { name: true } }) : null;
   const v = t.v7;
   const final = isFinal(wo.status);
@@ -278,8 +288,9 @@ export async function RepairPanels({ wo, staff, t, lang, tz }: { wo: Wo; staff: 
                     {n.part && <span className="font-mono text-xs text-muted-foreground">{n.part.sku}</span>}
                     {late && <span className="f-label border border-red-500 px-1.5 text-[0.625rem] text-red-600">{v.parts.late}</span>}
                     {n.purchaseOrder && <span className="text-xs">{v.parts.po} {n.purchaseOrder.number}</span>}
+                    {lineName(n.workOrderLineId) && <span className="text-xs text-muted-foreground">{fmt(l3.parts.linked, { line: lineName(n.workOrderLineId)! })}</span>}
                   </p>
-                  {can(staff, "manageRepairFollowUp") && !final ? (
+                  {canUpdateNeeds && !final ? (
                     <ActionForm action={updatePartNeedAction.bind(null, n.id, wo.id)} reset={false} className="mt-2 flex flex-wrap items-end gap-2">
                       <NativeSelect name="status" defaultValue={n.status} className="w-36" aria-label={v.parts.title}>
                         {(["NEEDED", "ORDERED", "RECEIVED", "CANCELLED"] as const).map((s) => (
@@ -297,6 +308,15 @@ export async function RepairPanels({ wo, staff, t, lang, tz }: { wo: Wo; staff: 
                         ))}
                       </NativeSelect>
                       <Input type="date" name="expectedAt" defaultValue={day(n.expectedAt, tz)} className="w-40" aria-label={v.parts.expected} />
+                      {/* V16 Lot 3: why the expected date changes (the customer is told). */}
+                      <NativeSelect name="dateReason" defaultValue="PARTS" className="w-44" aria-label={l3.parts.dateReason}>
+                        {PROMISE_REASONS.map((r) => (
+                          <option key={r} value={r}>
+                            {l3.reasons[r]}
+                          </option>
+                        ))}
+                      </NativeSelect>
+                      <Input name="dateNote" maxLength={500} placeholder={l3.promise.note} className="w-48" aria-label={l3.promise.note} />
                       <Button type="submit" size="sm" variant="outline" className="h-9">
                         {t.common.save}
                       </Button>
@@ -346,6 +366,26 @@ export async function RepairPanels({ wo, staff, t, lang, tz }: { wo: Wo; staff: 
               <Field label={v.parts.expected}>
                 <Input type="date" name="expectedAt" />
               </Field>
+              {/* V16 Lot 3: the line waiting for the part (an accepted one moves the order to « attente pièces »). */}
+              <Field label={l3.parts.line}>
+                <NativeSelect name="workOrderLineId" defaultValue="">
+                  <option value="">{l3.parts.noLine}</option>
+                  {orderLines.map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.description}
+                    </option>
+                  ))}
+                </NativeSelect>
+              </Field>
+              <Field label={l3.parts.dateReason}>
+                <NativeSelect name="dateReason" defaultValue="PARTS">
+                  {PROMISE_REASONS.map((r) => (
+                    <option key={r} value={r}>
+                      {l3.reasons[r]}
+                    </option>
+                  ))}
+                </NativeSelect>
+              </Field>
               <div>
                 <Button type="submit" size="sm">
                   {t.common.add}
@@ -355,6 +395,35 @@ export async function RepairPanels({ wo, staff, t, lang, tz }: { wo: Wo; staff: 
           </details>
         )}
       </Card>
+
+      {/* ── V16 Lot 3: while waiting for parts — the car stays, or is handed back (Lot 4: no storage fee) ── */}
+      {(wo.status === "WAITING_PARTS" || openNeeds || waitDecision) && !final && (
+        <Card>
+          <CardTitle>{l3.parts.decisionTitle}</CardTitle>
+          {waitDecision && (
+            <p className="mb-2 text-sm" data-testid="parts-wait-decision">
+              {fmt(l3.parts.decided, { decision: l3.parts.decision[waitDecision.decision], date: formatDateTime(waitDecision.at, lang, tz) })}
+              {waitDecision.garageCaused && <span className="block text-xs text-muted-foreground">{l3.parts.garageCaused}</span>}
+            </p>
+          )}
+          {can(staff, "manageRepairFollowUp") && (
+            <div className="flex flex-wrap gap-2">
+              {(["KEEP_VEHICLE", "RETURN_LATER"] as const).map((d) => (
+                <ActionForm key={d} action={partsWaitDecisionAction.bind(null, wo.id)} reset={false} className="flex flex-wrap items-center gap-2 rounded-[14px] border border-gp-line px-3 py-2">
+                  <input type="hidden" name="decision" value={d} />
+                  <label className="flex items-center gap-2 text-xs">
+                    <input type="checkbox" name="garageCaused" defaultChecked={waitDecision?.garageCaused ?? true} className="size-4" />
+                    {l3.parts.garageCaused}
+                  </label>
+                  <Button type="submit" size="sm" variant="outline">
+                    {d === "KEEP_VEHICLE" ? l3.parts.keep : l3.parts.returnLater}
+                  </Button>
+                </ActionForm>
+              ))}
+            </div>
+          )}
+        </Card>
+      )}
 
       {/* ── Insurance ── */}
       {(wo.status === "WAITING_INSURANCE" || wo.insurerName || can(staff, "manageRepairFollowUp")) && (

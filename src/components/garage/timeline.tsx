@@ -33,7 +33,19 @@ export function describeEvent(e: Pick<WorkOrderEvent, "type" | "data">, t: Dicti
             amount: formatMoney(typeof d.amount === "number" ? d.amount : 0, lang),
           })
         : t.events.QUOTE_APPROVED;
-    case "NOTE":
+    case "NOTE": {
+      // V16 Lot 3: date changes, parts received, « keep / hand back » decision, signed safety waiver.
+      const l3 = t.v16.lot3;
+      const reasonOf = (v: unknown) => (typeof v === "string" && v in l3.reasons ? l3.reasons[v as keyof typeof l3.reasons] : "");
+      const day = (v: unknown) => (typeof v === "string" ? formatDateTime(v, lang) : l3.promise.noDate);
+      if (d.promiseRevised)
+        return d.partNeedId
+          ? fmt(l3.promise.eventPart, { part: str(d.part), old: day(d.old), new: day(d.new), reason: reasonOf(d.promiseReason) })
+          : fmt(l3.promise.event, { old: day(d.old), new: day(d.new), reason: reasonOf(d.promiseReason) });
+      if (d.partReceived) return fmt(l3.parts.received, { part: str(d.part), number: str(d.receipt) });
+      if (typeof d.partsWait === "string" && d.partsWait in l3.parts.decision)
+        return fmt(l3.parts.eventDecision, { decision: l3.parts.decision[d.partsWait as keyof typeof l3.parts.decision] });
+      if (d.safetyWaiver) return fmt(l3.refusal.events.waiver, { n: Array.isArray(d.lineIds) ? d.lineIds.length : 0 });
       return d.quoteSent
         ? fmt(t.v16.quote.events.sent, {
             kind: (d.kind === "SUPPLEMENT" ? t.v16.quote.kind.SUPPLEMENT : t.v16.quote.kind.INITIAL).toLowerCase(),
@@ -42,6 +54,7 @@ export function describeEvent(e: Pick<WorkOrderEvent, "type" | "data">, t: Dicti
             amount: formatMoney(typeof d.totalTtc === "number" ? d.totalTtc : 0, lang),
           })
         : t.events.NOTE;
+    }
     default:
       return t.events[e.type];
   }
@@ -54,6 +67,13 @@ export function eventDetails(e: Pick<WorkOrderEvent, "data">, t: Dictionary, lan
   if (d.override) out.push(fmt(t.v16.events.override, { amount: formatMoney(typeof d.balanceDue === "number" ? d.balanceDue : 0, lang) }));
   if (typeof d.reason === "string" && d.reason) out.push(fmt(t.v16.events.reason, { reason: d.reason }));
   if (d.auto) out.push(t.v16.events.auto);
+  // V16 Lot 3
+  if (d.autoParts) out.push(t.v16.lot3.parts.autoWaiting);
+  if (typeof d.refusedLines === "number") out.push(fmt(t.v16.lot3.refusal.events.refusedLines, { n: d.refusedLines }));
+  if (d.reassembled === true) out.push(t.v16.lot3.refusal.events.reassembled);
+  if (d.reassembled === false) out.push(t.v16.lot3.refusal.events.notReassembled);
+  if (d.announcedFee) out.push(t.v16.lot3.refusal.announcedFee);
+  if (d.partsWait && d.garageCaused) out.push(t.v16.lot3.parts.garageCaused);
   return out;
 }
 

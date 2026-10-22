@@ -10,7 +10,7 @@ import { it } from "vitest";
 import type { Role, WorkOrderStatus } from "@prisma/client";
 import type { StaffUser } from "@/lib/session";
 import { prisma } from "../../tests/helpers/test-prisma";
-import { addLine, applyPackage, changeStatus, createWorkOrder, removeLine } from "@/server/work-orders";
+import { addLine, applyPackage, changeStatus, createWorkOrder, removeLine, updateMeta } from "@/server/work-orders";
 import { createInvoice, recordPayment } from "@/server/invoices";
 import { recordStaffDecision } from "@/server/quotes";
 import { createPart } from "@/server/parts";
@@ -63,6 +63,8 @@ it("demo data", async () => {
       id: "garage", garageName: "Garage Atlas (démo)", address: "Zone industrielle, Ben Arous", city: "Ben Arous", phone: "+216 71 000 000",
       taxId: "1234567/A/M/000", laborRate: DT(35), stampDuty: DT(1), warrantyMonths: 6, warrantyKm: 10_000, laborCostPerHour: DT(12),
       monthlyRevenueTarget: DT(40_000), cashAlertThreshold: DT(5_000), legalName: "Garage Atlas SARL", legalRepName: "Malek Atlas", legalRepTitle: "Gérant",
+      // V16 Lot 3: diagnostic fee proposed at reception.
+      diagnosticFee: DT(30),
     },
   });
 
@@ -178,7 +180,9 @@ it("demo data", async () => {
     }
     await step("livré", () => changeStatus(wo.id, "DELIVERED", S.accueil!));
     // Back-date to spread the history over the months (dates only).
-    await prisma.workOrder.update({ where: { id: wo.id }, data: { createdAt: at, deliveredAt: new Date(at.getTime() + 2 * DAY) } as never });
+    // V16 Lot 3: first promise kept 2 times out of 3 (KPI « livré à la date promise initiale »); some promises moved.
+    const firstPromise = new Date(at.getTime() + (i % 3 === 0 ? 1.5 : 2.5) * DAY);
+    await prisma.workOrder.update({ where: { id: wo.id }, data: { createdAt: at, deliveredAt: new Date(at.getTime() + 2 * DAY), promisedAtInitial: firstPromise, promisedAt: i % 3 === 0 ? new Date(at.getTime() + 2.5 * DAY) : firstPromise } as never });
     if (inv) {
       await prisma.invoice.update({ where: { id: inv.id }, data: { issuedAt: new Date(at.getTime() + 2 * DAY), dueDate: new Date(at.getTime() + 17 * DAY) } });
       await prisma.payment.updateMany({ where: { invoiceId: inv.id }, data: { paidAt: new Date(at.getTime() + 2 * DAY) } });
@@ -210,13 +214,17 @@ it("demo data", async () => {
     // V16 Lot 2 — partial agreement (last line refused), and a supplement waiting for the customer.
     ["PARTIAL", ["DIAGNOSIS", "QUOTE_SENT", "IN_PROGRESS"]],
     ["SUPPLEMENT", ["QUOTE_SENT", "IN_PROGRESS"]],
+    // V16 Lot 3 — refused quote with an announced diagnostic fee and a refused SAFETY line; promised date moved.
+    ["REFUSED_SAFETY", ["DIAGNOSIS", "QUOTE_SENT"]],
+    ["DATE_MOVED", ["QUOTE_SENT", "IN_PROGRESS"]],
   ];
   for (const [n, [label, path]] of stages.entries()) {
     const c = customers[n]!;
     const v = c.vehicles[0]!;
-    const wo = await createWorkOrder({ customerId: c.id, vehicleId: v.id, complaint: `Démo — ${label}`, priority: n % 4 === 0 ? "URGENT" : "NORMAL", mileageIn: 120_000 + n * 1000, mechanicId: mechs[n % 3]!.id, promisedAt: new Date(Date.now() + (n - 5) * 6 * 3_600_000) }, S.accueil!);
+    const wo = await createWorkOrder({ customerId: c.id, vehicleId: v.id, complaint: `Démo — ${label}`, priority: n % 4 === 0 ? "URGENT" : "NORMAL", mileageIn: 120_000 + n * 1000, mechanicId: mechs[n % 3]!.id, promisedAt: new Date(Date.now() + (n - 5) * 6 * 3_600_000), diagnosticFee: label === "REFUSED_SAFETY" }, S.accueil!);
     // V16 Lot 2: priority and part condition shown to the customer on the quote.
     if (label !== "RECEIVED") for (const l of lineSets[n % lineSets.length]!) await step("ligne", () => addLine(wo.id, l.type === "PART" ? { type: "PART", partId: P[(l as { sku: string }).sku]!.id, quantityX100: Q(l.q), priority: /^(PLQ|AMO)/.test((l as { sku: string }).sku) ? "SAFETY" : "RECOMMENDED", partCondition: "NEW" } : { type: "LABOR", description: (l as { d: string }).d, quantityX100: Q(l.q), unitPrice: DT((l as { p: number }).p) }, S.chef!));
+    if (label === "REFUSED_SAFETY") await step("ligne sécurité", () => addLine(wo.id, { type: "LABOR", description: "Remplacement plaquettes AV (usées à 90 %)", quantityX100: Q(1), unitPrice: DT(35), priority: "SAFETY" }, S.chef!));
     if (label === "PARTIAL") await step("ligne conseillée", () => addLine(wo.id, { type: "LABOR", description: "Nettoyage injecteurs (conseillé)", quantityX100: Q(1), unitPrice: DT(60), priority: "WATCH" }, S.chef!));
     for (const s of path) {
       // V16 Lot 2: work starts on the customer's RECORDED agreement (phone, reception) — the order then moves to IN_PROGRESS.
@@ -228,6 +236,15 @@ it("demo data", async () => {
           return recordStaffDecision(wo.id, { approvedLineIds: label === "PARTIAL" ? ids.slice(0, -1) : ids, approverName: cust.name, approverContact: cust.phone, channel: "PHONE", note: "Démo : accord par téléphone" }, S.accueil!);
         });
       } else await step(`statut ${label}`, () => changeStatus(wo.id, s, S.chef!, { reason: REASON[s] }));
+    }
+    // V16 Lot 3: the customer refuses everything by phone (a SAFETY line among them) — only the announced fee stays billable.
+    if (label === "REFUSED_SAFETY") {
+      const cust = await prisma.customer.findUniqueOrThrow({ where: { id: c.id }, select: { name: true, phone: true } });
+      await step("refus total", () => recordStaffDecision(wo.id, { approvedLineIds: [], approverName: cust.name, approverContact: cust.phone, channel: "PHONE", note: "Démo : trop cher pour le moment" }, S.accueil!));
+    }
+    if (label === "DATE_MOVED") {
+      const fresh = await prisma.workOrder.findUniqueOrThrow({ where: { id: wo.id }, select: { promisedAt: true } });
+      await step("date décalée", () => updateMeta(wo.id, { promisedAt: new Date((fresh.promisedAt ?? new Date()).getTime() + 2 * DAY), promiseReason: "PARTS", promiseNote: "Démo : fournisseur en rupture (note interne)" }, S.accueil!));
     }
     if (label === "SUPPLEMENT") {
       await step("découverte", () => addLine(wo.id, { type: "LABOR", description: "Remplacement flexible de frein (découvert au démontage)", quantityX100: Q(1), unitPrice: DT(55), priority: "SAFETY" }, S.chef!));
@@ -251,8 +268,10 @@ it("demo data", async () => {
     if (label === "IN_PROGRESS") await step("chrono", () => startLabor(mechs[n % 3]!, wo.id));
     if (label === "IN_PROGRESS") await step("temps", () => addLaborEntry(S.chef!, { workOrderId: wo.id, userId: S.hedi!.id, startedAt: new Date(Date.now() - 3 * 3_600_000), endedAt: new Date(Date.now() - 2 * 3_600_000) }));
     if (label === "WAITING_PARTS") {
-      const need = await step("pièce manquante", () => addPartNeed(S.karim!, wo.id, { partId: P["KIT-DIS"]!.id, description: "Kit distribution", quantityX100: Q(1) } as never));
-      if (need) await step("besoin commandé", () => updatePartNeed(S.chef!, (need as { id: string }).id, { status: "ORDERED" } as never));
+      // V16 Lot 3: tied to the order line, expected date given (customer told, shown on the portal).
+      const line = await prisma.workOrderLine.findFirst({ where: { workOrderId: wo.id }, orderBy: { position: "asc" }, select: { id: true } });
+      const need = await step("pièce manquante", () => addPartNeed(S.karim!, wo.id, { partId: P["KIT-DIS"]!.id, description: "Kit distribution", quantityX100: Q(1), workOrderLineId: line?.id ?? null } as never));
+      if (need) await step("besoin commandé", () => updatePartNeed(S.chef!, (need as { id: string }).id, { status: "ORDERED", expectedAt: new Date(Date.now() + 3 * DAY), dateReason: "PARTS" } as never));
     }
     const fresh = await prisma.workOrder.findUniqueOrThrow({ where: { id: wo.id }, include: { vehicle: true } });
     current[label] = { id: wo.id, plate: fresh.vehicle.plate, pin: fresh.trackingPin };

@@ -53,7 +53,12 @@ import { getSettings } from "@/server/settings";
 import { getVehicleHistoryFor, getWorkOrder, listMechanics, voidOnlyLineIds } from "@/server/work-orders";
 import { orderQuoteState, quoteHistory } from "@/server/quotes";
 import { QuotePanel } from "@/components/garage/quote-panel";
-import { NEXT_STEP, availableTransitions, balanceDue, deliveryBlock, isDelivered, isFinal } from "@/server/workflow";
+import { NEXT_STEP, asksReassembly, availableTransitions, balanceDue, deliveryBlock, isDelivered, isFinal } from "@/server/workflow";
+import { PROMISE_REASONS } from "@/lib/delays";
+import { revisionHistory } from "@/server/delays";
+import { safetyWaiverMissing } from "@/server/work-orders";
+import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
 
 type PageProps = { params: Promise<{ id: string }> };
 
@@ -80,7 +85,13 @@ export default async function WorkOrderPage({ params }: PageProps) {
   ]);
   if (!wo) notFound();
   // V16 Lot 2: versions and decisions; may the work start (decision recorded on the latest quote)?
-  const [quotes, quoteState] = await Promise.all([quoteHistory(wo.id), orderQuoteState(wo.id)]);
+  // V16 Lot 3: date changes (promise and parts), refused SAFETY lines still waiting for the signed waiver.
+  const [quotes, quoteState, revisions, waiverMissing] = await Promise.all([
+    quoteHistory(wo.id),
+    orderQuoteState(wo.id),
+    revisionHistory(wo.id),
+    wo.workflowV16 && settings.requireSafetyWaiver ? safetyWaiverMissing(prisma as unknown as Prisma.TransactionClient, wo.id) : Promise.resolve([] as string[]),
+  ]);
   // Orders opened before V16: the one-click agreement banner of Lot 1 (V16 orders: the quote panel).
   const customerApproval = wo.workflowV16 ? undefined : wo.events.find((e) => e.type === "QUOTE_APPROVED");
   const unreadCustomerMessages = wo.events.filter((e) => e.type === "CUSTOMER_MESSAGE").slice(0, 3);
@@ -100,13 +111,24 @@ export default async function WorkOrderPage({ params }: PageProps) {
   const lastDecision = quotes.find((h) => h.status !== "SUPERSEDED")?.approvals.at(-1);
   const next = NEXT_STEP[wo.status];
   // V16: only the moves this user may make (permission per move), the reason when required, and the delivery check.
-  const block = deliveryBlock({ requirePaidBeforeDelivery: settings.requirePaidBeforeDelivery, workflowV16: wo.workflowV16, invoice: wo.invoice, depositAmount: wo.depositAmount });
+  // V16 Lot 3: what would go on the invoice (refused quote: the announced fees only).
+  const billableLines = wo.lines.filter((l) => !l.voidedAt && (wo.workflowV16 ? l.approvalStatus === "APPROVED" : l.approvalStatus !== "REFUSED"));
+  const block = deliveryBlock({ requirePaidBeforeDelivery: settings.requirePaidBeforeDelivery, workflowV16: wo.workflowV16, invoice: wo.invoice, depositAmount: wo.depositAmount, billable: billableLines.length > 0 });
+  const refusedSafety = wo.lines.filter((l) => l.priority === "SAFETY" && l.approvalStatus === "REFUSED" && !l.voidedAt);
+  const waiverEvent = wo.events.find((e) => (e.data as { safetyWaiver?: boolean } | null)?.safetyWaiver);
   const choices: StatusChoice[] = availableTransitions(wo.status, staff, {
     workflowV16: wo.workflowV16,
     quoteApproved,
     allowWorkWithoutQuote: settings.allowWorkWithoutQuote,
     invoiced: !!wo.invoice,
-  }).map((o) => ({ to: o.to, label: t.status[o.to], reason: o.reason, block: o.needsApproval ? "approvalMissing" : o.to === "DELIVERED" ? block : null }));
+  }).map((o) => ({
+    to: o.to,
+    label: t.status[o.to],
+    reason: o.reason,
+    block: o.needsApproval ? "approvalMissing" : o.to === "DELIVERED" ? block : null,
+    reassembly: asksReassembly(wo.status, o.to),
+    waiver: o.to === "READY" && waiverMissing.length > 0 ? { canSign: can(staff, "recordSafetyWaiver"), href: `/garage/work-orders/${wo.id}/decharge` } : null,
+  }));
   const nextChoice = next ? choices.find((c) => c.to === next) : undefined;
   const canOverride = can(staff, "deliverWithBalance");
   const balanceText = formatMoney(balanceDue(wo.invoice, wo.depositAmount) ?? 0, lang);
@@ -146,6 +168,21 @@ export default async function WorkOrderPage({ params }: PageProps) {
               <FileText className="size-4" aria-hidden /> {fmt(t.v16.quote.pendingSupplement, { amount: formatMoney(pendingTtc, lang) })}
             </p>
           )}
+          {/* V16 Lot 3: refused quote — only the announced fees remain billable; safety waiver to sign. */}
+          {wo.workflowV16 && wo.status === "QUOTE_REFUSED" && (
+            <p className="flex items-center gap-2 rounded-[14px] bg-gp-panel px-3 py-2 text-sm" data-testid="refusal-banner">
+              <Ban className="size-4" aria-hidden />
+              {billableLines.length ? fmt(t.v16.lot3.refusal.banner, { amount: formatMoney(computeTotals(billableLines, settings.stampDuty).totalTtc, lang) }) : t.v16.lot3.refusal.bannerNone}
+            </p>
+          )}
+          {wo.workflowV16 && refusedSafety.length > 0 && !final && (
+            <p className="flex flex-wrap items-center gap-2 rounded-[14px] bg-gp-danger-bg px-3 py-2 text-sm text-gp-danger-ink" data-testid="waiver-banner">
+              {waiverMissing.length ? t.v16.lot3.refusal.waiverNeeded : fmt(t.v16.lot3.refusal.waiverDone, { date: waiverEvent ? formatDateTime(waiverEvent.createdAt, lang) : "" })}
+              <Link href={`/garage/work-orders/${wo.id}/decharge`} target="_blank" className="font-medium underline">
+                {t.v16.lot3.refusal.waiverPrint}
+              </Link>
+            </p>
+          )}
           {customerApproval && !isDelivered(wo.status) && (
             <p className="flex items-center gap-2 rounded-[14px] bg-gp-success-bg px-3 py-2 text-sm text-gp-success-ink">
               <CheckCircle2 className="size-4" aria-hidden /> {fmt(t.tracking.customerApproved, { date: formatDateTime(customerApproval.createdAt, lang) })}
@@ -171,7 +208,7 @@ export default async function WorkOrderPage({ params }: PageProps) {
 
           <div className="flex flex-wrap items-center gap-2">
             {nextChoice &&
-              (nextChoice.reason || nextChoice.block ? (
+              (nextChoice.reason || nextChoice.block || nextChoice.reassembly || nextChoice.waiver ? (
                 <StatusDialog
                   action={changeStatusFormAction.bind(null, wo.id)}
                   choices={choices}
@@ -271,8 +308,9 @@ export default async function WorkOrderPage({ params }: PageProps) {
                       <Td>
                         <span className={voided ? "line-through" : undefined}>{line.description}</span>
                         {line.part && <span className="ms-2 font-mono text-xs text-muted-foreground">{line.part.sku}</span>}
-                        {(line.priority || line.partCondition || (line.stockDeferred && line.partId && line.approvalStatus === "PENDING")) && (
+                        {(line.priority || line.partCondition || line.isAnnouncedFee || (line.stockDeferred && line.partId && line.approvalStatus === "PENDING")) && (
                           <span className="mt-0.5 flex flex-wrap gap-x-2 text-xs text-muted-foreground">
+                            {line.isAnnouncedFee && <span className="font-medium text-gp-accent-ink">{t.v16.lot3.refusal.announcedFee}</span>}
                             {line.priority && <span className={line.priority === "SAFETY" ? "font-medium text-gp-danger-ink" : undefined}>{t.v16.quote.priority[line.priority]}</span>}
                             {line.partCondition && <span>{t.v16.quote.condition[line.partCondition]}</span>}
                             {line.stockDeferred && line.partId && line.approvalStatus === "PENDING" && <span>{t.v16.quote.reserved}</span>}
@@ -352,7 +390,12 @@ export default async function WorkOrderPage({ params }: PageProps) {
 
           {!linesLocked && (
             <div className="space-y-3">
-              <LineAdder action={addLineAction.bind(null, wo.id)} parts={parts} laborRate={settings.laborRate} />
+              <LineAdder
+                action={addLineAction.bind(null, wo.id)}
+                parts={parts}
+                laborRate={settings.laborRate}
+                canAnnounceFee={wo.workflowV16 && (wo.status === "RECEIVED" || wo.status === "DIAGNOSIS") && can(staff, "manageQuotes")}
+              />
               {packages.length > 0 && (
                 <ActionForm action={applyPackageAction.bind(null, wo.id)} silent className="flex flex-wrap items-end gap-2">
                   <Field label={t.workOrders.applyPackage} className="min-w-60 flex-1">
@@ -510,6 +553,25 @@ export default async function WorkOrderPage({ params }: PageProps) {
             <Field label={t.workOrders.mileageIn}>
               <Input name="mileageIn" type="number" min={0} defaultValue={wo.mileageIn ?? ""} dir="ltr" disabled={final} />
             </Field>
+            {/* V16 Lot 3: a promised date that changes needs a reason (PromiseRevision + customer message). */}
+            {wo.promisedAt && !final && (
+              <>
+                <Field label={t.v16.lot3.promise.reasonLabel}>
+                  <NativeSelect name="promiseReason" defaultValue="">
+                    <option value="">{t.v16.lot3.promise.choose}</option>
+                    {PROMISE_REASONS.map((r) => (
+                      <option key={r} value={r}>
+                        {t.v16.lot3.reasons[r]}
+                      </option>
+                    ))}
+                  </NativeSelect>
+                </Field>
+                <Field label={t.v16.lot3.promise.note} className="sm:col-span-2">
+                  <Input name="promiseNote" maxLength={500} />
+                </Field>
+                <p className="text-xs text-muted-foreground sm:col-span-3">{t.v16.lot3.promise.reasonHint}</p>
+              </>
+            )}
             {!final && (
               <div className="sm:col-span-3">
                 <Button type="submit" variant="secondary">
@@ -519,6 +581,38 @@ export default async function WorkOrderPage({ params }: PageProps) {
             )}
           </ActionForm>
         </Card>
+
+        {/* ── V16 Lot 3: date changes (promised date, parts' expected dates), customer told or not ── */}
+        {(revisions.length > 0 || wo.promisedAtInitial) && (
+          <Card>
+            <CardTitle>{t.v16.lot3.promise.history}</CardTitle>
+            {revisions.length === 0 ? (
+              <p className="text-sm text-muted-foreground">{t.v16.lot3.promise.none}</p>
+            ) : (
+              <ul className="space-y-2 text-sm" data-testid="promise-revisions">
+                {revisions.map((r) => (
+                  <li key={r.id} className="rounded-[14px] border border-gp-line px-3 py-2">
+                    <p className="flex flex-wrap items-center gap-x-2">
+                      {r.part && <span className="font-medium">{fmt(t.v16.lot3.promise.part, { part: r.part })}</span>}
+                      <span className="tabular-nums" dir="ltr">
+                        {r.oldDate ? formatDateTime(r.oldDate, lang) : t.v16.lot3.promise.noDate} → {r.newDate ? formatDateTime(r.newDate, lang) : t.v16.lot3.promise.noDate}
+                      </span>
+                      <span className="rounded-full bg-gp-panel px-2 py-0.5 text-xs">{t.v16.lot3.reasons[r.reason]}</span>
+                      <span className={`text-xs ${r.notified ? "text-gp-success-ink" : "text-muted-foreground"}`}>
+                        {r.notified ? t.v16.lot3.promise.notified : t.v16.lot3.promise.notNotified}
+                        {r.messages.length > 0 && ` (${r.messages.map((m) => `${m.channel === "NONE" ? "—" : m.channel} : ${t.v7.notifications.statuses[m.status as keyof typeof t.v7.notifications.statuses] ?? m.status}`).join(", ")})`}
+                      </span>
+                    </p>
+                    {r.note && <p className="mt-1 text-xs text-muted-foreground">{r.note}</p>}
+                    <p className="text-xs text-muted-foreground">
+                      {r.by ?? t.events.system} · {formatDateTime(r.createdAt, lang)}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
+        )}
 
         {/* ── Timeline ── */}
         <Card>

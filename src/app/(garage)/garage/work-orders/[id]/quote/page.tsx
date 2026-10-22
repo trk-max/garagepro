@@ -71,6 +71,7 @@ export default async function QuotePage({ params, searchParams }: PageProps) {
                   newTotalTtc: snap.newTotalTtc,
                   supplement: quote.kind === "SUPPLEMENT",
                   sha256: quote.snapshotHash,
+                  announcedTtc: snap.announcedTtc ?? null,
                 },
               }
             : {}),

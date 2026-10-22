@@ -20,7 +20,7 @@ export type DocumentData = {
   legal?: SnapshotLegal;
   amountWords?: string | null;
   /** V16 Lot 2 (versioned quote): version, validity date, and for a supplement the old / new totals. */
-  quote?: { version: number; validUntil: Date | null; previousTtc: number | null; newTotalTtc: number | null; supplement: boolean; sha256: string };
+  quote?: { version: number; validUntil: Date | null; previousTtc: number | null; newTotalTtc: number | null; supplement: boolean; sha256: string; /** V16 Lot 3 — fees announced at reception (due even if refused). */ announcedTtc?: number | null };
 };
 
 /** A4 printable quote / invoice. Print with the browser (Ctrl+P → PDF). */
@@ -162,6 +162,12 @@ export function DocumentView({ doc, t, lang, logo }: { doc: DocumentData; t: Dic
             <dd className="tabular-nums" dir="ltr">{money(doc.quote.previousTtc)}</dd>
           </div>
         )}
+        {doc.quote?.announcedTtc ? (
+          <div className="flex justify-between gap-3 text-zinc-600">
+            <dt>{fmt(t.v16.lot3.refusal.quoteAnnounced, { amount: "" }).replace(/\s*:\s*$/, "")}</dt>
+            <dd className="tabular-nums" dir="ltr">{money(doc.quote.announcedTtc)}</dd>
+          </div>
+        ) : null}
         {doc.quote?.newTotalTtc != null && (
           <div className="flex justify-between font-semibold">
             <dt>{t.v16.quote.newTotal}</dt>

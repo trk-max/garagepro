@@ -21,10 +21,13 @@ export function LineAdder({
   action,
   parts,
   laborRate,
+  canAnnounceFee = false,
 }: {
   action: (form: FormData) => Promise<Result>;
   parts: PartOption[];
   laborRate: number;
+  /** V16 Lot 3 — offer « frais annoncé au client » (labour, before the quote, manageQuotes). */
+  canAnnounceFee?: boolean;
 }) {
   const { t, lang } = useI18n();
   const [type, setType] = useState<LineType>("LABOR");
@@ -87,6 +90,15 @@ export function LineAdder({
             ))}
           </NativeSelect>
         </Field>
+        {type === "LABOR" && canAnnounceFee && (
+          <label className="flex items-start gap-2 self-end pb-2 text-sm">
+            <input type="checkbox" name="announcedFee" className="mt-0.5 size-4" />
+            <span>
+              {t.v16.lot3.refusal.announcedFeeAdd}
+              <span className="block text-xs text-muted-foreground">{t.v16.lot3.refusal.announcedFeeHint}</span>
+            </span>
+          </label>
+        )}
         {type === "PART" && (
           <Field label={t.v16.quote.conditionLabel}>
             <NativeSelect name="partCondition" defaultValue="">

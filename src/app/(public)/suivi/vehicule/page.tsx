@@ -95,6 +95,21 @@ export default async function TrackerPage() {
             </div>
           )}
         </dl>
+        {/* V16 Lot 3: new delivery date with a customer-safe reason; parts still expected with their date. */}
+        {view.promiseChange && (
+          <p className="mt-3 rounded-[14px] bg-white/[0.07] px-3 py-2 text-sm" data-testid="portal-new-date">
+            {fmt(t.v16.lot3.portal.newDate, { date: formatDateTime(view.promiseChange.date, lang), reason: t.v16.lot3.customerReasons[view.promiseChange.reason] })}
+          </p>
+        )}
+        {view.partsExpected.length > 0 && (
+          <ul className="mt-3 space-y-1 text-sm" data-testid="portal-parts">
+            {view.partsExpected.map((p) => (
+              <li key={p.id} className="rounded-[14px] bg-white/[0.07] px-3 py-2">
+                {p.expectedAt ? fmt(t.v16.lot3.portal.partExpected, { date: formatDate(p.expectedAt, lang), part: p.part }) : fmt(t.v16.lot3.portal.partWaiting, { part: p.part })}
+              </li>
+            ))}
+          </ul>
+        )}
         {/* V14: public label chosen by the garage only — never a name nor a level. */}
         {view.skillLabels.length > 0 && <p className="mt-3 text-sm text-slate-200">{fmt(t.v14.client.certified, { labels: view.skillLabels.join(", ") })}</p>}
       </section>
@@ -176,6 +191,11 @@ export default async function TrackerPage() {
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">{t.v16.portalQuote.intro}</p>
           {view.quoteV16.validUntil && <p className="mt-1 text-xs text-muted-foreground">{fmt(t.v16.portalQuote.validUntil, { date: formatDate(view.quoteV16.validUntil, lang) })}</p>}
+          {view.quoteV16.announcedTtc ? (
+            <p className="mt-2 text-sm">
+              {fmt(t.v16.lot3.portal.announced, { amount: formatMoney(view.quoteV16.announcedTtc, lang) })}
+            </p>
+          ) : null}
           {view.quoteV16.previousTtc !== null && (
             <p className="mt-2 text-sm">
               {t.v16.quote.previous} : <span className="tabular-nums" dir="ltr">{formatMoney(view.quoteV16.previousTtc, lang)}</span>

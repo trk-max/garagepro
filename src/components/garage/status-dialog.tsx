@@ -17,6 +17,10 @@ export type StatusChoice = {
   reason: boolean;
   /** Delivery refused as it is (V16): "noInvoice" | "balanceDue" (a manager may override); V16 Lot 2: "approvalMissing" (no override: record the agreement first). */
   block?: "noInvoice" | "balanceDue" | "approvalMissing" | null;
+  /** V16 Lot 3 — refused quote → « Prêt »: ask whether the car was put back together. */
+  reassembly?: boolean;
+  /** V16 Lot 3 — a refused SAFETY line: the signed waiver must be confirmed (by someone allowed to). */
+  waiver?: { canSign: boolean; href: string } | null;
 };
 
 /** Native <dialog> shell shared by the status and the line dialogs (Escape / click outside close). */
@@ -93,7 +97,8 @@ export function StatusDialog({
   const blocked = choice?.block ?? null;
   const overridable = blocked === "noInvoice" || blocked === "balanceDue";
   const needReason = !!choice?.reason || (overridable && override);
-  const refused = blocked !== null && !(overridable && override);
+  const [waiverSigned, setWaiverSigned] = useState(false);
+  const refused = (blocked !== null && !(overridable && override)) || (!!choice?.waiver && !waiverSigned);
 
   return (
     <>
@@ -105,6 +110,7 @@ export function StatusDialog({
         onClick={() => {
           setTo(defaultTo ?? choices[0]?.to ?? "");
           setOverride(false);
+          setWaiverSigned(false);
           ref.current?.showModal();
         }}
       >
@@ -126,6 +132,7 @@ export function StatusDialog({
               onChange={(e) => {
                 setTo(e.target.value);
                 setOverride(false);
+                setWaiverSigned(false);
               }}
               className="h-11 rounded-[14px] border border-gp-line bg-gp-card px-3 text-sm"
             >
@@ -147,6 +154,30 @@ export function StatusDialog({
                 </label>
               ) : (
                 <p className="text-xs">{v.overrideOnlyManager}</p>
+              )}
+            </div>
+          )}
+
+          {choice?.reassembly && (
+            <label className="flex items-start gap-2 text-sm font-medium">
+              <input type="checkbox" name="reassembled" defaultChecked className="mt-0.5 size-4" />
+              {t.v16.lot3.refusal.reassembled}
+            </label>
+          )}
+
+          {choice?.waiver && (
+            <div role="alert" className="grid gap-2 rounded-[14px] bg-gp-danger-bg px-3 py-2 text-sm text-gp-danger-ink">
+              <p>{t.v16.lot3.refusal.waiverNeeded}</p>
+              <a href={choice.waiver.href} target="_blank" rel="noopener" className="font-medium underline">
+                {t.v16.lot3.refusal.waiverPrint}
+              </a>
+              {choice.waiver.canSign ? (
+                <label className="flex items-start gap-2 font-medium">
+                  <input type="checkbox" name="safetyWaiver" checked={waiverSigned} onChange={(e) => setWaiverSigned(e.target.checked)} className="mt-0.5 size-4" />
+                  {t.v16.lot3.refusal.waiverSigned}
+                </label>
+              ) : (
+                <p className="text-xs">{t.v16.lot3.refusal.waiverOnlyStaff}</p>
               )}
             </div>
           )}

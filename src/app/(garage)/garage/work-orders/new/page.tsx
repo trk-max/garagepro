@@ -11,6 +11,7 @@ import { requirePageAccess } from "@/lib/session";
 import { customerOption } from "@/server/customers";
 import { listMechanics, lookupVehicleByPlate } from "@/server/work-orders";
 import { isFinal } from "@/server/workflow";
+import { getSettings } from "@/server/settings";
 
 type PageProps = { searchParams: Promise<{ customerId?: string; vehicleId?: string; plate?: string }> };
 
@@ -36,7 +37,7 @@ export default async function NewWorkOrderPage({ searchParams }: PageProps) {
 
   const customerId = preset.customerId ?? vehicle?.customer.id;
   const vehicleId = preset.vehicleId ?? vehicle?.id;
-  const [initialCustomer, staff] = await Promise.all([customerId ? customerOption(customerId) : null, listMechanics()]);
+  const [initialCustomer, staff, settings] = await Promise.all([customerId ? customerOption(customerId) : null, listMechanics(), getSettings()]);
   const mechanics = staff.filter((s) => s.role === "MECHANIC" || s.role === "ADMIN");
   const showForm = Boolean(preset.customerId || lookup);
 
@@ -117,6 +118,7 @@ export default async function NewWorkOrderPage({ searchParams }: PageProps) {
           initialCustomer={initialCustomer}
           mechanics={mechanics}
           preset={{ vehicleId, plate: lookup && !vehicle ? displayPlate(lookup.plate) : undefined }}
+          diagnosticFee={settings.diagnosticFee ? formatMoney(settings.diagnosticFee, lang) : null}
         />
       )}
     </div>

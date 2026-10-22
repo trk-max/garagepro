@@ -88,6 +88,7 @@ export function SettingsRepairOrder({ t, lang, settings, reviewerName, canReview
 /** V16 — Paramètres › « Parcours atelier »: the two switches of the new orders' rules. */
 export function SettingsWorkflow({ t, settings }: { t: Dictionary; settings: Setting }) {
   const s = t.v16.settings;
+  const l3 = t.v16.lot3.settings;
   return (
     <Card className="lg:col-span-2">
       <CardTitle>{s.title}</CardTitle>
@@ -106,6 +107,32 @@ export function SettingsWorkflow({ t, settings }: { t: Dictionary; settings: Set
             {s.requirePaidBeforeDelivery}
             <span className="block text-xs text-muted-foreground">{s.requirePaidBeforeDeliveryHint}</span>
           </span>
+        </label>
+        {/* V16 Lot 3 — refused quotes and waiting for parts. */}
+        <label className="flex items-start gap-3 text-sm">
+          <input type="checkbox" name="requireSafetyWaiver" defaultChecked={settings.requireSafetyWaiver} className="mt-0.5 size-4" />
+          <span>
+            {l3.requireSafetyWaiver}
+            <span className="block text-xs text-muted-foreground">{l3.requireSafetyWaiverHint}</span>
+          </span>
+        </label>
+        <label className="flex items-start gap-3 text-sm">
+          <input type="checkbox" name="autoWaitingParts" defaultChecked={settings.autoWaitingParts} className="mt-0.5 size-4" />
+          <span>
+            {l3.autoWaitingParts}
+            <span className="block text-xs text-muted-foreground">{l3.autoWaitingPartsHint}</span>
+          </span>
+        </label>
+        <label className="grid max-w-sm gap-1 text-sm">
+          {l3.diagnosticFee}
+          <input
+            name="diagnosticFee"
+            inputMode="decimal"
+            dir="ltr"
+            defaultValue={settings.diagnosticFee ? (settings.diagnosticFee / 1000).toFixed(3) : ""}
+            className="h-10 rounded-md border bg-background px-3"
+          />
+          <span className="text-xs text-muted-foreground">{l3.diagnosticFeeHint}</span>
         </label>
         <div>
           <Button type="submit">{t.common.save}</Button>
