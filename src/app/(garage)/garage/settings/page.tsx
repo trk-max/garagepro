@@ -35,11 +35,15 @@ import { SettingsCash } from "@/components/garage/settings-cash";
 import { SettingsTarget } from "@/components/garage/settings-target";
 import { SettingsReminders } from "@/components/garage/settings-reminders";
 import { EmailSettings } from "@/components/garage/email-settings";
+import { SettingsRepairOrder } from "@/components/garage/settings-repair-order";
+import { can } from "@/lib/permissions";
+import { repairTermsReviewer } from "@/server/repair-order";
 
 export default async function SettingsPage() {
   const me = await requirePageAccess("manageSettings");
 
   const [{ t, lang }, settings, packages, parts, staff, bookableServices, custom] = await Promise.all([getI18n(), getSettings(), listPackages(), partOptions(), listStaff(), listBookableServices(true), countOverridesByUser()]);
+  const repairReviewer = await repairTermsReviewer(settings.repairClausesReviewedById);
 
   return (
     <div className="mx-auto max-w-6xl space-y-6 p-6">
@@ -271,6 +275,7 @@ export default async function SettingsPage() {
       <SettingsCash t={t} settings={settings} />
       <SettingsTarget t={t} settings={settings} />
       <SettingsReminders t={t} settings={settings} />
+      <SettingsRepairOrder t={t} lang={lang} settings={settings} reviewerName={repairReviewer} canReview={can(me, "reviewContractTemplates")} />
 
       <BookingSettings t={t} lang={lang} settings={settings} services={bookableServices} />
       <EmailSettings t={t} defaultTo={me.email} />

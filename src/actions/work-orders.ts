@@ -20,6 +20,7 @@ import {
 } from "@/lib/validators";
 import { notifyVehicleReady } from "@/server/customer-notifications";
 import { createInvoice } from "@/server/invoices";
+import { parseIntakeForm } from "@/lib/repair-order-forms";
 import { getSettings } from "@/server/settings";
 import { zonedToUtc } from "@/lib/booking";
 import {
@@ -72,6 +73,8 @@ export async function createWorkOrderAction(form: FormData): Promise<ActionResul
         // Known car: what was missing on file, typed in the form.
         completeVehicle: base.vehicleId ? vehicleCompletionSchema.parse(prefixed(raw, "f_")) : undefined,
         requireCompleteVehicle: true,
+        // V10.6 — repair order details (fuel level, body, parts origin, estimate, deposit, CIN).
+        intake: parseIntakeForm(form),
       },
       actor,
     );

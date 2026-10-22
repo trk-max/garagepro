@@ -2,6 +2,8 @@ import type { LineType } from "@prisma/client";
 import { displayPlate, fmt, formatDate, formatKm, formatMoney, formatQty, woNumber, type Lang } from "@/lib/format";
 import type { Dictionary } from "@/lib/i18n/fr";
 import { DocFooter, DocLogo } from "@/components/garage/doc-brand";
+import { InvoiceLegal } from "@/components/garage/invoice-legal";
+import type { SnapshotLegal } from "@/lib/invoice-snapshot";
 
 export type DocumentData = {
   kind: "quote" | "invoice";
@@ -12,7 +14,11 @@ export type DocumentData = {
   vehicle: { plate: string; make: string; model: string; mileage: number | null };
   workOrderNumber: number;
   lines: { type: LineType; description: string; quantityX100: number; unitPrice: number; totalHt: number }[];
-  totals: { totalHt: number; taxByRate: { rateBp: number; tax: number }[]; stampDuty: number; totalTtc: number };
+  totals: { totalHt: number; taxByRate: { rateBp: number; base?: number; tax: number }[]; stampDuty: number; totalTtc: number };
+  /** V10.6 (invoice): due date (null = on receipt), frozen legal mentions, amount in French words. */
+  dueDate?: Date | null;
+  legal?: SnapshotLegal;
+  amountWords?: string | null;
 };
 
 /** A4 printable quote / invoice. Print with the browser (Ctrl+P → PDF). */
@@ -29,9 +35,15 @@ export function DocumentView({ doc, t, lang, logo }: { doc: DocumentData; t: Dic
           {doc.garage.address && <p className="whitespace-pre-line">{doc.garage.address}</p>}
           {doc.garage.phone && <p dir="ltr">{doc.garage.phone}</p>}
           {doc.garage.email && <p dir="ltr">{doc.garage.email}</p>}
+          {doc.legal?.garageLegalName && doc.legal.garageLegalName !== doc.garage.name && <p>{doc.legal.garageLegalName}</p>}
           {doc.garage.taxId && (
             <p>
               {t.common.taxId}: <span dir="ltr">{doc.garage.taxId}</span>
+            </p>
+          )}
+          {doc.legal?.garageRegistry && (
+            <p>
+              {t.legal.invoice.registry}: <span dir="ltr">{doc.legal.garageRegistry}</span>
             </p>
           )}
         </div>
@@ -39,8 +51,13 @@ export function DocumentView({ doc, t, lang, logo }: { doc: DocumentData; t: Dic
           <p className="text-2xl font-bold uppercase tracking-wide">{title}</p>
           <p className="font-mono">{doc.number}</p>
           <p>{formatDate(doc.date, lang)}</p>
+          {doc.dueDate !== undefined && (
+            <p>
+              {t.legal.invoice.dueDate} : {doc.dueDate ? formatDate(doc.dueDate, lang) : t.legal.invoice.onReceipt}
+            </p>
+          )}
           <p className="text-xs text-zinc-500">
-            {t.invoices.workOrder} {woNumber(doc.workOrderNumber)}
+            {doc.kind === "invoice" ? t.legal.invoice.repairOrder : t.invoices.workOrder} {woNumber(doc.workOrderNumber)}
           </p>
         </div>
       </header>
@@ -54,6 +71,11 @@ export function DocumentView({ doc, t, lang, logo }: { doc: DocumentData; t: Dic
           {doc.customer.taxId && (
             <p>
               {t.common.taxId}: <span dir="ltr">{doc.customer.taxId}</span>
+            </p>
+          )}
+          {doc.legal?.customerNationalId && (
+            <p>
+              {t.legal.nationalId}: <span dir="ltr">{doc.legal.customerNationalId}</span>
             </p>
           )}
         </div>
@@ -107,6 +129,12 @@ export function DocumentView({ doc, t, lang, logo }: { doc: DocumentData; t: Dic
             <dd className="tabular-nums" dir="ltr">{money(r.tax)}</dd>
           </div>
         ))}
+        {doc.totals.taxByRate.length > 1 && (
+          <div className="flex justify-between font-medium">
+            <dt>{t.legal.invoice.totalVat}</dt>
+            <dd className="tabular-nums" dir="ltr">{money(doc.totals.taxByRate.reduce((s, r) => s + r.tax, 0))}</dd>
+          </div>
+        )}
         <div className="flex justify-between">
           <dt>{t.invoices.stampDuty}</dt>
           <dd className="tabular-nums" dir="ltr">{money(doc.totals.stampDuty)}</dd>
@@ -116,6 +144,8 @@ export function DocumentView({ doc, t, lang, logo }: { doc: DocumentData; t: Dic
           <dd className="tabular-nums" dir="ltr">{money(doc.totals.totalTtc)}</dd>
         </div>
       </dl>
+
+      <InvoiceLegal t={t} lang={lang} taxByRate={doc.totals.taxByRate} amountWords={doc.amountWords} paymentTerms={doc.legal?.paymentTerms} penaltyText={doc.legal?.penaltyText} />
 
       <p className="mt-10 text-center text-xs text-zinc-500">{doc.kind === "quote" ? t.invoices.quoteValidity : t.invoices.thanks}</p>
       <DocFooter garage={doc.garage} text={doc.garage.footer} taxIdLabel={t.common.taxId} />

@@ -64,6 +64,7 @@ export async function updateCustomerAction(customerId: string, form: FormData): 
         email: data.email ?? null,
         address: data.address ?? null,
         taxId: data.taxId ?? null,
+        nationalId: data.nationalId ?? null,
         notes: data.notes ?? null,
       },
       actor,
