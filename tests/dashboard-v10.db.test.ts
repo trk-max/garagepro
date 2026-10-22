@@ -146,7 +146,8 @@ describe("V10 — repair orders and mechanics", () => {
     }
     await prisma.clockEvent.create({ data: { userId: m.id, kind: "IN", at: new Date(Date.now() - 3_600_000), method: "CORRECTION" } });
     const off = await makeUser("MECHANIC");
-    const list = await mechanicsNow(new Date(), 50);
+    // The shared test database holds every mechanic created by the other files: take them all (an idle one sorts last).
+    const list = await mechanicsNow(new Date(), 10_000);
     expect(list.find((x) => x.id === m.id)).toMatchObject({ activeOrders: 2, presence: "ACTIVE" });
     expect(list.find((x) => x.id === off.id)).toMatchObject({ activeOrders: 0, presence: "OFF" });
   });
