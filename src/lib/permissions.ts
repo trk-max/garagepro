@@ -106,6 +106,16 @@ const MATRIX = {
   useShowroomMessages: ["ADMIN", "SHOWROOM_MANAGER", "SELLER"],
   /// Lire et répondre à TOUTES les conversations du showroom.
   readAllShowroomMessages: ["ADMIN", "SHOWROOM_MANAGER"],
+
+  // ── Accueil : file d'attente (V15) ──
+  /// Poste d'accueil : file en direct, Suivant / Appeler / Rappeler / Absent / Transférer / Terminer, ticket manuel.
+  useReception: ["ADMIN", "MANAGER", "RECEPTION"],
+  /// Rapports de l'accueil (attente par motif / heure / jour, heures de pointe, absents) et export CSV.
+  viewReceptionReports: ["ADMIN", "MANAGER"],
+  /// Motifs, guichets, priorités, seuils, écran de salle, imprimante.
+  configureReception: ["ADMIN", "MANAGER"],
+  /// Jetons d'appareil de la borne et de l'écran de salle (créer, nommer, révoquer).
+  manageReceptionDevices: ["ADMIN"],
 } as const satisfies Record<string, readonly Role[]>;
 
 export type Permission = keyof typeof MATRIX;
@@ -187,6 +197,8 @@ export const PERMISSION_GROUPS = {
   team: ["useTimeClock", "manageTeam", "showClockKiosk", "issueCertificates"],
   contracts: ["viewContracts", "reviewContractTemplates"],
   showroom: ["viewShowroom", "createListing", "manageAllListings", "useShowroomMessages", "readAllShowroomMessages"],
+  // V15 — accueil (file d'attente).
+  reception: ["useReception", "viewReceptionReports", "configureReception", "manageReceptionDevices"],
   admin: ["manageSettings", "viewAuditLog"],
 } as const satisfies Record<string, readonly Permission[]>;
 export type PermissionGroup = keyof typeof PERMISSION_GROUPS;

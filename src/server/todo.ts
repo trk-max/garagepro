@@ -9,6 +9,7 @@ import { groupTodos, QUOTE_WAIT_DAYS, todoKeysFor, type TodoCounts, type TodoKey
 import { missingVehicleInfo } from "@/lib/vehicle-info";
 import { backupProblem } from "@/server/backups";
 import { countDueSoon, partsToOrder } from "@/server/agenda";
+import { countLongWaits } from "@/server/accueil";
 import { countOpenClaims } from "@/server/claims";
 import { countExpiringContracts } from "@/server/contracts";
 import { countLateRepairs } from "@/server/follow-up";
@@ -100,6 +101,7 @@ function counter(key: TodoKey, actor: TodoActor, now: Date): Promise<number> {
     case "backup": return backupProblem();
     case "agendaDue": return countDueSoon(now);
     case "agendaParts": return partsToOrder(now).then((p) => p.length);
+    case "receptionWaiting": return countLongWaits(now);
     case "leaves": return prisma.leaveRequest.count({ where: { status: "PENDING" } });
     case "purchaseOrders": return prisma.purchaseOrder.count({ where: { status: "PENDING_APPROVAL" } });
     case "qualityChecks": return prisma.qualityCheck.count({ where: TODO_WHERE.qualityChecks });

@@ -59,7 +59,8 @@ export const realSender: Sender = {
 
 /** V12: "AGENDA" = message of the upcoming repairs agenda (sent only after the garage validated it). */
 export type Item = {
-  kind: "MAINTENANCE" | "APPOINTMENT" | "DELIVERY" | "AGENDA";
+  // V15: "QUEUE" = message of the reception queue (« c'est votre tour », « encore N personnes »), consent given at the kiosk.
+  kind: "MAINTENANCE" | "APPOINTMENT" | "DELIVERY" | "AGENDA" | "QUEUE";
   dedupeKey: string;
   phone: string | null;
   email: string | null;

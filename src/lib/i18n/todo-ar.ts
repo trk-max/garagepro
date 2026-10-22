@@ -29,6 +29,7 @@ export const todoAr: typeof todoFr = {
     backup: "نسخة احتياطية يجب التحقق منها",
     agendaDue: "مواعيد صيانة خلال 30 يومًا (للمصادقة أو الإرسال)",
     agendaParts: "قطع يجب طلبها للأجندة (30 يومًا)",
+    receptionWaiting: "حرفاء الاستقبال الذين ينتظرون طويلًا",
     leaves: "طلبات عطل للمصادقة",
     purchaseOrders: "أوامر شراء للموافقة",
     qualityChecks: "مراقبات جودة للمصادقة",

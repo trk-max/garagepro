@@ -4,6 +4,7 @@ import { todoFr } from "@/lib/i18n/todo-fr";
 import { stockListFr } from "@/lib/i18n/stock-list-fr";
 import { legalFr } from "@/lib/i18n/legal-fr";
 import { v12Fr } from "@/lib/i18n/v12-fr";
+import { v15Fr } from "@/lib/i18n/v15-fr";
 import { contractsFr } from "@/lib/i18n/contracts-fr";
 import { v7Fr } from "@/lib/i18n/v7-fr";
 import { showroomFr } from "@/lib/i18n/showroom-fr";
@@ -408,6 +409,14 @@ export const fr = {
     tooMany: "Trop de demandes. Réessayez plus tard.",
     notTrackable: "Le suivi de ce véhicule n'est plus disponible.",
     quoteNotPending: "Aucun devis en attente de validation.",
+    // V15 — accueil (file d'attente)
+    queueCounterBusy: "Le ticket {ticket} est encore appelé à ce guichet : marquez-le « Client présent » ou « Absent » d'abord.",
+    queueTaken: "Le ticket {ticket} vient d'être pris en charge ailleurs : la file a été actualisée.",
+    queueBusy: "La file change trop vite : réessayez.",
+    queueTooSoon: "Attendez {s} secondes entre deux appels.",
+    queueReason: "Indiquez le motif de l'annulation.",
+    queueConsent: "Le consentement du client est obligatoire pour envoyer un SMS.",
+    queuePhone: "Numéro de téléphone invalide (8 chiffres).",
   },
   invoiceFilters: {
     number: "N°",
@@ -960,6 +969,8 @@ export const fr = {
   legal: legalFr,
   /** V12 — agenda des prochaines réparations. */
   v12: v12Fr,
+  /** V15 — file d'attente de l'accueil. */
+  v15: v15Fr,
 };
 
 export type Dictionary = typeof fr;

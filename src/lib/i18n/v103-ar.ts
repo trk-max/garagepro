@@ -21,6 +21,7 @@ export const v103Ar: typeof v103Fr = {
       team: "الفريق",
       contracts: "العقود",
       showroom: "المعرض",
+      reception: "الاستقبال (الطابور)",
       admin: "الإدارة",
     },
     perms: {
@@ -83,6 +84,10 @@ export const v103Ar: typeof v103Fr = {
       readAllShowroomMessages: "قراءة كل المحادثات",
       manageSettings: "الإعدادات والنسخ الاحتياطية",
       viewAuditLog: "سجل التعديلات",
+      useReception: "مكتب الاستقبال (نداء، تحويل، غائب)",
+      viewReceptionReports: "تقارير الاستقبال",
+      configureReception: "الاستقبال: الأسباب، الشبابيك، الأولويات",
+      manageReceptionDevices: "الاستقبال: رموز الشاشة اللمسية وشاشة القاعة",
     },
   },
   dash: {
@@ -114,6 +119,7 @@ export const v103Ar: typeof v103Fr = {
       recentInvoices: "آخر الفواتير",
       activity: "النشاط الأخير",
       agenda: "الأجندة (30 يومًا)",
+      reception: "الاستقبال (الطابور)",
     },
   },
 };

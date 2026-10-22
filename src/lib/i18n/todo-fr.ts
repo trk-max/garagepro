@@ -28,6 +28,7 @@ export const todoFr = {
     backup: "Sauvegarde à vérifier",
     agendaDue: "Échéances d’entretien dans les 30 jours (à valider ou envoyer)",
     agendaParts: "Pièces à commander pour l’agenda (30 jours)",
+    receptionWaiting: "Clients de l’accueil qui attendent trop longtemps",
     leaves: "Demandes de congé à valider",
     purchaseOrders: "Bons de commande à approuver",
     qualityChecks: "Contrôles qualité à valider",

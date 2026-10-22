@@ -1,6 +1,7 @@
 import {
   BadgeCheck, Boxes, CalendarCheck, CalendarClock, CarFront, ClipboardCheck, DatabaseBackup, FilePen, FileSignature, FileText, FileWarning, Hourglass,
   IdCard, Mail, MessageSquareWarning, PackagePlus, PackageSearch, ShieldAlert, ShieldCheck, ShoppingCart, TriangleAlert, Umbrella,
+  Ticket,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { TodoKey } from "@/lib/todo";
@@ -30,4 +31,6 @@ export const TODO_ICONS: Record<TodoKey, LucideIcon> = {
   warrantyDecisions: ShieldCheck,
   agendaDue: CalendarClock,
   agendaParts: PackagePlus,
+  // V15 — accueil : clients qui attendent trop longtemps.
+  receptionWaiting: Ticket,
 };

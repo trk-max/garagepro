@@ -53,6 +53,6 @@ describe("V10.3 — personal dashboard layout", () => {
     // Default admin layout (mechanics inside the first card) = the V10 design.
     const ids = DASHBOARD_BLOCKS.filter((id) => id !== "mechanics");
     const xl = Object.fromEntries([...blockSpans(ids)].map(([id, s]) => [id, s.xl]));
-    expect(xl).toEqual({ todayRevenue: 4, kpis: 4, revenueChart: 4, monthlyTarget: 4, recentOrders: 8, alerts: 4, workshopStatus: 8, appointments: 4, lowStock: 8, watchTiles: 12, weekCharts: 12, recentInvoices: 6, activity: 6, agenda: 12 });
+    expect(xl).toEqual({ todayRevenue: 4, kpis: 4, revenueChart: 4, monthlyTarget: 4, recentOrders: 8, alerts: 4, workshopStatus: 8, appointments: 4, lowStock: 8, watchTiles: 12, weekCharts: 12, recentInvoices: 6, activity: 6, agenda: 12, reception: 12 });
   });
 });

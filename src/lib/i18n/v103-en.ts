@@ -21,6 +21,7 @@ export const v103En: typeof v103Fr = {
       team: "Team",
       contracts: "Contracts",
       showroom: "Showroom",
+      reception: "Reception (queue)",
       admin: "Administration",
     },
     perms: {
@@ -83,6 +84,10 @@ export const v103En: typeof v103Fr = {
       readAllShowroomMessages: "Read all conversations",
       manageSettings: "Settings and backups",
       viewAuditLog: "Change log",
+      useReception: "Reception desk (call, transfer, absent)",
+      viewReceptionReports: "Reception reports",
+      configureReception: "Reception: reasons, counters, priorities",
+      manageReceptionDevices: "Reception: kiosk and screen tokens",
     },
   },
   dash: {
@@ -114,6 +119,7 @@ export const v103En: typeof v103Fr = {
       recentInvoices: "Latest invoices",
       activity: "Recent activity",
       agenda: "Agenda (30 days)",
+      reception: "Reception (queue)",
     },
   },
 };

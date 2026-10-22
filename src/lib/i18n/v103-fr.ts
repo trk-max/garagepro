@@ -22,6 +22,7 @@ export const v103Fr = {
       team: "Équipe",
       contracts: "Contrats",
       showroom: "Showroom",
+      reception: "Accueil (file d’attente)",
       admin: "Administration",
     } satisfies Record<PermissionGroup, string>,
     perms: {
@@ -84,6 +85,10 @@ export const v103Fr = {
       readAllShowroomMessages: "Lire toutes les conversations",
       manageSettings: "Paramètres et sauvegardes",
       viewAuditLog: "Journal des modifications",
+      useReception: "Poste d’accueil (appeler, transférer, absent)",
+      viewReceptionReports: "Rapports de l’accueil",
+      configureReception: "Accueil : motifs, guichets, priorités",
+      manageReceptionDevices: "Accueil : jetons de la borne et de l’écran",
     } satisfies Record<Permission, string>,
   },
   dash: {
@@ -115,6 +120,7 @@ export const v103Fr = {
       recentInvoices: "Dernières factures",
       activity: "Activité récente",
       agenda: "Agenda (30 jours)",
+      reception: "Accueil (file d’attente)",
     } satisfies Record<BlockId, string>,
   },
 };

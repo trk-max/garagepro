@@ -4,6 +4,7 @@ import { todoAr } from "@/lib/i18n/todo-ar";
 import { stockListAr } from "@/lib/i18n/stock-list-ar";
 import { legalAr } from "@/lib/i18n/legal-ar";
 import { v12Ar } from "@/lib/i18n/v12-ar";
+import { v15Ar } from "@/lib/i18n/v15-ar";
 import { contractsAr } from "@/lib/i18n/contracts-ar";
 import { v7Ar } from "@/lib/i18n/v7-ar";
 import { showroomAr } from "@/lib/i18n/showroom-ar";
@@ -410,6 +411,14 @@ export const ar: Dictionary = {
     tooMany: "طلبات كثيرة. أعيدوا المحاولة لاحقًا.",
     notTrackable: "متابعة هذه السيارة لم تعد متاحة.",
     quoteNotPending: "لا يوجد تقدير في انتظار المصادقة.",
+    // V15 — الاستقبال (الطابور)
+    queueCounterBusy: "التذكرة {ticket} ما زالت منادًى عليها في هذا الشبّاك: حدّدوها «الحريف حاضر» أو «غائب» أولًا.",
+    queueTaken: "التذكرة {ticket} أُخذت للتوّ في مكان آخر: تمّ تحديث الطابور.",
+    queueBusy: "الطابور يتغيّر بسرعة: أعيدوا المحاولة.",
+    queueTooSoon: "انتظروا {s} ثانية بين ندائين.",
+    queueReason: "اذكروا سبب الإلغاء.",
+    queueConsent: "موافقة الحريف إجبارية لإرسال رسالة قصيرة.",
+    queuePhone: "رقم هاتف غير صالح (8 أرقام).",
   },
   invoiceFilters: {
     number: "الرقم",
@@ -961,4 +970,6 @@ export const ar: Dictionary = {
   legal: legalAr,
   /** V12 — agenda des prochaines réparations. */
   v12: v12Ar,
+  /** V15 — file d'attente de l'accueil. */
+  v15: v15Ar,
 };

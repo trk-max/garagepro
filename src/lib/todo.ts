@@ -13,6 +13,8 @@ export const TODO_KEYS = [
   "vehicleInfo", "quoteWaiting", "readyNotDelivered", "lateRepairs", "missingParts", "insuranceWaiting",
   "overdueInvoices", "openClaims", "unreadMessages", "warrantyOpen", "contractDrafts", "contractsExpiring",
   "certificateFields", "lowStock", "backup", "agendaDue", "agendaParts",
+  // V15 — accueil
+  "receptionWaiting",
   // B. To approve (manager / administrator / HR)
   "leaves", "purchaseOrders", "qualityChecks", "contractsToApprove", "contractsToSign", "warrantyDecisions",
 ] as const;
@@ -46,6 +48,8 @@ export const TODO_DEFS: Record<TodoKey, Def> = {
   // V12 — agenda: due within 30 days, still to validate / send; parts to order in advance.
   agendaDue: { group: "incomplete", href: "/garage/agenda?to=30", visible: (r) => can(r, "manageAgenda") },
   agendaParts: { group: "incomplete", href: "/garage/agenda?parts=1", visible: (r) => can(r, "manageAgenda") && can(r, "requestPurchase") },
+  // V15 — accueil : clients en attente depuis plus que le seuil réglé (Accueil › Réglages).
+  receptionWaiting: { group: "incomplete", href: "/garage/accueil", visible: (r) => can(r, "useReception") },
   leaves: { group: "approval", href: "/garage/equipe", visible: (r) => can(r, "manageTeam") },
   purchaseOrders: { group: "approval", href: "/garage/purchase-orders?status=PENDING_APPROVAL", visible: (r) => can(r, "approvePurchase") },
   qualityChecks: { group: "approval", href: "/garage/work-orders?status=QUALITY_CONTROL", visible: (r) => can(r, "approveQualityCheck") },

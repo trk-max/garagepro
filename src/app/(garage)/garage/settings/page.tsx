@@ -38,6 +38,9 @@ import { EmailSettings } from "@/components/garage/email-settings";
 import { SettingsRepairOrder } from "@/components/garage/settings-repair-order";
 import { can } from "@/lib/permissions";
 import { repairTermsReviewer } from "@/server/repair-order";
+import { QueueDevicesCard } from "@/components/accueil/devices-card";
+import { listDevices } from "@/server/accueil";
+import { deviceLinkBase } from "@/server/accueil-device";
 
 export default async function SettingsPage() {
   const me = await requirePageAccess("manageSettings");
@@ -279,6 +282,14 @@ export default async function SettingsPage() {
 
       <BookingSettings t={t} lang={lang} settings={settings} services={bookableServices} />
       <EmailSettings t={t} defaultTo={me.email} />
+      {/* V15 — accueil : jetons de la borne et de l'écran de salle. */}
+      {can(me, "manageReceptionDevices") && (
+        <QueueDevicesCard
+          devices={(await listDevices()).map((d) => ({ id: d.id, name: d.name, kind: d.kind, revokedAt: d.revokedAt?.toISOString() ?? null, lastSeenAt: d.lastSeenAt?.toISOString() ?? null }))}
+          linkBase={await deviceLinkBase()}
+          canConfigure={can(me, "configureReception")}
+        />
+      )}
     </div>
   );
 }

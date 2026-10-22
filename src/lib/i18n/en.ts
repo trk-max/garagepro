@@ -4,6 +4,7 @@ import { todoEn } from "@/lib/i18n/todo-en";
 import { stockListEn } from "@/lib/i18n/stock-list-en";
 import { legalEn } from "@/lib/i18n/legal-en";
 import { v12En } from "@/lib/i18n/v12-en";
+import { v15En } from "@/lib/i18n/v15-en";
 import { contractsEn } from "@/lib/i18n/contracts-en";
 import { v7En } from "@/lib/i18n/v7-en";
 import { showroomEn } from "@/lib/i18n/showroom-en";
@@ -410,6 +411,14 @@ export const en: Dictionary = {
     tooMany: "Too many requests. Please try again later.",
     notTrackable: "Tracking for this vehicle is no longer available.",
     quoteNotPending: "No quote is waiting for approval.",
+    // V15 — reception queue
+    queueCounterBusy: "Ticket {ticket} is still called at this counter: mark it “Customer here” or “Absent” first.",
+    queueTaken: "Ticket {ticket} was just taken elsewhere: the queue was refreshed.",
+    queueBusy: "The queue is changing too fast: try again.",
+    queueTooSoon: "Wait {s} seconds between two calls.",
+    queueReason: "Give the reason for cancelling.",
+    queueConsent: "The customer's consent is required to send a text message.",
+    queuePhone: "Invalid phone number (8 digits).",
   },
   invoiceFilters: {
     number: "No.",
@@ -961,4 +970,6 @@ export const en: Dictionary = {
   legal: legalEn,
   /** V12 — agenda des prochaines réparations. */
   v12: v12En,
+  /** V15 — file d'attente de l'accueil. */
+  v15: v15En,
 };

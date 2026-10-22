@@ -2,6 +2,7 @@ import {
   BarChart3, BellRing, Boxes, Building2, CalendarCheck2, CalendarClock, CalendarDays, CalendarRange, Car, CarFront, ClipboardList, Clock3,
   DatabaseBackup, FileSignature, FileText, History, Landmark, LayoutGrid, Mail, MessageSquareWarning, PackageCheck, ReceiptText,
   CircleHelp, Settings, ShieldCheck, ShoppingCart, Smartphone, TrendingUp, TriangleAlert, Truck, UserRound, Users,
+  Ticket,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { Dictionary } from "@/lib/i18n/fr";
@@ -16,7 +17,9 @@ export type NavKey =
   | "dashboard" | "appointments" | "workshop" | "workOrders" | "delays" | "agenda" | "notifications" | "customers" | "vehicles" | "companies"
   | "clientInvoices" | "claims" | "warranties" | "parts" | "suppliers" | "purchaseOrders" | "receipts" | "supplierInvoices"
   | "timeClock" | "calendar" | "team" | "showroom" | "messages" | "contracts" | "reports" | "profitability" | "expenses"
-  | "cash" | "audit" | "backups" | "settings" | "help";
+  | "cash" | "audit" | "backups" | "settings" | "help"
+  // V15 — accueil (file d'attente)
+  | "reception";
 
 export type NavBadges = Partial<Record<NavKey, number>>;
 export type NavItem = { key: NavKey; href: string; icon: LucideIcon; permission?: Permission };
@@ -29,6 +32,8 @@ export const NAV_GROUPS: NavGroup[] = [
     title: "clientSpace",
     items: [
       { key: "appointments", href: "/garage/appointments", icon: CalendarDays, permission: "viewAppointments" },
+      // V15: reception desk (queue) — in the "More" panel.
+      { key: "reception", href: "/garage/accueil", icon: Ticket, permission: "useReception" },
       { key: "workshop", href: "/garage/atelier", icon: Smartphone, permission: "useWorkshop" },
       { key: "workOrders", href: "/garage/work-orders", icon: ClipboardList, permission: "viewWorkOrders" },
       { key: "delays", href: "/garage/suivi", icon: TriangleAlert, permission: "manageRepairFollowUp" },
@@ -114,8 +119,9 @@ export function navLabel(t: Dictionary, key: NavKey): string {
   if (key === "vehicles") return t.v10.nav.vehicles;
   if (key === "help") return t.todo.help;
   if (key === "agenda") return t.v12.nav;
+  if (key === "reception") return t.v15.nav;
   if ((V7 as readonly string[]).includes(key)) return t.v7.nav[key as (typeof V7)[number]];
-  return t.nav[key as Exclude<NavKey, (typeof V7)[number] | "contracts" | "showroom" | "messages" | "vehicles" | "help" | "agenda">];
+  return t.nav[key as Exclude<NavKey, (typeof V7)[number] | "contracts" | "showroom" | "messages" | "vehicles" | "help" | "agenda" | "reception">];
 }
 
 /** Short label for the top pill bar. */

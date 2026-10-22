@@ -3,6 +3,7 @@ import { can } from "@/lib/permissions";
 import { getStaff } from "@/lib/session";
 import { appointmentsVersion, customersVersion, dashboardVersion, stockVersion, versionResponse, workOrderVersion, workshopVersion } from "@/server/live";
 import { canSeeConversation, conversationVersion, inboxVersion } from "@/server/messaging";
+import { queueVersion } from "@/server/accueil";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,6 +21,8 @@ export async function GET(request: NextRequest) {
   if (topic === "appointments" && can(staff, "viewAppointments")) return versionResponse(topic, appointmentsVersion);
   if (topic === "workshop" && can(staff, "useWorkshop")) return versionResponse(topic, workshopVersion);
   if (topic === "dashboard") return versionResponse(topic, dashboardVersion);
+  // V15: reception queue (desk page).
+  if (topic === "reception" && can(staff, "useReception")) return versionResponse(topic, () => queueVersion());
   if (topic === "stock" && can(staff, "viewStock")) return versionResponse(topic, stockVersion);
   if (topic === "customers" && can(staff, "viewCustomers")) return versionResponse(topic, customersVersion);
   if (topic.startsWith("wo:") && can(staff, "viewWorkOrders")) {

@@ -25,6 +25,8 @@ export const DASHBOARD_BLOCKS = [
   "activity",
   // V12 — agenda of the upcoming repairs (due within 30 days, parts to order).
   "agenda",
+  // V15 — reception queue (waiting, longest wait, absents).
+  "reception",
 ] as const;
 export type BlockId = (typeof DASHBOARD_BLOCKS)[number];
 export type LayoutEntry = { id: BlockId; visible: boolean };
@@ -51,6 +53,7 @@ const BLOCK_ACCESS: Record<BlockId, readonly Permission[]> = {
   recentInvoices: ["viewFinance"],
   activity: ["viewWorkOrders"],
   agenda: ["viewAgenda"],
+  reception: ["useReception"],
 };
 
 /** The blocks this user may see, in the default order. */
@@ -126,6 +129,7 @@ const SPANS: Record<BlockId, readonly [number, number]> = {
   recentInvoices: [1, 6],
   activity: [1, 6],
   agenda: [2, 12],
+  reception: [1, 4],
 };
 
 /**

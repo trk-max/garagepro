@@ -29,6 +29,7 @@ export const todoEn: typeof todoFr = {
     backup: "Backup to check",
     agendaDue: "Maintenance due within 30 days (to validate or send)",
     agendaParts: "Parts to order for the agenda (30 days)",
+    receptionWaiting: "Reception customers waiting too long",
     leaves: "Leave requests to approve",
     purchaseOrders: "Purchase orders to approve",
     qualityChecks: "Quality checks to approve",
