@@ -270,6 +270,9 @@ model Vehicle {
   maintenance  VehicleMaintenance[]
   readings     VehicleReading[]
   warranties   Warranty[]
+  /// V12 — agenda des prochaines réparations.
+  agendaEvents    MaintenanceEvent[]
+  agendaForecasts MaintenanceForecast[]
 
   @@index([customerId])
 }
@@ -642,6 +645,17 @@ model Setting {
   tplMaintenance         String?
   tplAppointment         String?
   tplDelivery            String?
+  /// V12 — agenda des prochaines réparations : nombre minimum de cas observés pour utiliser l'historique
+  /// du garage (sinon intervalle de référence), nombre de cas pour une confiance « bonne »,
+  /// délai d'avance des messages (jours), envoi automatique (désactivé par défaut) et confiance minimale exigée.
+  agendaMinCases         Int      @default(5)
+  agendaGoodCases        Int      @default(10)
+  agendaLeadDays         Int      @default(30)
+  agendaAutoSend         Boolean  @default(false)
+  agendaAutoMinConfidence String  @default("MEDIUM")
+  /// Modèles de message de l'agenda (null = texte par défaut). Variables : {garage} {plate} {item} {when} {price} {phone}.
+  tplAgendaFr            String?
+  tplAgendaAr            String?
   openingHours           Json     @default("{\"0\":null,\"1\":{\"open\":\"08:00\",\"close\":\"17:00\"},\"2\":{\"open\":\"08:00\",\"close\":\"17:00\"},\"3\":{\"open\":\"08:00\",\"close\":\"17:00\"},\"4\":{\"open\":\"08:00\",\"close\":\"17:00\"},\"5\":{\"open\":\"08:00\",\"close\":\"17:00\"},\"6\":{\"open\":\"08:00\",\"close\":\"13:00\"}}")
   updatedAt              DateTime @updatedAt
 }
@@ -1269,6 +1283,131 @@ model VehicleMaintenance {
   @@index([vehicleId])
 }
 
+// ── Agenda des prochaines réparations (V12) ─────────────────────────────────
+
+/// Élément d'entretien du catalogue du garage (vidange, plaquettes AV…). Reconnu dans les lignes
+/// d'ordres livrés par une pièce liée, un forfait lié ou un mot-clé. L'intervalle de référence est
+/// SAISI par le garage (null = pas de référence) : aucune valeur « constructeur » n'est inventée.
+model MaintenanceItem {
+  id             String   @id @default(cuid())
+  /// Code stable, ex. "OIL", "PADS_FRONT" (catalogue de départ) ou "C-…" (élément ajouté).
+  code           String   @unique
+  nameFr         String
+  nameAr         String?
+  nameEn         String?
+  /// Mots-clés recherchés dans la description des lignes (minuscules, sans accents).
+  keywords       Json     @default("[]")
+  /// Pièces (Part.id) et forfaits (ServicePackage.id) qui reconnaissent l'élément.
+  partIds        Json     @default("[]")
+  packageIds     Json     @default("[]")
+  intervalKm     Int?
+  intervalMonths Int?
+  isActive       Boolean  @default(true)
+  position       Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  events    MaintenanceEvent[]
+  forecasts MaintenanceForecast[]
+}
+
+/// Remplacement passé d'un élément sur un véhicule : détecté dans un ordre livré (source PART,
+/// PACKAGE, KEYWORD) ou déclaré par le garage (MANUAL). Les données d'origine (doneAt, km) ne sont
+/// jamais modifiées : une correction remplit corrected* / cancelled* (journalisée).
+model MaintenanceEvent {
+  id              String    @id @default(cuid())
+  /// "wo:<ordre>:<élément>" (un remplacement par ordre et par élément) ou "manual:<id>".
+  dedupeKey       String    @unique
+  vehicleId       String
+  itemId          String
+  workOrderId     String?
+  /// "PART", "PACKAGE", "KEYWORD" ou "MANUAL".
+  source          String
+  matchedText     String?
+  doneAt          DateTime
+  km              Int?
+  /// Montant TTC des lignes reconnues (millimes) : « dernier prix facturé ».
+  amountTtc       Int?
+  correctedDoneAt DateTime?
+  correctedKm     Int?
+  cancelledAt     DateTime?
+  cancelReason    String?
+  correctedById   String?
+  correctedAt     DateTime?
+  createdById     String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  vehicle Vehicle         @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
+  item    MaintenanceItem @relation(fields: [itemId], references: [id], onDelete: Restrict)
+
+  @@index([vehicleId, itemId])
+  @@index([itemId])
+  @@index([workOrderId])
+}
+
+/// Prévision (ESTIMATION) véhicule × élément. Historisée : un résultat différent crée une nouvelle
+/// version (isCurrent) ; l'ancienne est gardée telle quelle. Statut : PROPOSED → VALIDATED → SENT →
+/// BOOKED → DONE, ou IGNORED (+ motif).
+model MaintenanceForecast {
+  id              String    @id @default(cuid())
+  vehicleId       String
+  itemId          String
+  version         Int
+  isCurrent       Boolean   @default(true)
+  previousId      String?
+  /// "HISTORY_MODEL", "REFERENCE" ou "IMPOSSIBLE".
+  method          String
+  cases           Int       @default(0)
+  /// "LOW", "MEDIUM", "GOOD" (null = estimation impossible).
+  confidence      String?
+  /// Ce qui manque quand l'estimation est impossible (clés : lastReplacement, interval, currentKm, rhythm).
+  missing         Json      @default("[]")
+  lastEventId     String?
+  lastDoneAt      DateTime?
+  lastDoneKm      Int?
+  kmPerMonth      Int?
+  dueKm           Int?
+  dueKmLow        Int?
+  dueKmHigh       Int?
+  /// Échéance par le kilométrage convertie en date (rythme connu) et échéance par le temps.
+  dueByKmDate     DateTime?
+  dueByTimeDate   DateTime?
+  /// Échéance retenue (la plus proche des deux) et sa fourchette.
+  dueDate         DateTime?
+  dueDateLow      DateTime?
+  dueDateHigh     DateTime?
+  /// Détails du calcul (groupe de modèles utilisé, quartiles, intervalle de référence…).
+  explain         Json      @default("{}")
+  priceTtc        Int?
+  /// "PACKAGE" ou "LAST_INVOICED".
+  priceSource     String?
+  warrantyUntil   DateTime?
+  warrantyLabel   String?
+  /// Empreinte du résultat : recalcul identique = aucune écriture.
+  signature       String
+  /// "PROPOSED", "VALIDATED", "SENT", "BOOKED", "DONE" ou "IGNORED".
+  status          String    @default("PROPOSED")
+  statusReason    String?
+  validatedAt     DateTime?
+  validatedById   String?
+  sentAt          DateTime?
+  bookedAt        DateTime?
+  appointmentId   String?
+  doneAt          DateTime?
+  doneWorkOrderId String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  vehicle Vehicle         @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
+  item    MaintenanceItem @relation(fields: [itemId], references: [id], onDelete: Restrict)
+
+  @@unique([vehicleId, itemId, version])
+  @@index([isCurrent, dueDate])
+  @@index([vehicleId, isCurrent])
+  @@index([status])
+}
+
 /// Historique des messages aux clients (rappels). Une ligne par canal ; dedupeKey
 /// empêche d'envoyer deux fois le même rappel. Jamais simulé : SKIPPED dit pourquoi.
 model Notification {
@@ -1283,6 +1422,8 @@ model Notification {
   workOrderId   String?
   appointmentId String?
   maintenanceId String?
+  /// V12 — prévision de l'agenda à l'origine du message (kind "AGENDA").
+  forecastId    String?
   to            String?
   subject       String?
   body          String

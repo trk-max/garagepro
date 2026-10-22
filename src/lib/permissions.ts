@@ -18,6 +18,12 @@ const MATRIX = {
   manageTracking: ["ADMIN", "MANAGER", "RECEPTION"],
   /// Plans d'entretien des véhicules (rappels vidange, filtres…).
   manageMaintenance: ["ADMIN", "MANAGER", "RECEPTION"],
+  /// V12 — agenda des prochaines réparations : voir les prévisions (le mécanicien en lecture seule).
+  viewAgenda: ["ADMIN", "MANAGER", "RECEPTION", "MECHANIC"],
+  /// V12 — valider / ignorer une prévision, préparer et envoyer le message au client, ajouter au devis.
+  manageAgenda: ["ADMIN", "MANAGER", "RECEPTION"],
+  /// V12 — régler le catalogue des éléments d’entretien, les seuils et l’envoi automatique.
+  configureAgenda: ["ADMIN", "MANAGER"],
   /// Diagnostic OBD-II (lecture des codes défauts, jamais d'effacement).
   obdDiagnose: ["ADMIN", "MANAGER", "RECEPTION", "MECHANIC"],
   /// Historique des rappels envoyés aux clients.
@@ -175,7 +181,7 @@ export function normaliseOverrides(role: Role, wanted: Partial<Record<string, Ov
 /** Display groups for the "Accès" editor (every permission appears exactly once). */
 export const PERMISSION_GROUPS = {
   workshop: ["viewWorkOrders", "useWorkshop", "printQuote", "uploadMedia", "obdDiagnose", "viewAppointments", "manageAppointments", "manageTracking", "manageRepairFollowUp", "reportMissingPart", "logOwnLabor", "manageLabor", "fillQualityCheck", "approveQualityCheck", "manageClaims", "manageWarranties"],
-  customers: ["viewCustomers", "manageMaintenance", "manageVehicleQr", "viewNotifications", "manageCompanyAccess"],
+  customers: ["viewCustomers", "manageMaintenance", "viewAgenda", "manageAgenda", "configureAgenda", "manageVehicleQr", "viewNotifications", "manageCompanyAccess"],
   money: ["viewFinance", "viewClientInvoices", "createInvoice", "recordPayment", "sendReminder", "manageExpenses", "viewWarrantyMoney", "viewCashForecast", "readCashForecast", "viewProfit", "viewReports"],
   stock: ["viewStock", "manageStock", "reserveStock", "viewSuppliers", "manageSuppliers", "requestPurchase", "approvePurchase", "receiveGoods", "viewSupplierInvoices", "manageSupplierInvoices", "paySupplier"],
   team: ["useTimeClock", "manageTeam", "showClockKiosk", "issueCertificates"],
