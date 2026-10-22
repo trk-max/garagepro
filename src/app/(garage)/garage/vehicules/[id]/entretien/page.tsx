@@ -126,7 +126,7 @@ export default async function VehicleMaintenancePage({ params }: PageProps) {
             <Input type="date" name="lastDoneAt" />
           </Field>
           <Field label={m.lastDoneKm}>
-            <Input name="lastDoneKm" inputMode="numeric" dir="ltr" />
+            <Input name="lastDoneKm" inputMode="numeric" defaultValue={vehicle.mileage ?? ""} dir="ltr" />
           </Field>
           <div className="sm:col-span-3">
             <p className="mb-2 text-xs text-muted-foreground">{m.addHint}</p>
