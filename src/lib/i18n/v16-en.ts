@@ -87,6 +87,7 @@ export const v16En: typeof v16Fr = {
     submit: "Record the decision",
     lineStatus: { PENDING: "Pending", APPROVED: "Accepted", REFUSED: "Refused" },
     pendingSupplement: "Supplement waiting for the customer's agreement: {amount}",
+    sendSupplement: "Send to the customer for agreement",
     pendingTotal: "of which waiting for agreement",
     received: "Customer's agreement received ({decision}, {date}): you can move to repair.",
     staleQuote: "Pending lines are not in the sent quote: send the quote again.",

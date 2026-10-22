@@ -87,6 +87,7 @@ export const v16Ar: typeof v16Fr = {
     submit: "تسجيل القرار",
     lineStatus: { PENDING: "في الانتظار", APPROVED: "مقبول", REFUSED: "مرفوض" },
     pendingSupplement: "إضافة في انتظار موافقة الحريف: {amount}",
+    sendSupplement: "إرسال للحريف للموافقة",
     pendingTotal: "منها في انتظار الموافقة",
     received: "وصلت موافقة الحريف ({decision}، {date}): يمكنك المرور إلى الإصلاح.",
     staleQuote: "سطور في الانتظار ليست في التقدير المرسل: أعد إرسال التقدير.",

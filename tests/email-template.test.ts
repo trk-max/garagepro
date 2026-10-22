@@ -10,12 +10,13 @@ describe("customer e-mail layout", () => {
     expect(html).toContain("Suivre ma réparation");
     expect(ctaLabel("https://g.example/rdv/ABC", "fr")).toBe("Voir mon rendez-vous");
     expect(ctaLabel("https://g.example/autre", "ar")).toBe("فتح الرابط");
+    expect(ctaLabel("https://g.example/suivi?plate=1", "fr", "911 : un supplément (148,750 DT) est à valider")).toBe("Voir et valider le devis");
   });
 
   it("shows the access code in its own box", () => {
     const html = renderEmailHtml({ subject: "Suivi", text: tracking, brand: "911 Garages" });
     expect(html).toContain("Votre code d'accès");
-    expect(html).toMatch(/letter-spacing:6px;color:#0f172a">8143</);
+    expect(html).toMatch(/letter-spacing:10px;[^>]*>8143<\/div>/);
   });
 
   it("puts the garage contact in the footer and uses the logo only when given", () => {
@@ -25,6 +26,9 @@ describe("customer e-mail layout", () => {
     expect(withContact).toContain("mailto:g@example.tn");
     expect(withContact).not.toContain("cid:");
     expect(renderEmailHtml({ subject: "S", text: "Bonjour", brand: "G", logoCid: "garage-logo" })).toContain('src="cid:garage-logo"');
+    const product = renderEmailHtml({ subject: "S", text: "Bonjour", brand: "G", productLogoSrc: "cid:garagepro-logo" });
+    expect(product).toContain('src="cid:garagepro-logo"');
+    expect(product).toContain("GaragePro");
   });
 
   it("escapes the message and switches to right-to-left for Arabic", () => {

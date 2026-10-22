@@ -101,7 +101,7 @@ async function viaSmtp(message: EmailMessage, details: GarageDetails): Promise<E
     ...(process.env.SMTP_REPLY_TO || process.env.RESEND_REPLY_TO ? { replyTo: process.env.SMTP_REPLY_TO || process.env.RESEND_REPLY_TO } : {}),
     // Content is always passed in memory (never a path/URL): no file or network access.
     attachments: [
-      ...(details.logo ? [{ filename: `logo.${details.logo.contentType.split("/")[1]}`, content: details.logo.content, contentType: details.logo.contentType, cid: LOGO_CID }] : []),
+      ...inlineImages(details),
       ...(message.attachment ? [{ filename: message.attachment.filename, content: Buffer.from(message.attachment.content) }] : []),
     ],
   });
@@ -147,26 +147,62 @@ export async function sendEmail(message: EmailMessage): Promise<EmailResult> {
 }
 
 const LOGO_CID = "garage-logo";
+const PRODUCT_CID = "garagepro-logo";
+const PRODUCT_LOGO_PATH = "/icons/icon-192.png";
 
-type GarageDetails = { contact: EmailLayout["contact"]; logo: { contentType: string; content: Buffer } | null };
+type Image = { contentType: string; content: Buffer };
+type GarageDetails = {
+  contact: EmailLayout["contact"];
+  /** The garage's own logo (Paramètres), embedded through SMTP only. */
+  logo: Image | null;
+  /** GaragePro monogram: read from public/ (garage PC) for an inline attachment… */
+  productLogo: Image | null;
+  /** …or loaded from the public site when the file is not on disk (online) or for Resend. */
+  productLogoUrl: string | null;
+};
 
-/** Garage details for the e-mail footer and logo; the e-mail still goes out if they can't be read. */
+/** Garage details for the e-mail footer and logos; the e-mail still goes out if they can't be read. */
 async function garageDetails(): Promise<GarageDetails> {
+  const details: GarageDetails = { contact: undefined, logo: null, productLogo: null, productLogoUrl: null };
+  try {
+    const { readFile } = await import("node:fs/promises");
+    const path = await import("node:path");
+    details.productLogo = { contentType: "image/png", content: await readFile(path.join(process.cwd(), "public", PRODUCT_LOGO_PATH)) };
+  } catch {
+    /* not on disk: the public URL below is used */
+  }
   try {
     // Loaded only when an e-mail is sent: importing the database client at module load reads .env.
     const { getSettings } = await import("@/server/settings");
     const s = await getSettings();
     const [, contentType, base64] = s.logoDataUrl?.match(/^data:(image\/(?:png|jpeg|webp));base64,(.+)$/) ?? [];
-    return {
-      contact: { address: s.address, phone: s.phone, email: s.email },
-      logo: contentType && base64 ? { contentType, content: Buffer.from(base64, "base64") } : null,
-    };
+    details.contact = { address: s.address, phone: s.phone, email: s.email };
+    details.logo = contentType && base64 ? { contentType, content: Buffer.from(base64, "base64") } : null;
+    const { getBaseUrl } = await import("@/lib/base-url");
+    const base = await getBaseUrl();
+    // Only a public https address can be fetched by the customer's mail client (not localhost).
+    if (/^https:\/\//.test(base) && !/localhost|127\.0\.0\.1/.test(base)) details.productLogoUrl = `${base.replace(/\/$/, "")}${PRODUCT_LOGO_PATH}`;
   } catch {
-    return { contact: undefined, logo: null };
+    /* footer without contact details */
   }
+  return details;
 }
 
-/** Layout in src/lib/email-template.ts. The logo is only embedded through SMTP (inline cid attachment). */
-function renderHtml({ text, brand, subject }: EmailMessage, details: GarageDetails, withLogo: boolean): string {
-  return renderEmailHtml({ subject, text, brand, contact: details.contact, logoCid: withLogo && details.logo ? LOGO_CID : null });
+/** Layout in src/lib/email-template.ts. Inline (cid) images only through SMTP; Resend gets the public URL. */
+function renderHtml({ text, brand, subject }: EmailMessage, details: GarageDetails, inline: boolean): string {
+  return renderEmailHtml({
+    subject,
+    text,
+    brand,
+    contact: details.contact,
+    logoCid: inline && details.logo ? LOGO_CID : null,
+    productLogoSrc: inline && details.productLogo ? `cid:${PRODUCT_CID}` : details.productLogoUrl,
+  });
+}
+
+function inlineImages(details: GarageDetails) {
+  return [
+    ...(details.logo ? [{ filename: `logo.${details.logo.contentType.split("/")[1]}`, content: details.logo.content, contentType: details.logo.contentType, cid: LOGO_CID }] : []),
+    ...(details.productLogo ? [{ filename: "garagepro.png", content: details.productLogo.content, contentType: details.productLogo.contentType, cid: PRODUCT_CID }] : []),
+  ];
 }

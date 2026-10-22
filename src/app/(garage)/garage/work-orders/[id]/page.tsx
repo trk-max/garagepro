@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Activity, Ban, CheckCircle2, Eye, EyeOff, FileText, MessageCircle, Printer, Trash2 } from "lucide-react";
+import { Activity, Ban, CheckCircle2, Eye, EyeOff, FileText, MessageCircle, Printer, Send, Trash2 } from "lucide-react";
 import { Priority } from "@prisma/client";
 import {
   addLineAction,
@@ -11,6 +11,7 @@ import {
   changeStatusFormAction,
   createInvoiceAction,
   removeLineAction,
+  sendQuoteAction,
   updateMetaAction,
 } from "@/actions/work-orders";
 import { deleteMediaAction, toggleMediaAction } from "@/actions/workshop";
@@ -193,6 +194,16 @@ export default async function WorkOrderPage({ params }: PageProps) {
           {wo.workflowV16 && pendingLines.length > 0 && approvedCount > 0 && !final && (
             <p className="flex items-center gap-2 rounded-[14px] bg-gp-accent-tint px-3 py-2 text-sm text-gp-accent-ink" data-testid="pending-supplement">
               <FileText className="size-4" aria-hidden /> {fmt(t.v16.quote.pendingSupplement, { amount: formatMoney(pendingTtc, lang) })}
+              {/* Sends the supplement to the customer (SMS / e-mail with the tracking link): by « Devis envoyé », or again while waiting. */}
+              {choices.some((c) => c.to === "QUOTE_SENT" && !c.reason && !c.block) ? (
+                <ActionButton size="sm" className="ms-auto" action={changeStatusAction.bind(null, wo.id, "QUOTE_SENT", {})}>
+                  <Send className="size-4" aria-hidden /> {t.v16.quote.sendSupplement}
+                </ActionButton>
+              ) : (wo.status === "QUOTE_SENT" || wo.status === "WAITING_CUSTOMER") && can(staff, "manageQuotes") ? (
+                <ActionButton size="sm" variant="outline" className="ms-auto" action={sendQuoteAction.bind(null, wo.id)}>
+                  <Send className="size-4" aria-hidden /> {t.v16.quote.sendSupplement}
+                </ActionButton>
+              ) : null}
             </p>
           )}
           {/* V16 Lot 3: refused quote — only the announced fees remain billable; safety waiver to sign. */}

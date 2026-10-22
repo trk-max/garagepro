@@ -85,6 +85,7 @@ export const v16Fr = {
     submit: "Enregistrer la décision",
     lineStatus: { PENDING: "En attente", APPROVED: "Accepté", REFUSED: "Refusé" },
     pendingSupplement: "Supplément en attente d’accord du client : {amount}",
+    sendSupplement: "Envoyer au client pour accord",
     pendingTotal: "dont en attente d’accord",
     received: "Accord du client reçu ({decision}, {date}) : vous pouvez passer en réparation.",
     staleQuote: "Des lignes en attente ne sont pas dans le devis envoyé : renvoyez le devis.",
