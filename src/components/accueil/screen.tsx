@@ -215,7 +215,7 @@ export function WaitingScreen({ dict, initial, logo, timeZone }: { dict: Record<
             ))}
           </ol>
           <h2 className="mt-[2vh] text-[2.6vh] font-semibold">
-            {label((d) => `${d.screen.estimated} (${d.estimated})`)}
+            {label((d) => d.screen.estimated)}
           </h2>
           <ul className="mt-[1vh] space-y-[0.6vh] text-[2.4vh]" data-testid="waits">
             {state.waits.map((w) => (

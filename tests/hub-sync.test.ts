@@ -14,6 +14,8 @@ import { installHub } from "../scripts/hub/init.mjs";
 import { syncOnce, topoOrder } from "../scripts/hub/sync-engine.mjs";
 
 const BASE = process.env.TEST_PG_URL;
+/** Names of the throw-away databases: TEST_HUB_DB_PREFIX lets two working copies run this test on one server at once. */
+const HUB = /^gp_[a-z0-9_]{1,30}$/.test(process.env.TEST_HUB_DB_PREFIX ?? "") ? process.env.TEST_HUB_DB_PREFIX! : "gp_hub";
 const MIGRATIONS = path.join(import.meta.dirname, "../prisma/migrations");
 const migrationSql = (name: string) => readFileSync(path.join(MIGRATIONS, name, "migration.sql"), "utf8");
 const allMigrations = readdirSync(MIGRATIONS).filter((d) => /^\d+_/.test(d)).sort((a, b) => parseInt(a) - parseInt(b));
@@ -70,8 +72,8 @@ describe.skipIf(!BASE)("garage hub ↔ online database", () => {
     admin = new pg.Client({ connectionString: BASE });
     await admin.connect();
     // Online = what Supabase has before the hub (no sync log yet); garage = all migrations.
-    cloud = await freshDb(admin, "gp_hub_cloud", allMigrations.filter((m) => !m.startsWith("3_")));
-    local = await freshDb(admin, "gp_hub_local", allMigrations);
+    cloud = await freshDb(admin, `${HUB}_cloud`, allMigrations.filter((m) => !m.startsWith("3_")));
+    local = await freshDb(admin, `${HUB}_local`, allMigrations);
     await cloud.query(`INSERT INTO "User"(id, email, name, "passwordHash", "updatedAt") VALUES ('u1', 'a@g.tn', 'Admin', 'x', now())`);
     await addCustomer(cloud, "c1", "Sami");
     await addVehicle(cloud, "v1", "100TU1000", "c1");
@@ -81,8 +83,8 @@ describe.skipIf(!BASE)("garage hub ↔ online database", () => {
   afterAll(async () => {
     await local?.end();
     await cloud?.end();
-    await admin?.query("DROP DATABASE IF EXISTS gp_hub_local WITH (FORCE)");
-    await admin?.query("DROP DATABASE IF EXISTS gp_hub_cloud WITH (FORCE)");
+    await admin?.query(`DROP DATABASE IF EXISTS ${HUB}_local WITH (FORCE)`);
+    await admin?.query(`DROP DATABASE IF EXISTS ${HUB}_cloud WITH (FORCE)`);
     await admin?.end();
   });
 
@@ -190,14 +192,37 @@ describe.skipIf(!BASE)("garage hub ↔ online database", () => {
     }
   });
 
+  it("V15 reception queue travels too (tickets, devices, counters; odd / even daily counters never collide)", async () => {
+    // Starting catalogue inserted by the migration on both sides with the same ids: no conflict.
+    for (const db of [local, cloud]) expect(Number((await one(db, `SELECT count(*) FROM "QueueReason" WHERE id='qr_dropoff'`)).count)).toBe(1);
+    // Garage (kiosk, offline from the internet): ticket A-1 (odd counter) and a device.
+    await local.query(`INSERT INTO "Sequence"(key, value) VALUES ('queue:2026-10-22:A:odd', 1)`);
+    await local.query(`INSERT INTO "QueueTicket"(id, day, prefix, number, "reasonId", "reasonKind", "trackToken", "updatedAt") VALUES ('qt1', '2026-10-22', 'A', 1, 'qr_dropoff', 'DROP_OFF', 'tok1tok1tok1tok1tok1tok1', now())`);
+    await local.query(`INSERT INTO "QueueDevice"(id, name, kind, "tokenHash", "updatedAt") VALUES ('qd1', 'Tablette entrée', 'KIOSK', 'h1', now())`);
+    // Online desk at the same time: ticket A-2 (even counter).
+    await cloud.query(`INSERT INTO "Sequence"(key, value) VALUES ('queue:2026-10-22:A:even', 1)`);
+    await cloud.query(`INSERT INTO "QueueTicket"(id, day, prefix, number, "reasonId", "reasonKind", "trackToken", source, "updatedAt") VALUES ('qt2', '2026-10-22', 'A', 2, 'qr_dropoff', 'DROP_OFF', 'tok2tok2tok2tok2tok2tok2', 'DESK', now())`);
+    const r1 = await syncOnce(local, cloud);
+    expect(r1.errors).toEqual([]);
+    for (const db of [local, cloud]) {
+      expect((await db.query(`SELECT number FROM "QueueTicket" WHERE day='2026-10-22' ORDER BY number`)).rows.map((r) => r.number)).toEqual([1, 2]);
+      expect((await one(db, `SELECT name FROM "QueueDevice" WHERE id='qd1'`)).name).toBe("Tablette entrée");
+    }
+    // The garage desk calls A-1: the status reaches the online copy.
+    await local.query(`UPDATE "QueueTicket" SET status='CALLED', "callCount"=1, "calledAt"=now(), "counterId"='qc_1', "updatedAt"=now() WHERE id='qt1'`);
+    const r2 = await syncOnce(local, cloud);
+    expect(r2.errors).toEqual([]);
+    expect((await one(cloud, `SELECT status, "counterId" FROM "QueueTicket" WHERE id='qt1'`))).toEqual({ status: "CALLED", counterId: "qc_1" });
+  });
+
   it("a database without a hub logs nothing", async () => {
-    const plain = await freshDb(admin, "gp_hub_plain", allMigrations);
+    const plain = await freshDb(admin, `${HUB}_plain`, allMigrations);
     try {
       await addCustomer(plain, "x1", "Nobody");
       expect(Number((await one(plain, `SELECT count(*) FROM "_sync_log"`)).count)).toBe(0);
     } finally {
       await plain.end();
-      await admin.query("DROP DATABASE IF EXISTS gp_hub_plain WITH (FORCE)");
+      await admin.query(`DROP DATABASE IF EXISTS ${HUB}_plain WITH (FORCE)`);
     }
     // Builds a whole database from the 23 migrations: more than the default 5 s on a cold server.
   }, 20_000);
