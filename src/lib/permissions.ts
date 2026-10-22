@@ -75,6 +75,13 @@ const MATRIX = {
   reversePayment: ["ADMIN", "MANAGER"],
   /// Ne pas facturer le gardiennage calculé (motif obligatoire, journalisé).
   waiveStorageFee: ["ADMIN", "MANAGER"],
+  // ── V16 Lot 5 — qualité, suivi et pilotage ──
+  /// Lier un ordre à un ordre précédent du même véhicule (retour atelier) et facturer la main-d'œuvre de reprise.
+  manageComebacks: ["ADMIN", "MANAGER", "RECEPTION"],
+  /// Faire une inspection rouge / orange / vert (couleur, note, photo par point).
+  performInspection: ["ADMIN", "MANAGER", "RECEPTION", "MECHANIC"],
+  /// Régler les modèles d'inspection (points).
+  manageInspections: ["ADMIN", "MANAGER"],
   /// Comptes du portail entreprise d'un client.
   manageCompanyAccess: ["ADMIN", "MANAGER"],
 
@@ -227,7 +234,7 @@ export function normaliseOverrides(role: Role, wanted: Partial<Record<string, Ov
 
 /** Display groups for the "Accès" editor (every permission appears exactly once). */
 export const PERMISSION_GROUPS = {
-  workshop: ["viewWorkOrders", "useWorkshop", "printQuote", "uploadMedia", "obdDiagnose", "viewAppointments", "manageAppointments", "manageTracking", "manageRepairFollowUp", "reportMissingPart", "logOwnLabor", "manageLabor", "fillQualityCheck", "approveQualityCheck", "manageClaims", "manageWarranties", "manageQuotes", "recordQuoteApproval", "recordSafetyWaiver", "managePartNeeds", "cancelWorkOrder", "deliverWorkOrder", "deliverWithBalance", "closeWorkOrder", "signIntake", "recordHandover", "waiveStorageFee"],
+  workshop: ["viewWorkOrders", "useWorkshop", "printQuote", "uploadMedia", "obdDiagnose", "viewAppointments", "manageAppointments", "manageTracking", "manageRepairFollowUp", "reportMissingPart", "logOwnLabor", "manageLabor", "fillQualityCheck", "approveQualityCheck", "manageClaims", "manageWarranties", "manageQuotes", "recordQuoteApproval", "recordSafetyWaiver", "managePartNeeds", "cancelWorkOrder", "deliverWorkOrder", "deliverWithBalance", "closeWorkOrder", "signIntake", "recordHandover", "waiveStorageFee", "manageComebacks", "performInspection", "manageInspections"],
   customers: ["viewCustomers", "manageMaintenance", "viewAgenda", "manageAgenda", "configureAgenda", "manageVehicleQr", "viewNotifications", "manageCompanyAccess"],
   money: ["viewFinance", "viewClientInvoices", "createInvoice", "recordPayment", "reversePayment", "issueCreditNote", "sendReminder", "manageExpenses", "viewWarrantyMoney", "viewCashForecast", "readCashForecast", "viewProfit", "viewReports"],
   stock: ["viewStock", "manageStock", "reserveStock", "viewSuppliers", "manageSuppliers", "requestPurchase", "approvePurchase", "receiveGoods", "viewSupplierInvoices", "manageSupplierInvoices", "paySupplier"],

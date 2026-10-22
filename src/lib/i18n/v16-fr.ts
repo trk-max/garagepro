@@ -1,4 +1,5 @@
 import { v16Lot4Fr } from "@/lib/i18n/v16-lot4-fr";
+import { v16Lot5Fr } from "@/lib/i18n/v16-lot5-fr";
 /** V16 — parcours atelier traçable (Lot 1 : statuts, motifs, journal). */
 export const v16Fr = {
   status: {
@@ -197,4 +198,6 @@ export const v16Fr = {
   },
   // ── Lot 4 : réception signée, restitution, facture et paiements ──
   lot4: v16Lot4Fr,
+  // ── Lot 5 : qualité, suivi et pilotage ──
+  lot5: v16Lot5Fr,
 };

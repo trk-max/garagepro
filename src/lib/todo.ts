@@ -11,7 +11,7 @@ export type TodoGroup = "incomplete" | "approval";
 export const TODO_KEYS = [
   // A. Incomplete
   "vehicleInfo", "quoteWaiting", "waitingCustomer", "readyNotDelivered", "deliveredUnpaid", "lateRepairs", "missingParts", "insuranceWaiting",
-  "overdueInvoices", "openClaims", "unreadMessages", "warrantyOpen", "contractDrafts", "contractsExpiring",
+  "overdueInvoices", "openClaims", "lowRatings", "unreadMessages", "warrantyOpen", "contractDrafts", "contractsExpiring",
   "certificateFields", "lowStock", "backup", "agendaDue", "agendaParts",
   // V14 — compétences
   "skillCertificates", "skillWarnings",
@@ -45,6 +45,8 @@ export const TODO_DEFS: Record<TodoKey, Def> = {
   insuranceWaiting: { group: "incomplete", href: "/garage/work-orders?status=WAITING_INSURANCE", visible: followUp },
   overdueInvoices: { group: "incomplete", href: "/garage/invoices?status=OVERDUE", visible: (r) => can(r, "viewClientInvoices") },
   openClaims: { group: "incomplete", href: "/garage/reclamations", visible: (r) => can(r, "manageClaims") },
+  // V16 Lot 5 — note ≤ 3 laissée par un client (30 derniers jours), pas encore traitée.
+  lowRatings: { group: "incomplete", href: "/garage/reclamations", visible: (r) => can(r, "manageClaims") },
   unreadMessages: { group: "incomplete", href: "/garage/messages", visible: (r) => can(r, "useShowroomMessages") },
   warrantyOpen: { group: "incomplete", href: "/garage/garanties?f=claims", visible: (r) => can(r, "manageWarranties") },
   contractDrafts: { group: "incomplete", href: "/garage/contrats?s=DRAFT", visible: contracts("manage") },

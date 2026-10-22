@@ -108,6 +108,10 @@ export const v103Fr = {
       issueCreditNote: "Émettre un avoir (annule une facture, avec motif)",
       reversePayment: "Annuler un paiement (avec motif)",
       waiveStorageFee: "Ne pas facturer le gardiennage (avec motif)",
+      // V16 Lot 5 — qualité, suivi et pilotage.
+      manageComebacks: "Retour atelier : lier à l’ordre précédent, facturer la main-d’œuvre de reprise",
+      performInspection: "Faire une inspection rouge / orange / vert",
+      manageInspections: "Régler les modèles d’inspection",
     } satisfies Record<Permission, string>,
   },
   dash: {

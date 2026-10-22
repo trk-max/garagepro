@@ -496,6 +496,63 @@ describe.skipIf(!BASE)("garage hub ↔ online database", () => {
     expect(m.downloaded).toBeGreaterThanOrEqual(1); // the DELIVERY signature drawn online comes down to the garage PC
   }, 30_000);
 
+  it("V16 Lot 5: migration 29 replays twice (default template identical on both sides, not logged); inspections, comeback link, rework line, labour kind, feedback follow-up travel both ways", async () => {
+    const logged = async (db: pg.Client) => Number((await one(db, `SELECT count(*) FROM "_sync_log"`)).count);
+    const before = await logged(local);
+    for (const db of [local, cloud]) for (let i = 0; i < 2; i++) await db.query(migrationSql("29_quality_followup"));
+    expect(await logged(local)).toBe(before);
+    for (const tbl of ["InspectionTemplate", "Inspection", "InspectionResult"]) {
+      const trg = await local.query(`SELECT 1 FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid WHERE t.tgname = '_sync_log_trg' AND c.relname = $1`, [tbl]);
+      expect(trg.rowCount).toBe(1);
+    }
+    // The default template exists once on each side, with the same id (inserted by the migration, never synchronised).
+    for (const db of [local, cloud]) expect((await db.query(`SELECT id, name FROM "InspectionTemplate" WHERE id = 'inspection-standard'`)).rows).toEqual([{ id: "inspection-standard", name: "Inspection standard" }]);
+    // Orders opened before migration 29 keep the old rules (workflowLot5 false, written without an UPDATE).
+    const pre = await freshDb(admin, `${HUB}_l5pre`, allMigrations.filter((m) => parseInt(m) < 29));
+    try {
+      await addCustomer(pre, "cp", "Avant");
+      await addVehicle(pre, "vp", "100TU0029", "cp");
+      await addWorkOrder(pre, "wp", "cp", "vp");
+      await pre.query(migrationSql("29_quality_followup"));
+      await addWorkOrder(pre, "wq", "cp", "vp");
+      expect((await pre.query(`SELECT id, "workflowLot5" FROM "WorkOrder" ORDER BY id`)).rows).toEqual([
+        { id: "wp", workflowLot5: false },
+        { id: "wq", workflowLot5: true },
+      ]);
+    } finally {
+      await pre.end();
+      await admin.query(`DROP DATABASE IF EXISTS ${HUB}_l5pre WITH (FORCE)`);
+    }
+
+    await addCustomer(local, "c29", "Client inspection");
+    await addVehicle(local, "v29", "290TU2900", "c29");
+    await addWorkOrder(local, "w29a", "c29", "v29");
+    await addWorkOrder(local, "w29b", "c29", "v29");
+    expect((await syncOnce(local, cloud)).errors).toEqual([]);
+    // Garage (offline): the second order is linked as a comeback, rework labour at 0 DT, an inspection with a red point
+    // turned into a quote line, a chronometer tagged REWORK. Online at the same time: a new template, a low rating followed up.
+    await local.query(`UPDATE "WorkOrder" SET "comebackOfWorkOrderId"='w29a', "comebackCategory"='WORKMANSHIP', "comebackLinkedAt"=now(), "updatedAt"=now() WHERE id='w29b'`);
+    await local.query(`INSERT INTO "WorkOrderLine"(id, "workOrderId", type, description, "quantityX100", "unitPrice", "isRework") VALUES ('l29', 'w29b', 'LABOR', 'Reprise', 100, 0, true)`);
+    await local.query(`INSERT INTO "Inspection"(id, "workOrderId", "templateId", name, "updatedAt") VALUES ('i29', 'w29b', 'inspection-standard', 'Inspection standard', now())`);
+    await local.query(`INSERT INTO "InspectionResult"(id, "inspectionId", "pointKey", label, color, note, "lineId", "updatedAt") VALUES ('r29', 'i29', 'brakes-front', 'Freins avant', 'RED', '2 mm', 'l29', now())`);
+    const u = await one(local, `INSERT INTO "User"(id, email, name, role, "passwordHash", "updatedAt") VALUES ('u29', 'u29@t.tn', 'Tech', 'MECHANIC', 'x', now()) RETURNING id`);
+    await local.query(`INSERT INTO "LaborEntry"(id, "workOrderId", "userId", "startedAt", "endedAt", kind, "workOrderLineId", "updatedAt") VALUES ('le29', 'w29b', $1, now() - interval '1 hour', now(), 'REWORK', 'l29', now())`, [u.id]);
+    await local.query(`INSERT INTO "QualityCheck"(id, "workOrderId", "roadTest", "roadTestKm", "extraPoints", "updatedAt") VALUES ('q29', 'w29b', 'DONE', 6, '{"pneus":{"label":"Pneus","ok":true}}', now())`);
+    await cloud.query(`INSERT INTO "InspectionTemplate"(id, name, points, "updatedAt") VALUES ('t29', 'Avant vacances', '[{"key":"clim","label":"Climatisation"}]', now())`);
+    await cloud.query(`INSERT INTO "CustomerFeedback"(id, rating, "workOrderId", "handledAt", "handledNote") VALUES ('f29', 2, 'w29a', now(), 'Rappelé')`);
+    const r = await syncOnce(local, cloud);
+    expect(r.errors).toEqual([]);
+    for (const db of [local, cloud]) {
+      expect(await one(db, `SELECT "comebackOfWorkOrderId", "comebackCategory" FROM "WorkOrder" WHERE id='w29b'`)).toEqual({ comebackOfWorkOrderId: "w29a", comebackCategory: "WORKMANSHIP" });
+      expect(await one(db, `SELECT "isRework", "unitPrice" FROM "WorkOrderLine" WHERE id='l29'`)).toEqual({ isRework: true, unitPrice: 0 });
+      expect(await one(db, `SELECT color, "lineId" FROM "InspectionResult" WHERE id='r29'`)).toEqual({ color: "RED", lineId: "l29" });
+      expect(await one(db, `SELECT kind, "workOrderLineId" FROM "LaborEntry" WHERE id='le29'`)).toEqual({ kind: "REWORK", workOrderLineId: "l29" });
+      expect(await one(db, `SELECT "roadTestKm", "extraPoints" FROM "QualityCheck" WHERE id='q29'`)).toEqual({ roadTestKm: 6, extraPoints: { pneus: { label: "Pneus", ok: true } } });
+      expect(await one(db, `SELECT name FROM "InspectionTemplate" WHERE id='t29'`)).toEqual({ name: "Avant vacances" });
+      expect(await one(db, `SELECT rating, "handledNote" FROM "CustomerFeedback" WHERE id='f29'`)).toEqual({ rating: 2, handledNote: "Rappelé" });
+    }
+  }, 30_000);
+
   it("a database without a hub logs nothing", async () => {
     const plain = await freshDb(admin, `${HUB}_plain`, allMigrations);
     try {

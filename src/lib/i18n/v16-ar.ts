@@ -1,4 +1,5 @@
 import { v16Lot4Ar } from "@/lib/i18n/v16-lot4-ar";
+import { v16Lot5Ar } from "@/lib/i18n/v16-lot5-ar";
 import type { v16Fr } from "@/lib/i18n/v16-fr";
 
 /** V16 — مسار الورشة القابل للتتبع (الدفعة 1). */
@@ -199,4 +200,6 @@ export const v16Ar: typeof v16Fr = {
   },
   // ── Lot 4 : réception signée, restitution, facture et paiements ──
   lot4: v16Lot4Ar,
+  // ── Lot 5 : qualité, suivi et pilotage ──
+  lot5: v16Lot5Ar,
 };

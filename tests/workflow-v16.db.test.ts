@@ -17,7 +17,7 @@ import type { Sender } from "@/server/reminders";
 import { addLine, applyPackage, changeStatus, createWorkOrder, removeLine, updateMeta } from "@/server/work-orders";
 import { agreeAll, makeUser, makeWorkOrder, prisma } from "./helpers/db";
 
-const QC_OK = { roadTest: "DONE" as const, fluidsOk: true, warningsOk: true, toolsRemoved: true, workVerified: true, billingVerified: true };
+const QC_OK = { roadTest: "DONE" as const, roadTestKm: 5, fluidsOk: true, warningsOk: true, toolsRemoved: true, workVerified: true, billingVerified: true };
 const code = (p: Promise<unknown>) => p.then(() => "ok", (e: { code?: string }) => e.code ?? String(e));
 const status = async (id: string) => (await prisma.workOrder.findUniqueOrThrow({ where: { id } })).status;
 const setFlow = (data: { allowWorkWithoutQuote?: boolean; requirePaidBeforeDelivery?: boolean; stampDuty?: number; requireSignedHandover?: boolean }) =>
@@ -92,7 +92,7 @@ describe("V16 — droits par transition (régression A-01)", () => {
     const mech = await makeUser("MECHANIC");
     const { wo } = await makeWorkOrder({ status: "QUALITY_CONTROL" });
     expect(await code(changeStatus(wo.id, "IN_PROGRESS", mech))).toBe("reasonRequired");
-    await changeStatus(wo.id, "IN_PROGRESS", mech, { reason: "Fuite constatée à l'essai" });
+    await changeStatus(wo.id, "IN_PROGRESS", mech, { reason: "Fuite constatée à l'essai", reworkCause: "ROAD_TEST" });
     expect(await status(wo.id)).toBe("IN_PROGRESS");
   });
 });

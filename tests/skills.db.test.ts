@@ -271,7 +271,7 @@ describe("supervision et heures-personnes", () => {
     expect(labor.personMinutes).toBe(150);
     expect(labor.elapsedMinutes).toBe(120);
 
-    const items = { roadTest: "DONE" as const, fluidsOk: true, warningsOk: true, toolsRemoved: true, workVerified: true, billingVerified: true };
+    const items = { roadTest: "DONE" as const, roadTestKm: 5, fluidsOk: true, warningsOk: true, toolsRemoved: true, workVerified: true, billingVerified: true };
     await prisma.setting.upsert({ where: { id: "garage" }, update: { skillSupervisorVerifies: true }, create: { id: "garage", skillSupervisorVerifies: true } });
     try {
       await expect(saveQualityCheck(asStaff(mech), wo.id, items)).rejects.toMatchObject({ code: "skillSupervisorVerifies" });

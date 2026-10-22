@@ -32,7 +32,7 @@ import { moveClaim, openClaim, setClaimAmounts } from "@/server/warranties";
 import { addLine, changeStatus, createWorkOrder } from "@/server/work-orders";
 import { agreeAll, makeUser, makeWorkOrder, prisma } from "../helpers/db";
 
-const QC_OK = { roadTest: "DONE" as const, fluidsOk: true, warningsOk: true, toolsRemoved: true, workVerified: true, billingVerified: true };
+const QC_OK = { roadTest: "DONE" as const, roadTestKm: 5, fluidsOk: true, warningsOk: true, toolsRemoved: true, workVerified: true, billingVerified: true };
 const day = (d: Date) => d.toISOString().slice(0, 10);
 
 beforeAll(async () => {

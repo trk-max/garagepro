@@ -1,4 +1,5 @@
 import { v16Lot4En } from "@/lib/i18n/v16-lot4-en";
+import { v16Lot5En } from "@/lib/i18n/v16-lot5-en";
 import type { v16Fr } from "@/lib/i18n/v16-fr";
 
 /** V16 — traceable workshop flow (Lot 1). */
@@ -199,4 +200,6 @@ export const v16En: typeof v16Fr = {
   },
   // ── Lot 4 : réception signée, restitution, facture et paiements ──
   lot4: v16Lot4En,
+  // ── Lot 5 : qualité, suivi et pilotage ──
+  lot5: v16Lot5En,
 };

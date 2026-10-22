@@ -364,6 +364,15 @@ model WorkOrder {
   /// V16 Lot 4 — règles du Lot 4 (restitution signée avant livraison, acompte = vrai paiement, gardiennage,
   /// relances graduées, garantie à la facture) : false pour les OR ouverts avant la migration 28, true ensuite.
   workflowLot4          Boolean         @default(true)
+  /// V16 Lot 5 — retour atelier : ordre précédent du même véhicule refait (catégorie, qui / quand a lié).
+  /// La main-d'œuvre de reprise d'un ordre lié n'est pas facturée par défaut (WorkOrderLine.isRework).
+  comebackOfWorkOrderId String?
+  comebackCategory      ComebackCategory?
+  comebackLinkedAt      DateTime?
+  comebackLinkedById    String?
+  /// V16 Lot 5 — règles du Lot 5 (km de l'essai, points réglés du contrôle, cause de reprise, enquête de
+  /// satisfaction) : false pour les OR ouverts avant la migration 29, true ensuite.
+  workflowLot5          Boolean         @default(true)
   createdAt            DateTime        @default(now())
   updatedAt            DateTime        @updatedAt
 
@@ -395,8 +404,13 @@ model WorkOrder {
   /// V16 Lot 4 — signatures (ajout seul) et bons de restitution (ajout seul).
   signatures       Signature[]
   handovers        VehicleHandover[]
+  /// V16 Lot 5 — retour atelier (ordre refait) et ordres qui sont des retours de celui-ci ; inspections.
+  comebackOf       WorkOrder?          @relation("Comeback", fields: [comebackOfWorkOrderId], references: [id], onDelete: SetNull)
+  comebacks        WorkOrder[]         @relation("Comeback")
+  inspections      Inspection[]
 
   @@index([status, updatedAt(sort: Desc)])
+  @@index([comebackOfWorkOrderId])
   @@index([mechanicId, status])
   @@index([vehicleId, createdAt(sort: Desc)])
   @@index([customerId, createdAt(sort: Desc)])
@@ -440,11 +454,15 @@ model WorkOrderLine {
   isAnnouncedFee Boolean  @default(false)
   /// V16 Lot 4 — ligne de gardiennage ajoutée à la facturation (jours × frais / jour). false pour les lignes d'avant.
   isStorageFee   Boolean            @default(false)
+  /// V16 Lot 5 — main-d'œuvre de reprise d'un retour atelier (0 DT par défaut, facturée seulement si cochée).
+  isRework       Boolean            @default(false)
   createdAt    DateTime @default(now())
 
   workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
   part      Part?     @relation(fields: [partId], references: [id], onDelete: SetNull)
   quote     Quote?    @relation(fields: [quoteId], references: [id], onDelete: SetNull)
+  laborEntries      LaborEntry[]
+  inspectionResults InspectionResult[]
 
   @@index([workOrderId, position])
   @@index([quoteId])
@@ -998,6 +1016,11 @@ model Setting {
   requireSignedHandover     Boolean   @default(true)
   autoStorageFee            Boolean   @default(true)
   autoInvoiceReminders      Boolean   @default(true)
+  /// V16 Lot 5 — points du contrôle qualité en plus des 6 points fixes : [{ "key": "…", "label": "…" }] ;
+  /// enquête de satisfaction à J+3 après la livraison ; relance des lignes refusées à 30 / 90 jours.
+  qualityPoints             Json      @default("[]")
+  autoSatisfactionSurvey    Boolean   @default(true)
+  autoRefusedLineReminders  Boolean   @default(true)
   openingHours           Json     @default("{\"0\":null,\"1\":{\"open\":\"08:00\",\"close\":\"17:00\"},\"2\":{\"open\":\"08:00\",\"close\":\"17:00\"},\"3\":{\"open\":\"08:00\",\"close\":\"17:00\"},\"4\":{\"open\":\"08:00\",\"close\":\"17:00\"},\"5\":{\"open\":\"08:00\",\"close\":\"17:00\"},\"6\":{\"open\":\"08:00\",\"close\":\"13:00\"}}")
   updatedAt              DateTime @updatedAt
 }
@@ -1171,6 +1194,7 @@ model WorkOrderMedia {
 
   workOrder  WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
   uploadedBy User?     @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+  inspectionResults InspectionResult[]
 
   @@index([workOrderId, createdAt])
 }
@@ -1298,6 +1322,10 @@ model CustomerFeedback {
   /// Une seule note par ordre de réparation.
   workOrderId String?  @unique
   customerId  String?
+  /// V16 Lot 5 — suite donnée à une note ≤ 3 (alerte interne « avis à traiter »).
+  handledAt   DateTime?
+  handledById String?
+  handledNote String?
   createdAt   DateTime @default(now())
 
   workOrder WorkOrder? @relation(fields: [workOrderId], references: [id], onDelete: SetNull)
@@ -1469,11 +1497,15 @@ model LaborEntry {
   voidedAt    DateTime?
   voidedById  String?
   voidReason  String?
+  /// V16 Lot 5 — facultatif : ligne de l'ordre travaillée et nature du temps (diagnostic, travaux, reprise, garantie).
+  workOrderLineId String?
+  kind            LaborKind?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Restrict)
-  user      User      @relation("LaborUser", fields: [userId], references: [id], onDelete: Restrict)
+  workOrder WorkOrder      @relation(fields: [workOrderId], references: [id], onDelete: Restrict)
+  user      User           @relation("LaborUser", fields: [userId], references: [id], onDelete: Restrict)
+  line      WorkOrderLine? @relation(fields: [workOrderLineId], references: [id], onDelete: SetNull)
 
   @@index([workOrderId, startedAt])
   @@index([userId, startedAt])
@@ -1528,6 +1560,10 @@ model QualityCheck {
   toolsRemoved    Boolean   @default(false)
   workVerified    Boolean   @default(false)
   billingVerified Boolean   @default(false)
+  /// V16 Lot 5 — km parcourus pendant l'essai routier (obligatoire si l'essai est fait, nouveaux OR).
+  roadTestKm      Int?
+  /// V16 Lot 5 — points ajoutés dans les réglages : { "<clé>": { "label": "…", "ok": true } } (libellé copié).
+  extraPoints     Json      @default("{}")
   notes           String?
   checkedById     String?
   checkedAt       DateTime?
@@ -1540,6 +1576,84 @@ model QualityCheck {
 }
 
 // ── Portail entreprise ───────────────────────────────────────────────────────
+
+// ── V16 Lot 5 — qualité, retour atelier, inspection ─────────────────────────
+
+enum ComebackCategory {
+  SAME_FAULT
+  WORKMANSHIP
+  PART_FAILURE
+  OTHER
+}
+
+enum LaborKind {
+  DIAGNOSIS
+  WORK
+  REWORK
+  WARRANTY
+}
+
+enum InspectionColor {
+  GREEN
+  ORANGE
+  RED
+}
+
+/// Modèle d'inspection (points à contrôler), réglé dans Paramètres › Inspections.
+model InspectionTemplate {
+  id        String   @id @default(cuid())
+  name      String
+  /// [{ "key": "…", "label": "…" }]
+  points    Json     @default("[]")
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  inspections Inspection[]
+}
+
+/// Inspection d'un véhicule (rouge / orange / vert) faite sur un ordre de réparation.
+model Inspection {
+  id          String    @id @default(cuid())
+  workOrderId String
+  templateId  String?
+  /// Nom du modèle au moment de l'inspection.
+  name        String
+  createdById String?
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  workOrder WorkOrder           @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  template  InspectionTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  results   InspectionResult[]
+
+  @@index([workOrderId, createdAt])
+}
+
+/// Résultat d'un point : couleur, note, photo (WorkOrderMedia) et ligne de devis créée à partir du point.
+model InspectionResult {
+  id           String           @id @default(cuid())
+  inspectionId String
+  pointKey     String
+  label        String
+  position     Int              @default(0)
+  /// null = pas encore contrôlé.
+  color        InspectionColor?
+  note         String?
+  mediaId      String?
+  lineId       String?
+  updatedById  String?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  inspection Inspection      @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+  media      WorkOrderMedia? @relation(fields: [mediaId], references: [id], onDelete: SetNull)
+  line       WorkOrderLine?  @relation(fields: [lineId], references: [id], onDelete: SetNull)
+
+  @@unique([inspectionId, pointKey])
+  @@index([lineId])
+}
 
 enum CompanyRole {
   /// Gère les comptes de son entreprise, voit tout (dont factures).

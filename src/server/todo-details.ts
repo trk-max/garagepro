@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import type { TodoKey } from "@/lib/todo";
 import { missingVehicleInfo, type VehicleInfoField } from "@/lib/vehicle-info";
 import { CONTRACT_TODO, TODO_WHERE } from "@/server/todo";
+import { lowRatingsWhere } from "@/server/claims";
 
 /**
  * V10.4 — first lines of each "À traiter" item for /garage/a-traiter (the bell shows
@@ -76,6 +77,11 @@ async function rowsFor(key: TodoKey, who: PermSubject, now: Date): Promise<TodoR
       const [access, status] = CONTRACT_TODO[key];
       const rows = await prisma.contract.findMany({ where: TODO_WHERE.contracts(who, access, [...status]), select: { id: true, number: true, title: true, updatedAt: true }, orderBy: { updatedAt: "asc" }, take: ROWS });
       return rows.map((c) => ({ id: c.id, title: c.number, sub: c.title, href: `/garage/contrats/${c.id}`, at: c.updatedAt }));
+    }
+    case "lowRatings": {
+      // V16 Lot 5 — low ratings to follow up.
+      const rows = await prisma.customerFeedback.findMany({ where: lowRatingsWhere(now), select: { id: true, rating: true, comment: true, name: true, createdAt: true }, orderBy: { createdAt: "asc" }, take: ROWS });
+      return rows.map((f) => ({ id: f.id, title: `${"★".repeat(f.rating)}${"☆".repeat(5 - f.rating)} ${f.name ?? ""}`.trim(), sub: f.comment?.slice(0, 80) ?? null, href: "/garage/reclamations", at: f.createdAt }));
     }
     case "warrantyOpen":
     case "warrantyDecisions": {

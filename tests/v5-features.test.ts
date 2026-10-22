@@ -147,7 +147,8 @@ describe("report figures", () => {
   it("cars and problems", () => {
     expect(report.cars.received).toBe(3);
     expect(report.cars.returning).toBe(2);
-    expect(report.cars.comebacks).toBe(1); // w1: 15 days after its last visit
+    expect(report.cars.revisits).toBe(1); // w1: 15 days after its last visit (V16 Lot 5: « revisites »)
+    expect(report.cars.comebacks).toBe(0); // V16 Lot 5: only orders linked as a comeback count
     expect(report.cars.turnaroundHours).toBe(10);
     expect(report.cars.topModels[0]).toEqual({ key: "Peugeot 208", count: 2 });
     expect(report.problems[0]).toMatchObject({ key: "brakes", count: 2 });

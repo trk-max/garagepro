@@ -9,10 +9,11 @@ import { PARTS_WAIT_DECISIONS } from "@/lib/delays";
 import { z } from "zod";
 import { recordPartsWaitDecision } from "@/server/delays";
 import { deliverQuoteNotice } from "@/server/quotes";
-import { formToObject, id, insuranceSchema, laborManualSchema, partNeedSchema, partNeedUpdateSchema, qualityCheckSchema, reasonSchema } from "@/lib/validators";
+import { formToObject, id, insuranceSchema, laborManualSchema, partNeedSchema, partNeedUpdateSchema, qualityCheckSchema, qualityExtraFromForm, reasonSchema } from "@/lib/validators";
 import { addPartNeed, updateInsurance, updatePartNeed } from "@/server/follow-up";
 import { addLaborEntry, laborSummary, startLabor, stopLabor, voidLaborEntry } from "@/server/labor";
 import { approveQualityCheck, saveQualityCheck } from "@/server/quality";
+import { isLaborKind } from "@/lib/lot5";
 import { getSettings } from "@/server/settings";
 import { addLine } from "@/server/work-orders";
 
@@ -23,10 +24,20 @@ const refresh = (workOrderId: string) => {
 };
 const day = async (v: string | undefined) => (v ? zonedToUtc(v, "12:00", (await getSettings()).timezone) : undefined);
 
-export async function startLaborAction(workOrderId: string): Promise<ActionResult> {
+/** V16 Lot 5 — optional kind of time and order line, sent by the chronometer form (absent = as before). */
+function laborTag(form: FormData | undefined) {
+  const kind = form?.get("kind");
+  const line = form?.get("workOrderLineId");
+  return {
+    kind: isLaborKind(kind) ? kind : null,
+    workOrderLineId: typeof line === "string" && line ? id.parse(line) : null,
+  };
+}
+
+export async function startLaborAction(workOrderId: string, form?: FormData): Promise<ActionResult> {
   try {
     const actor = await requirePermission("logOwnLabor");
-    await startLabor(actor, id.parse(workOrderId));
+    await startLabor(actor, id.parse(workOrderId), actor.id, new Date(), laborTag(form instanceof FormData ? form : undefined));
     refresh(workOrderId);
     return { ok: true, data: null };
   } catch (error) {
@@ -51,7 +62,7 @@ export async function addLaborEntryAction(workOrderId: string, form: FormData): 
     const v = laborManualSchema.parse(formToObject(form));
     const tz = (await getSettings()).timezone;
     const at = (s: string) => zonedToUtc(s.slice(0, 10), s.slice(11, 16), tz);
-    await addLaborEntry(actor, { workOrderId: id.parse(workOrderId), userId: v.userId, startedAt: at(v.from), endedAt: at(v.to), note: v.note });
+    await addLaborEntry(actor, { workOrderId: id.parse(workOrderId), userId: v.userId, startedAt: at(v.from), endedAt: at(v.to), note: v.note, ...laborTag(form) });
     refresh(workOrderId);
     return { ok: true, data: null };
   } catch (error) {
@@ -97,7 +108,7 @@ export async function saveQualityCheckAction(workOrderId: string, form: FormData
   try {
     const actor = await requirePermission("fillQualityCheck");
     const v = qualityCheckSchema.parse(formToObject(form));
-    await saveQualityCheck(actor, id.parse(workOrderId), { ...v, roadTest: v.roadTest ?? null });
+    await saveQualityCheck(actor, id.parse(workOrderId), { ...v, roadTest: v.roadTest ?? null, roadTestKm: v.roadTestKm ?? null, extra: qualityExtraFromForm(form) });
     refresh(workOrderId);
     return { ok: true, data: null };
   } catch (error) {

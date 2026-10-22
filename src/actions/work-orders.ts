@@ -28,6 +28,7 @@ import { zonedToUtc } from "@/lib/booking";
 import { headers } from "next/headers";
 import { clientIp } from "@/server/portal-session";
 import { z } from "zod";
+import { REWORK_CAUSES, isReworkCause } from "@/lib/lot5";
 import {
   type StatusChangeOptions,
   completeVehicleInfo,
@@ -51,6 +52,8 @@ const statusOptionsSchema = z.object({
   // V16 Lot 3 — refused quote → « Prêt »: car put back together; signed safety waiver (refused SAFETY line).
   reassembled: z.boolean().optional(),
   safetyWaiver: z.boolean().optional(),
+  // V16 Lot 5 — cause of a rework (quality check / ready car back to the workshop).
+  reworkCause: z.enum(REWORK_CAUSES).nullish(),
 });
 
 /** "2026-10-07T17:30" typed in the garage → UTC instant. */
@@ -146,6 +149,7 @@ export async function changeStatusFormAction(workOrderId: string, form: FormData
     override: raw.override === "on",
     reassembled: raw.reassembled === "on",
     safetyWaiver: raw.safetyWaiver === "on",
+    reworkCause: isReworkCause(raw.reworkCause) ? raw.reworkCause : null,
   });
 }
 
@@ -189,7 +193,7 @@ export async function addLineAction(workOrderId: string, form: FormData): Promis
     const extra = lineQuoteSchema.parse({ priority: raw.priority || undefined, partCondition: raw.partCondition || undefined });
     const warning = await addLine(
       id.parse(workOrderId),
-      { type: input.type, partId: input.partId, description: input.description, quantityX100: input.quantity, unitPrice: input.unitPrice, ...extra, announcedFee: raw.announcedFee === "on" },
+      { type: input.type, partId: input.partId, description: input.description, quantityX100: input.quantity, unitPrice: input.unitPrice, ...extra, announcedFee: raw.announcedFee === "on", billRework: raw.billRework === "on" },
       actor,
     );
     refresh(workOrderId);

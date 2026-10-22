@@ -10,7 +10,7 @@ import { missingVehicleInfo } from "@/lib/vehicle-info";
 import { backupProblem } from "@/server/backups";
 import { countDueSoon, partsToOrder } from "@/server/agenda";
 import { countLongWaits } from "@/server/accueil";
-import { countOpenClaims } from "@/server/claims";
+import { countLowRatings, countOpenClaims } from "@/server/claims";
 import { countExpiringContracts } from "@/server/contracts";
 import { countLateRepairs } from "@/server/follow-up";
 import { countOverdue } from "@/server/invoices";
@@ -97,6 +97,7 @@ function counter(key: TodoKey, actor: TodoActor, now: Date): Promise<number> {
     case "insuranceWaiting": return prisma.workOrder.count({ where: TODO_WHERE.insuranceWaiting });
     case "overdueInvoices": return countOverdue(now);
     case "openClaims": return countOpenClaims();
+    case "lowRatings": return countLowRatings(now);
     case "unreadMessages": return unreadForStaff(actor);
     case "warrantyOpen": return prisma.warrantyClaim.count({ where: { status: "OPEN" } });
     case "contractDrafts": case "contractsToApprove": case "contractsToSign": return contract(key);

@@ -21,7 +21,7 @@ import { getReport } from "@/server/reports";
 import { addLine, changeStatus, createWorkOrder, updateMeta } from "@/server/work-orders";
 import { agreeAll, makeUser, makeWorkOrder, prisma } from "./helpers/db";
 
-const QC_OK = { roadTest: "DONE" as const, fluidsOk: true, warningsOk: true, toolsRemoved: true, workVerified: true, billingVerified: true };
+const QC_OK = { roadTest: "DONE" as const, roadTestKm: 5, fluidsOk: true, warningsOk: true, toolsRemoved: true, workVerified: true, billingVerified: true };
 const code = (p: Promise<unknown>) => p.then(() => "ok", (e: { code?: string; message?: string }) => e.code ?? String(e.message ?? e));
 const status = async (id: string) => (await prisma.workOrder.findUniqueOrThrow({ where: { id } })).status;
 const lines = (workOrderId: string) => prisma.workOrderLine.findMany({ where: { workOrderId }, orderBy: [{ position: "asc" }, { createdAt: "asc" }] });
@@ -167,7 +167,7 @@ describe("Lot 3 — devis refusé : seuls les frais annoncés restent facturable
     expect(waiver.data).toMatchObject({ lineIds: [safety!.id], signedOnPaper: true });
     expect(await prisma.auditLog.count({ where: { action: "workOrder.safetyWaiver", entityId: waiver.id } })).toBe(1);
     // Back to the workshop and ready again: the waiver already covers the line.
-    await changeStatus(wo.id, "IN_PROGRESS", manager as never, { reason: "Reprise vidange" });
+    await changeStatus(wo.id, "IN_PROGRESS", manager as never, { reason: "Reprise vidange", reworkCause: "INCOMPLETE" });
     await changeStatus(wo.id, "QUALITY_CONTROL", manager as never);
     await qcOk(manager, wo.id);
     await changeStatus(wo.id, "READY", manager as never);

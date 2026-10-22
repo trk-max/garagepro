@@ -13,6 +13,7 @@ import { audit } from "@/server/audit";
 import { assertQualityApproved, resetQualityApproval } from "@/server/quality";
 import { createAutoRepairWarranty } from "@/server/warranties";
 import { missingVehicleInfo } from "@/lib/vehicle-info";
+import { isReworkCause, isReworkMove, reworkCount, reworkLine, type ReworkCause } from "@/lib/lot5";
 import type { IntakeForm } from "@/lib/repair-order-forms";
 import type { FuelType, LinePriority, LineType, PartCondition, Prisma, Priority, PromiseReason, WorkOrderStatus } from "@prisma/client";
 import { formatMoney, normalizePlate } from "@/lib/format";
@@ -170,7 +171,7 @@ export async function listMechanics() {
 async function loadEditable(tx: Tx, workOrderId: string, { allowInvoiced = false } = {}) {
   const wo = await tx.workOrder.findUnique({
     where: { id: workOrderId },
-    select: { id: true, status: true, mechanicId: true, workflowV16: true, quoteApprovedAt: true, invoice: { select: { id: true } } },
+    select: { id: true, status: true, mechanicId: true, workflowV16: true, quoteApprovedAt: true, comebackOfWorkOrderId: true, invoice: { select: { id: true } } },
   });
   if (!wo) throw new AppError("notFound", {}, 404);
   if (isFinal(wo.status)) throw new AppError("final", {}, 409);
@@ -398,6 +399,8 @@ export type StatusChangeOptions = {
   reassembled?: boolean;
   /** V16 Lot 3 — the customer signed the printed safety waiver (refused SAFETY line), permission recordSafetyWaiver. */
   safetyWaiver?: boolean;
+  /** V16 Lot 5 — back to the workshop after the quality check / once ready: cause (list), on top of the reason. */
+  reworkCause?: ReworkCause | string | null;
 };
 
 export async function changeStatus(workOrderId: string, to: WorkOrderStatus, actor: StaffUser, opts: StatusChangeOptions = {}) {
@@ -444,6 +447,7 @@ async function changeStatusTx(workOrderId: string, to: WorkOrderStatus, actor: S
         quoteApprovedAt: true,
         depositAmount: true,
         workflowLot4: true,
+        workflowLot5: true,
         readyAt: true,
         invoice: { select: { id: true, totalTtc: true, paidAmount: true, status: true } },
         // Voided lines already gave their parts back, and parts still in reservation (V16 quote) never left
@@ -468,6 +472,15 @@ async function changeStatusTx(workOrderId: string, to: WorkOrderStatus, actor: S
     const reason = cleanReason(opts.reason);
     if (reasonRequired(wo.status, to) && !reason) {
       throw new AppError("reasonRequired", {}, 422);
+    }
+    // V16 Lot 5 (new orders): a rework (quality check / ready car back to the workshop) needs its cause; the rework
+    // counter is computed from the status events (append-only), the new value is written in this move's event.
+    let rework: { cause: ReworkCause | null; count: number } | null = null;
+    if (isReworkMove(wo.status, to)) {
+      const cause = isReworkCause(opts.reworkCause) ? opts.reworkCause : null;
+      if (wo.workflowLot5 && !cause) throw new AppError("reworkCauseRequired", {}, 422);
+      const past = await tx.workOrderEvent.findMany({ where: { workOrderId, type: "STATUS_CHANGED" }, select: { type: true, data: true } });
+      rework = { cause, count: reworkCount(past) + 1 };
     }
 
     // V16 delivery check (new orders, setting on): invoice issued and settled, deposit deducted — or a traced override.
@@ -571,6 +584,7 @@ async function changeStatusTx(workOrderId: string, to: WorkOrderStatus, actor: S
       ...(approval ? { approval: true } : {}),
       ...(refusedLines.length ? { refusedLines: refusedLines.length } : {}),
       ...(wo.status === "QUOTE_REFUSED" && to === "READY" ? { reassembled: !!opts.reassembled } : {}),
+      ...(rework ? { reworkCause: rework.cause, rework: rework.count } : {}),
     };
     await event(tx, workOrderId, actor.id, "STATUS_CHANGED", { from: wo.status, to, ...extra });
     await audit(tx, actor, "workOrder.status", "WorkOrder", workOrderId, { before: { status: wo.status }, after: { status: to, ...extra } });
@@ -749,8 +763,13 @@ type NewLine = {
    * if the quote is refused.
    */
   announcedFee?: boolean;
+  /**
+   * V16 Lot 5 — on an order linked as a comeback (retour atelier), labour is rework and is NOT billed by default
+   * (0 DT); true = bill it anyway (permission manageComebacks, journalised).
+   */
+  billRework?: boolean;
 };
-type EditableOrder = { id: string; status: WorkOrderStatus; workflowV16: boolean; quoteApprovedAt: Date | null };
+type EditableOrder = { id: string; status: WorkOrderStatus; workflowV16: boolean; quoteApprovedAt: Date | null; comebackOfWorkOrderId?: string | null };
 
 /**
  * V16 Lot 2 — agreement status of a new line. New orders: always PENDING (the customer accepts it on a quote,
@@ -805,6 +824,10 @@ async function insertLine(tx: Tx, wo: EditableOrder, line: NewLine, actor: Staff
     if (!description) throw new AppError("invalid");
     unitPrice ??= laborRate;
   }
+  // V16 Lot 5: rework labour of a comeback is free unless someone allowed to ticks « bill it ».
+  if (line.billRework && !can(actor, "manageComebacks")) throw new AppError("forbidden", {}, 403);
+  const rework = reworkLine({ comeback: !!wo.comebackOfWorkOrderId, type: line.type, unitPrice: unitPrice!, bill: !!line.billRework });
+  unitPrice = rework.unitPrice;
 
   const position = await tx.workOrderLine.count({ where: { workOrderId } });
   const created = await tx.workOrderLine.create({
@@ -824,6 +847,7 @@ async function insertLine(tx: Tx, wo: EditableOrder, line: NewLine, actor: Staff
       partCondition: line.type === "PART" ? (line.partCondition ?? null) : null,
       stockDeferred: deferred,
       isAnnouncedFee: fee,
+      isRework: rework.isRework,
     },
   });
   if (deferred) {
@@ -831,12 +855,17 @@ async function insertLine(tx: Tx, wo: EditableOrder, line: NewLine, actor: Staff
     const short = await reserveForLine(tx, actor, { workOrderId, partId: line.partId!, lineId: created.id, quantityX100: line.quantityX100 });
     if (short > 0) warning = { name: partName ?? description!, stockX100: -short };
   }
-  return { id: created.id, description: description!, unitPrice: unitPrice!, warning };
+  return { id: created.id, description: description!, unitPrice: unitPrice!, warning, isRework: rework.isRework };
 }
 
 export async function addLine(workOrderId: string, line: NewLine, actor: StaffUser) {
   const settings = await getSettings();
-  return prisma.$transaction(async (tx) => {
+  return prisma.$transaction(async (tx) => (await addLineTx(tx, workOrderId, line, actor, settings)).warning);
+}
+
+/** Same as addLine inside the caller's transaction (V16 Lot 5: inspection point → quote line); returns the line. */
+export async function addLineTx(tx: Tx, workOrderId: string, line: NewLine, actor: StaffUser, settings: { laborRate: number; defaultTaxBp: number }) {
+  {
     const wo = await loadEditable(tx, workOrderId);
     const result = await insertLine(tx, wo, line, actor, settings.laborRate, settings.defaultTaxBp);
     await event(tx, workOrderId, actor.id, "LINE_ADDED", { description: result.description, ...(line.announcedFee ? { announcedFee: true } : {}) });
@@ -852,13 +881,14 @@ export async function addLine(workOrderId: string, line: NewLine, actor: StaffUs
         priority: line.priority ?? null,
         partCondition: line.partCondition ?? null,
         ...(line.announcedFee ? { isAnnouncedFee: true } : {}),
+        ...(result.isRework ? { isRework: true, billed: !!line.billRework } : {}),
       },
     });
     // V16 (audit n° 4): the work changed, the quality check must be validated again.
     await resetQualityApproval(tx, workOrderId);
     await tx.workOrder.update({ where: { id: workOrderId }, data: { updatedAt: new Date() } });
-    return result.warning;
-  });
+    return result;
+  }
 }
 
 /**

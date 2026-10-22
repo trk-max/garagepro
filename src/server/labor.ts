@@ -7,9 +7,20 @@ import { prisma } from "@/lib/prisma";
 import type { StaffUser } from "@/lib/session";
 import { audit } from "@/server/audit";
 import { isFinal } from "@/server/workflow";
+import type { LaborKind, Prisma } from "@prisma/client";
+
+/** V16 Lot 5 — optional: the order line worked on and the kind of time. The line must belong to the order. */
+export type LaborTag = { kind?: LaborKind | null; workOrderLineId?: string | null };
+
+async function checkTag(tx: Prisma.TransactionClient, workOrderId: string, tag: LaborTag | undefined) {
+  if (!tag?.workOrderLineId) return { kind: tag?.kind ?? null, workOrderLineId: null };
+  const line = await tx.workOrderLine.findUnique({ where: { id: tag.workOrderLineId }, select: { workOrderId: true } });
+  if (!line || line.workOrderId !== workOrderId) throw new AppError("invalid", {}, 422);
+  return { kind: tag.kind ?? null, workOrderLineId: tag.workOrderLineId };
+}
 
 /** Starts the chronometer of `userId` (himself, or by a manager) on a work order. */
-export async function startLabor(actor: StaffUser, workOrderId: string, userId = actor.id, now = new Date()) {
+export async function startLabor(actor: StaffUser, workOrderId: string, userId = actor.id, now = new Date(), tag?: LaborTag) {
   if (userId !== actor.id && !can(actor, "manageLabor")) throw new AppError("forbidden", {}, 403);
   return prisma.$transaction(async (tx) => {
     const wo = await tx.workOrder.findUnique({ where: { id: workOrderId }, select: { status: true } });
@@ -21,8 +32,9 @@ export async function startLabor(actor: StaffUser, workOrderId: string, userId =
     });
     if (running) throw new AppError("laborRunning", { n: `OR-${String(running.workOrder.number).padStart(4, "0")}` }, 409);
     try {
-      const entry = await tx.laborEntry.create({ data: { workOrderId, userId, startedAt: now, createdById: actor.id }, select: { id: true } });
-      await audit(tx, actor, "labor.start", "LaborEntry", entry.id, { after: { workOrderId, userId, startedAt: now } });
+      const t = await checkTag(tx, workOrderId, tag);
+      const entry = await tx.laborEntry.create({ data: { workOrderId, userId, startedAt: now, createdById: actor.id, ...t }, select: { id: true } });
+      await audit(tx, actor, "labor.start", "LaborEntry", entry.id, { after: { workOrderId, userId, startedAt: now, ...t } });
       return entry;
     } catch (error) {
       if ((error as { code?: string }).code === "P2002") throw new AppError("laborRunning", { n: "?" }, 409);
@@ -44,7 +56,7 @@ export async function stopLabor(actor: StaffUser, entryId: string, now = new Dat
 }
 
 /** Manager records time after the fact (forgotten chronometer). */
-export async function addLaborEntry(actor: StaffUser, input: { workOrderId: string; userId: string; startedAt: Date; endedAt: Date; note?: string }) {
+export async function addLaborEntry(actor: StaffUser, input: { workOrderId: string; userId: string; startedAt: Date; endedAt: Date; note?: string } & LaborTag) {
   if (!can(actor, "manageLabor")) throw new AppError("forbidden", {}, 403);
   if (!(input.endedAt > input.startedAt) || input.endedAt.getTime() - input.startedAt.getTime() > 16 * 3_600_000 || input.endedAt.getTime() > Date.now() + 60_000) {
     throw new AppError("laborDates", {}, 422);
@@ -52,8 +64,12 @@ export async function addLaborEntry(actor: StaffUser, input: { workOrderId: stri
   return prisma.$transaction(async (tx) => {
     const wo = await tx.workOrder.findUnique({ where: { id: input.workOrderId }, select: { id: true } });
     if (!wo) throw new AppError("notFound", {}, 404);
-    const entry = await tx.laborEntry.create({ data: { ...input, note: input.note || null, createdById: actor.id }, select: { id: true } });
-    await audit(tx, actor, "labor.add", "LaborEntry", entry.id, { after: input });
+    const t = await checkTag(tx, input.workOrderId, input);
+    const { kind: _k, workOrderLineId: _l, ...base } = input;
+    void _k;
+    void _l;
+    const entry = await tx.laborEntry.create({ data: { ...base, ...t, note: input.note || null, createdById: actor.id }, select: { id: true } });
+    await audit(tx, actor, "labor.add", "LaborEntry", entry.id, { after: { ...base, ...t } });
     return entry;
   });
 }
@@ -78,7 +94,7 @@ export async function laborSummary(workOrderId: string, now = new Date()) {
     prisma.laborEntry.findMany({
       where: { workOrderId },
       orderBy: { startedAt: "asc" },
-      include: { user: { select: { id: true, name: true } } },
+      include: { user: { select: { id: true, name: true } }, line: { select: { description: true } } },
     }),
     prisma.workOrderLine.aggregate({ where: { workOrderId, type: "LABOR", ...LIVE_LINE }, _sum: { quantityX100: true } }),
     prisma.setting.findUnique({ where: { id: "garage" }, select: { laborBillingMode: true } }),

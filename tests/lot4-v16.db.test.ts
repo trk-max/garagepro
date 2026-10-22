@@ -25,7 +25,7 @@ import { waiveStorageFee } from "@/server/storage-fees";
 import { addLine, changeStatus, createWorkOrder, updateMeta } from "@/server/work-orders";
 import { agreeAll, makeUser, makeWorkOrder, prisma } from "./helpers/db";
 
-const QC_OK = { roadTest: "DONE" as const, fluidsOk: true, warningsOk: true, toolsRemoved: true, workVerified: true, billingVerified: true };
+const QC_OK = { roadTest: "DONE" as const, roadTestKm: 5, fluidsOk: true, warningsOk: true, toolsRemoved: true, workVerified: true, billingVerified: true };
 const code = (p: Promise<unknown>) => p.then(() => "ok", (e: { code?: string; message?: string }) => e.code ?? String(e.message ?? e));
 const status = async (id: string) => (await prisma.workOrder.findUniqueOrThrow({ where: { id } })).status;
 type Actor = Awaited<ReturnType<typeof makeUser>>;

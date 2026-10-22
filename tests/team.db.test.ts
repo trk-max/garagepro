@@ -194,7 +194,7 @@ describe("temps des mécaniciens", () => {
 });
 
 describe("contrôle qualité obligatoire", () => {
-  const all = { roadTest: "DONE" as const, fluidsOk: true, warningsOk: true, toolsRemoved: true, workVerified: true, billingVerified: true };
+  const all = { roadTest: "DONE" as const, roadTestKm: 5, fluidsOk: true, warningsOk: true, toolsRemoved: true, workVerified: true, billingVerified: true };
   it("'Ready' is refused until the checklist is complete AND validated by a manager", async () => {
     const manager = await makeUser("MANAGER");
     const mech = await makeUser("MECHANIC");
@@ -212,7 +212,7 @@ describe("contrôle qualité obligatoire", () => {
     await changeStatus(wo.id, "READY", manager);
     expect((await prisma.workOrder.findUnique({ where: { id: wo.id } }))!.status).toBe("READY");
     // Back to the workshop → must be validated again (V16: with a reason).
-    await changeStatus(wo.id, "IN_PROGRESS", manager, { reason: "Bruit au freinage à l’essai" });
+    await changeStatus(wo.id, "IN_PROGRESS", manager, { reason: "Bruit au freinage à l’essai", reworkCause: "ROAD_TEST" });
     expect((await prisma.qualityCheck.findUnique({ where: { workOrderId: wo.id } }))!.approvedAt).toBeNull();
   });
 

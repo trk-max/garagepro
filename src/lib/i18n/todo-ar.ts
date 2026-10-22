@@ -22,6 +22,7 @@ export const todoAr: typeof todoFr = {
     insuranceWaiting: "ملفات تأمين دون رد",
     overdueInvoices: "فواتير حرفاء متأخرة الدفع",
     openClaims: "شكاوى حرفاء مفتوحة",
+    lowRatings: "تقييمات حرفاء (≤ 3) للمتابعة",
     unreadMessages: "رسائل مشترين غير مقروءة",
     warrantyOpen: "مطالبات ضمان لم تُرسل بعد",
     contractDrafts: "عقود في المسودة يجب إكمالها",

@@ -21,6 +21,7 @@ export const todoFr = {
     insuranceWaiting: "Dossiers assurance sans réponse",
     overdueInvoices: "Factures clients en retard de paiement",
     openClaims: "Réclamations clients ouvertes",
+    lowRatings: "Avis clients (note ≤ 3) à traiter",
     unreadMessages: "Messages d'acheteurs non lus",
     warrantyOpen: "Réclamations garantie pas encore envoyées",
     contractDrafts: "Contrats en brouillon à compléter",

@@ -107,6 +107,10 @@ export const v103En: typeof v103Fr = {
       issueCreditNote: "Issue a credit note (cancels an invoice, with a reason)",
       reversePayment: "Cancel a payment (with a reason)",
       waiveStorageFee: "Do not charge the storage fee (with a reason)",
+      // V16 Lot 5
+      manageComebacks: "Comeback: link to the previous order, bill the rework labour",
+      performInspection: "Carry out a red / amber / green inspection",
+      manageInspections: "Set up the inspection templates",
     },
   },
   dash: {

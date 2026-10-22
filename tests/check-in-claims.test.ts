@@ -28,9 +28,10 @@ vi.mock("@/lib/prisma", () => {
     auditLog: { create: async () => ({}) }, // journal
     setting: { findUnique: async () => null }, // V16 Lot 4: diagnostic fee answer (no fee set)
   };
-  return {
+  const p = {
     prisma: {
-      $transaction: async (fn: (t: typeof tx) => unknown) => fn(tx),
+      // V16 Lot 5: the rating is written in a transaction (with the « low rating » note of the order).
+      $transaction: async (fn: (t: typeof tx) => unknown) => fn({ ...tx, customerFeedback: p.prisma.customerFeedback } as typeof tx),
       workOrder: { findUnique: async () => ({ id: "wo1", customerId: "c1" }) },
       vehicle: { findUnique: async () => null },
       customer: { findFirst: async () => null },
@@ -45,6 +46,7 @@ vi.mock("@/lib/prisma", () => {
       },
     },
   };
+  return p;
 });
 vi.mock("@/server/rate-limit", () => ({ reserveAttempt: async () => (db.attempts++ < 5 ? ["a"] : null) }));
 vi.mock("@/server/settings", () => ({ getSettings: async () => ({}) }));

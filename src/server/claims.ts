@@ -5,6 +5,9 @@ import { AppError, isUniqueViolation } from "@/lib/http";
 import { prisma } from "@/lib/prisma";
 import type { StaffUser } from "@/lib/session";
 import { reserveAttempt } from "@/server/rate-limit";
+import { can } from "@/lib/permissions";
+import { LOW_RATING, isLowRating } from "@/lib/lot5";
+import { audit } from "@/server/audit";
 
 /** Public forms: at most this many complaints / reviews per IP per hour (no captcha needed). */
 const MAX_PER_IP_PER_HOUR = 5;
@@ -38,9 +41,17 @@ export async function createFeedback(input: FeedbackInput, ctx: { ip: string; wo
   }
   const link = await findCustomer(input.plate, undefined, ctx.workOrderId ?? null);
   try {
-    return await prisma.customerFeedback.create({
-      data: { ...input, workOrderId: link.workOrderId, customerId: link.customerId },
-      select: { id: true },
+    return await prisma.$transaction(async (tx) => {
+      const fb = await tx.customerFeedback.create({
+        data: { ...input, workOrderId: link.workOrderId, customerId: link.customerId },
+        select: { id: true },
+      });
+      // V16 Lot 5: a rating of 3 or less is an internal alert (« Avis clients à traiter » in À traiter) and is noted
+      // in the order's history.
+      if (isLowRating(input.rating) && link.workOrderId) {
+        await tx.workOrderEvent.create({ data: { workOrderId: link.workOrderId, actorId: null, type: "NOTE", data: { lowRating: input.rating, feedbackId: fb.id } } });
+      }
+      return fb;
     });
   } catch (error) {
     if (isUniqueViolation(error)) throw new AppError("alreadyRated", {}, 409);
@@ -105,6 +116,27 @@ export async function updateClaim(claimId: string, input: { status: ClaimStatus;
       resolvedAt: input.status === "RESOLVED" ? (claim.resolvedAt ?? new Date()) : null,
     },
     select: { id: true },
+  });
+}
+
+/** V16 Lot 5 — low ratings (≤ 3) of the last 30 days nobody followed up yet: the internal alert. */
+export const LOW_RATING_WINDOW_DAYS = 30;
+export function lowRatingsWhere(now = new Date()) {
+  return { rating: { lte: LOW_RATING }, handledAt: null, createdAt: { gte: new Date(now.getTime() - LOW_RATING_WINDOW_DAYS * 86_400_000) } };
+}
+export async function countLowRatings(now = new Date()): Promise<number> {
+  return prisma.customerFeedback.count({ where: lowRatingsWhere(now) });
+}
+
+/** V16 Lot 5 — the team followed a low rating up (called the customer…): note, who, when (journalised). */
+export async function handleFeedback(actor: StaffUser, feedbackId: string, note: string) {
+  if (!can(actor, "manageClaims")) throw new AppError("forbidden", {}, 403);
+  const clean = note.trim().slice(0, 500);
+  if (clean.length < 3) throw new AppError("reasonRequired", {}, 422);
+  return prisma.$transaction(async (tx) => {
+    const { count } = await tx.customerFeedback.updateMany({ where: { id: feedbackId, handledAt: null }, data: { handledAt: new Date(), handledById: actor.id, handledNote: clean } });
+    if (count === 0) throw new AppError("notFound", {}, 404);
+    await audit(tx, actor, "feedback.handled", "CustomerFeedback", feedbackId, { after: { note: clean } });
   });
 }
 

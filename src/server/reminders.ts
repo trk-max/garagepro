@@ -13,6 +13,7 @@ import { getSettings } from "@/server/settings";
 import { ACTIVE_STATUSES } from "@/server/workflow";
 import { formatMoney } from "@/lib/format";
 import { reminderLevel } from "@/lib/billing";
+import { SURVEY_AFTER_DAYS, SURVEY_UNTIL_DAYS, refusedReminderLevel, surveyDue } from "@/lib/lot5";
 import { audit } from "@/server/audit";
 
 /**
@@ -70,7 +71,8 @@ export type Item = {
   // V16 Lot 2: "QUOTE" = « devis / supplément à valider » (link + code), "QUOTE_REMINDER" = one reminder after QUOTE_WAIT_DAYS.
   // V16 Lot 3: "PROMISE" = the promised date changed, "PART_DATE" = a missing part's expected date changed.
   // V16 Lot 4: "INVOICE_REMINDER" = graduated reminder of an overdue invoice (J+7, J+15, J+30).
-  kind: "MAINTENANCE" | "APPOINTMENT" | "DELIVERY" | "AGENDA" | "QUEUE" | "READY" | "QUOTE" | "QUOTE_REMINDER" | "PROMISE" | "PART_DATE" | "INVOICE_REMINDER";
+  // V16 Lot 5: "SURVEY" = satisfaction survey 3 days after the delivery, "REFUSED_LINES" = refused work reminded at 30 / 90 days.
+  kind: "MAINTENANCE" | "APPOINTMENT" | "DELIVERY" | "AGENDA" | "QUEUE" | "READY" | "QUOTE" | "QUOTE_REMINDER" | "PROMISE" | "PART_DATE" | "INVOICE_REMINDER" | "SURVEY" | "REFUSED_LINES";
   dedupeKey: string;
   phone: string | null;
   email: string | null;
@@ -263,7 +265,11 @@ export type RunResult = { skipped?: string; queued: number; sent: number; failed
 
 export async function runReminders(now = new Date(), sender: Sender = realSender): Promise<RunResult> {
   if (isCloudWithHub()) return { skipped: "Le hub du garage envoie les rappels (évite les doublons).", queued: 0, sent: 0, failed: 0, channels: sender.channels() };
-  const queued = (await queueItems(await collectDue(now), sender)) + (await queueInvoiceReminders(now, sender));
+  const queued =
+    (await queueItems(await collectDue(now), sender)) +
+    (await queueInvoiceReminders(now, sender)) +
+    (await queueSatisfactionSurveys(now, sender)) +
+    (await queueRefusedLineReminders(now, sender));
   const { sent, failed } = await deliverPending(now, sender);
   return { queued, sent, failed, channels: sender.channels() };
 }
@@ -314,6 +320,90 @@ export async function queueInvoiceReminders(now = new Date(), sender: Sender = r
         await tx.workOrderEvent.create({ data: { workOrderId: inv.workOrderId, actorId: null, type: "NOTE", body: `[${channel}] ${body}`, data: { invoiceReminder: level } } });
         await audit(tx, null, "invoice.autoReminder", "InvoiceReminder", r.id, { after: { invoice: inv.number, level, daysLate: days, balance, channel } });
       }
+      return n;
+    });
+  }
+  return queued;
+}
+
+/**
+ * V16 Lot 5 — satisfaction survey 3 days after the delivery (setting autoSatisfactionSurvey, orders of Lot 5 on):
+ * one message with the link of the repair tracker, where the existing rating form is (CustomerFeedback, one per
+ * order). Only while the tracker is still open (7 days), never when the order is already rated, never to a customer
+ * who refuses automatic messages (reminderOptOut). Dedupe key survey:<id> (once per order). Returns the number queued.
+ */
+export async function queueSatisfactionSurveys(now = new Date(), sender: Sender = realSender): Promise<number> {
+  const s = await getSettings();
+  if (!s.autoSatisfactionSurvey) return 0;
+  const orders = await prisma.workOrder.findMany({
+    where: {
+      workflowLot5: true,
+      status: { in: ["DELIVERED", "CLOSED"] },
+      deliveredAt: { lte: new Date(now.getTime() - SURVEY_AFTER_DAYS * DAY), gt: new Date(now.getTime() - SURVEY_UNTIL_DAYS * DAY) },
+      feedback: null,
+      customer: { reminderOptOut: false },
+    },
+    select: { id: true, deliveredAt: true, trackingPin: true, vehicle: { select: { id: true, plate: true } }, customer: { select: { id: true, phone: true, email: true } } },
+    take: 500,
+  });
+  if (!orders.length) return 0;
+  const base = await getBaseUrl().catch(() => null);
+  let queued = 0;
+  for (const w of orders) {
+    if (!surveyDue(w.deliveredAt, now)) continue;
+    const dedupeKey = `survey:${w.id}`;
+    if (await prisma.notification.count({ where: { dedupeKey } })) continue;
+    const body = fmt(fr.v16.lot5.followUp.surveySms, { garage: s.garageName, plate: displayPlate(w.vehicle.plate), url: base ? `${base}/suivi?plate=${w.vehicle.plate}` : "", pin: w.trackingPin ?? "" }).trim();
+    queued += await prisma.$transaction(async (tx) => {
+      const n = await queueItems([{ kind: "SURVEY", dedupeKey, phone: w.customer.phone, email: w.customer.email, customerId: w.customer.id, vehicleId: w.vehicle.id, workOrderId: w.id, subject: `${s.garageName} : votre avis`, body }], sender, tx);
+      if (n > 0) await audit(tx, null, "workOrder.survey", "WorkOrder", w.id, { after: { dedupeKey, deliveredAt: w.deliveredAt } });
+      return n;
+    });
+  }
+  return queued;
+}
+
+/**
+ * V16 Lot 5 — reminder of the work the customer refused (REFUSED lines, never voided), 30 then 90 days after the
+ * delivery (setting autoRefusedLineReminders, V16 orders): one message per order and level (refused-remind:<id>:<level>,
+ * the highest level reached only, nothing after 120 days), never to a customer who refuses automatic messages,
+ * never when the vehicle came back since (a newer order exists). Returns the number queued.
+ */
+export async function queueRefusedLineReminders(now = new Date(), sender: Sender = realSender): Promise<number> {
+  const s = await getSettings();
+  if (!s.autoRefusedLineReminders) return 0;
+  const orders = await prisma.workOrder.findMany({
+    where: {
+      workflowV16: true,
+      status: { in: ["DELIVERED", "CLOSED"] },
+      deliveredAt: { lte: new Date(now.getTime() - 30 * DAY), gte: new Date(now.getTime() - 121 * DAY) },
+      customer: { reminderOptOut: false },
+      lines: { some: { approvalStatus: "REFUSED", voidedAt: null } },
+    },
+    select: {
+      id: true,
+      deliveredAt: true,
+      vehicleId: true,
+      vehicle: { select: { plate: true } },
+      customer: { select: { id: true, phone: true, email: true } },
+      lines: { where: { approvalStatus: "REFUSED", voidedAt: null }, orderBy: { position: "asc" }, select: { description: true, priority: true } },
+    },
+    take: 500,
+  });
+  let queued = 0;
+  for (const w of orders) {
+    const level = refusedReminderLevel(w.deliveredAt, now);
+    if (!level) continue;
+    // The car came back since: the team sees the refused work again at the counter; no message.
+    if (await prisma.workOrder.count({ where: { vehicleId: w.vehicleId, id: { not: w.id }, createdAt: { gt: w.deliveredAt! }, status: { not: "CANCELLED" } } })) continue;
+    const dedupeKey = `refused-remind:${w.id}:${level}`;
+    if (await prisma.notification.count({ where: { dedupeKey } })) continue;
+    // Safety first, at most 3 items in the message.
+    const items = [...w.lines].sort((a, b) => (a.priority === "SAFETY" ? 0 : 1) - (b.priority === "SAFETY" ? 0 : 1)).slice(0, 3).map((l) => l.description).join(", ");
+    const body = fmt(fr.v16.lot5.followUp.refusedSms, { garage: s.garageName, plate: displayPlate(w.vehicle.plate), date: formatDate(w.deliveredAt!, "fr", s.timezone), items, phone: s.phone ?? "" }).trim();
+    queued += await prisma.$transaction(async (tx) => {
+      const n = await queueItems([{ kind: "REFUSED_LINES", dedupeKey, phone: w.customer.phone, email: w.customer.email, customerId: w.customer.id, vehicleId: w.vehicleId, workOrderId: w.id, subject: `${s.garageName} : travaux conseillés`, body }], sender, tx);
+      if (n > 0) await audit(tx, null, "workOrder.refusedLinesReminder", "WorkOrder", w.id, { after: { dedupeKey, level, lines: w.lines.length } });
       return n;
     });
   }

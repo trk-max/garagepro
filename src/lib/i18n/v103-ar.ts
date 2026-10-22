@@ -107,6 +107,10 @@ export const v103Ar: typeof v103Fr = {
       issueCreditNote: "إصدار فاتورة تعديلية (تُلغي فاتورة، مع السبب)",
       reversePayment: "إلغاء دفعة (مع السبب)",
       waiveStorageFee: "عدم احتساب معاليم الحراسة (مع السبب)",
+      // V16 Lot 5
+      manageComebacks: "عودة إلى الورشة: الربط بالأمر السابق وفوترة يد عاملة الإعادة",
+      performInspection: "إجراء فحص أحمر / برتقالي / أخضر",
+      manageInspections: "ضبط نماذج الفحص",
     },
   },
   dash: {

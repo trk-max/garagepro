@@ -1,6 +1,7 @@
 import { classifyComplaint, type ProblemCategory } from "@/lib/report-categories";
 import { promiseKpi } from "@/lib/delays";
 import type { AgedBalance } from "@/lib/billing";
+import { buildKpis, type KpiRows } from "@/lib/lot5";
 
 /**
  * Garage report: pure aggregation of rows loaded by server/reports.ts, so the
@@ -29,6 +30,8 @@ export type ReportRows = {
     model: string;
     customerSince: Date;
     previousVisitAt: Date | null;
+    /** V16 Lot 5 — linked to a previous order of the same vehicle (retour atelier). */
+    comeback?: boolean;
   }[];
   /** Work orders delivered in the period. */
   delivered: { createdAt: Date; deliveredAt: Date; mechanicName: string | null; /** V16 Lot 3 */ promisedAt?: Date | null; promisedAtInitial?: Date | null }[];
@@ -46,6 +49,8 @@ export type ReportRows = {
   claims: { category: string; status: string; createdAt: Date; resolvedAt: Date | null }[];
   openClaimsNow: number;
   feedback: { rating: number; comment: string | null; name: string | null; plate: string | null; createdAt: Date }[];
+  /** V16 Lot 5 — rows of the steering KPIs (absent = block not shown). */
+  kpi?: Omit<KpiRows, "opened">;
 };
 
 const lineHt = (l: { quantityX100: number; unitPrice: number }) => Math.round((l.quantityX100 * l.unitPrice) / 100);
@@ -116,8 +121,10 @@ export function buildReport(rows: ReportRows, previous: Pick<ReportRows, "invoic
   const delivered = rows.delivered.length;
   const turnaroundHours = delivered ? Math.round(sum(rows.delivered, (d) => d.deliveredAt.getTime() - d.createdAt.getTime()) / delivered / 3_600_000) : null;
   const returning = rows.created.filter((w) => w.previousVisitAt !== null).length;
-  // Came back within 30 days of a previous visit: possible rework ("comeback").
-  const comebacks = rows.created.filter((w) => w.previousVisitAt && w.createdAt.getTime() - w.previousVisitAt.getTime() <= 30 * 86_400_000).length;
+  // Came back within 30 days of a previous visit (« revisites »: the former comeback heuristic, kept for reference).
+  const revisits = rows.created.filter((w) => w.previousVisitAt && w.createdAt.getTime() - w.previousVisitAt.getTime() <= 30 * 86_400_000).length;
+  // V16 Lot 5 — real comebacks: orders the team linked to a previous order of the same vehicle.
+  const comebacks = rows.created.filter((w) => w.comeback).length;
   const topModels = top(countBy(rows.created, (w) => `${w.make} ${w.model}`.trim()), 6);
   const weekday = countBy(rows.created, (w) => String(localWeekday(w.createdAt, opts.timeZone)));
   const busiestDay = top(weekday, 1)[0];
@@ -178,7 +185,7 @@ export function buildReport(rows: ReportRows, previous: Pick<ReportRows, "invoic
   const dInv = delta(invoicedTtc, prevInvoiced);
   if (dInv !== null) insights.push({ tone: dInv >= 0 ? "good" : "warn", key: dInv >= 0 ? "revenueUp" : "revenueDown", vars: { pct: Math.abs(dInv) } });
   if (problems[0] && problems[0].count >= 2) insights.push({ tone: "info", key: "topProblem", vars: { problem: problems[0].key, share: problems[0].share } });
-  if (comebacks > 0) insights.push({ tone: "warn", key: "comebacks", vars: { n: comebacks } });
+  if (revisits > 0) insights.push({ tone: "warn", key: "comebacks", vars: { n: revisits } });
   if (rows.overdueNow > 0) insights.push({ tone: "warn", key: "overdue", vars: { n: rows.overdueNow } });
   if (rows.lowStockNow > 0) insights.push({ tone: "warn", key: "lowStock", vars: { n: rows.lowStockNow } });
   if (rows.openClaimsNow > 0) insights.push({ tone: "warn", key: "openClaims", vars: { n: rows.openClaimsNow } });
@@ -221,6 +228,7 @@ export function buildReport(rows: ReportRows, previous: Pick<ReportRows, "invoic
       returning,
       newCustomers: rows.newCustomers,
       comebacks,
+      revisits,
       topModels,
       deltaReceived: delta(received, prevReceived),
       appointments: appts,
@@ -235,6 +243,10 @@ export function buildReport(rows: ReportRows, previous: Pick<ReportRows, "invoic
     claims: { total: rows.claims.length, open: rows.openClaimsNow, byCategory: claimsByCategory, resolutionHours: claimResolutionHours },
     feedback: { count: ratings.length, avgRating, distribution, satisfied, latest: rows.feedback.slice(0, 6) },
     insights,
+    // V16 Lot 5 — steering KPIs (real data only; null = « — »).
+    kpis: rows.kpi
+      ? buildKpis({ ...rows.kpi, opened: rows.created.map((w) => ({ comeback: !!w.comeback })) }, { invoicedHt, invoices: rows.invoices.length }, appts)
+      : null,
   };
 }
 

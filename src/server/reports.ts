@@ -8,6 +8,17 @@ import { lowStockParts } from "@/server/parts";
 import { getSettings } from "@/server/settings";
 import { isFinal } from "@/server/workflow";
 
+/** V16 Lot 5 — hours clocked per person (a running chronometer counts until now). */
+function clockedByUser(entries: { userId: string; startedAt: Date; endedAt: Date | null; user: { name: string } }[], now: Date) {
+  const m = new Map<string, { userId: string; name: string; hours: number }>();
+  for (const e of entries) {
+    const r = m.get(e.userId) ?? { userId: e.userId, name: e.user.name, hours: 0 };
+    r.hours += Math.max(0, (e.endedAt ?? now).getTime() - e.startedAt.getTime()) / 3_600_000;
+    m.set(e.userId, r);
+  }
+  return m;
+}
+
 /** Start of the period: local midnight, `days - 1` days ago (today included). */
 export function periodStart(period: ReportPeriod, now: Date, timeZone: string): Date {
   const today = utcToZoned(now, timeZone).date;
@@ -50,6 +61,8 @@ export async function getReport(period: ReportPeriod, now = new Date()) {
     prevCreated,
     creditNotes,
     prevCreditNotes,
+    quoteLines,
+    laborEntries,
   ] = await Promise.all([
     prisma.invoice.findMany({ where: { issuedAt: range }, select: { totalHt: true, totalTtc: true, paidAmount: true, issuedAt: true } }),
     prisma.payment.findMany({ where: { paidAt: range }, select: { amount: true, method: true, paidAt: true } }),
@@ -63,6 +76,7 @@ export async function getReport(period: ReportPeriod, now = new Date()) {
         vehicleId: true,
         vehicle: { select: { make: true, model: true } },
         customer: { select: { createdAt: true } },
+        comebackOfWorkOrderId: true,
       },
     }),
     prisma.workOrder.findMany({
@@ -80,7 +94,7 @@ export async function getReport(period: ReportPeriod, now = new Date()) {
         unitPrice: true,
         partId: true,
         part: { select: { name: true, costPrice: true } },
-        workOrder: { select: { mechanic: { select: { name: true } } } },
+        workOrder: { select: { mechanicId: true, mechanic: { select: { name: true } } } },
       },
     }),
     prisma.supplierInvoice.aggregate({ where: { issuedAt: range }, _sum: { totalTtc: true } }),
@@ -102,6 +116,16 @@ export async function getReport(period: ReportPeriod, now = new Date()) {
     // V16 Lot 4: credit notes (avoirs) deducted from the invoiced revenue of THEIR period.
     prisma.creditNote.findMany({ where: { issuedAt: range }, select: { totalHt: true, totalTtc: true, issuedAt: true } }),
     prisma.creditNote.findMany({ where: { issuedAt: prevRange }, select: { totalHt: true, totalTtc: true, issuedAt: true } }),
+    // V16 Lot 5 — decided lines of the quotes sent in the period (announced / storage fees are not a choice).
+    prisma.workOrderLine.findMany({
+      where: { quote: { sentAt: range }, approvalStatus: { in: ["APPROVED", "REFUSED"] }, isAnnouncedFee: false, isStorageFee: false },
+      select: { approvalStatus: true, quantityX100: true, unitPrice: true },
+    }),
+    // V16 Lot 5 — time clocked on repairs in the period (chronometers, voided entries excluded).
+    prisma.laborEntry.findMany({
+      where: { startedAt: range, voidedAt: null },
+      select: { userId: true, startedAt: true, endedAt: true, user: { select: { name: true } } },
+    }),
   ]);
 
   // Previous visit of each car (to spot returning customers and comebacks).
@@ -138,6 +162,7 @@ export async function getReport(period: ReportPeriod, now = new Date()) {
       model: w.vehicle.model,
       customerSince: w.customer.createdAt,
       previousVisitAt: previousVisit(w),
+      comeback: !!w.comebackOfWorkOrderId,
     })),
     delivered: delivered.map((d) => ({ createdAt: d.createdAt, deliveredAt: d.deliveredAt!, mechanicName: d.mechanic?.name ?? null, promisedAt: d.promisedAt, promisedAtInitial: d.promisedAtInitial })),
     cancelled,
@@ -161,6 +186,12 @@ export async function getReport(period: ReportPeriod, now = new Date()) {
     claims,
     openClaimsNow,
     feedback,
+    kpi: {
+      quoteLines: quoteLines.map((l) => ({ approvalStatus: l.approvalStatus as "APPROVED" | "REFUSED", amountHt: Math.round((l.quantityX100 * l.unitPrice) / 100) })),
+      // Hours SOLD: invoiced labour with a price (free rework is not sold), counted to the order's mechanic.
+      soldHours: lines.filter((l) => l.type === "LABOR" && l.unitPrice > 0).map((l) => ({ mechanicId: l.workOrder.mechanicId, name: l.workOrder.mechanic?.name ?? null, hours: l.quantityX100 / 100 })),
+      clocked: [...clockedByUser(laborEntries, now).values()],
+    },
   };
 
   const report = buildReport(

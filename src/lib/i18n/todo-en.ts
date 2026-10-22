@@ -22,6 +22,7 @@ export const todoEn: typeof todoFr = {
     insuranceWaiting: "Insurance files with no answer",
     overdueInvoices: "Customer invoices overdue",
     openClaims: "Open customer complaints",
+    lowRatings: "Customer ratings (≤ 3) to follow up",
     unreadMessages: "Unread buyer messages",
     warrantyOpen: "Warranty claims not yet sent",
     contractDrafts: "Draft contracts to complete",

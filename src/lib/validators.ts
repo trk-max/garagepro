@@ -469,7 +469,16 @@ export const qualityCheckSchema = z.object({
   workVerified: checkbox,
   billingVerified: checkbox,
   notes: optionalText(1000),
+  // V16 Lot 5 — km driven during the road test (the server makes it mandatory when the test was done).
+  roadTestKm: z.preprocess(emptyToUndefined, z.coerce.number().int().min(0).max(500).optional()),
 });
+
+/** V16 Lot 5 — the checkboxes « qp:<key> » of the points set in the settings. */
+export function qualityExtraFromForm(form: FormData): Record<string, boolean> {
+  const out: Record<string, boolean> = {};
+  for (const [k, v] of form.entries()) if (k.startsWith("qp:") && (v === "on" || v === "true")) out[k.slice(3)] = true;
+  return out;
+}
 
 export const insuranceSchema = z.object({
   insurerName: optionalText(120),

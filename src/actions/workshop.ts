@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { isReworkCause } from "@/lib/lot5";
 import { getBaseUrl } from "@/lib/base-url";
 import { displayPlate, fmt } from "@/lib/format";
 import { AppError, toActionError, type ActionResult } from "@/lib/http";
@@ -33,13 +34,13 @@ const done = (redirectTo?: string): Result => {
 
 // ── Status from the mobile workshop view (+ "ready" notification) ────────────
 
-export async function workshopStatusAction(workOrderId: string, status: string, reason?: string | null): Promise<Result> {
+export async function workshopStatusAction(workOrderId: string, status: string, reason?: string | null, reworkCause?: string | null): Promise<Result> {
   try {
     const actor = await requirePermission("useWorkshop");
     const woId = id.parse(workOrderId);
     const parsed = statusSchema.parse(status);
     // V16: the move's own permission is checked by changeStatus (a mechanic cannot cancel nor deliver).
-    await changeStatus(woId, parsed, actor, { reason: z.string().trim().max(500).nullish().parse(reason) });
+    await changeStatus(woId, parsed, actor, { reason: z.string().trim().max(500).nullish().parse(reason), reworkCause: isReworkCause(reworkCause) ? reworkCause : null });
     if (parsed === "READY") await notifyVehicleReady(woId, actor);
     return done();
   } catch (error) {
@@ -50,7 +51,7 @@ export async function workshopStatusAction(workOrderId: string, status: string, 
 /** V16 — same, from the reason dialog (back to the workshop after the quality check…). */
 export async function workshopStatusFormAction(workOrderId: string, form: FormData): Promise<Result> {
   const raw = formToObject(form);
-  return workshopStatusAction(workOrderId, raw.status ?? "", raw.reason || null);
+  return workshopStatusAction(workOrderId, raw.status ?? "", raw.reason || null, raw.reworkCause || null);
 }
 
 // ── Tracking code & media ────────────────────────────────────────────────────

@@ -20,6 +20,8 @@ export const TODO_ICONS: Record<TodoKey, LucideIcon> = {
   insuranceWaiting: Umbrella,
   overdueInvoices: FileText,
   openClaims: MessageSquareWarning,
+  // V16 Lot 5
+  lowRatings: MessageSquareWarning,
   unreadMessages: Mail,
   warrantyOpen: ShieldAlert,
   contractDrafts: FilePen,
