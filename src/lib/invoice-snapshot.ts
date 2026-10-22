@@ -11,6 +11,34 @@ export type SnapshotParts = {
   taxByRate: { rateBp: number; base: number; tax: number }[];
 };
 
+/**
+ * V10.6 — legal mentions frozen on invoices issued from V10.6 on (raison sociale, RC, customer CIN,
+ * payment terms, penalties). Older invoices have none of them: nothing is taken from today's
+ * settings (a legal document never changes), the lines are simply not printed.
+ */
+export type SnapshotLegal = {
+  garageLegalName: string | null;
+  garageRegistry: string | null;
+  customerNationalId: string | null;
+  paymentTerms: string | null;
+  penaltyText: string | null;
+};
+
+const textOrNull = (v: unknown) => (typeof v === "string" && v.trim() ? v : null);
+
+/** The V10.6 mentions of a snapshot (all null on older invoices). */
+export function snapshotLegal(snapshot: unknown): SnapshotLegal {
+  const s = obj(snapshot) ? snapshot : {};
+  const l = obj(s.legal) ? s.legal : {};
+  return {
+    garageLegalName: textOrNull(l.garageLegalName),
+    garageRegistry: textOrNull(l.garageRegistry),
+    customerNationalId: textOrNull(l.customerNationalId),
+    paymentTerms: textOrNull(l.paymentTerms),
+    penaltyText: textOrNull(l.penaltyText),
+  };
+}
+
 export type LiveInvoiceData = {
   garage: SnapshotParts["garage"];
   customer: SnapshotParts["customer"];

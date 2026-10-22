@@ -18,7 +18,8 @@ import { RelatedContracts } from "@/components/garage/contracts";
 import { emailConfigured } from "@/server/email";
 import { daysLate, getInvoice, isOverdue } from "@/server/invoices";
 import { getSettings } from "@/server/settings";
-import { completeSnapshot } from "@/lib/invoice-snapshot";
+import { completeSnapshot, snapshotLegal } from "@/lib/invoice-snapshot";
+import { invoiceAmountSentence } from "@/lib/amount-words";
 
 type PageProps = { params: Promise<{ id: string }> };
 
@@ -77,6 +78,10 @@ export default async function InvoicePage({ params }: PageProps) {
             workOrderNumber: s.workOrderNumber,
             lines: s.lines,
             totals: { totalHt: invoice.totalHt, taxByRate: s.taxByRate, stampDuty: invoice.stampDuty, totalTtc: invoice.totalTtc },
+            // V10.6: due date (column), frozen mentions (new invoices only), amount in words (from the frozen total).
+            dueDate: invoice.dueDate,
+            legal: snapshotLegal(invoice.snapshot),
+            amountWords: invoiceAmountSentence(invoice.totalTtc),
           }}
         />
       </div>
@@ -109,6 +114,11 @@ export default async function InvoicePage({ params }: PageProps) {
             </div>
           </dl>
 
+          {invoice.workOrder.depositAmount && invoice.payments.length === 0 ? (
+            <p className="mt-3 rounded-md bg-gp-accent-tint px-3 py-2 text-xs text-gp-accent-ink">
+              {fmt(t.legal.invoice.depositToRecord, { amount: formatMoney(invoice.workOrder.depositAmount, lang), method: t.paymentMethod[(invoice.workOrder.depositMethod ?? "CASH") as PaymentMethod] ?? "" })}
+            </p>
+          ) : null}
           {invoice.payments.length === 0 ? (
             <p className="mt-4 text-sm text-muted-foreground">{t.invoices.noPayments}</p>
           ) : (

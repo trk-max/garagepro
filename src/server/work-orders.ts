@@ -5,6 +5,7 @@ import { audit } from "@/server/audit";
 import { assertQualityApproved, resetQualityApproval } from "@/server/quality";
 import { createAutoRepairWarranty } from "@/server/warranties";
 import { missingVehicleInfo } from "@/lib/vehicle-info";
+import type { IntakeForm } from "@/lib/repair-order-forms";
 import type { FuelType, LineType, Prisma, Priority, WorkOrderStatus } from "@prisma/client";
 import { normalizePlate } from "@/lib/format";
 import { AppError } from "@/lib/http";
@@ -195,6 +196,8 @@ export type CreateWorkOrderInput = {
   completeVehicle?: { vin?: string; year?: number; fuel?: FuelType; color?: string };
   /** Refuse to open the order while the vehicle lacks VIN, year, fuel, colour or mileage. */
   requireCompleteVehicle?: boolean;
+  /** V10.6 — repair order details typed at check-in (fuel, body, parts origin, estimate, deposit, CIN). */
+  intake?: IntakeForm;
 };
 
 /**
@@ -242,8 +245,16 @@ export async function createWorkOrder(input: CreateWorkOrderInput, actor: StaffU
     let customerId = input.customerId;
     if (!customerId) {
       if (!input.newCustomer) throw new AppError("invalid");
-      customerId = (await tx.customer.create({ data: input.newCustomer, select: { id: true } })).id;
-      await audit(tx, actor, "customer.create", "Customer", customerId, { after: input.newCustomer });
+      const newCustomer = { ...input.newCustomer, ...(input.intake?.customerNationalId ? { nationalId: input.intake.customerNationalId } : {}) };
+      customerId = (await tx.customer.create({ data: newCustomer, select: { id: true } })).id;
+      await audit(tx, actor, "customer.create", "Customer", customerId, { after: newCustomer });
+    } else if (input.intake?.customerNationalId) {
+      // CIN typed at check-in for a known customer: completes (or corrects) the customer file.
+      const c = await tx.customer.findUnique({ where: { id: customerId }, select: { nationalId: true } });
+      if (c && c.nationalId !== input.intake.customerNationalId) {
+        await tx.customer.update({ where: { id: customerId }, data: { nationalId: input.intake.customerNationalId } });
+        await audit(tx, actor, "customer.update", "Customer", customerId, { before: { nationalId: c.nationalId }, after: { nationalId: input.intake.customerNationalId } });
+      }
     }
 
     let vehicleId = input.vehicleId;
@@ -285,12 +296,27 @@ export async function createWorkOrder(input: CreateWorkOrderInput, actor: StaffU
         mechanicId: input.mechanicId,
         createdById: actor.id,
         trackingPin: generatePin(),
+        ...intakeData(input.intake),
       },
       select: { id: true },
     });
     await event(tx, wo.id, actor.id, "CREATED");
     return wo;
   });
+}
+
+/** Columns of the repair order details (V10.6); nothing when the form did not send them. */
+function intakeData(i: IntakeForm | undefined) {
+  if (!i) return {};
+  return {
+    fuelLevel: i.fuelLevel ?? null,
+    partsOrigin: i.partsOrigin ?? null,
+    bodyChecklist: i.bodyChecklist as unknown as Prisma.InputJsonValue,
+    bodyDamageNotes: i.bodyDamageNotes ?? null,
+    estimateTtc: i.estimateTtc ?? null,
+    depositAmount: i.depositAmount ?? null,
+    depositMethod: i.depositAmount ? (i.depositMethod ?? "CASH") : null,
+  };
 }
 
 export async function changeStatus(workOrderId: string, to: WorkOrderStatus, actor: StaffUser) {

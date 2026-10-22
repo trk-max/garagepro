@@ -1,5 +1,6 @@
 import { OPTION_LABELS_FR, type LegalRef } from "@/lib/contract-templates";
 import { fillPlaceholders, includedClauses, type TemplateClause, type TemplateField } from "@/lib/contracts";
+import { amountInFrenchWords } from "@/lib/amount-words";
 
 /**
  * Printable content of a contract (V9.0), built from the template version stored in the database,
@@ -163,6 +164,9 @@ export function placeholderValues(input: DocInput): Record<string, string> {
   values.vehicleList = (snap?.vehicles ?? []).map(vehicleLine).join(" ; ");
   const probation = Number(fields.probationMonths || 0);
   values.probationText = probation > 0 ? `${probation} mois${fields.probationRenewable === "YES" ? ", renouvelable une seule fois pour une durée au plus égale, la fin de l'essai étant notifiée par écrit 15 jours avant son terme" : ""}` : "aucune";
+  // V10.6 (CDI v2): salary in words, as in the owner's model ("995 TND (neuf cent quatre-vingt-quinze dinars)").
+  const salary = Number(fields.salary);
+  if (fields.salary && Number.isFinite(salary) && salary >= 0) values.salaryWords = amountInFrenchWords(Math.round(salary * 1000));
   values.replacedText = fields.cddReason === "REMPLACEMENT" && fields.replacedEmployee ? ` (salarié remplacé : ${fields.replacedEmployee})` : "";
   const r = snap?.repair;
   if (r) {

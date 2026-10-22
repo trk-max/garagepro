@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildContractDoc, dt, type DocInput } from "@/lib/contract-document";
-import { TEMPLATE_DEFS, templateRows } from "@/lib/contract-templates";
+import { ALL_TEMPLATE_DEFS, PREVIOUS_TEMPLATE_DEFS, TEMPLATE_DEFS, templateDefById, templateRows } from "@/lib/contract-templates";
 import {
   canContract,
   checkMove,
@@ -192,7 +192,7 @@ describe("flags, numbering, scans", () => {
     expect(contractNumber(2026, 7)).toBe("CTR-2026-0007");
     expect(templateId("EMPLOYMENT_MECHANIC", 1)).toBe("tpl-employment-mechanic-v1");
     for (const r of templateRows()) expect(TEMPLATE_ID.test(r.id), r.id).toBe(true);
-    expect(new Set(templateRows().map((r) => r.id)).size).toBe(TEMPLATE_DEFS.length);
+    expect(new Set(templateRows().map((r) => r.id)).size).toBe(ALL_TEMPLATE_DEFS.length);
   });
   it("signed scan recognised by its first bytes only", () => {
     expect(sniffScan(Buffer.from("%PDF-1.7\n%âãÏÓ"))?.contentType).toBe("application/pdf");
@@ -279,6 +279,39 @@ describe("templates: verified references only, never 'compliant'", () => {
       .join("\n");
     expect(cdd).toMatch(/du 01\/11\/2026 au 30\/04\/2027, pour le motif suivant : travail saisonnier/);
     expect(cdd).not.toMatch(/Période d'essai/);
+  });
+  it("CDI v2 (owner's model): new version, v1 kept for existing contracts, same legal rules", () => {
+    const v2 = TEMPLATE_DEFS.filter((x) => x.category === "EMPLOYMENT");
+    expect(v2.every((j) => j.version === 2)).toBe(true);
+    expect(PREVIOUS_TEMPLATE_DEFS.map((j) => `${j.code}-v${j.version}`)).toEqual(v2.map((j) => `${j.code}-v1`));
+    expect(templateDefById("tpl-employment-mechanic-v1")?.clauses.some((c) => c.key === "freeOfCommitment")).toBe(false);
+    expect(templateRows().filter((r) => r.code === "EMPLOYMENT_MECHANIC").map((r) => r.version).sort()).toEqual([1, 2]);
+    const t = templateDefById("tpl-employment-mechanic-v2")!;
+    expect(t.clauses.map((c) => c.key)).toEqual([
+      "hiring", "freeOfCommitment", "start", "cdi", "cdd", "probation", "hours", "leave", "salary", "workplace", "obligations", "bonuses",
+      "socialSecurity", "training", "confidentiality", "notice", "equipment", "law", "severability", "entireAgreement", "domicile", "special",
+      "disputes", "personalData", "signature",
+    ]);
+    for (const k of ["noticePeriod", "jurisdictionCity"]) expect(t.fields.find((f) => f.key === k), k).toMatchObject({ required: true });
+    expect(t.fields.find((f) => f.key === "noticePeriod")!.default).toBeUndefined();
+    expect(t.unverified.join(" ")).toMatch(/modèle de CDI du garage/);
+    const doc = buildContractDoc({
+      number: "CTR-2026-0009",
+      category: "EMPLOYMENT",
+      startDay: "2026-11-01",
+      endDay: null,
+      indefinite: true,
+      data: { fields: { employeeName: "Ali Ben Salah", jobTitle: "Mécanicien automobile", duties: "Réparations.", employmentType: "CDI", probationMonths: "6", probationRenewable: "YES", salary: "995", workHours: "48 heures par semaine", leave: "selon la loi", workplace: "Atelier", noticePeriod: "deux (02) mois", jurisdictionCity: "Monastir", grade: "3" }, snapshot: null, excluded: [] },
+      template: { ...t, verifiedDay: "2026-10-21", reviewStatus: "NEEDS_LEGAL_REVIEW", reviewedDay: null },
+    });
+    const text = doc.clauses.map((c) => c.text).join(" | ");
+    expect(text).toMatch(/995,000 DT \(neuf cent quatre-vingt-quinze dinars\)/);
+    expect(text).toMatch(/échelle 3, échelon ……/);
+    expect(text).toMatch(/Période d'essai : 6 mois, renouvelable une seule fois/);
+    expect(text).toMatch(/juridictions de Monastir/);
+    expect(text).toMatch(/visite médicale d'embauche/);
+    expect(doc.legalNotice).toMatch(/^Modèle à valider par un juriste/);
+    expect(JSON.stringify(t)).not.toMatch(/conforme/i);
   });
   it("suppliers: 6 partner kinds; service-type ones ask the disguised-employment questions and cite art. 28-30", () => {
     const sup = TEMPLATE_DEFS.filter((x) => x.category === "SUPPLIER");

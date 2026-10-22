@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import type { StaffUser } from "@/lib/session";
 import { audit } from "@/server/audit";
 import { getSettings } from "@/server/settings";
+import type { SnapshotLegal } from "@/lib/invoice-snapshot";
 
 /** Frozen copy stored on the invoice so later edits never change a legal document. */
 export type InvoiceSnapshot = {
@@ -16,6 +17,8 @@ export type InvoiceSnapshot = {
   workOrderNumber: number;
   lines: { type: LineType; description: string; quantityX100: number; unitPrice: number; taxRateBp: number; totalHt: number }[];
   taxByRate: { rateBp: number; base: number; tax: number }[];
+  /** V10.6 — only on invoices issued from V10.6 on (see lib/invoice-snapshot snapshotLegal). */
+  legal?: SnapshotLegal;
 };
 
 export async function createInvoice(workOrderId: string, actor: StaffUser) {
@@ -62,6 +65,13 @@ export async function createInvoice(workOrderId: string, actor: StaffUser) {
         totalHt: lineTotalHt(l),
       })),
       taxByRate: totals.taxByRate,
+      legal: {
+        garageLegalName: settings.legalName || null,
+        garageRegistry: settings.registryNumber ? `${settings.registryNumber}${settings.registryCity ? ` (${settings.registryCity})` : ""}` : null,
+        customerNationalId: wo.customer.nationalId || null,
+        paymentTerms: settings.invoicePaymentTerms || null,
+        penaltyText: settings.invoicePenaltyText || null,
+      },
     };
 
     const issuedAt = new Date();
@@ -234,6 +244,8 @@ export async function getInvoice(id: string) {
           id: true,
           number: true,
           mileageIn: true,
+          depositAmount: true,
+          depositMethod: true,
           vehicle: { select: { plate: true, make: true, model: true, mileage: true } },
           lines: { orderBy: { position: "asc" }, select: { type: true, description: true, quantityX100: true, unitPrice: true, taxRateBp: true } },
         },

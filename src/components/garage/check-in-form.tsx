@@ -13,6 +13,7 @@ import type { CustomerOption } from "@/server/customers";
 import { CustomerPicker } from "@/components/garage/customer-picker";
 import { missingVehicleInfo } from "@/lib/vehicle-info";
 import { FuelSelect, MissingVehicleFields, VinInput } from "@/components/garage/vehicle-completion";
+import { IntakeFields } from "@/components/garage/intake-fields";
 
 type Props = {
   /** Pre-selected customer (form opened from a customer page). */
@@ -147,6 +148,12 @@ export function CheckInForm({ initialCustomer, mechanics, preset }: Props) {
               </NativeSelect>
             </Field>
           </div>
+          {/* V10.6 — printed on the repair order (prise en charge) signed by the customer. */}
+          <details className="rounded-[14px] border border-gp-line p-3">
+            <summary className="cursor-pointer text-sm font-medium">{t.legal.intake.title}</summary>
+            <p className="mb-3 mt-1 text-xs text-muted-foreground">{t.legal.intake.intro}</p>
+            <IntakeFields t={t} />
+          </details>
           <Button type="submit" className="mt-2">
             {t.common.create}
           </Button>

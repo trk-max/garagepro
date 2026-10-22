@@ -217,6 +217,8 @@ model Customer {
   address        String?
   /// Matricule fiscal pour les clients professionnels (facturation).
   taxId          String?
+  /// N° de CIN (ou passeport) du client particulier (ordre de réparation, facture). V10.6.
+  nationalId     String?
   notes          String?
   /// Client professionnel (flotte) : peut avoir des comptes sur le portail entreprise.
   isCompany      Boolean  @default(false)
@@ -303,6 +305,19 @@ model WorkOrder {
   insuranceDecidedAt   DateTime?
   /// APPROVED | REJECTED | PARTIAL (null = pas de décision).
   insuranceDecision    String?
+  /// Prise en charge (V10.6) : niveau de carburant à l'arrivée en quarts (1 = 1/4 … 4 = 4/4).
+  fuelLevel            Int?
+  /// État de la carrosserie à l'arrivée : constat libre (rayures, chocs…).
+  bodyDamageNotes      String?
+  /// Zones abîmées cochées à l'arrivée, ex. ["FRONT_BUMPER", "LEFT_SIDE"] (src/lib/repair-order.ts).
+  bodyChecklist        Json            @default("[]")
+  /// Origine des pièces acceptée par le client : ORIGINE | ADAPTABLE | OCCASION | FOURNIES_CLIENT.
+  partsOrigin          String?
+  /// Montant estimatif TTC saisi à l'accueil (millimes), utilisé tant qu'il n'y a pas de lignes.
+  estimateTtc          Int?
+  /// Acompte reçu à la prise en charge (millimes) et son mode (CASH, CARD…) : à reporter en paiement sur la facture.
+  depositAmount        Int?
+  depositMethod        String?
   createdAt            DateTime        @default(now())
   updatedAt            DateTime        @updatedAt
 
@@ -609,6 +624,20 @@ model Setting {
   contractAlertDays      Int      @default(30)
   /// Tableau de bord (V10) : objectif d'encaissements du mois (millimes ; 0 = pas d'objectif).
   monthlyRevenueTarget   Int      @default(0)
+  /// Ordre de réparation (V10.6) : articles [{ title, body }] imprimés sur la prise en charge (null = textes par défaut).
+  /// Variables : {storageFee} {graceHours} {abandonDays}.
+  repairClauses             Json?
+  /// Frais de gardiennage par jour (millimes), franchise (heures) et délai d'abandon (jours).
+  storageFeePerDay          Int       @default(20000)
+  storageGraceHours         Int       @default(48)
+  abandonmentDays           Int       @default(30)
+  /// Un administrateur a enregistré que les clauses ont été validées par un juriste (qui / quand).
+  /// Remis à null dès que les textes ou les montants changent.
+  repairClausesReviewedAt   DateTime?
+  repairClausesReviewedById String?
+  /// Facture : conditions / modes de paiement imprimés, et pénalités de retard (imprimées seulement si saisies).
+  invoicePaymentTerms       String?
+  invoicePenaltyText        String?
   /// Modèles de message (null = texte par défaut). Variables : {garage} {plate} {item} {date} {km} {time} {phone}.
   tplMaintenance         String?
   tplAppointment         String?

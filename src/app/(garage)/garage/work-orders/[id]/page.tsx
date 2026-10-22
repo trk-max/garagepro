@@ -19,6 +19,7 @@ import { RepairPanels } from "@/components/garage/repair-panels";
 import { ProfitPanel } from "@/components/garage/profit-panel";
 import { WarrantyCard } from "@/components/garage/warranty";
 import { RelatedContracts } from "@/components/garage/contracts";
+import { IntakeCard } from "@/components/garage/intake-card";
 import { canContract } from "@/lib/contracts";
 import { ReservationsCard } from "@/components/garage/reservations-card";
 import { VehicleQrCard } from "@/components/garage/vehicle-qr-card";
@@ -148,6 +149,11 @@ export default async function WorkOrderPage({ params }: PageProps) {
               options={[{ value: "", label: t.workOrders.unassigned }, ...mechanics.filter((m) => m.role === "MECHANIC" || m.role === "ADMIN").map((m) => ({ value: m.id, label: m.name }))]}
             />
             <div className="ms-auto flex flex-wrap gap-2">
+              <Button asChild variant="outline" size="sm">
+                <Link href={`/garage/work-orders/${wo.id}/prise-en-charge`} target="_blank">
+                  <Printer className="size-4" aria-hidden /> {t.legal.intake.print}
+                </Link>
+              </Button>
               <Button asChild variant="outline" size="sm">
                 <Link href={`/garage/work-orders/${wo.id}/quote`} target="_blank">
                   <Printer className="size-4" aria-hidden /> {t.workOrders.printQuote}
@@ -354,6 +360,14 @@ export default async function WorkOrderPage({ params }: PageProps) {
             </ul>
           )}
         </Card>
+
+        {/* ── V10.6: repair order (prise en charge) — fuel, body, parts origin, estimate, deposit, CIN ── */}
+        <IntakeCard
+          workOrderId={wo.id}
+          locked={final}
+          t={t}
+          defaults={{ ...wo, customerNationalId: wo.customer.nationalId }}
+        />
 
         {/* ── Diagnosis & planning ── */}
         <Card>

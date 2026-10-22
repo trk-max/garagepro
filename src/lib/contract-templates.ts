@@ -1,4 +1,5 @@
 import { LEGAL_VERIFIED_DAY, templateId, type ContractCategory, type TemplateClause, type TemplateField } from "@/lib/contracts";
+import { CDI_V2_CLAUSES, CDI_V2_EXTRA_FIELDS } from "@/lib/contract-templates-cdi";
 
 /**
  * Catalogue of contract templates (V9.0). Copied into the database (ContractTemplate) the first
@@ -37,6 +38,9 @@ export const UNVERIFIED = {
   amounts: "Salaire, durée du travail et congés : montants à saisir par le garage, non fournis par l'application",
   subcontractingCase: "Application des art. 28-30 à ce prestataire précis",
   freeText: "Contenu libre : entièrement à faire relire",
+  ownerModel: "Version 2 : structure reprise du modèle de CDI du garage (22 articles) ; formulations adaptées, articles 12-13 du modèle illisibles",
+  mobility: "Clause de mobilité, retenue sur le solde de tout compte et remboursement de formation : validité à vérifier",
+  noticeAbsence: "Préavis : durée et absences pour recherche d'emploi selon le Code du travail / la convention applicable, à vérifier",
 };
 
 export type TemplateDef = {
@@ -217,7 +221,23 @@ export const JOBS: { subtype: string; title: string; duties: string }[] = [
   { subtype: "EMPLOYMENT_BLANK", title: "", duties: "" },
 ];
 
-function employmentTemplate(job: (typeof JOBS)[number]): TemplateDef {
+/**
+ * Version 1 (V9.0) stays in the database for the contracts made with it; version 2 (V10.6) follows
+ * the structure of the owner's CDI model and is the one offered for new contracts.
+ */
+function employmentTemplate(job: (typeof JOBS)[number], version: 1 | 2 = 2): TemplateDef {
+  const v1 = employmentTemplateV1(job);
+  if (version === 1) return v1;
+  return {
+    ...v1,
+    version: 2,
+    unverified: [...v1.unverified, UNVERIFIED.ownerModel, UNVERIFIED.mobility, UNVERIFIED.noticeAbsence],
+    fields: [...v1.fields.filter((f) => f.key !== "specialConditions"), ...CDI_V2_EXTRA_FIELDS, v1.fields.find((f) => f.key === "specialConditions")!],
+    clauses: [...CDI_V2_CLAUSES, C_DATA, C_SIGNATURE],
+  };
+}
+
+function employmentTemplateV1(job: (typeof JOBS)[number]): TemplateDef {
   return {
     code: job.subtype === "EMPLOYMENT_BLANK" ? "EMPLOYMENT_BLANK" : `EMPLOYMENT_${job.subtype}`,
     version: 1,
@@ -338,13 +358,17 @@ function supplierTemplate(p: (typeof PARTNERS)[number]): TemplateDef {
   };
 }
 
-export const TEMPLATE_DEFS: TemplateDef[] = [REPAIR, FLEET, ...JOBS.map(employmentTemplate), ...PARTNERS.map(supplierTemplate), BLANK];
+/** Current catalogue: the version offered for new contracts. */
+export const TEMPLATE_DEFS: TemplateDef[] = [REPAIR, FLEET, ...JOBS.map((j) => employmentTemplate(j, 2)), ...PARTNERS.map(supplierTemplate), BLANK];
+/** Older versions still copied into the database (contracts made with them keep printing their text). */
+export const PREVIOUS_TEMPLATE_DEFS: TemplateDef[] = JOBS.map((j) => employmentTemplate(j, 1));
+export const ALL_TEMPLATE_DEFS: TemplateDef[] = [...TEMPLATE_DEFS, ...PREVIOUS_TEMPLATE_DEFS];
 
-export const templateDefById = (id: string) => TEMPLATE_DEFS.find((t) => templateId(t.code, t.version) === id) ?? null;
+export const templateDefById = (id: string) => ALL_TEMPLATE_DEFS.find((t) => templateId(t.code, t.version) === id) ?? null;
 
 /** Rows to copy into ContractTemplate (created once, never overwritten: the review stays). */
 export function templateRows() {
-  return TEMPLATE_DEFS.map((t) => ({
+  return ALL_TEMPLATE_DEFS.map((t) => ({
     id: templateId(t.code, t.version),
     code: t.code,
     version: t.version,

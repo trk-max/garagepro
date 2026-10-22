@@ -8,6 +8,7 @@ type CustomerDefaults = {
   email?: string | null;
   address?: string | null;
   taxId?: string | null;
+  nationalId?: string | null;
   notes?: string | null;
   reminderOptOut?: boolean;
 };
@@ -26,6 +27,9 @@ export function CustomerFields({ t, defaults = {} }: { t: Dictionary; defaults?:
       </Field>
       <Field label={`${t.common.taxId} (${t.common.optional})`}>
         <Input name="taxId" dir="ltr" defaultValue={defaults.taxId ?? ""} />
+      </Field>
+      <Field label={`${t.legal.nationalId} (${t.common.optional})`}>
+        <Input name="nationalId" dir="ltr" maxLength={30} defaultValue={defaults.nationalId ?? ""} />
       </Field>
       <Field label={t.common.address} className="sm:col-span-2">
         <Input name="address" defaultValue={defaults.address ?? ""} />

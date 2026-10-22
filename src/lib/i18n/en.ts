@@ -2,6 +2,7 @@ import { v10En } from "@/lib/i18n/v10-en";
 import { v103En } from "@/lib/i18n/v103-en";
 import { todoEn } from "@/lib/i18n/todo-en";
 import { stockListEn } from "@/lib/i18n/stock-list-en";
+import { legalEn } from "@/lib/i18n/legal-en";
 import { contractsEn } from "@/lib/i18n/contracts-en";
 import { v7En } from "@/lib/i18n/v7-en";
 import { showroomEn } from "@/lib/i18n/showroom-en";
@@ -951,4 +952,6 @@ export const en: Dictionary = {
   todo: todoEn,
   /** V10.5 — stock : modifier une pièce, liste complète. */
   stockList: stockListEn,
+  /** V10.6 — kit juridique : prise en charge, conditions de l'ordre de réparation, mentions de la facture. */
+  legal: legalEn,
 };

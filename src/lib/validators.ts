@@ -78,6 +78,8 @@ export const customerSchema = z.object({
   email: z.preprocess(emptyToUndefined, z.string().trim().email().optional()),
   address: optionalText(300),
   taxId: optionalText(40),
+  /** CIN / passeport (V10.6). */
+  nationalId: optionalText(30),
   notes: optionalText(2000),
   /** Checkbox "refuse les rappels d'entretien". */
   reminderOptOut: z.preprocess((v) => v === "on" || v === "true" || v === true, z.boolean()).default(false),
