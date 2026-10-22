@@ -41,6 +41,21 @@ Il n'y a **qu'une seule base de données** (Supabase en ligne + sa copie sur le 
 - Réservez l'adresse du PC du garage dans la box (bail DHCP fixe) ; si elle change, refaites `npm run shortcut`.
 - Pour que le site en ligne s'ouvre sans compte Vercel : Vercel → projet → *Settings* → *Deployment Protection* → *Vercel Authentication* → ne protéger que les *Preview Deployments* (sinon chaque PC doit se connecter à Vercel).
 
+## Nouveautés V15 — file d'attente de l'accueil (borne, écran de salle, appel des clients)
+
+- **Borne d'entrée** (`/accueil/borne`, tablette plein écran, sans compte) : gros boutons par motif (dépôt, récupération, devis / question, paiement, autre — catalogue modifiable fr / ar / en), plaque facultative (grand clavier) ou QR du véhicule, rendez-vous du jour reconnu (« Bonjour, votre RDV de 8 h 30 est enregistré »), ticket en grand (A-12), SMS « c'est votre tour » **seulement avec le consentement** du client, impression facultative (imprimante réseau ESC/POS).
+- **Écran de salle** (`/accueil/ecran`, TV plein écran, sans compte) : numéros appelés et guichet en très grand, file en attente, attente estimée par motif (moyenne **réelle** des derniers tickets, « — » s'il n'y en a pas assez), son d'appel inclus, français et arabe alternés ou côte à côte, thème sombre / clair, heure et logo. **Jamais** de nom, de téléphone ni de plaque entière (plaque masquée « 215 TU 12** » en option).
+- **Poste d'accueil** (menu *Plus* › *Accueil (file d'attente)*) : *Suivant* (priorité : RDV à l'heure, puis ordre d'arrivée, option paiement / récupération rapides), *Appeler*, *Rappeler*, *Absent* (automatique après 3 appels sans réponse, jamais supprimé), *Transférer*, *Terminer* ; ouverture directe du check-in ou de la facture à encaisser ; statistiques du jour ; guichets avec l'employé connecté et son pointage. Rapports (attente par motif / heure / jour, heures de pointe, absents, export CSV), bloc *Accueil* du tableau de bord, « À traiter » (attente trop longue).
+- La borne et la TV ont un **jeton d'appareil** créé par l'administrateur (Paramètres › Accueil), révocable. Elles fonctionnent sur le réseau du garage sans internet (hub). Guide : [docs/ACCUEIL.md](docs/ACCUEIL.md). Rapport : [docs/RAPPORT-V15.md](docs/RAPPORT-V15.md).
+
+### Mise à jour vers la V15 — à faire une commande à la fois
+
+1. `npm install`
+2. `npm run db:cloud` — **avant le push** : ajoute la migration `24_accueil` à la base en ligne (n'efface rien).
+3. `npm run check`
+4. `git add -A` puis `git commit -m "V15 : file d'attente de l'accueil"` puis `git push`
+5. Dans l'application : *Accueil* › *Réglages* (motifs, guichets, priorités, écran de salle, imprimante), puis *Paramètres* › *Accueil : borne et écran de salle* (créez un jeton « Tablette entrée » et un jeton « TV salle », ouvrez chaque lien sur l'appareil).
+
 ## Nouveautés V12 — agenda des prochaines réparations (maintenance préventive)
 
 - **Agenda** (menu *Plus* › *Agenda*) : pour chaque véhicule et chaque élément d'entretien (vidange, filtres, plaquettes, courroie, batterie, pneus…), une **échéance estimée** (km et/ou date, fourchette, confiance, méthode, nombre de cas). Calcul à partir des **ordres livrés** du garage (médiane des intervalles observés sur le même modèle, au moins 5 cas) ou, à défaut, de l'**intervalle saisi par le garage** ; sinon « estimation impossible » avec ce qui manque. Rien n'est inventé ; les relevés OBD simulés et les kilométrages incohérents sont exclus.
