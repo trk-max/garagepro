@@ -4,6 +4,7 @@ import { todoAr } from "@/lib/i18n/todo-ar";
 import { stockListAr } from "@/lib/i18n/stock-list-ar";
 import { legalAr } from "@/lib/i18n/legal-ar";
 import { v12Ar } from "@/lib/i18n/v12-ar";
+import { v14Ar } from "@/lib/i18n/v14-ar";
 import { v15Ar } from "@/lib/i18n/v15-ar";
 import { contractsAr } from "@/lib/i18n/contracts-ar";
 import { v7Ar } from "@/lib/i18n/v7-ar";
@@ -296,6 +297,14 @@ export const ar: Dictionary = {
     locked: "محاولات فاشلة كثيرة. أعد المحاولة بعد 15 دقيقة.",
   },
   errors: {
+    // V14 — compétences
+    skillReasonRequired: "اذكر سببًا (3 أحرف على الأقل).",
+    skillNotOwnLevel: "لا يمكنك تحديد كفاءاتك بنفسك: يجب أن يقوم بذلك مسؤول آخر.",
+    skillCodeTaken: "رمز الكفاءة هذا موجود مسبقًا.",
+    skillCertDates: "يجب أن يكون تاريخ الانتهاء بعد تاريخ الحصول.",
+    skillHabilitationRequired: "رُفض التعيين: التأهيل مطلوب ({skills}) ولا توجد شهادة صالحة. يمكن للمسؤول الاستثناء مع ذكر السبب.",
+    skillOverrideForbidden: "التأهيل مطلوب ({skills}): المسؤول وحده يمكنه الاستثناء (مع سبب).",
+    skillSupervisorVerifies: "نقطة «الأشغال مُتحقَّق منها» يصادق عليها المشرف على هذا الأمر.",
     // V12 — agenda
     agendaStale: "أُعيد حساب هذا التقدير في الأثناء: حدّث الصفحة.",
     agendaReason: "اذكر السبب.",
@@ -970,6 +979,8 @@ export const ar: Dictionary = {
   legal: legalAr,
   /** V12 — agenda des prochaines réparations. */
   v12: v12Ar,
+  /** V14 — carte des compétences. */
+  v14: v14Ar,
   /** V15 — file d'attente de l'accueil. */
   v15: v15Ar,
 };

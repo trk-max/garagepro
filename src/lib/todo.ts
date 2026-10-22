@@ -13,10 +13,14 @@ export const TODO_KEYS = [
   "vehicleInfo", "quoteWaiting", "readyNotDelivered", "lateRepairs", "missingParts", "insuranceWaiting",
   "overdueInvoices", "openClaims", "unreadMessages", "warrantyOpen", "contractDrafts", "contractsExpiring",
   "certificateFields", "lowStock", "backup", "agendaDue", "agendaParts",
+  // V14 — compétences
+  "skillCertificates", "skillWarnings",
   // V15 — accueil
   "receptionWaiting",
   // B. To approve (manager / administrator / HR)
   "leaves", "purchaseOrders", "qualityChecks", "contractsToApprove", "contractsToSign", "warrantyDecisions",
+  // V14 — réévaluations demandées / objectifs atteints
+  "skillReviews",
 ] as const;
 export type TodoKey = (typeof TODO_KEYS)[number];
 
@@ -48,6 +52,9 @@ export const TODO_DEFS: Record<TodoKey, Def> = {
   // V12 — agenda: due within 30 days, still to validate / send; parts to order in advance.
   agendaDue: { group: "incomplete", href: "/garage/agenda?to=30", visible: (r) => can(r, "manageAgenda") },
   agendaParts: { group: "incomplete", href: "/garage/agenda?parts=1", visible: (r) => can(r, "manageAgenda") && can(r, "requestPurchase") },
+  // V14 — compétences: certificates expiring / expired (rappel), assignments with an unhandled warning.
+  skillCertificates: { group: "incomplete", href: "/garage/competences?f=certificats#certificats", visible: (r) => can(r, "viewSkills") },
+  skillWarnings: { group: "incomplete", href: "/garage/competences?f=avertissements#avertissements", visible: (r) => can(r, "manageSkills") },
   // V15 — accueil : clients en attente depuis plus que le seuil réglé (Accueil › Réglages).
   receptionWaiting: { group: "incomplete", href: "/garage/accueil", visible: (r) => can(r, "useReception") },
   leaves: { group: "approval", href: "/garage/equipe", visible: (r) => can(r, "manageTeam") },
@@ -56,6 +63,7 @@ export const TODO_DEFS: Record<TodoKey, Def> = {
   contractsToApprove: { group: "approval", href: "/garage/contrats?s=VALIDATION", visible: contracts("approve") },
   contractsToSign: { group: "approval", href: "/garage/contrats?s=PENDING_SIGNATURE", visible: contracts("manage") },
   warrantyDecisions: { group: "approval", href: "/garage/garanties?f=claims", visible: (r) => can(r, "viewWarrantyMoney") },
+  skillReviews: { group: "approval", href: "/garage/competences?f=reevaluations#reevaluations", visible: (r) => can(r, "manageSkills") },
 };
 
 /** Keys this person (or role) may see (the server computes only these). */

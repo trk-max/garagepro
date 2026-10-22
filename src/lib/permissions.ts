@@ -107,6 +107,14 @@ const MATRIX = {
   /// Lire et répondre à TOUTES les conversations du showroom.
   readAllShowroomMessages: ["ADMIN", "SHOWROOM_MANAGER"],
 
+  // ── Carte des compétences (V14) ──
+  /// Voir les compétences, certificats et objectifs de TOUTE l'équipe (matrice, fiches). Chacun voit
+  /// toujours les siens, sans cette permission.
+  viewSkills: ["ADMIN", "MANAGER", "HR"],
+  /// Décider d'un niveau (avec motif), certificats, objectifs, catalogue et réglages des compétences.
+  manageSkills: ["ADMIN", "MANAGER"],
+  /// Déroger à la règle « habilitation exigée » lors d'une affectation (motif obligatoire, journalisé).
+  overrideSkillBlock: ["ADMIN", "MANAGER"],
   // ── Accueil : file d'attente (V15) ──
   /// Poste d'accueil : file en direct, Suivant / Appeler / Rappeler / Absent / Transférer / Terminer, ticket manuel.
   useReception: ["ADMIN", "MANAGER", "RECEPTION"],
@@ -194,7 +202,7 @@ export const PERMISSION_GROUPS = {
   customers: ["viewCustomers", "manageMaintenance", "viewAgenda", "manageAgenda", "configureAgenda", "manageVehicleQr", "viewNotifications", "manageCompanyAccess"],
   money: ["viewFinance", "viewClientInvoices", "createInvoice", "recordPayment", "sendReminder", "manageExpenses", "viewWarrantyMoney", "viewCashForecast", "readCashForecast", "viewProfit", "viewReports"],
   stock: ["viewStock", "manageStock", "reserveStock", "viewSuppliers", "manageSuppliers", "requestPurchase", "approvePurchase", "receiveGoods", "viewSupplierInvoices", "manageSupplierInvoices", "paySupplier"],
-  team: ["useTimeClock", "manageTeam", "showClockKiosk", "issueCertificates"],
+  team: ["useTimeClock", "manageTeam", "showClockKiosk", "issueCertificates", "viewSkills", "manageSkills", "overrideSkillBlock"],
   contracts: ["viewContracts", "reviewContractTemplates"],
   showroom: ["viewShowroom", "createListing", "manageAllListings", "useShowroomMessages", "readAllShowroomMessages"],
   // V15 — accueil (file d'attente).

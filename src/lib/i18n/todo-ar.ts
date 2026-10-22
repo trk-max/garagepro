@@ -36,5 +36,9 @@ export const todoAr: typeof todoFr = {
     contractsToApprove: "عقود للموافقة",
     contractsToSign: "عقود موافق عليها لم تُوقَّع بعد",
     warrantyDecisions: "مطالبات ضمان: رد يجب تسجيله",
+    // V14 — compétences
+    skillCertificates: "شهادات / تأهيلات منتهية أو يجب تجديدها",
+    skillWarnings: "تعيينات مع تنبيه كفاءة يجب الاطلاع عليه",
+    skillReviews: "كفاءات يجب إعادة تقييمها (طلبات، أهداف محققة)",
   },
 };

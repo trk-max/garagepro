@@ -188,6 +188,13 @@ model User {
   handledClaims           CustomerClaim[]
   permissionOverrides     UserPermission[]  @relation("PermUser")
   grantedPermissions      UserPermission[]  @relation("PermGrantedBy")
+  /// V14 — carte des compétences.
+  supervisedWorkOrders    WorkOrder[]          @relation("Supervisor")
+  skills                  EmployeeSkill[]
+  skillHistory            SkillLevelHistory[]
+  skillCertificates       SkillCertificate[]
+  skillGoals              SkillGoal[]
+  skillReviews            SkillReviewRequest[]
 }
 
 /// V10.3 — accès sur mesure : exception par employé à la matrice des rôles (src/lib/permissions.ts).
@@ -321,9 +328,23 @@ model WorkOrder {
   /// Acompte reçu à la prise en charge (millimes) et son mode (CASH, CARD…) : à reporter en paiement sur la facture.
   depositAmount        Int?
   depositMethod        String?
+  /// V14 — superviseur (employé AUTONOME qui encadre un SUPERVISÉ) ; ses heures restent les siennes (chronos).
+  supervisorId         String?
+  /// V14 — compétences requises choisies à la main (ids de Skill). null = déduites des forfaits / lignes.
+  skillIds             Json?
+  /// V14 — avertissements de la dernière affectation [{ code, skillId?, userId? }] et leur traitement.
+  skillWarnings        Json            @default("[]")
+  skillWarningsAt      DateTime?
+  skillWarningsAckAt   DateTime?
+  skillWarningsAckById String?
+  /// V14 — dérogation explicite d'un responsable à la règle « habilitation exigée » (motif, journalisée).
+  skillOverrideReason  String?
+  skillOverrideById    String?
+  skillOverrideAt      DateTime?
   createdAt            DateTime        @default(now())
   updatedAt            DateTime        @updatedAt
 
+  supervisor     User?               @relation("Supervisor", fields: [supervisorId], references: [id], onDelete: SetNull)
   customer       Customer            @relation(fields: [customerId], references: [id], onDelete: Restrict)
   vehicle        Vehicle             @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
   mechanic       User?               @relation("Mechanic", fields: [mechanicId], references: [id], onDelete: SetNull)
@@ -349,6 +370,7 @@ model WorkOrder {
   @@index([mechanicId, status])
   @@index([vehicleId, createdAt(sort: Desc)])
   @@index([customerId, createdAt(sort: Desc)])
+  @@index([supervisorId])
 }
 
 model WorkOrderLine {
@@ -656,6 +678,11 @@ model Setting {
   /// Modèles de message de l'agenda (null = texte par défaut). Variables : {garage} {plate} {item} {when} {price} {phone}.
   tplAgendaFr            String?
   tplAgendaAr            String?
+  /// V14 — compétences : rappel N jours avant l'expiration d'un certificat ; le superviseur valide le point
+  /// « travaux vérifiés » du contrôle qualité ; libellés publics sur le suivi client (désactivé par défaut).
+  skillCertReminderDays   Int     @default(30)
+  skillSupervisorVerifies Boolean @default(false)
+  skillPublicLabels       Boolean @default(false)
   openingHours           Json     @default("{\"0\":null,\"1\":{\"open\":\"08:00\",\"close\":\"17:00\"},\"2\":{\"open\":\"08:00\",\"close\":\"17:00\"},\"3\":{\"open\":\"08:00\",\"close\":\"17:00\"},\"4\":{\"open\":\"08:00\",\"close\":\"17:00\"},\"5\":{\"open\":\"08:00\",\"close\":\"17:00\"},\"6\":{\"open\":\"08:00\",\"close\":\"13:00\"}}")
   updatedAt              DateTime @updatedAt
 }
@@ -2065,4 +2092,151 @@ model Message {
 
   @@index([conversationId, createdAt])
   @@index([authorKind, readByStaffAt])
+}
+
+// ── Carte des compétences (V14) ──────────────────────────────────────────────
+
+/// Compétence du catalogue (id déterministe "sk_<code>" : la même ligne sur le PC du garage et en ligne).
+/// Demandée par les forfaits liés (packageIds) et les mots-clés des lignes d'un ordre.
+model Skill {
+  id                   String   @id
+  code                 String   @unique
+  nameFr               String
+  nameAr               String?
+  nameEn               String?
+  description          String?
+  /// Mots-clés (mot entier, sans accents) cherchés dans les lignes et la demande du client.
+  keywords             Json     @default("[]")
+  packageIds           Json     @default("[]")
+  /// Un SUPERVISÉ ne travaille pas seul : avertissement s'il n'a pas de superviseur AUTONOME.
+  supervisionRequired  Boolean  @default(false)
+  /// Habilitation exigée (ex. haute tension) : affectation REFUSÉE sans certificat valide, sauf dérogation.
+  habilitationRequired Boolean  @default(false)
+  /// Libellé public choisi par le garage (suivi client), ex. « technicien certifié climatisation ».
+  publicLabelFr        String?
+  publicLabelAr        String?
+  publicLabelEn        String?
+  isActive             Boolean  @default(true)
+  position             Int      @default(0)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  levels       EmployeeSkill[]
+  history      SkillLevelHistory[]
+  certificates SkillCertificate[]
+  goals        SkillGoal[]
+  reviews      SkillReviewRequest[]
+}
+
+/// Niveau actuel d'un employé : "AUTONOMOUS", "SUPERVISED", "TRAINING" ou "NOT_CONCERNED".
+/// Toujours décidé par un responsable / administrateur (jamais calculé). id déterministe "es_<hash>".
+model EmployeeSkill {
+  id          String   @id
+  userId      String
+  skillId     String
+  level       String
+  updatedById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Restrict)
+  skill Skill @relation(fields: [skillId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, skillId])
+  @@index([skillId, level])
+}
+
+/// Historique des niveaux (qui, quand, ancien → nouveau, motif). Jamais modifié (trigger SQL).
+model SkillLevelHistory {
+  id        String   @id @default(cuid())
+  userId    String
+  skillId   String
+  fromLevel String?
+  toLevel   String
+  reason    String
+  actorId   String?
+  actorName String
+  createdAt DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Restrict)
+  skill Skill @relation(fields: [skillId], references: [id], onDelete: Restrict)
+
+  @@index([userId, createdAt])
+  @@index([skillId])
+}
+
+/// Certificat / habilitation d'un employé (fichier dans le stockage privé, servi après contrôle d'accès).
+/// Expiré → la compétence liée est « à vérifier » (indicateur), le niveau ne change pas.
+model SkillCertificate {
+  id          String    @id @default(cuid())
+  userId      String
+  skillId     String?
+  type        String
+  issuer      String?
+  issuedOn    DateTime? @db.Date
+  expiresOn   DateTime? @db.Date
+  fileKey     String?
+  fileType    String?
+  fileSize    Int?
+  note        String?
+  createdById String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  voidedAt    DateTime?
+  voidedById  String?
+  voidReason  String?
+
+  user  User   @relation(fields: [userId], references: [id], onDelete: Restrict)
+  skill Skill? @relation(fields: [skillId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([expiresOn])
+}
+
+/// Objectif de progression (SUIVI) : "SUPERVISED_NO_RETURN" (travaux supervisés sans retour garantie)
+/// ou "JOBS_NO_RETURN" (travaux sans retour). Atteint → « à réévaluer », jamais de changement de niveau.
+model SkillGoal {
+  id          String    @id @default(cuid())
+  userId      String
+  skillId     String
+  kind        String
+  target      Int
+  since       DateTime
+  note        String?
+  /// "ACTIVE", "REACHED" ou "CLOSED".
+  status      String    @default("ACTIVE")
+  reachedAt   DateTime?
+  closedAt    DateTime?
+  closedById  String?
+  createdById String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Restrict)
+  skill Skill @relation(fields: [skillId], references: [id], onDelete: Restrict)
+
+  @@index([userId, status])
+}
+
+/// Demande de réévaluation : "EMPLOYEE" (message de l'intéressé) ou "GOAL" (objectif atteint, id "sr_goal_<objectif>").
+model SkillReviewRequest {
+  id          String    @id @default(cuid())
+  userId      String
+  skillId     String?
+  goalId      String?
+  source      String
+  message     String?
+  /// "OPEN" ou "DONE".
+  status      String    @default("OPEN")
+  handledAt   DateTime?
+  handledById String?
+  handledNote String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user  User   @relation(fields: [userId], references: [id], onDelete: Restrict)
+  skill Skill? @relation(fields: [skillId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([userId])
 }

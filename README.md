@@ -56,6 +56,35 @@ Il n'y a **qu'une seule base de données** (Supabase en ligne + sa copie sur le 
 4. `git add -A` puis `git commit -m "V15 : file d'attente de l'accueil"` puis `git push`
 5. Dans l'application : *Accueil* › *Réglages* (motifs, guichets, priorités, écran de salle, imprimante), puis *Paramètres* › *Accueil : borne et écran de salle* (créez un jeton « Tablette entrée » et un jeton « TV salle », ouvrez chaque lien sur l'appareil).
 
+## Nouveautés V14 — carte des compétences de l’équipe
+
+- **Compétences** (menu *Plus* › *Compétences*, ou depuis *Équipe*) :
+  - matrice employés × compétences (🟢 autonome, 🟡 supervisé, 🔴 en formation), filtres, export CSV ;
+  - manques de l’équipe (« aucun AUTONOME en … ») et certificats à renouveler ;
+  - fiche par employé : niveaux, historique, certificats PDF / photo, objectifs, indices en lecture seule.
+- Un niveau est **toujours décidé par un responsable**, avec un motif, et l’historique n’est jamais réécrit. Les statistiques ne changent jamais un niveau ; un objectif atteint demande seulement une réévaluation.
+- **Affectation assistée** sur l’ordre et dans l’atelier mobile :
+  - compétences requises déduites des forfaits et des mots-clés ;
+  - mécaniciens triés par niveau, présence, charge et congé ;
+  - superviseur, avec le badge « supervisé par … ».
+- **Seul blocage** : une compétence « habilitation exigée » (ex. haute tension) sans certificat valide. Un responsable peut déroger avec un motif, et la dérogation est journalisée. Le reste = avertissements.
+- *Mes compétences* pour chaque employé (lecture seule + demande de réévaluation).
+- « À traiter » et bloc du tableau de bord.
+- Suivi client : libellé public seulement (réglage, désactivé par défaut), jamais de nom d’apprenti ni de niveau.
+- Guide : [docs/COMPETENCES.md](docs/COMPETENCES.md). Rapport : [docs/RAPPORT-V14.md](docs/RAPPORT-V14.md).
+
+### Mise à jour vers la V14 — à faire une commande à la fois
+
+1. `npm install`
+2. `npm run db:cloud` — **avant le push** : ajoute la migration `23_competences` à la base en ligne (n’efface rien).
+3. `npm run check`
+4. `git add -A` puis `git commit -m "V14 : carte des compétences"` puis `git push`
+5. Dans l’application : *Compétences* › *Réglages des compétences* :
+   - **Créer le catalogue de départ**, puis adaptez les compétences (mots-clés, forfaits liés) ;
+   - réglez les **règles** : supervision obligatoire, habilitation exigée (haute tension), délai de rappel des certificats, superviseur au contrôle qualité ;
+   - saisissez les **libellés publics** si vous voulez les montrer aux clients ;
+   - enfin, donnez à chaque employé ses niveaux et ses certificats.
+
 ## Nouveautés V12 — agenda des prochaines réparations (maintenance préventive)
 
 - **Agenda** (menu *Plus* › *Agenda*) : pour chaque véhicule et chaque élément d'entretien (vidange, filtres, plaquettes, courroie, batterie, pneus…), une **échéance estimée** (km et/ou date, fourchette, confiance, méthode, nombre de cas). Calcul à partir des **ordres livrés** du garage (médiane des intervalles observés sur le même modèle, au moins 5 cas) ou, à défaut, de l'**intervalle saisi par le garage** ; sinon « estimation impossible » avec ce qui manque. Rien n'est inventé ; les relevés OBD simulés et les kilométrages incohérents sont exclus.

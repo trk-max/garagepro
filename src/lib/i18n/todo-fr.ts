@@ -35,5 +35,9 @@ export const todoFr = {
     contractsToApprove: "Contrats à approuver",
     contractsToSign: "Contrats approuvés, pas encore signés",
     warrantyDecisions: "Réclamations garantie : réponse à enregistrer",
+    // V14 — compétences
+    skillCertificates: "Certificats / habilitations expirés ou à renouveler",
+    skillWarnings: "Affectations avec avertissement de compétence à voir",
+    skillReviews: "Compétences à réévaluer (demandes, objectifs atteints)",
   },
 };

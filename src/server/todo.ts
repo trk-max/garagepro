@@ -106,6 +106,8 @@ function counter(key: TodoKey, actor: TodoActor, now: Date): Promise<number> {
     case "purchaseOrders": return prisma.purchaseOrder.count({ where: { status: "PENDING_APPROVAL" } });
     case "qualityChecks": return prisma.qualityCheck.count({ where: TODO_WHERE.qualityChecks });
     case "warrantyDecisions": return prisma.warrantyClaim.count({ where: { status: "SUBMITTED" } });
+    // V14 — compétences
+    case "skillCertificates": case "skillWarnings": case "skillReviews": return import("@/server/skills").then((m) => m.countSkillTodo(key, now));
   }
 }
 

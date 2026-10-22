@@ -21,6 +21,8 @@ import { getI18n } from "@/lib/i18n/server";
 import { can } from "@/lib/permissions";
 import { requireStaff } from "@/lib/session";
 import { countDueSoon, listAgenda, partsToOrder } from "@/server/agenda";
+import { SkillGapsCard } from "@/components/skills/skills-ui";
+import { skillGapsSummary } from "@/server/skills";
 import { getQueueSettings, receptionSummary } from "@/server/accueil";
 import { listAlerts } from "@/server/alerts";
 import { getDashboard, presentNow, recentActivity, recentInvoices, todayAppointments, weekOverview } from "@/server/dashboard";
@@ -61,7 +63,7 @@ export default async function OverviewPage() {
   const on = (id: BlockId) => visible.includes(id);
   const year = Number(new Intl.DateTimeFormat("en-CA", { timeZone: (await getSettings()).timezone, year: "numeric" }).format(now));
   // Every figure keeps the former rule: money only for viewFinance, purchases for requestPurchase, etc.
-  const [{ t, lang }, settings, d, kpi, today, months, goal, mechanics, orders, overdue, purchasing, appts, presence, alerts, week, invoices, activity, agenda, reception] = await Promise.all([
+  const [{ t, lang }, settings, d, kpi, today, months, goal, mechanics, orders, overdue, purchasing, appts, presence, alerts, week, invoices, activity, agenda, skillGaps, reception] = await Promise.all([
     getI18n(),
     getSettings(),
     getDashboard(),
@@ -83,6 +85,8 @@ export default async function OverviewPage() {
     on("agenda")
       ? Promise.all([countDueSoon(now), listAgenda({ to: new Date(now.getTime() + 30 * 86_400_000) }, 6), can(staff, "requestPurchase") || can(staff, "manageAgenda") ? partsToOrder(now) : null])
       : null,
+    // V14: team skill gaps (viewSkills).
+    on("skillGaps") ? skillGapsSummary(now).catch(() => null) : null,
     // V15: reception queue block.
     on("reception") ? Promise.all([receptionSummary(now), getQueueSettings()]) : null,
   ]);
@@ -166,6 +170,7 @@ export default async function OverviewPage() {
       ),
     recentInvoices: () => invoices && <InvoicesCard t={t} lang={lang} invoices={invoices} overdue={overdue?.count ?? 0} unpaid={d.unpaidTotal} />,
     activity: () => activity && <ActivityCard t={t} lang={lang} events={activity} />,
+    skillGaps: () => skillGaps && <SkillGapsCard t={t} lang={lang} data={skillGaps} />,
     reception: () => reception && <ReceptionDashCard t={t} summary={reception[0]} alertMin={reception[1].waitAlertMin} />,
     agenda: () => agenda && <AgendaDashCard t={t} lang={lang} count={agenda[0]} rows={agenda[1]} parts={agenda[2]} canOrder={can(staff, "requestPurchase")} />,
   };

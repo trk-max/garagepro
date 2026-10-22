@@ -4,6 +4,7 @@ import { todoFr } from "@/lib/i18n/todo-fr";
 import { stockListFr } from "@/lib/i18n/stock-list-fr";
 import { legalFr } from "@/lib/i18n/legal-fr";
 import { v12Fr } from "@/lib/i18n/v12-fr";
+import { v14Fr } from "@/lib/i18n/v14-fr";
 import { v15Fr } from "@/lib/i18n/v15-fr";
 import { contractsFr } from "@/lib/i18n/contracts-fr";
 import { v7Fr } from "@/lib/i18n/v7-fr";
@@ -294,6 +295,14 @@ export const fr = {
     locked: "Trop de tentatives échouées. Réessayez dans 15 minutes.",
   },
   errors: {
+    // V14 — compétences
+    skillReasonRequired: "Indiquez un motif (3 caractères au moins).",
+    skillNotOwnLevel: "Vous ne pouvez pas décider de vos propres compétences : un autre responsable doit le faire.",
+    skillCodeTaken: "Ce code de compétence existe déjà.",
+    skillCertDates: "La date d’expiration doit suivre la date d’obtention.",
+    skillHabilitationRequired: "Affectation refusée : habilitation exigée ({skills}) et aucun certificat valide. Un responsable peut déroger avec un motif.",
+    skillOverrideForbidden: "Habilitation exigée ({skills}) : seul un responsable peut déroger (avec un motif).",
+    skillSupervisorVerifies: "Le point « travaux vérifiés » est validé par le superviseur de cet ordre.",
     // V12 — agenda
     agendaStale: "Cette prévision a été recalculée entre-temps : actualisez la page.",
     agendaReason: "Indiquez le motif.",
@@ -969,6 +978,8 @@ export const fr = {
   legal: legalFr,
   /** V12 — agenda des prochaines réparations. */
   v12: v12Fr,
+  /** V14 — carte des compétences. */
+  v14: v14Fr,
   /** V15 — file d'attente de l'accueil. */
   v15: v15Fr,
 };

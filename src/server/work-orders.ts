@@ -72,6 +72,8 @@ export async function getWorkOrder(id: string) {
       customer: true,
       vehicle: true,
       mechanic: { select: { id: true, name: true } },
+      // V14: supervisor badge.
+      supervisor: { select: { id: true, name: true } },
       lines: { orderBy: [{ position: "asc" }, { createdAt: "asc" }], include: { part: { select: { sku: true, stockX100: true } } } },
       events: { orderBy: { createdAt: "desc" }, include: { actor: { select: { name: true } } } },
       invoice: { select: { id: true, number: true, status: true, totalTtc: true, paidAmount: true } },
@@ -399,6 +401,7 @@ export async function workshopOrders(mechanicId?: string) {
       vehicle: { select: { plate: true, make: true, model: true } },
       customer: { select: { name: true } },
       mechanic: { select: { name: true } },
+      supervisor: { select: { name: true } },
       _count: { select: { media: true } },
       // Latest photos/videos, shown as a strip on the workshop card (with delete).
       media: { orderBy: { createdAt: "desc" }, take: 6, select: { id: true, kind: true, caption: true } },
@@ -407,17 +410,14 @@ export async function workshopOrders(mechanicId?: string) {
   });
 }
 
+/**
+ * V14: every assignment goes through the skills check (src/server/skills.ts): refused only when a
+ * required skill demands a habilitation the mechanic does not hold; other cases = warnings on the order.
+ * The supervisor already on the order is kept.
+ */
 export async function assignMechanic(workOrderId: string, mechanicId: string | null, actor: StaffUser) {
-  return prisma.$transaction(async (tx) => {
-    const wo = await loadEditable(tx, workOrderId, { allowInvoiced: true });
-    if (wo.mechanicId === mechanicId) return;
-    const mechanic = mechanicId
-      ? await tx.user.findFirst({ where: { id: mechanicId, isActive: true }, select: { name: true } })
-      : null;
-    if (mechanicId && !mechanic) throw new AppError("invalid");
-    await tx.workOrder.update({ where: { id: workOrderId }, data: { mechanicId } });
-    await event(tx, workOrderId, actor.id, "ASSIGNED", { to: mechanic?.name ?? null });
-  });
+  const { assignWithSkills } = await import("@/server/skills");
+  return assignWithSkills(actor, workOrderId, { mechanicId });
 }
 
 export async function updateMeta(

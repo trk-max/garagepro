@@ -37,7 +37,14 @@ export default async function TeamPage() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-6 p-4 sm:p-6">
-      <PageHeader title={v.team.title} />
+      <PageHeader title={v.team.title}>
+        {/* V14: team skills map. */}
+        {can(staff, "viewSkills") && (
+          <Link href="/garage/competences" className="f-label border px-3 py-2 text-[0.625rem] hover:border-foreground">
+            {t.v14.nav.skills}
+          </Link>
+        )}
+      </PageHeader>
       {can(staff, "issueCertificates") && (
         <details id="entreprise" open={!settings.legalRepName || !settings.legalRepTitle || !settings.city} className="scroll-mt-20 border p-0 [&[open]]:pb-0">
           <summary className="cursor-pointer px-4 py-3 text-sm font-medium">{v.settingsV7.legalTitle}</summary>

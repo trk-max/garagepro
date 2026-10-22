@@ -25,6 +25,8 @@ export const DASHBOARD_BLOCKS = [
   "activity",
   // V12 — agenda of the upcoming repairs (due within 30 days, parts to order).
   "agenda",
+  // V14 — team skill gaps (« aucun AUTONOME en … ») and certificates to renew.
+  "skillGaps",
   // V15 — reception queue (waiting, longest wait, absents).
   "reception",
 ] as const;
@@ -53,6 +55,7 @@ const BLOCK_ACCESS: Record<BlockId, readonly Permission[]> = {
   recentInvoices: ["viewFinance"],
   activity: ["viewWorkOrders"],
   agenda: ["viewAgenda"],
+  skillGaps: ["viewSkills"],
   reception: ["useReception"],
 };
 
@@ -129,6 +132,7 @@ const SPANS: Record<BlockId, readonly [number, number]> = {
   recentInvoices: [1, 6],
   activity: [1, 6],
   agenda: [2, 12],
+  skillGaps: [2, 12],
   reception: [1, 4],
 };
 
