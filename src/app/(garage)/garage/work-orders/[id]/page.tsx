@@ -46,7 +46,9 @@ import { Card, CardTitle, Field, NativeSelect, Table, Td, Textarea, Th } from "@
 import { Input } from "@/components/ui/input";
 import { computeTotals, displayPlate, fmt, formatDate, formatDateTime, formatKm, formatMoney, formatQty, lineTotalHt, woNumber } from "@/lib/format";
 import { getI18n } from "@/lib/i18n/server";
-import { utcToZoned } from "@/lib/booking";
+import { utcToZoned, zonedToUtc } from "@/lib/booking";
+import { PaymentPromiseCard } from "@/components/garage/payment-promise-card";
+import { invoicePromises } from "@/server/payment-promises";
 import { can } from "@/lib/permissions";
 import { requirePageAccess } from "@/lib/session";
 import { packageOptions } from "@/server/admin";
@@ -114,6 +116,10 @@ export default async function WorkOrderPage({ params }: PageProps) {
     prisma.notification.findMany({ where: { workOrderId: wo.id, kind: "READY", status: "SENT" }, orderBy: { sentAt: "desc" }, select: { sentAt: true, createdAt: true } }),
   ]);
   const intakeIntact = intakeSig ? await documentIntact(intakeSig.id) : null;
+  // Paiements partiels: next payment promised by the customer while the invoice has money due.
+  const promiseBalance = wo.invoice ? invoiceBalance(wo.invoice) : 0;
+  const promises = wo.invoice && promiseBalance > 0 && can(staff, "viewClientInvoices") ? await invoicePromises(wo.invoice.id) : null;
+  const promiseToday = utcToZoned(new Date(), settings.timezone).date;
   const intakeLocked = !!intakeSig;
   const manualNotices = wo.events.filter((e) => (e.data as { readyNotified?: boolean } | null)?.readyNotified).map((e) => e.createdAt);
   const notices = [...readyNotices.map((n) => n.sentAt ?? n.createdAt), ...manualNotices].filter((d) => !wo.readyAt || d >= new Date(wo.readyAt.getTime() - 60_000));
@@ -833,6 +839,20 @@ export default async function WorkOrderPage({ params }: PageProps) {
               </span>
             </p>
           </Card>
+        )}
+        {wo.invoice && promises && (
+          <PaymentPromiseCard
+            invoice={{ id: wo.invoice.id, number: wo.invoice.number, workOrderId: wo.id, balance: promiseBalance }}
+            promises={promises.rows}
+            state={promises.state}
+            canRecord={can(staff, "recordPayment")}
+            showHistory={false}
+            today={promiseToday}
+            todayStart={zonedToUtc(promiseToday, "00:00", settings.timezone)}
+            t={t}
+            lang={lang}
+            tz={settings.timezone}
+          />
         )}
 
         <Card>

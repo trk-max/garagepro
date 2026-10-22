@@ -410,6 +410,9 @@ export async function listInvoices(f: InvoiceFilters) {
       customer: { select: { name: true, phone: true } },
       workOrder: { select: { id: true, number: true, vehicle: { select: { plate: true } } } },
       reminders: { orderBy: { sentAt: "desc" }, take: 1, select: { sentAt: true } },
+      // Paiements partiels: the latest promised date and the payments (to tell a kept promise from a missed one).
+      paymentPromises: { orderBy: { createdAt: "desc" }, take: 1, select: { promisedAt: true, amount: true, createdAt: true } },
+      payments: { select: { amount: true, paidAt: true } },
     },
     orderBy: { issuedAt: "desc" },
     take: 500,

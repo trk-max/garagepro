@@ -24,7 +24,9 @@ import { randomUUID } from "node:crypto";
 import { issueCreditNoteAction, reversePaymentAction } from "@/actions/lot4";
 import { invoiceBalance, refundDue } from "@/lib/billing";
 import { snapshotHash } from "@/lib/quote";
-import { utcToZoned } from "@/lib/booking";
+import { utcToZoned, zonedToUtc } from "@/lib/booking";
+import { PaymentPromiseCard } from "@/components/garage/payment-promise-card";
+import { invoicePromises } from "@/server/payment-promises";
 
 type PageProps = { params: Promise<{ id: string }> };
 
@@ -32,7 +34,7 @@ export default async function InvoicePage({ params }: PageProps) {
   const staff = await requirePageAccess("viewClientInvoices");
 
   const { id } = await params;
-  const [invoice, { t, lang }, settings] = await Promise.all([getInvoice(id), getI18n(), getSettings()]);
+  const [invoice, { t, lang }, settings, promises] = await Promise.all([getInvoice(id), getI18n(), getSettings(), invoicePromises(id)]);
   if (!invoice) notFound();
 
   // V16 Lot 4: a credited invoice owes nothing; what was paid on it is owed back to the customer.
@@ -41,6 +43,7 @@ export default async function InvoicePage({ params }: PageProps) {
   const credited = invoice.status === "CREDITED";
   const hashOk = invoice.snapshotHash ? snapshotHash(invoice.snapshot) === invoice.snapshotHash : null;
   const today = utcToZoned(new Date(), settings.timezone).date;
+  const todayStart = zonedToUtc(today, "00:00", settings.timezone);
   const l4 = t.v16.lot4;
   // Old invoices may lack part of the frozen copy: complete it from live data and say so (never a 500).
   const s = completeSnapshot(invoice.snapshot, {
@@ -177,8 +180,24 @@ export default async function InvoicePage({ params }: PageProps) {
           )}
         </Card>
 
+        {/* Paiements partiels: date of the next payment promised by the customer (history kept, append-only). */}
+        {(balance > 0 || promises.rows.length > 0) && !credited && (
+          <PaymentPromiseCard
+            invoice={{ id: invoice.id, number: invoice.number, workOrderId: invoice.workOrder.id, balance }}
+            promises={promises.rows}
+            state={balance > 0 ? promises.state : "kept"}
+            canRecord={balance > 0 && can(staff, "recordPayment")}
+            showHistory
+            today={today}
+            todayStart={todayStart}
+            t={t}
+            lang={lang}
+            tz={settings.timezone}
+          />
+        )}
+
         {balance > 0 && can(staff, "sendReminder") && (
-          <Card className={late ? "border-red-500/40" : undefined}>
+          <Card id="relance" className={`scroll-mt-24${late || promises.state === "overdue" ? " border-red-500/40" : ""}`}>
             <CardTitle>{t.reminders.send}</CardTitle>
             <ReminderPanel
               invoiceId={invoice.id}
