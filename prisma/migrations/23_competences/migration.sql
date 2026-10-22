@@ -1,5 +1,5 @@
 -- V14 — carte des compétences de l'équipe.
--- ADDITIVE only: 5 new tables, nullable / defaulted columns on "WorkOrder" and "Setting".
+-- ADDITIVE only: 6 new tables, nullable / defaulted columns on "WorkOrder" and "Setting".
 -- Nothing existing is changed or deleted. Safe to run twice. Levels and statuses are TEXT (no enum).
 -- No catalogue row is inserted here: the garage creates its catalogue (Réglages des compétences).
 -- A level is ALWAYS set by a person (responsable / administrateur): nothing here computes or changes one.
