@@ -48,7 +48,7 @@ export function SkillAssignCard({ o, skills, staff, t, lang, compact = false }: 
   const formId = `assign-${o.workOrderId}${compact ? "-m" : ""}`;
 
   return (
-    <Card className={compact ? "border-0 p-0 shadow-none" : undefined}>
+    <Card id={compact ? undefined : "affectation"} className={compact ? "border-0 p-0 shadow-none" : "scroll-mt-20"}>
       {!compact && <CardTitle>{a.title}</CardTitle>}
       <div className="space-y-3 text-sm">
         <div>

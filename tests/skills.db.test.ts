@@ -3,7 +3,7 @@
  * Levels decided by a person (history + journal), habilitation rule on the server, privacy (employee / customer),
  * supervisor and person-hours, goals that never change a level.
  */
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 
 const session = vi.hoisted(() => ({ userId: null as string | null }));
 vi.mock("@/lib/auth", () => ({ auth: async () => (session.userId ? { user: { id: session.userId } } : null) }));
@@ -21,7 +21,19 @@ const { assignAction } = await import("@/actions/work-orders");
 const { addLaborEntry, laborSummary } = await import("@/server/labor");
 const { saveQualityCheck } = await import("@/server/quality");
 const { getTrackingView } = await import("@/server/portal");
-const { makeUser, makeWorkOrder, prisma } = await import("./helpers/db");
+const helpers = await import("./helpers/db");
+const { makeWorkOrder, prisma } = helpers;
+// Users of this file are deactivated at the end: other files list "the first 50 active mechanics"
+// (dashboard) and must not depend on how many people this file created.
+const created: string[] = [];
+const makeUser: typeof helpers.makeUser = async (...args) => {
+  const u = await helpers.makeUser(...args);
+  created.push(u.id);
+  return u;
+};
+afterAll(async () => {
+  await prisma.user.updateMany({ where: { id: { in: created } }, data: { isActive: false } });
+});
 
 afterEach(() => {
   session.userId = null;

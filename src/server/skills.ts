@@ -707,7 +707,7 @@ export async function skillGapsSummary(now = new Date()) {
 /**
  * What the customer tracking page may show: only the PUBLIC labels chosen by the garage for the order's
  * skills, when the setting is on and the assigned mechanic holds a valid certificate for that skill or is
- * AUTONOMOUS on it. `hideMechanic`: the assigned mechanic is supervised / in training on the order (an
+ * AUTONOMOUS on it (and the skill is not « à vérifier »); nothing on a supervised / apprentice order. `hideMechanic`: the assigned mechanic is supervised / in training on the order (an
  * apprentice's name is never shown).
  */
 export async function customerSkillView(workOrderId: string, lang: string, now = new Date()): Promise<{ labels: string[]; hideMechanic: boolean }> {
@@ -720,10 +720,12 @@ export async function customerSkillView(workOrderId: string, lang: string, now =
   const { required } = orderSkills(wo, skills);
   const mechanic = wo.mechanicId ? (await loadCandidates(prisma, now, [wo.mechanicId]))[0] ?? null : null;
   const apprentice = !!wo.supervisorId || (!!mechanic && required.some((id) => mechanic.levels[id] === "TRAINING" || mechanic.levels[id] === "SUPERVISED"));
-  if (!settings.skillPublicLabels || !mechanic) return { labels: [], hideMechanic: apprentice };
+  if (!settings.skillPublicLabels || !mechanic || apprentice) return { labels: [], hideMechanic: apprentice };
+  // « à vérifier » (expired certificate, not replaced): no "certified" label until a manager checks it.
+  const toVerify = toVerifySkillIds(await prisma.skillCertificate.findMany({ where: { userId: mechanic.id, voidedAt: null }, select: { skillId: true, expiresOn: true, voidedAt: true } }), now);
   const labels = required
     .map((id) => skills.find((s) => s.id === id)!)
-    .filter((s) => s.isActive && (mechanic.levels[s.id] === "AUTONOMOUS" || mechanic.certSkillIds.includes(s.id)))
+    .filter((s) => s.isActive && (mechanic.certSkillIds.includes(s.id) || (mechanic.levels[s.id] === "AUTONOMOUS" && !toVerify.includes(s.id))))
     .map((s) => (lang === "ar" ? s.publicLabelAr : lang === "en" ? s.publicLabelEn : null) || s.publicLabelFr)
     .filter((l): l is string => !!l);
   return { labels: [...new Set(labels)], hideMechanic: apprentice };
