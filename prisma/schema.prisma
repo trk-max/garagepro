@@ -375,6 +375,8 @@ model WorkOrder {
   warranties     Warranty[]
   /// V16 Lot 2 — devis versionnés et accords tracés.
   quotes         Quote[]
+  /// V16 Lot 3 — changements de la date promise et des dates prévues des pièces (ajout seul).
+  promiseRevisions PromiseRevision[]
 
   @@index([status, updatedAt(sort: Desc)])
   @@index([mechanicId, status])
@@ -415,6 +417,9 @@ model WorkOrderLine {
   /// V16 Lot 2 — true : la pièce n'est pas encore sortie du stock (réservée en attendant l'accord du client).
   /// false (défaut, toutes les lignes d'avant le Lot 2) : sortie du stock à l'ajout, comme avant.
   stockDeferred  Boolean  @default(false)
+  /// V16 Lot 3 — frais annoncés au client à la réception (diagnostic, démontage annoncé) : acceptés dès la
+  /// création, facturables même si le devis est refusé. false pour toutes les lignes d'avant la migration 27.
+  isAnnouncedFee Boolean  @default(false)
   createdAt    DateTime @default(now())
 
   workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
@@ -474,6 +479,41 @@ enum PartCondition {
   EXCHANGE
   REUSED
   CUSTOMER_SUPPLIED
+}
+
+// ── V16 Lot 3 — retards : révisions de la date promise et des dates prévues des pièces ──
+
+enum PromiseReason {
+  PARTS
+  EXTRA_WORK
+  CUSTOMER_DECISION
+  INSURANCE
+  WORKSHOP_LOAD
+  OTHER
+}
+
+/// V16 Lot 3 — changement de la date promise (partNeedId vide) ou de la date prévue d'une pièce manquante.
+/// AJOUT SEUL (trigger PromiseRevision_readonly, la synchronisation du hub passe).
+model PromiseRevision {
+  id          String        @id @default(cuid())
+  workOrderId String
+  /// Vide = date promise de l'ordre ; sinon la pièce manquante (WorkOrderPartNeed) dont la date a changé.
+  partNeedId  String?
+  oldDate     DateTime?
+  newDate     DateTime?
+  reason      PromiseReason
+  /// Note interne (jamais montrée au client).
+  note        String?
+  /// Message au client mis en file vers un vrai canal (état réel : Notification, clé dedupeKey).
+  notified    Boolean       @default(false)
+  dedupeKey   String?
+  createdById String?
+  createdAt   DateTime      @default(now())
+
+  workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Restrict)
+
+  @@index([workOrderId, createdAt])
+  @@index([partNeedId])
 }
 
 /// V16 Lot 2 — une version de devis envoyée au client (copie figée + empreinte SHA-256).
@@ -827,6 +867,11 @@ model Setting {
   /// tracée (activé par défaut).
   allowWorkWithoutQuote     Boolean @default(false)
   requirePaidBeforeDelivery Boolean @default(true)
+  /// V16 Lot 3 — frais de diagnostic proposés à la réception (millimes HT, vide = aucun) ; décharge de sécurité
+  /// signée exigée avant « Prêt » si une ligne Sécurité est refusée ; passage automatique en attente pièces.
+  diagnosticFee             Int?
+  requireSafetyWaiver       Boolean @default(true)
+  autoWaitingParts          Boolean @default(true)
   openingHours           Json     @default("{\"0\":null,\"1\":{\"open\":\"08:00\",\"close\":\"17:00\"},\"2\":{\"open\":\"08:00\",\"close\":\"17:00\"},\"3\":{\"open\":\"08:00\",\"close\":\"17:00\"},\"4\":{\"open\":\"08:00\",\"close\":\"17:00\"},\"5\":{\"open\":\"08:00\",\"close\":\"17:00\"},\"6\":{\"open\":\"08:00\",\"close\":\"13:00\"}}")
   updatedAt              DateTime @updatedAt
 }
@@ -1327,6 +1372,8 @@ model WorkOrderPartNeed {
   expectedAt      DateTime?
   receivedAt      DateTime?
   note            String?
+  /// V16 Lot 3 — ligne de l'ordre qui attend cette pièce (passage automatique en attente pièces).
+  workOrderLineId String?
   createdById     String?
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
@@ -1338,6 +1385,7 @@ model WorkOrderPartNeed {
 
   @@index([workOrderId])
   @@index([status, expectedAt])
+  @@index([workOrderLineId])
 }
 
 /// Contrôle qualité obligatoire avant « Prêt ».

@@ -315,6 +315,10 @@ export const fr = {
     approverNameRequired: "Indiquez votre nom pour valider votre décision.",
     pendingLines: "Facture impossible : {count} ligne(s) attendent l’accord du client. Enregistrez sa décision ou supprimez-les.",
     lineRefusedLocked: "Ligne refusée par le client : elle est conservée telle quelle (relance plus tard).",
+    // V16 Lot 3 — retards, refus, attente pièces
+    promiseReasonRequired: "Choisissez le motif du changement de date promise (le client sera prévenu).",
+    safetyWaiverRequired: "Une ligne « Sécurité » a été refusée : confirmez que le client a signé la décharge (imprimez-la depuis l’ordre).",
+    announcedFeeNotAllowed: "Un frais annoncé se saisit seulement en main-d’œuvre, avant l’envoi du devis, par l’accueil ou un responsable.",
     // V14 — compétences
     skillReasonRequired: "Indiquez un motif (3 caractères au moins).",
     skillNotOwnLevel: "Vous ne pouvez pas décider de vos propres compétences : un autre responsable doit le faire.",

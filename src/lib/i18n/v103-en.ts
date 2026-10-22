@@ -95,6 +95,8 @@ export const v103En: typeof v103Fr = {
       // V16
       manageQuotes: "Quotes: send, waiting for customer, refusal, start work",
       recordQuoteApproval: "Record the customer’s agreement on a quote (phone, in person…), line by line",
+      recordSafetyWaiver: "Confirm the safety waiver signed by the customer (refused “Safety” line)",
+      managePartNeeds: "Update missing parts (status, supplier, expected date)",
       cancelWorkOrder: "Cancel a repair order (with a reason)",
       deliverWorkOrder: "Deliver the vehicle",
       deliverWithBalance: "Deliver despite an unpaid invoice (override with a reason)",

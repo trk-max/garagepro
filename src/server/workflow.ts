@@ -147,13 +147,18 @@ export function deliveryBlock(input: {
   workflowV16: boolean;
   invoice: { totalTtc: number; paidAmount: number } | null;
   depositAmount: number | null | undefined;
+  /** V16 Lot 3 — false when nothing can be invoiced (refused quote without announced fee): no invoice is needed. */
+  billable?: boolean;
 }): DeliveryBlock {
   if (!input.requirePaidBeforeDelivery || !input.workflowV16) return null;
-  if (!input.invoice) return "noInvoice";
+  if (!input.invoice) return input.billable === false ? null : "noInvoice";
   return (balanceDue(input.invoice, input.depositAmount) ?? 0) > 0 ? "balanceDue" : null;
 }
 
 export type TransitionOption = { to: WorkOrderStatus; reason: boolean; /** V16 Lot 2: shown but refused until the agreement is recorded. */ needsApproval?: boolean };
+
+/** V16 Lot 3 — the move into « Prêt » after a refused quote asks whether the car was put back together. */
+export const asksReassembly = (from: WorkOrderStatus, to: WorkOrderStatus) => from === "QUOTE_REFUSED" && to === "READY";
 
 /** The moves this user may offer from `from` (status dialog, workshop view). */
 export function availableTransitions(

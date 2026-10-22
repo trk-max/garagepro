@@ -134,11 +134,27 @@ export async function repairTermsReviewer(userId: string | null) {
 }
 
 /** V16 — Paramètres › Parcours atelier: work without a quote (off by default), paid before delivery (on by default). */
-export async function saveWorkflowSettings(actor: StaffUser, input: { allowWorkWithoutQuote: boolean; requirePaidBeforeDelivery: boolean }) {
+export async function saveWorkflowSettings(
+  actor: StaffUser,
+  input: {
+    allowWorkWithoutQuote: boolean;
+    requirePaidBeforeDelivery: boolean;
+    /** V16 Lot 3 — diagnostic fee (millimes HT, null = none), safety waiver, automatic « attente pièces ». */
+    diagnosticFee?: number | null;
+    requireSafetyWaiver?: boolean;
+    autoWaitingParts?: boolean;
+  },
+) {
   if (!can(actor, "manageSettings")) throw new AppError("forbidden", {}, 403);
   await prisma.$transaction(async (tx) => {
     const s = await tx.setting.upsert({ where: { id: "garage" }, update: {}, create: { id: "garage" } });
-    const before = { allowWorkWithoutQuote: s.allowWorkWithoutQuote, requirePaidBeforeDelivery: s.requirePaidBeforeDelivery };
+    const before = {
+      allowWorkWithoutQuote: s.allowWorkWithoutQuote,
+      requirePaidBeforeDelivery: s.requirePaidBeforeDelivery,
+      diagnosticFee: s.diagnosticFee,
+      requireSafetyWaiver: s.requireSafetyWaiver,
+      autoWaitingParts: s.autoWaitingParts,
+    };
     await tx.setting.update({ where: { id: "garage" }, data: input });
     await audit(tx, actor, "settings.workflow", "Setting", "garage", { before, after: input });
   });

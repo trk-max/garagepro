@@ -154,7 +154,8 @@ describe("V16 — devis et non-rétroactivité", () => {
       rec,
     );
     expect((await prisma.workOrder.findUniqueOrThrow({ where: { id: wo.id } })).promisedAtInitial).toEqual(first);
-    await updateMeta(wo.id, { promisedAt: new Date("2026-11-04T15:00:00Z"), priority: "URGENT" }, rec);
+    // V16 Lot 3: changing an existing promised date needs a reason (PromiseRevision, see delays-v16.db.test.ts).
+    await updateMeta(wo.id, { promisedAt: new Date("2026-11-04T15:00:00Z"), priority: "URGENT", promiseReason: "PARTS" }, rec);
     const after = await prisma.workOrder.findUniqueOrThrow({ where: { id: wo.id } });
     expect(after.promisedAtInitial).toEqual(first);
     const log = await prisma.auditLog.findFirstOrThrow({ where: { action: "workOrder.update", entityId: wo.id } });

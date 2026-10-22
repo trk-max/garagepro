@@ -6,7 +6,7 @@ import { markAttemptsOk, reserveAttempt } from "@/server/rate-limit";
 import { clientIp, isTrackable, startPortalSession } from "@/server/portal-session";
 import { getSettings } from "@/server/settings";
 import { audit } from "@/server/audit";
-import { customerSteps } from "@/server/workflow";
+import { customerSteps, isFinal } from "@/server/workflow";
 import { isExpired, type QuoteSnapshot } from "@/lib/quote";
 import { recordPortalDecision } from "@/server/quotes";
 
@@ -73,7 +73,7 @@ export function customerVisibleEvents<E extends { type: string; data: unknown }>
  * V16 — internal data never sent to the customer: the reason of a status change (cancel, refused quote,
  * back to the workshop, delivery override…) and the override details stay for the team only.
  */
-const INTERNAL_EVENT_KEYS = ["reason", "override", "block", "balanceDue", "approval", "auto", "voided"];
+const INTERNAL_EVENT_KEYS = ["reason", "override", "block", "balanceDue", "approval", "auto", "voided", "refusedLines", "reassembled", "autoParts", "announcedFee"];
 export function customerEventData(data: unknown): unknown {
   if (!data || typeof data !== "object" || Array.isArray(data)) return data;
   return Object.fromEntries(Object.entries(data as Record<string, unknown>).filter(([k]) => !INTERNAL_EVENT_KEYS.includes(k)));
@@ -99,7 +99,7 @@ export async function getTrackingView(workOrderId: string, lang = "fr") {
         mechanic: { select: { name: true } },
         // V16: voided lines are not part of the work any more.
         // V16 Lot 2: refused lines are not part of the work either.
-        lines: { where: { voidedAt: null, approvalStatus: { not: "REFUSED" } }, orderBy: { position: "asc" }, select: { type: true, description: true, quantityX100: true, unitPrice: true, taxRateBp: true } },
+        lines: { where: { voidedAt: null, approvalStatus: { not: "REFUSED" } }, orderBy: { position: "asc" }, select: { id: true, type: true, description: true, quantityX100: true, unitPrice: true, taxRateBp: true } },
         // V16 Lot 2: the open quote (line-by-line decision) and the last decision, from the frozen copy only.
         quotes: {
           where: { status: { not: "SUPERSEDED" } },
@@ -119,6 +119,15 @@ export async function getTrackingView(workOrderId: string, lang = "fr") {
           select: { id: true, type: true, data: true, body: true, createdAt: true },
         },
         invoice: { select: { number: true, totalTtc: true, paidAmount: true } },
+        // V16 Lot 3: parts still expected (expected date shown), and the latest change of the promised date
+        // (new date + a customer-safe reason label only: never the internal note).
+        partNeeds: {
+          where: { status: { in: ["NEEDED", "ORDERED"] } },
+          orderBy: { createdAt: "asc" },
+          take: 10,
+          select: { id: true, description: true, expectedAt: true, workOrderLineId: true },
+        },
+        promiseRevisions: { where: { partNeedId: null }, orderBy: { createdAt: "desc" }, take: 1, select: { newDate: true, reason: true, createdAt: true } },
       },
     }),
     getSettings(),
@@ -154,9 +163,16 @@ export async function getTrackingView(workOrderId: string, lang = "fr") {
           totals: snap.totals,
           previousTtc: snap.previousTtc,
           stampDuty: snap.totals.stampDuty,
+          // V16 Lot 3: fees announced at reception (due even if the quote is refused).
+          announcedTtc: snap.announcedTtc ?? null,
         }
       : null;
   const lastDecision = latest?.approvals[0] ?? null;
+  // V16 Lot 3: the part names are the ones of the order lines when tied to one (what the customer saw on the quote).
+  const lineNames = new Map(wo.lines.map((l) => [l.id, l.description]));
+  const partsExpected = wo.partNeeds.map((n) => ({ id: n.id, part: (n.workOrderLineId && lineNames.get(n.workOrderLineId)) || n.description, expectedAt: n.expectedAt }));
+  const lastRevision = wo.promiseRevisions[0] ?? null;
+  const promiseChange = lastRevision?.newDate && wo.promisedAt && lastRevision.newDate.getTime() === wo.promisedAt.getTime() ? { date: lastRevision.newDate, reason: lastRevision.reason } : null;
 
   return {
     ...wo,
@@ -174,6 +190,10 @@ export async function getTrackingView(workOrderId: string, lang = "fr") {
     quoteV16,
     lastDecision,
     quotes: undefined,
+    partNeeds: undefined,
+    promiseRevisions: undefined,
+    partsExpected: isFinal(wo.status) ? [] : partsExpected,
+    promiseChange: isFinal(wo.status) ? null : promiseChange,
     garage: { name: settings.garageName, phone: settings.phone, address: settings.address },
   };
 }

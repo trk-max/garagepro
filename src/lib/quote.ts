@@ -19,6 +19,11 @@ export const STAFF_CHANNELS = ["PHONE", "IN_PERSON", "SMS", "EMAIL", "WHATSAPP"]
  */
 export const LIVE_LINE = { voidedAt: null, approvalStatus: { not: "REFUSED" } } as const satisfies { voidedAt: null; approvalStatus: { not: LineApprovalStatus } };
 export const AGREED_LINE = { voidedAt: null, approvalStatus: "APPROVED" } as const satisfies { voidedAt: null; approvalStatus: LineApprovalStatus };
+/**
+ * V16 Lot 3 — WORK the customer accepted on a quote: an accepted line that is not a fee announced at reception
+ * (those are accepted at creation and stay billable even when the quote is refused, but never start the work).
+ */
+export const AGREED_WORK_LINE = { ...AGREED_LINE, isAnnouncedFee: false } as const;
 
 export type QuoteSnapshotLine = {
   id: string;
@@ -48,6 +53,11 @@ export type QuoteSnapshot = {
   /** Supplement: total TTC already accepted before, and the new total if everything is accepted. */
   previousTtc: number | null;
   newTotalTtc: number | null;
+  /**
+   * V16 Lot 3 — initial quote only, and only when there are some: TTC of the fees announced at reception
+   * (diagnostic…), already accepted and due even if the quote is refused. Absent from older snapshots.
+   */
+  announcedTtc?: number;
 };
 
 type SnapLineInput = Omit<QuoteSnapshotLine, "totalHt">;
@@ -66,6 +76,8 @@ export function buildQuoteSnapshot(input: {
   /** Lines already accepted before this quote (supplement): old total and new total. */
   approvedLines: { quantityX100: number; unitPrice: number; taxRateBp: number }[];
   stampDuty: number;
+  /** V16 Lot 3 — fees announced at reception (initial quote): their TTC is shown on the quote. */
+  announcedLines?: { quantityX100: number; unitPrice: number; taxRateBp: number }[];
 }): QuoteSnapshot {
   const lines = input.lines.map((l) => ({
     id: l.id,
@@ -93,6 +105,8 @@ export function buildQuoteSnapshot(input: {
     totals: computeTotals(lines, supplement ? 0 : input.stampDuty),
     previousTtc: supplement ? computeTotals(input.approvedLines, input.stampDuty).totalTtc : null,
     newTotalTtc: supplement ? computeTotals([...input.approvedLines, ...lines], input.stampDuty).totalTtc : null,
+    // Only when there are announced fees: older snapshots (and their fingerprints) are unchanged.
+    ...(!supplement && input.announcedLines?.length ? { announcedTtc: computeTotals(input.announcedLines, 0).totalTtc } : {}),
   };
 }
 

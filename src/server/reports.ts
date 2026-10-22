@@ -64,7 +64,8 @@ export async function getReport(period: ReportPeriod, now = new Date()) {
     }),
     prisma.workOrder.findMany({
       where: { deliveredAt: range },
-      select: { createdAt: true, deliveredAt: true, mechanic: { select: { name: true } } },
+      // V16 Lot 3: promised dates for the KPI « livré à la date promise initiale ».
+      select: { createdAt: true, deliveredAt: true, promisedAt: true, promisedAtInitial: true, mechanic: { select: { name: true } } },
     }),
     prisma.workOrder.count({ where: { status: "CANCELLED", updatedAt: range } }),
     prisma.workOrder.findMany({ where: { status: { notIn: ["DELIVERED", "CLOSED", "CANCELLED"] } }, select: { status: true } }),
@@ -129,7 +130,7 @@ export async function getReport(period: ReportPeriod, now = new Date()) {
       customerSince: w.customer.createdAt,
       previousVisitAt: previousVisit(w),
     })),
-    delivered: delivered.map((d) => ({ createdAt: d.createdAt, deliveredAt: d.deliveredAt!, mechanicName: d.mechanic?.name ?? null })),
+    delivered: delivered.map((d) => ({ createdAt: d.createdAt, deliveredAt: d.deliveredAt!, mechanicName: d.mechanic?.name ?? null, promisedAt: d.promisedAt, promisedAtInitial: d.promisedAtInitial })),
     cancelled,
     inShopNow: openOrders.filter((o) => !isFinal(o.status)).length,
     lines: lines.map((l) => ({

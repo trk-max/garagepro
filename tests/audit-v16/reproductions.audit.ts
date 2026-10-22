@@ -5,6 +5,7 @@
  * V16 Lot 1 : A-01, A-04, A-07 et A-09 (et la moitié « livraison sans facture » de A-02) sont corrigés ; leurs tests,
  * inversés, sont dans tests/workflow-v16.db.test.ts (npm run test:db). Les reproductions restantes suivent le
  * nouveau parcours (devis → accord avec motif ; livraison sans facture = dérogation tracée d'un responsable).
+ * V16 Lot 3 : A-12 corrigé (test inversé dans tests/delays-v16.db.test.ts) ; A-13 en partie.
  */
 import { beforeAll, describe, expect, it } from "vitest";
 import { can } from "@/lib/permissions";
@@ -15,7 +16,6 @@ import { cashForecast, recordCashBalance } from "@/server/cash";
 import { issueCertificate } from "@/server/certificates";
 import { presentNow } from "@/server/dashboard";
 import { createExpense, ensureOccurrences, payOccurrence } from "@/server/expenses";
-import { addPartNeed, updatePartNeed } from "@/server/follow-up";
 import { createInvoice, countOverdue, recordPayment } from "@/server/invoices";
 import { requestLeave } from "@/server/leaves";
 import { createPlan } from "@/server/maintenance";
@@ -126,24 +126,13 @@ describe("Stock et achats", () => {
     expect((await prisma.part.findUniqueOrThrow({ where: { id: part.id } })).stockX100).toBe(-100);
   });
 
-  it("A-12 bon de réception reçu : la pièce manquante de l'ordre reste « commandée », sans lien avec le bon", async () => {
-    const admin = await makeUser("ADMIN");
-    const supplier = await createSupplier({ name: `F-${Date.now()}` });
-    const part = await createPart({ sku: `NEED-${Date.now()}`, name: "Kit distribution", unit: "kit", salePrice: 450_000, costPrice: 320_000 }, admin);
-    const { wo } = await makeWorkOrder({ status: "WAITING_PARTS" });
-    const need = await addPartNeed(admin, wo.id, { partId: part.id, description: "Kit distribution", quantityX100: 100 });
-    await updatePartNeed(admin, need.id, { status: "ORDERED" } as never);
-    const po = await createPurchaseOrder({ supplierId: supplier.id, lines: [{ partId: part.id, quantityX100: 100, unitCost: 320_000 }] }, admin);
-    await createReceipt({ supplierId: supplier.id, purchaseOrderId: po.id, lines: [{ partId: part.id, quantityX100: 100 }] }, admin);
-    const after = await prisma.workOrderPartNeed.findUniqueOrThrow({ where: { id: need.id } });
-    expect(after.status).toBe("ORDERED");
-    expect(after.purchaseOrderId).toBeNull();
-    expect(await prisma.stockReservation.count({ where: { workOrderId: wo.id } })).toBe(0);
-  });
+  // A-12 corrigé au V16 Lot 3 : test inversé dans tests/delays-v16.db.test.ts (npm run test:db).
 
-  it("A-13 le magasinier peut signaler une pièce manquante mais pas la marquer commandée / reçue", () => {
+  // V16 Lot 3 : le magasinier met à jour une pièce manquante (managePartNeeds, test inversé dans delays-v16.db.test.ts) ;
+  // reste reproduit : le lien « Pièces manquantes » de sa cloche mène à /garage/suivi, réservé à manageRepairFollowUp.
+  it("A-13 (reste) le magasinier ne peut pas ouvrir la page /garage/suivi vers laquelle sa cloche l'envoie", () => {
     expect(can("STOREKEEPER", "reportMissingPart")).toBe(true);
-    expect(can("STOREKEEPER", "manageRepairFollowUp")).toBe(false); // garde de updatePartNeedAction
+    expect(can("STOREKEEPER", "manageRepairFollowUp")).toBe(false); // garde de la page /garage/suivi
   });
 
   it("A-14 deux réceptions simultanées du même bon : quantité reçue au double de la commande", async () => {

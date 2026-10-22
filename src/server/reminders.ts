@@ -65,7 +65,8 @@ export type Item = {
   // V15: "QUEUE" = message of the reception queue (« c'est votre tour », « encore N personnes »), consent given at the kiosk.
   // V16: "READY" = « votre véhicule est prêt » (after the move to READY), journalised like the others.
   // V16 Lot 2: "QUOTE" = « devis / supplément à valider » (link + code), "QUOTE_REMINDER" = one reminder after QUOTE_WAIT_DAYS.
-  kind: "MAINTENANCE" | "APPOINTMENT" | "DELIVERY" | "AGENDA" | "QUEUE" | "READY" | "QUOTE" | "QUOTE_REMINDER";
+  // V16 Lot 3: "PROMISE" = the promised date changed, "PART_DATE" = a missing part's expected date changed.
+  kind: "MAINTENANCE" | "APPOINTMENT" | "DELIVERY" | "AGENDA" | "QUEUE" | "READY" | "QUOTE" | "QUOTE_REMINDER" | "PROMISE" | "PART_DATE";
   dedupeKey: string;
   phone: string | null;
   email: string | null;

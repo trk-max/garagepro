@@ -1,14 +1,17 @@
 import "server-only";
 import { newToken as newQrToken } from "@/server/vehicle-qr";
 import { consumeReservations, releaseAllFor, releaseForLine, reserveForLine, workOrderStockMove } from "@/server/parts";
-import { approvalAllowsWork, deliverQuoteNotice, reapplyApprovals, sendQuoteTx, settleDeferredStock } from "@/server/quotes";
+import { approvalAllowsWork, deliverQuoteNotice, reapplyApprovals, refuseOpenQuoteTx, sendQuoteTx, settleDeferredStock } from "@/server/quotes";
+import { recordRevisionTx } from "@/server/delays";
+import { linesNeedingWaiver, promiseRevisionNeeded, sameMinute, waiverLineIds } from "@/lib/delays";
 import { audit } from "@/server/audit";
 import { assertQualityApproved, resetQualityApproval } from "@/server/quality";
 import { createAutoRepairWarranty } from "@/server/warranties";
 import { missingVehicleInfo } from "@/lib/vehicle-info";
 import type { IntakeForm } from "@/lib/repair-order-forms";
-import type { FuelType, LinePriority, LineType, PartCondition, Prisma, Priority, WorkOrderStatus } from "@prisma/client";
+import type { FuelType, LinePriority, LineType, PartCondition, Prisma, Priority, PromiseReason, WorkOrderStatus } from "@prisma/client";
 import { formatMoney, normalizePlate } from "@/lib/format";
+import { fr } from "@/lib/i18n/fr";
 import { AppError } from "@/lib/http";
 import { can } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
@@ -205,6 +208,11 @@ export type CreateWorkOrderInput = {
   requireCompleteVehicle?: boolean;
   /** V10.6 — repair order details typed at check-in (fuel, body, parts origin, estimate, deposit, CIN). */
   intake?: IntakeForm;
+  /**
+   * V16 Lot 3 — the diagnostic fee of Paramètres (if set) was announced at reception and accepted: a line
+   * « Frais de diagnostic », accepted at once and billable even if the quote is refused.
+   */
+  diagnosticFee?: boolean;
 };
 
 /**
@@ -310,7 +318,31 @@ export async function createWorkOrder(input: CreateWorkOrderInput, actor: StaffU
       select: { id: true },
     });
     await event(tx, wo.id, actor.id, "CREATED");
+    if (input.diagnosticFee) await addDiagnosticFeeLine(tx, wo.id, actor);
     return wo;
+  });
+}
+
+/** V16 Lot 3 — « Frais de diagnostic » line (announced fee, accepted at reception). Nothing when no fee is set. */
+async function addDiagnosticFeeLine(tx: Tx, workOrderId: string, actor: StaffUser) {
+  const s = await tx.setting.findUnique({ where: { id: "garage" }, select: { diagnosticFee: true, defaultTaxBp: true } });
+  if (!s?.diagnosticFee || s.diagnosticFee <= 0) return;
+  const line = await tx.workOrderLine.create({
+    data: {
+      workOrderId,
+      type: "LABOR",
+      description: fr.v16.lot3.refusal.diagnosticLine,
+      quantityX100: 100,
+      unitPrice: s.diagnosticFee,
+      taxRateBp: s.defaultTaxBp,
+      approvalStatus: "APPROVED",
+      isAnnouncedFee: true,
+    },
+    select: { id: true, description: true },
+  });
+  await event(tx, workOrderId, actor.id, "LINE_ADDED", { description: line.description, announcedFee: true });
+  await audit(tx, actor, "workOrder.lineAdd", "WorkOrderLine", line.id, {
+    after: { workOrderId, type: "LABOR", description: line.description, quantityX100: 100, unitPrice: s.diagnosticFee, approvalStatus: "APPROVED", isAnnouncedFee: true, announcedAtReception: true },
   });
 }
 
@@ -333,6 +365,10 @@ export type StatusChangeOptions = {
   reason?: string | null;
   /** V16 — deliver despite a missing invoice or a balance due (permission deliverWithBalance + reason). */
   override?: boolean;
+  /** V16 Lot 3 — refused quote → « Prêt »: the car was put back together (recorded in the event). */
+  reassembled?: boolean;
+  /** V16 Lot 3 — the customer signed the printed safety waiver (refused SAFETY line), permission recordSafetyWaiver. */
+  safetyWaiver?: boolean;
 };
 
 export async function changeStatus(workOrderId: string, to: WorkOrderStatus, actor: StaffUser, opts: StatusChangeOptions = {}) {
@@ -348,8 +384,8 @@ export async function changeStatus(workOrderId: string, to: WorkOrderStatus, act
 }
 
 async function workflowSettings(tx: Tx) {
-  const s = await tx.setting.findUnique({ where: { id: "garage" }, select: { allowWorkWithoutQuote: true, requirePaidBeforeDelivery: true } });
-  return { allowWorkWithoutQuote: s?.allowWorkWithoutQuote ?? false, requirePaidBeforeDelivery: s?.requirePaidBeforeDelivery ?? true };
+  const s = await tx.setting.findUnique({ where: { id: "garage" }, select: { allowWorkWithoutQuote: true, requirePaidBeforeDelivery: true, requireSafetyWaiver: true } });
+  return { allowWorkWithoutQuote: s?.allowWorkWithoutQuote ?? false, requirePaidBeforeDelivery: s?.requirePaidBeforeDelivery ?? true, requireSafetyWaiver: s?.requireSafetyWaiver ?? true };
 }
 
 async function changeStatusTx(workOrderId: string, to: WorkOrderStatus, actor: StaffUser, opts: StatusChangeOptions): Promise<{ quoteNotice: string | null }> {
@@ -395,7 +431,9 @@ async function changeStatusTx(workOrderId: string, to: WorkOrderStatus, actor: S
     // V16 delivery check (new orders, setting on): invoice issued and settled, deposit deducted — or a traced override.
     let override: { block: "noInvoice" | "balanceDue"; due: number } | null = null;
     if (to === "DELIVERED") {
-      const block = deliveryBlock({ ...settings, workflowV16: wo.workflowV16, invoice: wo.invoice, depositAmount: wo.depositAmount });
+      // V16 Lot 3: nothing billable (refused quote without announced fee) → no invoice needed.
+      const billable = wo.invoice ? true : await hasBillableLines(tx, workOrderId, wo.workflowV16);
+      const block = deliveryBlock({ ...settings, workflowV16: wo.workflowV16, invoice: wo.invoice, depositAmount: wo.depositAmount, billable });
       if (block) {
         const due = balanceDue(wo.invoice, wo.depositAmount) ?? 0;
         if (!opts.override) {
@@ -411,6 +449,15 @@ async function changeStatusTx(workOrderId: string, to: WorkOrderStatus, actor: S
     // Mandatory quality control: "Ready" only after the checklist is validated by a manager
     // (also after a refused quote: the car was put back together, the FULL check applies).
     if (to === "READY") await assertQualityApproved(tx, workOrderId);
+    // V16 Lot 3: a refused SAFETY line → the customer's signed waiver (printed) before « Prêt » (setting, new orders).
+    let waiver: string[] = [];
+    if (to === "READY" && wo.workflowV16 && settings.requireSafetyWaiver) {
+      waiver = await safetyWaiverMissing(tx, workOrderId);
+      if (waiver.length) {
+        if (!opts.safetyWaiver) throw new AppError("safetyWaiverRequired", {}, 409);
+        if (!can(actor, "recordSafetyWaiver")) throw new AppError("forbidden", {}, 403);
+      }
+    }
     // Back to the workshop: the checklist must be validated again afterwards.
     if (to === "IN_PROGRESS" || to === "WAITING_PARTS" || to === "QUOTE_SENT") await resetQualityApproval(tx, workOrderId);
     // V16 Lot 2: sending the quote (initial, or supplement from the workshop) creates its version: frozen copy,
@@ -433,6 +480,14 @@ async function changeStatusTx(workOrderId: string, to: WorkOrderStatus, actor: S
     // part is returned to stock a second time.
     const { count } = await tx.workOrder.updateMany({ where: { id: workOrderId, status: wo.status }, data });
     if (count === 0) throw new AppError("transition", { from: wo.status, to }, 409);
+
+    // V16 Lot 3: refusal recorded by the garage (no answer, refusal by phone without detail…): pending lines
+    // refused and kept, open quote closed, reservations released — only the announced fees stay billable.
+    const refusedLines = to === "QUOTE_REFUSED" && wo.workflowV16 ? await refuseOpenQuoteTx(tx, actor, workOrderId) : [];
+    if (waiver.length) {
+      const e = await tx.workOrderEvent.create({ data: { workOrderId, actorId: actor.id, type: "NOTE", data: { safetyWaiver: true, lineIds: waiver, signedOnPaper: true } }, select: { id: true } });
+      await audit(tx, actor, "workOrder.safetyWaiver", "WorkOrderEvent", e.id, { after: { workOrderId, lineIds: waiver, signedOnPaper: true } });
+    }
 
     // Delivered or cancelled: parts still reserved for it become available again.
     if (to === "CANCELLED" || to === "DELIVERED") await releaseAllFor(tx, actor, workOrderId, to === "CANCELLED" ? "ordre annulé" : "véhicule livré");
@@ -457,6 +512,8 @@ async function changeStatusTx(workOrderId: string, to: WorkOrderStatus, actor: S
       ...(reason ? { reason } : {}),
       ...(override ? { override: "deliverWithBalance", block: override.block, balanceDue: override.due } : {}),
       ...(approval ? { approval: true } : {}),
+      ...(refusedLines.length ? { refusedLines: refusedLines.length } : {}),
+      ...(wo.status === "QUOTE_REFUSED" && to === "READY" ? { reassembled: !!opts.reassembled } : {}),
     };
     await event(tx, workOrderId, actor.id, "STATUS_CHANGED", { from: wo.status, to, ...extra });
     await audit(tx, actor, "workOrder.status", "WorkOrder", workOrderId, { before: { status: wo.status }, after: { status: to, ...extra } });
@@ -474,14 +531,32 @@ async function changeStatusTx(workOrderId: string, to: WorkOrderStatus, actor: S
 export async function closeIfSettled(tx: Tx, workOrderId: string, actor: { id: string; name: string } | null) {
   const wo = await tx.workOrder.findUnique({
     where: { id: workOrderId },
-    select: { status: true, depositAmount: true, invoice: { select: { totalTtc: true, paidAmount: true } } },
+    select: { status: true, workflowV16: true, depositAmount: true, invoice: { select: { totalTtc: true, paidAmount: true } } },
   });
-  if (!wo || wo.status !== "DELIVERED" || !wo.invoice || (balanceDue(wo.invoice, wo.depositAmount) ?? 1) > 0) return false;
+  if (!wo || wo.status !== "DELIVERED") return false;
+  // V16 Lot 3: a new order with nothing billable (refused quote, no announced fee) owes nothing: closed too.
+  const nothingToBill = !wo.invoice && wo.workflowV16 && !(await hasBillableLines(tx, workOrderId, true));
+  if (!nothingToBill && (!wo.invoice || (balanceDue(wo.invoice, wo.depositAmount) ?? 1) > 0)) return false;
   const { count } = await tx.workOrder.updateMany({ where: { id: workOrderId, status: "DELIVERED" }, data: { status: "CLOSED" } });
   if (!count) return false;
   await event(tx, workOrderId, actor?.id ?? null, "STATUS_CHANGED", { from: "DELIVERED", to: "CLOSED", auto: true });
   await audit(tx, actor, "workOrder.status", "WorkOrder", workOrderId, { before: { status: "DELIVERED" }, after: { status: "CLOSED", auto: true } });
   return true;
+}
+
+/** V16 Lot 3 — the order has lines that would go on the invoice (same rule as createInvoice). */
+export async function hasBillableLines(tx: Tx, workOrderId: string, workflowV16: boolean) {
+  const where: Prisma.WorkOrderLineWhereInput = workflowV16 ? { voidedAt: null, approvalStatus: "APPROVED" } : { voidedAt: null, approvalStatus: { not: "REFUSED" } };
+  return (await tx.workOrderLine.count({ where: { workOrderId, ...where } })) > 0;
+}
+
+/** V16 Lot 3 — refused SAFETY lines of the order not yet covered by a signed waiver (ids). */
+export async function safetyWaiverMissing(tx: Tx, workOrderId: string) {
+  const [lines, notes] = await Promise.all([
+    tx.workOrderLine.findMany({ where: { workOrderId, priority: "SAFETY", approvalStatus: "REFUSED" }, select: { id: true, priority: true, approvalStatus: true, voidedAt: true } }),
+    tx.workOrderEvent.findMany({ where: { workOrderId, type: "NOTE" }, select: { data: true } }),
+  ]);
+  return linesNeedingWaiver(lines, waiverLineIds(notes));
 }
 
 /**
@@ -548,9 +623,9 @@ export async function assignMechanic(workOrderId: string, mechanicId: string | n
 
 export async function updateMeta(
   workOrderId: string,
-  input: { diagnosis?: string; priority?: Priority; promisedAt?: Date; mileageIn?: number },
+  input: { diagnosis?: string; priority?: Priority; promisedAt?: Date; mileageIn?: number; promiseReason?: PromiseReason | null; promiseNote?: string | null },
   actor: StaffUser,
-) {
+): Promise<{ dedupeKey: string | null }> {
   return prisma.$transaction(async (tx) => {
     await loadEditable(tx, workOrderId, { allowInvoiced: true });
     const before = await tx.workOrder.findUniqueOrThrow({
@@ -565,7 +640,16 @@ export async function updateMeta(
       // V16: the first promise ever made is kept (an order opened without a date gets it here).
       ...(!before.promisedAtInitial && input.promisedAt ? { promisedAtInitial: input.promisedAt } : {}),
     };
+    // V16 Lot 3: an existing promised date that moves (or is cleared) is never overwritten silently: reason
+    // mandatory, PromiseRevision (append-only) and the customer is told (same transaction). The same minute as the
+    // stored date (the form works to the minute) is not a change: the stored value is kept.
+    const revise = promiseRevisionNeeded(before.promisedAt, data.promisedAt);
+    if (revise && !input.promiseReason) throw new AppError("promiseReasonRequired", {}, 422);
+    if (!revise && before.promisedAt && sameMinute(before.promisedAt, data.promisedAt)) data.promisedAt = before.promisedAt;
     await tx.workOrder.update({ where: { id: workOrderId }, data });
+    const dedupeKey = revise
+      ? (await recordRevisionTx(tx, actor, { workOrderId, oldDate: before.promisedAt, newDate: data.promisedAt, reason: input.promiseReason!, note: input.promiseNote })).dedupeKey
+      : null;
     // V16 (audit trail): before → after of what really changed, the promised date included.
     const comparable = (v: unknown) => (v instanceof Date ? v.getTime() : (v ?? null));
     const changed = (Object.keys(data) as (keyof typeof data)[]).filter((k) => data[k] !== undefined && comparable(before[k]) !== comparable(data[k]));
@@ -575,6 +659,7 @@ export async function updateMeta(
         after: Object.fromEntries(changed.map((k) => [k, data[k] ?? null])),
       });
     }
+    return { dedupeKey };
   });
 }
 
@@ -587,6 +672,12 @@ type NewLine = {
   /** V16 Lot 2 — shown to the customer on the quote. */
   priority?: LinePriority | null;
   partCondition?: PartCondition | null;
+  /**
+   * V16 Lot 3 — fee announced to the customer at reception (diagnostic, announced dismantling): labour only,
+   * new orders, before the quote (RECEIVED / DIAGNOSIS), permission manageQuotes. Accepted at once; billable even
+   * if the quote is refused.
+   */
+  announcedFee?: boolean;
 };
 type EditableOrder = { id: string; status: WorkOrderStatus; workflowV16: boolean; quoteApprovedAt: Date | null };
 
@@ -595,8 +686,8 @@ type EditableOrder = { id: string; status: WorkOrderStatus; workflowV16: boolean
  * a line added after the agreement is a supplement). Orders opened before V16 keep their one-click agreement:
  * accepted at once, except while their quote waits for the answer (then accepted with it).
  */
-function newLineApproval(wo: EditableOrder) {
-  if (wo.workflowV16) return "PENDING" as const;
+function newLineApproval(wo: EditableOrder, announcedFee = false) {
+  if (wo.workflowV16) return announcedFee ? ("APPROVED" as const) : ("PENDING" as const);
   return wo.status === "QUOTE_SENT" && !wo.quoteApprovedAt ? ("PENDING" as const) : ("APPROVED" as const);
 }
 
@@ -607,6 +698,10 @@ function newLineApproval(wo: EditableOrder) {
  */
 async function insertLine(tx: Tx, wo: EditableOrder, line: NewLine, actor: StaffUser, laborRate: number, taxBp: number) {
   const workOrderId = wo.id;
+  const fee = !!line.announcedFee;
+  if (fee && (!wo.workflowV16 || line.type !== "LABOR" || (wo.status !== "RECEIVED" && wo.status !== "DIAGNOSIS") || !can(actor, "manageQuotes"))) {
+    throw new AppError("announcedFeeNotAllowed", {}, 422);
+  }
   const deferred = wo.workflowV16 && line.type === "PART" && !!line.partId;
   let partName: string | null = null;
   let description = line.description;
@@ -653,10 +748,11 @@ async function insertLine(tx: Tx, wo: EditableOrder, line: NewLine, actor: Staff
       partId: line.type === "PART" ? (line.partId ?? null) : null,
       unitCost,
       position,
-      approvalStatus: newLineApproval(wo),
+      approvalStatus: newLineApproval(wo, fee),
       priority: line.priority ?? null,
       partCondition: line.type === "PART" ? (line.partCondition ?? null) : null,
       stockDeferred: deferred,
+      isAnnouncedFee: fee,
     },
   });
   if (deferred) {
@@ -672,7 +768,7 @@ export async function addLine(workOrderId: string, line: NewLine, actor: StaffUs
   return prisma.$transaction(async (tx) => {
     const wo = await loadEditable(tx, workOrderId);
     const result = await insertLine(tx, wo, line, actor, settings.laborRate, settings.defaultTaxBp);
-    await event(tx, workOrderId, actor.id, "LINE_ADDED", { description: result.description });
+    await event(tx, workOrderId, actor.id, "LINE_ADDED", { description: result.description, ...(line.announcedFee ? { announcedFee: true } : {}) });
     await audit(tx, actor, "workOrder.lineAdd", "WorkOrderLine", result.id, {
       after: {
         workOrderId,
@@ -681,9 +777,10 @@ export async function addLine(workOrderId: string, line: NewLine, actor: StaffUs
         quantityX100: line.quantityX100,
         unitPrice: result.unitPrice,
         partId: line.partId ?? null,
-        approvalStatus: newLineApproval(wo),
+        approvalStatus: newLineApproval(wo, !!line.announcedFee),
         priority: line.priority ?? null,
         partCondition: line.partCondition ?? null,
+        ...(line.announcedFee ? { isAnnouncedFee: true } : {}),
       },
     });
     // V16 (audit n° 4): the work changed, the quality check must be validated again.

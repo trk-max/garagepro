@@ -1,10 +1,13 @@
 import "server-only";
-import type { PartNeedStatus } from "@prisma/client";
+import type { PartNeedStatus, PromiseReason } from "@prisma/client";
+import { sameMinute } from "@/lib/delays";
 import { alertCutoffs, type AlertSettings } from "@/lib/alerts";
 import { AppError } from "@/lib/http";
+import { can } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import type { StaffUser } from "@/lib/session";
 import { audit } from "@/server/audit";
+import { autoWaitingPartsTx, recordRevisionTx } from "@/server/delays";
 import { getSettings } from "@/server/settings";
 import { ACTIVE_STATUSES } from "@/server/workflow";
 
@@ -46,27 +49,46 @@ export type PartNeedInput = {
   supplierId?: string | null;
   expectedAt?: Date | null;
   note?: string | null;
+  /** V16 Lot 3 — the order line waiting for this part (auto « attente pièces » when it is accepted). */
+  workOrderLineId?: string | null;
+  /** V16 Lot 3 — why the expected date is what it is (PARTS by default). */
+  dateReason?: PromiseReason | null;
 };
 
+/**
+ * Reports a missing part. V16 Lot 3: may be tied to an order line; an expected date is a PromiseRevision and the
+ * customer is told; an accepted line waiting for it moves the order to « attente pièces » (setting). Returns the
+ * message key to deliver after the commit.
+ */
 export async function addPartNeed(actor: StaffUser, workOrderId: string, input: PartNeedInput) {
   return prisma.$transaction(async (tx) => {
     const wo = await tx.workOrder.findUnique({ where: { id: workOrderId }, select: { status: true } });
     if (!wo) throw new AppError("notFound", {}, 404);
     if (wo.status === "DELIVERED" || wo.status === "CLOSED" || wo.status === "CANCELLED") throw new AppError("laborClosedOrder", {}, 409);
+    const lineId = input.workOrderLineId || null;
+    if (lineId && !(await tx.workOrderLine.findFirst({ where: { id: lineId, workOrderId }, select: { id: true } }))) throw new AppError("invalid", {}, 422);
+    const { dateReason, ...fields } = input;
     const need = await tx.workOrderPartNeed.create({
-      data: { workOrderId, ...input, partId: input.partId || null, supplierId: input.supplierId || null, note: input.note || null, createdById: actor.id },
+      data: { workOrderId, ...fields, partId: input.partId || null, supplierId: input.supplierId || null, note: input.note || null, workOrderLineId: lineId, createdById: actor.id },
       select: { id: true },
     });
-    await audit(tx, actor, "partNeed.add", "WorkOrderPartNeed", need.id, { after: { workOrderId, ...input } });
-    return need;
+    await audit(tx, actor, "partNeed.add", "WorkOrderPartNeed", need.id, { after: { workOrderId, ...fields, workOrderLineId: lineId } });
+    let dedupeKey: string | null = null;
+    if (input.expectedAt) {
+      ({ dedupeKey } = await recordRevisionTx(tx, actor, { workOrderId, partNeedId: need.id, partLabel: input.description, oldDate: null, newDate: input.expectedAt, reason: dateReason ?? "PARTS" }));
+    }
+    await autoWaitingPartsTx(tx, actor, workOrderId);
+    return { ...need, dedupeKey };
   });
 }
 
 export async function updatePartNeed(
   actor: StaffUser,
   needId: string,
-  input: { status: PartNeedStatus; expectedAt?: Date | null; supplierId?: string | null; purchaseOrderId?: string | null; note?: string | null },
+  input: { status: PartNeedStatus; expectedAt?: Date | null; supplierId?: string | null; purchaseOrderId?: string | null; note?: string | null; dateReason?: PromiseReason | null; dateNote?: string | null },
 ) {
+  // V16 Lot 3 (audit n° 14): the storekeeper may update a missing part too (managePartNeeds), checked here as well.
+  if (!can(actor, "manageRepairFollowUp") && !can(actor, "managePartNeeds")) throw new AppError("forbidden", {}, 403);
   return prisma.$transaction(async (tx) => {
     const old = await tx.workOrderPartNeed.findUnique({ where: { id: needId } });
     if (!old) throw new AppError("notFound", {}, 404);
@@ -85,6 +107,20 @@ export async function updatePartNeed(
       before: { status: old.status, expectedAt: old.expectedAt, supplierId: old.supplierId },
       after: { status: data.status, expectedAt: data.expectedAt, supplierId: data.supplierId },
     });
+    // V16 Lot 3: a new expected date (first one or a change) is a reasoned revision, and the customer is told.
+    let dedupeKey: string | null = null;
+    if (!sameMinute(old.expectedAt, data.expectedAt)) {
+      ({ dedupeKey } = await recordRevisionTx(tx, actor, {
+        workOrderId: old.workOrderId,
+        partNeedId: needId,
+        partLabel: old.description,
+        oldDate: old.expectedAt,
+        newDate: data.expectedAt,
+        reason: input.dateReason ?? "PARTS",
+        note: input.dateNote,
+      }));
+    }
+    return { dedupeKey };
   });
 }
 

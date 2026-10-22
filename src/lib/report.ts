@@ -1,4 +1,5 @@
 import { classifyComplaint, type ProblemCategory } from "@/lib/report-categories";
+import { promiseKpi } from "@/lib/delays";
 
 /**
  * Garage report: pure aggregation of rows loaded by server/reports.ts, so the
@@ -25,7 +26,7 @@ export type ReportRows = {
     previousVisitAt: Date | null;
   }[];
   /** Work orders delivered in the period. */
-  delivered: { createdAt: Date; deliveredAt: Date; mechanicName: string | null }[];
+  delivered: { createdAt: Date; deliveredAt: Date; mechanicName: string | null; /** V16 Lot 3 */ promisedAt?: Date | null; promisedAtInitial?: Date | null }[];
   cancelled: number;
   inShopNow: number;
   /** Lines of the work orders invoiced in the period. */
@@ -207,6 +208,8 @@ export function buildReport(rows: ReportRows, previous: Pick<ReportRows, "invoic
       topModels,
       deltaReceived: delta(received, prevReceived),
       appointments: appts,
+      // V16 Lot 3 — « livré à la date promise initiale » (and, for comparison, the current promise).
+      promise: promiseKpi(rows.delivered),
     },
     series,
     problems,

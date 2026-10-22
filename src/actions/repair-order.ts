@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { toActionError, type ActionResult } from "@/lib/http";
 import { parseIntakeForm, parseRepairTermsForm } from "@/lib/repair-order-forms";
 import { requirePermission, requireStaff } from "@/lib/session";
-import { id } from "@/lib/validators";
+import { id, optionalMoney } from "@/lib/validators";
 import { saveRepairTerms, saveWorkflowSettings, setRepairTermsReview, updateIntake } from "@/server/repair-order";
 
 /** Work order page → « Prise en charge » card (fuel, body, parts origin, estimate, deposit, CIN). */
@@ -35,7 +35,14 @@ export async function saveRepairTermsAction(form: FormData): Promise<ActionResul
 export async function saveWorkflowSettingsAction(form: FormData): Promise<ActionResult> {
   try {
     const actor = await requirePermission("manageSettings");
-    await saveWorkflowSettings(actor, { allowWorkWithoutQuote: form.get("allowWorkWithoutQuote") === "on", requirePaidBeforeDelivery: form.get("requirePaidBeforeDelivery") === "on" });
+    await saveWorkflowSettings(actor, {
+      allowWorkWithoutQuote: form.get("allowWorkWithoutQuote") === "on",
+      requirePaidBeforeDelivery: form.get("requirePaidBeforeDelivery") === "on",
+      // V16 Lot 3
+      diagnosticFee: optionalMoney.parse(form.get("diagnosticFee") ?? "") || null,
+      requireSafetyWaiver: form.get("requireSafetyWaiver") === "on",
+      autoWaitingParts: form.get("autoWaitingParts") === "on",
+    });
     revalidatePath("/garage/settings");
     return { ok: true, data: null };
   } catch (error) {

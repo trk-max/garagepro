@@ -358,6 +358,45 @@ describe.skipIf(!BASE)("garage hub ↔ online database", () => {
     await expect(cloud.query(`DELETE FROM "QuoteApproval" WHERE id='qa26'`)).rejects.toThrow(/append-only/);
   }, 30_000);
 
+  it("V16 Lot 3: migration 27 replays twice; date revisions (append-only) travel both ways, new columns too", async () => {
+    // Replayed twice on both sides (already applied by the setup): no error, nothing logged, trigger in place.
+    const logged = async (db: pg.Client) => Number((await one(db, `SELECT count(*) FROM "_sync_log"`)).count);
+    const before = await logged(local);
+    for (const db of [local, cloud]) for (let i = 0; i < 2; i++) await db.query(migrationSql("27_delays_refusal"));
+    expect(await logged(local)).toBe(before);
+    const trg = await local.query(`SELECT 1 FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid WHERE t.tgname = '_sync_log_trg' AND c.relname = 'PromiseRevision'`);
+    expect(trg.rowCount).toBe(1);
+
+    await addCustomer(local, "c27", "Client retard");
+    await addVehicle(local, "v27", "270TU2700", "c27");
+    await addWorkOrder(local, "w27", "c27", "v27");
+    expect((await syncOnce(local, cloud)).errors).toEqual([]);
+    // Garage (hub): promised date moved, revision written; a missing part tied to a line, announced fee line.
+    await local.query(`UPDATE "WorkOrder" SET "promisedAt"='2026-11-12 15:00:00', "updatedAt"=now() WHERE id='w27'`);
+    await local.query(
+      `INSERT INTO "PromiseRevision"(id, "workOrderId", "oldDate", "newDate", reason, note, notified, "dedupeKey") VALUES ('r27a', 'w27', '2026-11-10 15:00:00', '2026-11-12 15:00:00', 'PARTS', 'interne', true, 'promise:a')`,
+    );
+    await local.query(`INSERT INTO "WorkOrderLine"(id, "workOrderId", type, description, "quantityX100", "unitPrice", "approvalStatus", "isAnnouncedFee") VALUES ('l27', 'w27', 'LABOR', 'Frais de diagnostic', 100, 30000, 'APPROVED', true)`);
+    await local.query(`INSERT INTO "WorkOrderPartNeed"(id, "workOrderId", description, "workOrderLineId", "expectedAt", "updatedAt") VALUES ('n27', 'w27', 'Kit', 'l27', '2026-11-11 00:00:00', now())`);
+    // Online at the same time (e.g. the storekeeper from outside): the part's expected date revised.
+    await cloud.query(
+      `INSERT INTO "PromiseRevision"(id, "workOrderId", "partNeedId", "oldDate", "newDate", reason, notified) VALUES ('r27b', 'w27', 'n27x', NULL, '2026-11-11 00:00:00', 'PARTS', false)`,
+    );
+    const r = await syncOnce(local, cloud);
+    expect(r.errors).toEqual([]);
+    for (const db of [local, cloud]) {
+      expect((await db.query(`SELECT id, reason, notified FROM "PromiseRevision" WHERE "workOrderId"='w27' ORDER BY id`)).rows).toEqual([
+        { id: "r27a", reason: "PARTS", notified: true },
+        { id: "r27b", reason: "PARTS", notified: false },
+      ]);
+      expect(await one(db, `SELECT "isAnnouncedFee" FROM "WorkOrderLine" WHERE id='l27'`)).toEqual({ isAnnouncedFee: true });
+      expect(await one(db, `SELECT "workOrderLineId" FROM "WorkOrderPartNeed" WHERE id='n27'`)).toEqual({ workOrderLineId: "l27" });
+    }
+    // The proof cannot be changed afterwards, on either side (the sync itself may).
+    await expect(local.query(`UPDATE "PromiseRevision" SET reason='OTHER' WHERE id='r27b'`)).rejects.toThrow(/append-only/);
+    await expect(cloud.query(`DELETE FROM "PromiseRevision" WHERE id='r27a'`)).rejects.toThrow(/append-only/);
+  }, 30_000);
+
   it("a database without a hub logs nothing", async () => {
     const plain = await freshDb(admin, `${HUB}_plain`, allMigrations);
     try {

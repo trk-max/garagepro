@@ -14,6 +14,7 @@ import {
 } from "@prisma/client";
 import { MIN_PHONE_DIGITS } from "@/lib/booking";
 import { normalizePlate } from "@/lib/format";
+import { PROMISE_REASONS } from "@/lib/delays";
 import { isValidVin, normalizeVin } from "@/lib/vehicle-info";
 
 /** Form helpers: HTML inputs always send strings, empty means "not provided". */
@@ -135,6 +136,9 @@ export const workOrderMetaSchema = z.object({
   priority: z.nativeEnum(Priority).optional(),
   promisedAt: optionalLocalDateTime,
   mileageIn: optionalInt,
+  // V16 Lot 3 — mandatory when an existing promised date changes (PromiseRevision + customer message).
+  promiseReason: z.preprocess(emptyToUndefined, z.enum(PROMISE_REASONS).optional()),
+  promiseNote: optionalText(500),
 });
 
 export const statusSchema = z.nativeEnum(WorkOrderStatus);
@@ -481,12 +485,18 @@ export const partNeedSchema = z.object({
   supplierId: optionalId,
   expectedAt: z.preprocess(emptyToUndefined, isoDay.optional()),
   note: optionalText(300),
+  // V16 Lot 3 — the order line waiting for the part, and why the expected date is what it is.
+  workOrderLineId: optionalId,
+  dateReason: z.preprocess(emptyToUndefined, z.enum(PROMISE_REASONS).optional()),
 });
 
 export const partNeedUpdateSchema = z.object({
   status: z.enum(["NEEDED", "ORDERED", "RECEIVED", "CANCELLED"]),
   expectedAt: z.preprocess(emptyToUndefined, isoDay.optional()),
   supplierId: optionalId,
+  // V16 Lot 3 — reason (and internal note) when the expected date changes.
+  dateReason: z.preprocess(emptyToUndefined, z.enum(PROMISE_REASONS).optional()),
+  dateNote: optionalText(500),
 });
 
 export const certificateSchema = z.object({

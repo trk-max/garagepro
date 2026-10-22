@@ -19,7 +19,7 @@ import {
   workOrderMetaSchema,
 } from "@/lib/validators";
 import { notifyVehicleReady } from "@/server/customer-notifications";
-import { recordStaffDecision, sendQuote } from "@/server/quotes";
+import { deliverQuoteNotice, recordStaffDecision, sendQuote } from "@/server/quotes";
 import { LINE_PRIORITIES, PART_CONDITIONS, STAFF_CHANNELS } from "@/lib/quote";
 import { createInvoice } from "@/server/invoices";
 import { parseIntakeForm } from "@/lib/repair-order-forms";
@@ -46,6 +46,9 @@ const lineQuoteSchema = z.object({ priority: z.enum(LINE_PRIORITIES).optional(),
 const statusOptionsSchema = z.object({
   reason: z.string().trim().max(500).nullish(),
   override: z.boolean().optional(),
+  // V16 Lot 3 — refused quote → « Prêt »: car put back together; signed safety waiver (refused SAFETY line).
+  reassembled: z.boolean().optional(),
+  safetyWaiver: z.boolean().optional(),
 });
 
 /** "2026-10-07T17:30" typed in the garage → UTC instant. */
@@ -86,6 +89,8 @@ export async function createWorkOrderAction(form: FormData): Promise<ActionResul
         requireCompleteVehicle: true,
         // V10.6 — repair order details (fuel level, body, parts origin, estimate, deposit, CIN).
         intake: parseIntakeForm(form),
+        // V16 Lot 3 — diagnostic fee announced at reception (box ticked by default when the fee is set).
+        diagnosticFee: raw.diagnosticFee === "on",
       },
       actor,
     );
@@ -132,7 +137,12 @@ export async function changeStatusAction(workOrderId: string, status: string, op
 /** V16 — status dialog (status + reason + "deliver despite the balance"). */
 export async function changeStatusFormAction(workOrderId: string, form: FormData): Promise<ActionResult<Redirect>> {
   const raw = formToObject(form);
-  return changeStatusAction(workOrderId, raw.status ?? "", { reason: raw.reason || null, override: raw.override === "on" });
+  return changeStatusAction(workOrderId, raw.status ?? "", {
+    reason: raw.reason || null,
+    override: raw.override === "on",
+    reassembled: raw.reassembled === "on",
+    safetyWaiver: raw.safetyWaiver === "on",
+  });
 }
 
 export async function assignAction(workOrderId: string, mechanicId: string): Promise<ActionResult<Redirect>> {
@@ -150,7 +160,9 @@ export async function updateMetaAction(workOrderId: string, form: FormData): Pro
   try {
     const actor = await requirePermission("viewWorkOrders");
     const meta = workOrderMetaSchema.parse(formToObject(form));
-    await updateMeta(id.parse(workOrderId), { ...meta, promisedAt: await localToUtc(meta.promisedAt) }, actor);
+    const r = await updateMeta(id.parse(workOrderId), { ...meta, promisedAt: await localToUtc(meta.promisedAt) }, actor);
+    // V16 Lot 3: « nouvelle date de livraison » sent after the commit (never blocks; the reminders task retries).
+    await deliverQuoteNotice(r.dedupeKey);
     refresh(workOrderId);
     return { ok: true, data: {} };
   } catch (error) {
@@ -173,7 +185,7 @@ export async function addLineAction(workOrderId: string, form: FormData): Promis
     const extra = lineQuoteSchema.parse({ priority: raw.priority || undefined, partCondition: raw.partCondition || undefined });
     const warning = await addLine(
       id.parse(workOrderId),
-      { type: input.type, partId: input.partId, description: input.description, quantityX100: input.quantity, unitPrice: input.unitPrice, ...extra },
+      { type: input.type, partId: input.partId, description: input.description, quantityX100: input.quantity, unitPrice: input.unitPrice, ...extra, announcedFee: raw.announcedFee === "on" },
       actor,
     );
     refresh(workOrderId);

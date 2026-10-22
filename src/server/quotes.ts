@@ -7,7 +7,7 @@ import { can } from "@/lib/permissions";
 import { fr } from "@/lib/i18n/fr";
 import { prisma } from "@/lib/prisma";
 import {
-  AGREED_LINE,
+  AGREED_WORK_LINE,
   QUOTE_VALID_DAYS,
   approvedAmountTtc,
   buildQuoteSnapshot,
@@ -21,7 +21,8 @@ import {
 import type { StaffUser } from "@/lib/session";
 import { audit, type AuditActor } from "@/server/audit";
 import { assertCanNumberDocuments, isCloudWithHub } from "@/server/hub";
-import { consumeReservations, releaseForLine, workOrderStockMove } from "@/server/parts";
+import { consumeReservations, releaseAllFor, releaseForLine, workOrderStockMove } from "@/server/parts";
+import { acceptedLineWaitsForPart, autoWaitingPartsOn } from "@/server/delays";
 import { resetQualityApproval } from "@/server/quality";
 import { reserveAttempt } from "@/server/rate-limit";
 import { deliverPending, queueItems, realSender, type Item, type Sender } from "@/server/reminders";
@@ -75,7 +76,7 @@ export async function sendQuoteTx(tx: Tx, actor: AuditActor, workOrderId: string
       lines: {
         where: { voidedAt: null },
         orderBy: [{ position: "asc" }, { createdAt: "asc" }],
-        select: { id: true, type: true, description: true, quantityX100: true, unitPrice: true, taxRateBp: true, priority: true, partCondition: true, approvalStatus: true, quoteId: true },
+        select: { id: true, type: true, description: true, quantityX100: true, unitPrice: true, taxRateBp: true, priority: true, partCondition: true, approvalStatus: true, quoteId: true, isAnnouncedFee: true },
       },
     },
   });
@@ -97,7 +98,9 @@ export async function sendQuoteTx(tx: Tx, actor: AuditActor, workOrderId: string
   const last = await tx.quote.aggregate({ where: { workOrderId }, _max: { version: true } });
   const version = (last._max.version ?? 0) + 1;
   const approved = wo.lines.filter((l) => l.approvalStatus === "APPROVED");
-  const kind = approved.length ? "SUPPLEMENT" : "INITIAL";
+  // V16 Lot 3: fees announced at reception are accepted from the start but are not « work already agreed »:
+  // the first quote stays INITIAL (and shows them apart, due even if refused).
+  const kind = approved.some((l) => !l.isAnnouncedFee) ? "SUPPLEMENT" : "INITIAL";
   const year = now.getFullYear();
   const seq = await tx.sequence.upsert({ where: { key: `quote-${year}` }, create: { key: `quote-${year}`, value: 1 }, update: { value: { increment: 1 } } });
   const number = quoteNumber(year, seq.value);
@@ -115,6 +118,7 @@ export async function sendQuoteTx(tx: Tx, actor: AuditActor, workOrderId: string
     lines: pending,
     approvedLines: approved,
     stampDuty: settings?.stampDuty ?? 0,
+    announcedLines: approved.filter((l) => l.isAnnouncedFee),
   });
   const hash = snapshotHash(snapshot);
   const channel = opts.channel ?? "PORTAL";
@@ -278,19 +282,24 @@ export async function applyDecisionEffects(tx: Tx, actor: AuditActor, workOrderI
   if (!opts.status) return null;
   const wo = await tx.workOrder.findUnique({ where: { id: workOrderId }, select: { status: true, quoteApprovedAt: true } });
   if (!wo) return null;
-  const agreed = await tx.workOrderLine.count({ where: { workOrderId, ...AGREED_LINE } });
+  // V16 Lot 3: work accepted on a quote — the fees announced at reception do not start the work.
+  const agreed = await tx.workOrderLine.count({ where: { workOrderId, ...AGREED_WORK_LINE } });
   if (wo.status !== "QUOTE_SENT" && wo.status !== "WAITING_CUSTOMER") {
     if (agreed > 0 && !wo.quoteApprovedAt) await tx.workOrder.updateMany({ where: { id: workOrderId, quoteApprovedAt: null }, data: { quoteApprovedAt: at } });
     return null;
   }
-  const to: WorkOrderStatus = agreed > 0 ? "IN_PROGRESS" : "QUOTE_REFUSED";
+  // V16 Lot 3: an accepted line already waiting for a missing part starts in « attente pièces » (setting).
+  const waitParts = agreed > 0 && (await autoWaitingPartsOn(tx)) && (await acceptedLineWaitsForPart(tx, workOrderId));
+  const to: WorkOrderStatus = agreed > 0 ? (waitParts ? "WAITING_PARTS" : "IN_PROGRESS") : "QUOTE_REFUSED";
   const { count } = await tx.workOrder.updateMany({
     where: { id: workOrderId, status: wo.status },
-    data: to === "IN_PROGRESS" ? { status: to, quoteApprovedAt: at } : { status: to },
+    data: to === "QUOTE_REFUSED" ? { status: to } : { status: to, quoteApprovedAt: at },
   });
   if (!count) return null;
   await resetQualityApproval(tx, workOrderId);
-  const extra = to === "QUOTE_REFUSED" ? { approval: true, reason: CUSTOMER_REFUSED_REASON } : { approval: true };
+  // V16 Lot 3: refused → every pending line refused (kept for the follow-up), reservations released.
+  const refused = to === "QUOTE_REFUSED" ? await refuseOpenQuoteTx(tx, actor, workOrderId) : [];
+  const extra = to === "QUOTE_REFUSED" ? { approval: true, reason: CUSTOMER_REFUSED_REASON, ...(refused.length ? { refusedLines: refused.length } : {}) } : { approval: true, ...(waitParts ? { autoParts: true } : {}) };
   await tx.workOrderEvent.create({
     data: { workOrderId, actorId: actor?.id ?? null, type: "STATUS_CHANGED", data: { from: wo.status, to, ...extra }, createdAt: new Date(at.getTime() + 1) },
   });
@@ -350,7 +359,26 @@ export async function reapplyApprovals(tx: Tx, workOrderId: string): Promise<num
 export async function approvalAllowsWork(tx: Tx, workOrderId: string): Promise<boolean> {
   const latest = await tx.quote.findFirst({ where: { workOrderId, status: { not: "SUPERSEDED" } }, orderBy: { version: "desc" }, select: { _count: { select: { approvals: true } } } });
   if (!latest || latest._count.approvals === 0) return false;
-  return (await tx.workOrderLine.count({ where: { workOrderId, ...AGREED_LINE } })) > 0;
+  return (await tx.workOrderLine.count({ where: { workOrderId, ...AGREED_WORK_LINE } })) > 0;
+}
+
+/**
+ * V16 Lot 3 — the quote is refused (by the customer, or recorded by the garage with a reason): every line still
+ * pending (fees announced at reception excepted: they are accepted) becomes REFUSED and is kept for the follow-up
+ * (Lot 5), the open quote is closed as REFUSED, and every part put aside for the order is released. Only the
+ * announced fees remain billable. No QuoteApproval is written here: that proof only comes from the customer.
+ * Returns the ids of the lines refused now.
+ */
+export async function refuseOpenQuoteTx(tx: Tx, actor: AuditActor, workOrderId: string): Promise<string[]> {
+  const pending = await tx.workOrderLine.findMany({ where: { workOrderId, voidedAt: null, approvalStatus: "PENDING", isAnnouncedFee: false }, select: { id: true } });
+  const ids = pending.map((l) => l.id);
+  if (ids.length) await tx.workOrderLine.updateMany({ where: { id: { in: ids }, approvalStatus: "PENDING" }, data: { approvalStatus: "REFUSED" } });
+  const closed = await tx.quote.updateMany({ where: { workOrderId, status: "SENT" }, data: { status: "REFUSED" } });
+  // Quote lines put aside: released one by one (settleDeferredStock); then what was reserved by hand for the order.
+  await settleDeferredStock(tx, actor, workOrderId);
+  await releaseAllFor(tx, actor, workOrderId, "devis refusé");
+  if (ids.length || closed.count) await audit(tx, actor, "quote.refuseOpen", "WorkOrder", workOrderId, { after: { refusedLineIds: ids, quotesClosed: closed.count } });
+  return ids;
 }
 
 // ── Entry points ─────────────────────────────────────────────────────────────

@@ -317,6 +317,10 @@ export const en: Dictionary = {
     approverNameRequired: "Type your name to confirm your decision.",
     pendingLines: "Cannot invoice: {count} line(s) are waiting for the customer's agreement. Record the decision or remove them.",
     lineRefusedLocked: "Line refused by the customer: it is kept as it is (follow-up later).",
+    // V16 Lot 3
+    promiseReasonRequired: "Choose the reason for changing the promised date (the customer will be told).",
+    safetyWaiverRequired: "A “Safety” line was refused: confirm the customer signed the waiver (print it from the order).",
+    announcedFeeNotAllowed: "An announced fee is labour only, entered before the quote is sent, by the reception or a manager.",
     // V14 — compétences
     skillReasonRequired: "Give a reason (at least 3 characters).",
     skillNotOwnLevel: "You cannot decide your own skills: another manager must do it.",

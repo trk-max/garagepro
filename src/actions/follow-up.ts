@@ -3,7 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { zonedToUtc } from "@/lib/booking";
 import { AppError, toActionError, type ActionResult } from "@/lib/http";
-import { requirePermission } from "@/lib/session";
+import { requirePermission, requireStaff } from "@/lib/session";
+import { can } from "@/lib/permissions";
+import { PARTS_WAIT_DECISIONS } from "@/lib/delays";
+import { z } from "zod";
+import { recordPartsWaitDecision } from "@/server/delays";
+import { deliverQuoteNotice } from "@/server/quotes";
 import { formToObject, id, insuranceSchema, laborManualSchema, partNeedSchema, partNeedUpdateSchema, qualityCheckSchema, reasonSchema } from "@/lib/validators";
 import { addPartNeed, updateInsurance, updatePartNeed } from "@/server/follow-up";
 import { addLaborEntry, laborSummary, startLabor, stopLabor, voidLaborEntry } from "@/server/labor";
@@ -127,7 +132,18 @@ export async function addPartNeedAction(workOrderId: string, form: FormData): Pr
   try {
     const actor = await requirePermission("reportMissingPart");
     const v = partNeedSchema.parse(formToObject(form));
-    await addPartNeed(actor, id.parse(workOrderId), { partId: v.partId, description: v.description, quantityX100: v.quantity, supplierId: v.supplierId, expectedAt: await day(v.expectedAt), note: v.note });
+    const r = await addPartNeed(actor, id.parse(workOrderId), {
+      partId: v.partId,
+      description: v.description,
+      quantityX100: v.quantity,
+      supplierId: v.supplierId,
+      expectedAt: await day(v.expectedAt),
+      note: v.note,
+      workOrderLineId: v.workOrderLineId,
+      dateReason: v.dateReason,
+    });
+    // V16 Lot 3: « pièce attendue le … » sent after the commit (never blocks; the reminders task retries).
+    await deliverQuoteNotice(r.dedupeKey);
     refresh(workOrderId);
     return { ok: true, data: null };
   } catch (error) {
@@ -137,9 +153,25 @@ export async function addPartNeedAction(workOrderId: string, form: FormData): Pr
 
 export async function updatePartNeedAction(needId: string, workOrderId: string, form: FormData): Promise<ActionResult> {
   try {
-    const actor = await requirePermission("manageRepairFollowUp");
+    // V16 Lot 3 (audit n° 14): follow-up managers, or whoever manages the missing parts (storekeeper).
+    const actor = await requireStaff();
+    if (!can(actor, "manageRepairFollowUp") && !can(actor, "managePartNeeds")) throw new AppError("forbidden", {}, 403);
     const v = partNeedUpdateSchema.parse(formToObject(form));
-    await updatePartNeed(actor, id.parse(needId), { status: v.status, expectedAt: (await day(v.expectedAt)) ?? null, supplierId: v.supplierId ?? null });
+    const r = await updatePartNeed(actor, id.parse(needId), { status: v.status, expectedAt: (await day(v.expectedAt)) ?? null, supplierId: v.supplierId ?? null, dateReason: v.dateReason, dateNote: v.dateNote });
+    await deliverQuoteNotice(r.dedupeKey);
+    refresh(workOrderId);
+    return { ok: true, data: null };
+  } catch (error) {
+    return toActionError(error);
+  }
+}
+
+/** V16 Lot 3 — while waiting for parts: the car stays, or is handed back and the customer will return. */
+export async function partsWaitDecisionAction(workOrderId: string, form: FormData): Promise<ActionResult> {
+  try {
+    const actor = await requirePermission("manageRepairFollowUp");
+    const decision = z.enum(PARTS_WAIT_DECISIONS).parse(form.get("decision"));
+    await recordPartsWaitDecision(actor, id.parse(workOrderId), decision, form.get("garageCaused") === "on");
     refresh(workOrderId);
     return { ok: true, data: null };
   } catch (error) {

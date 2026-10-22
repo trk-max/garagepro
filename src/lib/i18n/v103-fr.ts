@@ -96,6 +96,8 @@ export const v103Fr = {
       // V16 — parcours atelier.
       manageQuotes: "Devis : envoyer, attente client, refus, passage en travaux",
       recordQuoteApproval: "Enregistrer l’accord du client sur un devis (téléphone, sur place…), ligne par ligne",
+      recordSafetyWaiver: "Confirmer la décharge de sécurité signée par le client (ligne « Sécurité » refusée)",
+      managePartNeeds: "Mettre à jour les pièces manquantes (statut, fournisseur, date prévue)",
       cancelWorkOrder: "Annuler un ordre de réparation (avec motif)",
       deliverWorkOrder: "Livrer le véhicule",
       deliverWithBalance: "Livrer malgré une facture non soldée (dérogation avec motif)",

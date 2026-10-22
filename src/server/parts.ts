@@ -294,22 +294,32 @@ export async function reserveForLine(tx: Tx, actor: AuditActor, input: { workOrd
     remaining -= r.quantityX100;
   }
   if (remaining <= 0) return 0;
+  return reserveFree(tx, actor, { workOrderId: input.workOrderId, partId: input.partId, lineId: input.lineId, quantityX100: remaining });
+}
+
+/**
+ * Reserves for an order (and a line, if given) what is still FREE of a part, up to the quantity, atomically
+ * (row lock). Returns the quantity that could NOT be reserved. Shared by the quote lines (Lot 2) and the goods
+ * receipt that brings a missing part in for an order (V16 Lot 3).
+ */
+export async function reserveFree(tx: Tx, actor: AuditActor, input: { workOrderId: string; partId: string; lineId?: string | null; quantityX100: number }) {
+  if (input.quantityX100 <= 0) return 0;
   const rows = await tx.$queryRaw<{ take: number; reservedX100: number }[]>`
-    WITH p AS (SELECT id, LEAST(${remaining}::int, GREATEST(0, "stockX100" - "reservedX100")) AS take FROM "Part" WHERE id = ${input.partId} FOR UPDATE)
+    WITH p AS (SELECT id, LEAST(${input.quantityX100}::int, GREATEST(0, "stockX100" - "reservedX100")) AS take FROM "Part" WHERE id = ${input.partId} FOR UPDATE)
     UPDATE "Part" SET "reservedX100" = "Part"."reservedX100" + p.take, "updatedAt" = now()
     FROM p WHERE "Part".id = p.id
     RETURNING p.take AS take, "Part"."reservedX100" AS "reservedX100"`;
   const take = Number(rows[0]?.take ?? 0);
   if (take > 0) {
     const reservation = await tx.stockReservation.create({
-      data: { partId: input.partId, workOrderId: input.workOrderId, workOrderLineId: input.lineId, quantityX100: take, createdById: actor?.id ?? null },
+      data: { partId: input.partId, workOrderId: input.workOrderId, workOrderLineId: input.lineId ?? null, quantityX100: take, createdById: actor?.id ?? null },
       select: { id: true },
     });
     await audit(tx, actor, "stock.reserve", "StockReservation", reservation.id, {
-      after: { workOrderId: input.workOrderId, partId: input.partId, lineId: input.lineId, quantityX100: take, reservedX100: rows[0]!.reservedX100 },
+      after: { workOrderId: input.workOrderId, partId: input.partId, lineId: input.lineId ?? null, quantityX100: take, reservedX100: rows[0]!.reservedX100 },
     });
   }
-  return remaining - take;
+  return input.quantityX100 - take;
 }
 
 /** The customer refused (or the line was removed): what was put aside for this quote line becomes free again. */
@@ -324,7 +334,7 @@ export async function releaseForLine(tx: Tx, actor: AuditActor, lineId: string, 
 }
 
 /** Repair delivered or cancelled: what is still reserved for it goes back to "available". */
-export async function releaseAllFor(tx: Tx, actor: StaffUser, workOrderId: string, note: string) {
+export async function releaseAllFor(tx: Tx, actor: AuditActor, workOrderId: string, note: string) {
   const active = await tx.stockReservation.findMany({ where: { workOrderId, status: "ACTIVE" } });
   for (const r of active) {
     await tx.stockReservation.update({ where: { id: r.id }, data: { status: "RELEASED", closedAt: new Date(), closedNote: note } });

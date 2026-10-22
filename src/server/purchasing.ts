@@ -1,4 +1,5 @@
 import "server-only";
+import { receivePartNeedsTx } from "@/server/delays";
 import { assertCanNumberDocuments } from "@/server/hub";
 import type { PaymentMethod, Prisma, PurchaseOrderStatus, SupplierInvoiceStatus } from "@prisma/client";
 import { AppError } from "@/lib/http";
@@ -258,6 +259,13 @@ export async function createReceipt(
         data: { partId: l.partId, deltaX100: l.quantityX100, reason: "GOODS_RECEIPT", receiptId: receipt.id, actorId: actor.id },
       });
       if (pl) await tx.purchaseOrderLine.update({ where: { id: pl.id }, data: { receivedX100: { increment: l.quantityX100 } } });
+    }
+
+    // V16 Lot 3 (audit n° 13): the parts the workshop was waiting for are received for their orders.
+    const perPartIn = new Map<string, number>();
+    for (const l of lines) perPartIn.set(l.partId, (perPartIn.get(l.partId) ?? 0) + l.quantityX100);
+    for (const [partId, quantityX100] of perPartIn) {
+      await receivePartNeedsTx(tx, actor, { partId, quantityX100, purchaseOrderId: input.purchaseOrderId ?? null, receiptNumber: number });
     }
 
     if (input.purchaseOrderId) {

@@ -95,6 +95,8 @@ export const v103Ar: typeof v103Fr = {
       // V16
       manageQuotes: "التقدير: إرسال، انتظار الحريف، رفض، بدء الأشغال",
       recordQuoteApproval: "تسجيل موافقة الحريف على التقدير (هاتف، في الورشة…) سطراً بسطر",
+      recordSafetyWaiver: "تأكيد إبراء ذمة السلامة الممضى من الحريف (سطر «سلامة» مرفوض)",
+      managePartNeeds: "تحيين القطع الناقصة (الحالة، المزوّد، الموعد المتوقع)",
       cancelWorkOrder: "إلغاء أمر إصلاح (مع سبب)",
       deliverWorkOrder: "تسليم السيارة",
       deliverWithBalance: "التسليم رغم فاتورة غير مسددة (استثناء مع سبب)",
