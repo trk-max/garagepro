@@ -25,7 +25,7 @@ const PROFIT_SELECT = {
   customer: { select: { name: true } },
   vehicle: { select: { plate: true, make: true, model: true } },
   invoice: { select: { number: true, totalHt: true, issuedAt: true, payments: { select: { amount: true, payer: true } } } },
-  lines: { select: { type: true, quantityX100: true, unitPrice: true, unitCost: true, partId: true, part: { select: { costPrice: true } } } },
+  lines: { where: { voidedAt: null }, select: { type: true, quantityX100: true, unitPrice: true, unitCost: true, partId: true, part: { select: { costPrice: true } } } },
   expenses: { where: { voidedAt: null }, select: { amount: true } },
   laborEntries: { where: { voidedAt: null }, select: { userId: true, startedAt: true, endedAt: true, user: { select: { hourlyCost: true } } } },
 } satisfies Prisma.WorkOrderSelect;

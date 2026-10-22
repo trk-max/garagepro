@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { CalendarClock, ChevronRight, Images, Play, Timer, Trash2 } from "lucide-react";
-import { deleteMediaAction, workshopStatusAction } from "@/actions/workshop";
+import { deleteMediaAction, workshopStatusAction, workshopStatusFormAction } from "@/actions/workshop";
 import { startLaborAction, stopLaborAction } from "@/actions/follow-up";
 import { ActionButton } from "@/components/action-form";
+import { StatusDialog } from "@/components/garage/status-dialog";
 import { PlateChip, PriorityBadge, StatusBadge } from "@/components/garage/badges";
 import { MediaUploader } from "@/components/garage/media-uploader";
 import { LiveRefresh } from "@/components/live-refresh";
@@ -12,8 +13,9 @@ import { can } from "@/lib/permissions";
 import { requirePageAccess } from "@/lib/session";
 import { cn } from "@/lib/utils";
 import { runningLabor } from "@/server/labor";
+import { getSettings } from "@/server/settings";
 import { workshopOrders } from "@/server/work-orders";
-import { NEXT_STEP, TRANSITIONS } from "@/server/workflow";
+import { NEXT_STEP, availableTransitions } from "@/server/workflow";
 import { SkillAssignCard, SupervisedBadge } from "@/components/skills/assign-card";
 import { assignmentOptions, listSkills } from "@/server/skills";
 
@@ -27,7 +29,7 @@ export default async function WorkshopPage({ searchParams }: PageProps) {
   const staff = await requirePageAccess("useWorkshop");
   const { view } = await searchParams;
   const mineOnly = view ? view === "mine" : staff.role === "MECHANIC";
-  const [{ t, lang }, orders, running] = await Promise.all([getI18n(), workshopOrders(mineOnly ? staff.id : undefined), runningLabor(staff.id)]);
+  const [{ t, lang }, orders, running, settings] = await Promise.all([getI18n(), workshopOrders(mineOnly ? staff.id : undefined), runningLabor(staff.id), getSettings()]);
   const canTime = can(staff, "logOwnLabor");
   // V14: assisted assignment on each card (same server rule as the work order page).
   const canAssign = can(staff, "viewWorkOrders");
@@ -55,8 +57,17 @@ export default async function WorkshopPage({ searchParams }: PageProps) {
 
       <ul className="space-y-3">
         {orders.map((wo) => {
-          const next = NEXT_STEP[wo.status];
-          const alternatives = TRANSITIONS[wo.status].filter((s) => s !== next && s !== "CANCELLED" && s !== "DELIVERED");
+          // V16: only the moves this person may make (a mechanic: the technical steps); delivery and cancelling
+          // are done from the order page. A move that needs a reason opens the reason dialog.
+          const options = availableTransitions(wo.status, staff, {
+            workflowV16: wo.workflowV16,
+            quoteApproved: !!wo.quoteApprovedAt,
+            allowWorkWithoutQuote: settings.allowWorkWithoutQuote,
+            invoiced: false,
+          }).filter((o) => o.to !== "CANCELLED" && o.to !== "DELIVERED");
+          const nextOption = options.find((o) => o.to === NEXT_STEP[wo.status]);
+          const next = nextOption && !nextOption.reason ? nextOption.to : undefined;
+          const alternatives = options.filter((o) => o.to !== next);
           return (
             <li key={wo.id} className="rounded-xl border bg-card p-4 shadow-xs">
               <div className="flex flex-wrap items-center gap-2">
@@ -118,8 +129,8 @@ export default async function WorkshopPage({ searchParams }: PageProps) {
               )}
 
               <div className="mt-3 flex flex-wrap gap-2">
-                {next && next !== "DELIVERED" && (
-                  <ActionButton action={workshopStatusAction.bind(null, wo.id, next)} className="h-12 flex-[2] text-base">
+                {next && (
+                  <ActionButton action={workshopStatusAction.bind(null, wo.id, next, null)} className="h-12 flex-[2] text-base">
                     {fmt(t.workshop.moveTo, { status: t.status[next] })}
                   </ActionButton>
                 )}
@@ -144,11 +155,23 @@ export default async function WorkshopPage({ searchParams }: PageProps) {
                   </ActionButton>
                 ))}
               <div className="mt-2 flex flex-wrap gap-2">
-                  {alternatives.map((s) => (
-                    <ActionButton key={s} size="sm" variant="secondary" action={workshopStatusAction.bind(null, wo.id, s)}>
-                      {fmt(t.workshop.moveTo, { status: t.status[s] })}
-                    </ActionButton>
-                  ))}
+                  {alternatives.map((o) =>
+                    o.reason ? (
+                      <StatusDialog
+                        key={o.to}
+                        action={workshopStatusFormAction.bind(null, wo.id)}
+                        choices={[{ to: o.to, label: t.status[o.to], reason: true }]}
+                        canOverride={false}
+                        variant="secondary"
+                        triggerClassName="h-8 px-3 text-sm"
+                        trigger={fmt(t.workshop.moveTo, { status: t.status[o.to] })}
+                      />
+                    ) : (
+                      <ActionButton key={o.to} size="sm" variant="secondary" action={workshopStatusAction.bind(null, wo.id, o.to, null)}>
+                        {fmt(t.workshop.moveTo, { status: t.status[o.to] })}
+                      </ActionButton>
+                    ),
+                  )}
                   <Link href={`/garage/work-orders/${wo.id}`} className="ms-auto inline-flex items-center gap-1 self-center text-sm text-muted-foreground hover:text-foreground">
                     {t.workshop.details} <ChevronRight className="size-4 rtl:rotate-180" aria-hidden />
                   </Link>

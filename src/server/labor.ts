@@ -79,7 +79,7 @@ export async function laborSummary(workOrderId: string, now = new Date()) {
       orderBy: { startedAt: "asc" },
       include: { user: { select: { id: true, name: true } } },
     }),
-    prisma.workOrderLine.aggregate({ where: { workOrderId, type: "LABOR" }, _sum: { quantityX100: true } }),
+    prisma.workOrderLine.aggregate({ where: { workOrderId, type: "LABOR", voidedAt: null }, _sum: { quantityX100: true } }),
     prisma.setting.findUnique({ where: { id: "garage" }, select: { laborBillingMode: true } }),
   ]);
   const valid = entries.filter((e) => !e.voidedAt);

@@ -38,7 +38,7 @@ export default async function TrackerPage() {
   if (!view) redirect("/suivi");
 
   const ready = view.status === "READY";
-  const delivered = view.status === "DELIVERED";
+  const delivered = view.status === "DELIVERED" || view.status === "CLOSED";
   const phone = view.garage.phone?.replace(/\s/g, "");
   const waNumber = phone?.replace(/\D/g, "").replace(/^00/, "");
   const waText = encodeURIComponent(`${woNumber(view.number)} – ${displayPlate(view.vehicle.plate)} : `);

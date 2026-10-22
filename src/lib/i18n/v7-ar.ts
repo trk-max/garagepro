@@ -540,7 +540,7 @@ export const v7Ar: typeof v7Fr = {
     message: "الرسالة",
     status: "الحالة",
     retry: "إعادة المحاولة",
-    kinds: { MAINTENANCE: "صيانة", APPOINTMENT: "موعد", DELIVERY: "تسليم مبرمج", AGENDA: "أجندة الصيانة" },
+    kinds: { MAINTENANCE: "صيانة", APPOINTMENT: "موعد", DELIVERY: "تسليم مبرمج", AGENDA: "أجندة الصيانة", READY: "السيارة جاهزة" },
     statuses: { PENDING: "في الانتظار", SENDING: "جارٍ", SENT: "أُرسل", FAILED: "فشل", SKIPPED: "لم يُرسل" },
   },
   reminderSettings: {

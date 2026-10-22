@@ -92,6 +92,12 @@ export const v103Ar: typeof v103Fr = {
       viewReceptionReports: "تقارير الاستقبال",
       configureReception: "الاستقبال: الأسباب، الشبابيك، الأولويات",
       manageReceptionDevices: "الاستقبال: رموز الشاشة اللمسية وشاشة القاعة",
+      // V16
+      manageQuotes: "التقدير: إرسال، انتظار الحريف، رفض، بدء الأشغال",
+      cancelWorkOrder: "إلغاء أمر إصلاح (مع سبب)",
+      deliverWorkOrder: "تسليم السيارة",
+      deliverWithBalance: "التسليم رغم فاتورة غير مسددة (استثناء مع سبب)",
+      closeWorkOrder: "غلق أمر مسلَّم ومسدَّد",
     },
   },
   dash: {

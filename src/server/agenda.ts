@@ -1,4 +1,5 @@
 import "server-only";
+import { DELIVERED_STATUSES } from "@/server/workflow";
 import { createHash } from "node:crypto";
 import type { Prisma } from "@prisma/client";
 import {
@@ -162,7 +163,7 @@ export async function detectForOrders(workOrderIds: string[] | null, items?: Awa
   let cursor: string | undefined;
   for (;;) {
     const orders = await prisma.workOrder.findMany({
-      where: { status: "DELIVERED", ...(workOrderIds ? { id: { in: workOrderIds } } : {}) },
+      where: { status: { in: DELIVERED_STATUSES }, ...(workOrderIds ? { id: { in: workOrderIds } } : {}) },
       orderBy: { id: "asc" },
       take: 200,
       ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
@@ -172,7 +173,7 @@ export async function detectForOrders(workOrderIds: string[] | null, items?: Awa
         mileageIn: true,
         deliveredAt: true,
         updatedAt: true,
-        lines: { select: { description: true, partId: true, quantityX100: true, unitPrice: true, taxRateBp: true } },
+        lines: { where: { voidedAt: null }, select: { description: true, partId: true, quantityX100: true, unitPrice: true, taxRateBp: true } },
         events: { where: { type: "PACKAGE_APPLIED" }, select: { data: true } },
       },
     });

@@ -38,17 +38,19 @@ vi.mock("@/lib/prisma", () => {
     workOrderEvent: { create: async () => ({}) },
     auditLog: { create: async () => ({}) }, // journal (V7)
     stockReservation: { findMany: async () => [] }, // nothing reserved for this order
+    setting: { findUnique: async () => null }, // V16 workflow switches: defaults
   };
   return { prisma: { $transaction: async (fn: (t: typeof tx) => unknown) => fn(tx) } };
 });
 vi.mock("@/server/settings", () => ({ getSettings: async () => ({}) }));
 
 const { changeStatus } = await import("@/server/work-orders");
-const actor = { id: "u1", name: "Karim", email: "k@g.tn", role: "MECHANIC" as const };
+// V16: cancelling needs the cancelWorkOrder permission (not a mechanic any more) and a reason.
+const actor = { id: "u1", name: "Sonia", email: "s@g.tn", role: "MANAGER" as const };
 
 describe("concurrent cancellation", () => {
   it("returns the parts to stock only once", async () => {
-    const results = await Promise.allSettled([changeStatus("wo1", "CANCELLED", actor), changeStatus("wo1", "CANCELLED", actor)]);
+    const results = await Promise.allSettled([changeStatus("wo1", "CANCELLED", actor, { reason: "Client injoignable" }), changeStatus("wo1", "CANCELLED", actor, { reason: "Client injoignable" })]);
     expect(db.status).toBe("CANCELLED");
     expect(db.stock).toBe(1200); // not 1400
     expect(db.movements).toBe(1);

@@ -19,8 +19,10 @@ export default async function RepairOrderPage({ params }: PageProps) {
   const { id } = await params;
   const [wo, settings, { t }] = await Promise.all([getWorkOrder(id), getSettings(), getI18n()]);
   if (!wo) notFound();
+  // V16: voided lines are not part of the work any more.
+  const liveLines = wo.lines.filter((l) => !l.voidedAt);
 
-  const linesTtc = wo.lines.length ? computeTotals(wo.lines, settings.stampDuty).totalTtc : null;
+  const linesTtc = liveLines.length ? computeTotals(liveLines, settings.stampDuty).totalTtc : null;
   const registry = settings.registryNumber ? `${settings.registryNumber}${settings.registryCity ? ` (${settings.registryCity})` : ""}` : null;
   const c = wo.customer;
   const idLine = [c.nationalId ? `CIN ${c.nationalId}` : null, c.taxId ? `MF ${c.taxId}` : null].filter(Boolean).join(" · ") || null;
@@ -62,7 +64,7 @@ export default async function RepairOrderPage({ params }: PageProps) {
           promisedAt: wo.promisedAt,
           complaint: wo.complaint,
           // Document language: French labels whatever the interface language.
-          lines: wo.lines.map((l) => ({ description: l.description, kind: fr.lineType[l.type], quantityX100: l.quantityX100, totalHt: lineTotalHt(l) })),
+          lines: liveLines.map((l) => ({ description: l.description, kind: fr.lineType[l.type], quantityX100: l.quantityX100, totalHt: lineTotalHt(l) })),
           partsOrigin: wo.partsOrigin,
           estimate: estimateOf(linesTtc, wo.estimateTtc),
           deposit: wo.depositAmount ? { amount: wo.depositAmount, method: fr.paymentMethod[(wo.depositMethod ?? "CASH") as keyof typeof fr.paymentMethod] ?? wo.depositMethod ?? "" } : null,

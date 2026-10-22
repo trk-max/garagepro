@@ -353,10 +353,10 @@ export async function historyDraft(actor: StaffUser, listingId: string): Promise
   const listing = await loadForEdit(prisma, actor, listingId);
   if (!listing.vehicleId) return "";
   const orders = await prisma.workOrder.findMany({
-    where: { vehicleId: listing.vehicleId, status: "DELIVERED" },
+    where: { vehicleId: listing.vehicleId, status: { in: ["DELIVERED", "CLOSED"] } },
     orderBy: { deliveredAt: "asc" },
     take: 40,
-    select: { deliveredAt: true, createdAt: true, mileageIn: true, lines: { where: { type: { in: ["LABOR", "PART"] } }, orderBy: { position: "asc" }, select: { description: true } } },
+    select: { deliveredAt: true, createdAt: true, mileageIn: true, lines: { where: { type: { in: ["LABOR", "PART"] }, voidedAt: null }, orderBy: { position: "asc" }, select: { description: true } } },
   });
   return orders
     .map((o) => {

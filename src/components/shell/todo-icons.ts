@@ -1,7 +1,7 @@
 import {
   BadgeCheck, Boxes, CalendarCheck, CalendarClock, CarFront, ClipboardCheck, DatabaseBackup, FilePen, FileSignature, FileText, FileWarning, Hourglass,
   IdCard, Mail, MessageSquareWarning, PackagePlus, PackageSearch, ShieldAlert, ShieldCheck, ShoppingCart, TriangleAlert, Umbrella,
-  Ticket,
+  Ticket, UserRoundSearch, HandCoins,
 } from "lucide-react";
 import { Award, GraduationCap, UserCog } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -12,6 +12,9 @@ export const TODO_ICONS: Record<TodoKey, LucideIcon> = {
   vehicleInfo: FileWarning,
   quoteWaiting: Hourglass,
   readyNotDelivered: CarFront,
+  // V16
+  waitingCustomer: UserRoundSearch,
+  deliveredUnpaid: HandCoins,
   lateRepairs: TriangleAlert,
   missingParts: PackageSearch,
   insuranceWaiting: Umbrella,

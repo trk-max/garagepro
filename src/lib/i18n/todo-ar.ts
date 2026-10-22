@@ -15,6 +15,8 @@ export const todoAr: typeof todoFr = {
     vehicleInfo: "إصلاحات بيانات سيارتها ناقصة (رقم الهيكل، السنة، الوقود، اللون)",
     quoteWaiting: "تقديرات أُرسلت دون رد منذ {n} أيام",
     readyNotDelivered: "سيارات جاهزة لم تُسلَّم بعد",
+    waitingCustomer: "تقديرات في انتظار قرار الحريف",
+    deliveredUnpaid: "سيارات مسلَّمة دون فاتورة مسددة (استثناء)",
     lateRepairs: "مواعيد تسليم موعودة تم تجاوزها",
     missingParts: "قطع ناقصة في الانتظار",
     insuranceWaiting: "ملفات تأمين دون رد",

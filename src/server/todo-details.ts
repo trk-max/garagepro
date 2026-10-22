@@ -42,6 +42,8 @@ async function rowsFor(key: TodoKey, who: PermSubject, now: Date): Promise<TodoR
     }
     case "quoteWaiting":
     case "readyNotDelivered":
+    case "waitingCustomer":
+    case "deliveredUnpaid":
     case "insuranceWaiting": {
       const where = key === "quoteWaiting" ? TODO_WHERE.quoteWaiting(now) : TODO_WHERE[key];
       const rows = await prisma.workOrder.findMany({ where, select: woSelect, orderBy: { updatedAt: "asc" }, take: ROWS });

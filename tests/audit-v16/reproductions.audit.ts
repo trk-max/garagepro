@@ -2,6 +2,9 @@
  * V16 — AUDIT : reproductions sur une vraie base PostgreSQL JETABLE (voir vitest.config.ts à côté).
  * Chaque test vérifie le comportement ACTUEL (fautif) : il réussit tant que le problème existe.
  * Les numéros « A-xx » renvoient à docs/AUDIT-V16.md. Aucun code de l'application n'est modifié.
+ * V16 Lot 1 : A-01, A-04, A-07 et A-09 (et la moitié « livraison sans facture » de A-02) sont corrigés ; leurs tests,
+ * inversés, sont dans tests/workflow-v16.db.test.ts (npm run test:db). Les reproductions restantes suivent le
+ * nouveau parcours (devis → accord avec motif ; livraison sans facture = dérogation tracée d'un responsable).
  */
 import { beforeAll, describe, expect, it } from "vitest";
 import { can } from "@/lib/permissions";
@@ -17,14 +20,12 @@ import { createInvoice, countOverdue, recordPayment } from "@/server/invoices";
 import { requestLeave } from "@/server/leaves";
 import { createPlan } from "@/server/maintenance";
 import { createPart, reservePart } from "@/server/parts";
-import { approveQuoteByCustomer } from "@/server/portal";
 import { profitReport } from "@/server/profit";
 import { cancelPurchaseOrder, createPurchaseOrder, createReceipt, createSupplier, createSupplierInvoice, lowStockSuggestions, paySupplierInvoice } from "@/server/purchasing";
 import { approveQualityCheck, saveQualityCheck } from "@/server/quality";
 import { getReport } from "@/server/reports";
 import { setStaffRole } from "@/server/admin";
 import { teamPresence } from "@/server/timeclock";
-import { notifyVehicleReady } from "@/server/customer-notifications";
 import { moveClaim, openClaim, setClaimAmounts } from "@/server/warranties";
 import { addLine, changeStatus, createWorkOrder } from "@/server/work-orders";
 import { makeUser, makeWorkOrder, prisma } from "../helpers/db";
@@ -40,11 +41,12 @@ beforeAll(async () => {
   });
 });
 
-/** Order brought to READY the normal way (QC filled and approved by a manager). */
+/** Order brought to READY the normal way (V16: quote → agreement with a reason → work → QC approved by a manager). */
 async function readyOrder(manager: Awaited<ReturnType<typeof makeUser>>, unitPrice = 100_000) {
   const { wo, customer, vehicle } = await makeWorkOrder();
   await addLine(wo.id, { type: "LABOR", description: "Main-d'œuvre", quantityX100: 100, unitPrice }, manager);
-  await changeStatus(wo.id, "IN_PROGRESS", manager);
+  await changeStatus(wo.id, "QUOTE_SENT", manager);
+  await changeStatus(wo.id, "IN_PROGRESS", manager, { reason: "Accord du client (audit)" });
   await changeStatus(wo.id, "QUALITY_CONTROL", manager);
   await saveQualityCheck(manager, wo.id, QC_OK);
   await approveQualityCheck(manager, wo.id);
@@ -53,44 +55,12 @@ async function readyOrder(manager: Awaited<ReturnType<typeof makeUser>>, unitPri
 }
 
 describe("Ordres de réparation", () => {
-  it("A-01 un mécanicien peut livrer un ordre non facturé et annuler un ordre en cours (le serveur ne demande que viewWorkOrders / useWorkshop)", async () => {
-    const manager = await makeUser("MANAGER");
-    const mech = await makeUser("MECHANIC");
-    expect(can(mech, "viewWorkOrders")).toBe(true); // garde de changeStatusAction
-    expect(can(mech, "useWorkshop")).toBe(true); // garde de workshopStatusAction
-    const { wo } = await readyOrder(manager);
-    await changeStatus(wo.id, "DELIVERED", mech);
-    const delivered = await prisma.workOrder.findUniqueOrThrow({ where: { id: wo.id }, include: { invoice: true } });
-    expect(delivered.status).toBe("DELIVERED");
-    expect(delivered.invoice).toBeNull(); // A-02 : livré sans facture ni paiement
-    const { wo: other } = await makeWorkOrder({ status: "IN_PROGRESS" });
-    await changeStatus(other.id, "CANCELLED", mech);
-    expect((await prisma.workOrder.findUniqueOrThrow({ where: { id: other.id } })).status).toBe("CANCELLED");
-  });
-
-  it("A-02/A-03 garantie : créée à la livraison même sans facture, absente si la facture est faite sans livraison", async () => {
+  it("A-03 garantie : absente si la facture est faite sans livraison (A-02 « livré sans facture » corrigé au Lot 1 : voir tests/workflow-v16.db.test.ts)", async () => {
     const manager = await makeUser("MANAGER");
     const admin = await makeUser("ADMIN");
-    const { wo: deliveredNoInvoice } = await readyOrder(manager);
-    await changeStatus(deliveredNoInvoice.id, "DELIVERED", manager);
-    expect(await prisma.warranty.count({ where: { workOrderId: deliveredNoInvoice.id } })).toBe(1);
     const { wo: invoicedNotDelivered } = await readyOrder(manager);
     await createInvoice(invoicedNotDelivered.id, admin);
     expect(await prisma.warranty.count({ where: { workOrderId: invoicedNotDelivered.id } })).toBe(0);
-  });
-
-  it("A-04 contrôle qualité validé, puis une pièce ajoutée : passage à « Prêt » accepté sans nouveau contrôle", async () => {
-    const manager = await makeUser("MANAGER");
-    const { wo } = await makeWorkOrder();
-    await addLine(wo.id, { type: "LABOR", description: "MO", quantityX100: 100, unitPrice: 10_000 }, manager);
-    await changeStatus(wo.id, "IN_PROGRESS", manager);
-    await changeStatus(wo.id, "QUALITY_CONTROL", manager);
-    await saveQualityCheck(manager, wo.id, QC_OK);
-    await approveQualityCheck(manager, wo.id);
-    const part = await createPart({ sku: `QC-${Date.now()}`, name: "Pièce ajoutée après QC", unit: "pce", salePrice: 50_000, stock: 500 }, manager);
-    await addLine(wo.id, { type: "PART", partId: part.id, quantityX100: 100 }, manager);
-    await changeStatus(wo.id, "READY", manager);
-    expect((await prisma.workOrder.findUniqueOrThrow({ where: { id: wo.id } })).status).toBe("READY");
   });
 
   it("A-05 deux ordres ouverts en même temps pour le même véhicule", async () => {
@@ -117,30 +87,14 @@ describe("Ordres de réparation", () => {
     expect(await prisma.workOrder.count({ where: { vehicleId: vehicle.id, NOT: { id: linked.workOrderId ?? "" } } })).toBe(1); // un ordre de trop, sans lien avec le RDV
   });
 
-  it("A-07 accord du devis par le client : deux clics simultanés → deux événements « devis accepté »", async () => {
-    const { wo } = await makeWorkOrder({ status: "QUOTE_SENT" });
-    await Promise.allSettled([approveQuoteByCustomer(wo.id), approveQuoteByCustomer(wo.id)]);
-    expect(await prisma.workOrderEvent.count({ where: { workOrderId: wo.id, type: "QUOTE_APPROVED" } })).toBe(2);
-  });
-
   it("A-08 livraison : le plan d'entretien (V7.6) n'est pas mis à jour par l'ordre livré (vidange)", async () => {
     const manager = await makeUser("MANAGER");
     const { wo, vehicle } = await readyOrder(manager);
     const plan = await createPlan(manager, vehicle.id, { kind: "OIL", intervalKm: 10_000, intervalDays: 365, lastDoneAt: new Date(Date.now() - 400 * 86_400_000), lastDoneKm: 10_000 });
     await addLine(wo.id, { type: "LABOR", description: "Vidange moteur", quantityX100: 100, unitPrice: 30_000 }, manager).catch(() => undefined);
-    await changeStatus(wo.id, "DELIVERED", manager);
+    await changeStatus(wo.id, "DELIVERED", manager, { override: true, reason: "Audit : livraison sans facture (dérogation)" });
     const after = await prisma.vehicleMaintenance.findUniqueOrThrow({ where: { id: (plan as { id: string }).id } });
     expect(after.lastDoneAt!.getTime()).toBeLessThan(Date.now() - 300 * 86_400_000);
-  });
-});
-
-describe("Notifications", () => {
-  it("A-09 « véhicule prêt » : envoi direct, sans file d'attente ni trace dans l'historique des envois (perdu hors ligne)", async () => {
-    const manager = await makeUser("MANAGER");
-    const { wo } = await readyOrder(manager);
-    const before = await prisma.notification.count();
-    await notifyVehicleReady(wo.id); // ce que font changeStatusAction / workshopStatusAction après « Prêt »
-    expect(await prisma.notification.count()).toBe(before);
   });
 });
 
@@ -315,7 +269,7 @@ describe("Argent", () => {
   it("A-26 réclamation de garantie à 0 DT réclamé : acceptée pour 50 000 DT, sans plafond", async () => {
     const manager = await makeUser("ADMIN");
     const { wo } = await readyOrder(manager);
-    await changeStatus(wo.id, "DELIVERED", manager);
+    await changeStatus(wo.id, "DELIVERED", manager, { override: true, reason: "Audit : livraison sans facture (dérogation)" });
     const w = await prisma.warranty.findFirstOrThrow({ where: { workOrderId: wo.id } });
     const claim = await openClaim(manager, w.id, "Bruit revenu");
     await setClaimAmounts(manager, claim.id, { costParts: 0, costLabor: 0, amountClaimed: 0 });

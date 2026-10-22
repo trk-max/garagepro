@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { markAttemptsOk, reserveAttempt } from "@/server/rate-limit";
 import { clientIp, isTrackable, startPortalSession } from "@/server/portal-session";
 import { getSettings } from "@/server/settings";
+import { audit } from "@/server/audit";
 import { customerSteps } from "@/server/workflow";
 
 /** Wrong codes allowed per plate (and per IP) before a 15-minute lock. */
@@ -66,6 +67,16 @@ export function customerVisibleEvents<E extends { type: string; data: unknown }>
   });
 }
 
+/**
+ * V16 — internal data never sent to the customer: the reason of a status change (cancel, refused quote,
+ * back to the workshop, delivery override…) and the override details stay for the team only.
+ */
+const INTERNAL_EVENT_KEYS = ["reason", "override", "block", "balanceDue", "approval", "auto", "voided"];
+export function customerEventData(data: unknown): unknown {
+  if (!data || typeof data !== "object" || Array.isArray(data)) return data;
+  return Object.fromEntries(Object.entries(data as Record<string, unknown>).filter(([k]) => !INTERNAL_EVENT_KEYS.includes(k)));
+}
+
 /** Everything the customer page shows — and nothing internal (no notes, no costs, no staff e-mails). */
 export async function getTrackingView(workOrderId: string, lang = "fr") {
   const [wo, settings, skillView] = await Promise.all([
@@ -83,7 +94,8 @@ export async function getTrackingView(workOrderId: string, lang = "fr") {
         vehicle: { select: { plate: true, make: true, model: true, year: true, color: true } },
         customer: { select: { name: true } },
         mechanic: { select: { name: true } },
-        lines: { orderBy: { position: "asc" }, select: { type: true, description: true, quantityX100: true, unitPrice: true, taxRateBp: true } },
+        // V16: voided lines are not part of the work any more.
+        lines: { where: { voidedAt: null }, orderBy: { position: "asc" }, select: { type: true, description: true, quantityX100: true, unitPrice: true, taxRateBp: true } },
         media: {
           where: { visibleToCustomer: true },
           orderBy: { createdAt: "desc" },
@@ -105,7 +117,7 @@ export async function getTrackingView(workOrderId: string, lang = "fr") {
   if (!wo) return null;
 
   // A "photo added" event shows its caption: keep it only while that photo is visible to the customer.
-  const events = customerVisibleEvents(wo.events, wo.media.map((m) => m.id));
+  const events = customerVisibleEvents(wo.events, wo.media.map((m) => m.id)).map((e) => ({ ...e, data: customerEventData(e.data) }));
 
   const everWaitedForParts =
     wo.status === "WAITING_PARTS" ||
@@ -133,28 +145,41 @@ export async function getTrackingView(workOrderId: string, lang = "fr") {
 
 export type TrackingView = NonNullable<Awaited<ReturnType<typeof getTrackingView>>>;
 
-/** Customer approves the quote from the portal → the repair starts. */
-export async function approveQuoteByCustomer(workOrderId: string): Promise<void> {
+/**
+ * Customer approves the quote from the portal → the repair starts.
+ * V16: conditional write (a double click records ONE approval, audit n° 7) and journalised with the
+ * customer's IP address and browser.
+ */
+export async function approveQuoteByCustomer(workOrderId: string, from: { ip?: string | null; userAgent?: string | null } = {}): Promise<void> {
   await prisma.$transaction(async (tx) => {
-    const wo = await tx.workOrder.findUnique({ where: { id: workOrderId }, select: { status: true, quoteApprovedAt: true } });
+    const wo = await tx.workOrder.findUnique({ where: { id: workOrderId }, select: { status: true, quoteApprovedAt: true, lines: { where: { voidedAt: null }, select: { quantityX100: true, unitPrice: true, taxRateBp: true } } } });
     if (!wo || wo.status !== "QUOTE_SENT" || wo.quoteApprovedAt) throw new AppError("quoteNotPending", {}, 409);
     const now = new Date();
-    await tx.workOrder.update({ where: { id: workOrderId }, data: { status: "IN_PROGRESS", quoteApprovedAt: now } });
+    const { count } = await tx.workOrder.updateMany({ where: { id: workOrderId, status: "QUOTE_SENT", quoteApprovedAt: null }, data: { status: "IN_PROGRESS", quoteApprovedAt: now } });
+    if (count === 0) throw new AppError("quoteNotPending", {}, 409);
     await tx.workOrderEvent.createMany({
       data: [
         { workOrderId, type: "QUOTE_APPROVED", createdAt: now },
-        { workOrderId, type: "STATUS_CHANGED", data: { from: "QUOTE_SENT", to: "IN_PROGRESS" }, createdAt: new Date(now.getTime() + 1) },
+        { workOrderId, type: "STATUS_CHANGED", data: { from: "QUOTE_SENT", to: "IN_PROGRESS", approval: true }, createdAt: new Date(now.getTime() + 1) },
       ],
+    });
+    const settings = await tx.setting.findUnique({ where: { id: "garage" }, select: { stampDuty: true } });
+    await audit(tx, null, "workOrder.quoteApprovedByCustomer", "WorkOrder", workOrderId, {
+      before: { status: "QUOTE_SENT" },
+      after: { status: "IN_PROGRESS", channel: "PORTAL", totalTtc: computeTotals(wo.lines, settings?.stampDuty ?? 0).totalTtc, userAgent: from.userAgent?.slice(0, 300) ?? null },
+      ip: from.ip ?? null,
     });
   });
 }
 
 /** Message from the portal; appears in the work order timeline for the team. */
-export async function customerMessage(workOrderId: string, body: string): Promise<void> {
+export async function customerMessage(workOrderId: string, body: string, from: { ip?: string | null } = {}): Promise<void> {
   const key = `msg:${workOrderId}`;
   if (!(await reserveAttempt([{ key, max: 10 }], 60, false))) throw new AppError("tooMany", {}, 429);
-  await prisma.$transaction([
-    prisma.workOrderEvent.create({ data: { workOrderId, type: "CUSTOMER_MESSAGE", body } }),
-    prisma.workOrder.update({ where: { id: workOrderId }, data: { updatedAt: new Date() } }),
-  ]);
+  await prisma.$transaction(async (tx) => {
+    const e = await tx.workOrderEvent.create({ data: { workOrderId, type: "CUSTOMER_MESSAGE", body }, select: { id: true } });
+    await tx.workOrder.update({ where: { id: workOrderId }, data: { updatedAt: new Date() } });
+    // V16: journalised like every customer action (who = the customer, through the portal).
+    await audit(tx, null, "workOrder.customerMessage", "WorkOrderEvent", e.id, { after: { workOrderId, body }, ip: from.ip ?? null });
+  });
 }

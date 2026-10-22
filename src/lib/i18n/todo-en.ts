@@ -15,6 +15,8 @@ export const todoEn: typeof todoFr = {
     vehicleInfo: "Repairs whose vehicle is incomplete (VIN, year, fuel, colour)",
     quoteWaiting: "Quotes sent with no answer for {n} days",
     readyNotDelivered: "Vehicles ready, not yet handed back",
+    waitingCustomer: "Quotes waiting for the customer’s decision",
+    deliveredUnpaid: "Vehicles delivered without a settled invoice (override)",
     lateRepairs: "Promised deliveries overdue",
     missingParts: "Missing parts awaited",
     insuranceWaiting: "Insurance files with no answer",

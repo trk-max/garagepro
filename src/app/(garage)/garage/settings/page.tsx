@@ -35,7 +35,7 @@ import { SettingsCash } from "@/components/garage/settings-cash";
 import { SettingsTarget } from "@/components/garage/settings-target";
 import { SettingsReminders } from "@/components/garage/settings-reminders";
 import { EmailSettings } from "@/components/garage/email-settings";
-import { SettingsRepairOrder } from "@/components/garage/settings-repair-order";
+import { SettingsRepairOrder, SettingsWorkflow } from "@/components/garage/settings-repair-order";
 import { can } from "@/lib/permissions";
 import { repairTermsReviewer } from "@/server/repair-order";
 import { QueueDevicesCard } from "@/components/accueil/devices-card";
@@ -279,6 +279,8 @@ export default async function SettingsPage() {
       <SettingsTarget t={t} settings={settings} />
       <SettingsReminders t={t} settings={settings} />
       <SettingsRepairOrder t={t} lang={lang} settings={settings} reviewerName={repairReviewer} canReview={can(me, "reviewContractTemplates")} />
+      {/* V16 — parcours atelier */}
+      <SettingsWorkflow t={t} settings={settings} />
 
       <BookingSettings t={t} lang={lang} settings={settings} services={bookableServices} />
       <EmailSettings t={t} defaultTo={me.email} />

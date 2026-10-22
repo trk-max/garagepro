@@ -6,6 +6,7 @@ import { legalEn } from "@/lib/i18n/legal-en";
 import { v12En } from "@/lib/i18n/v12-en";
 import { v14En } from "@/lib/i18n/v14-en";
 import { v15En } from "@/lib/i18n/v15-en";
+import { v16En } from "@/lib/i18n/v16-en";
 import { contractsEn } from "@/lib/i18n/contracts-en";
 import { v7En } from "@/lib/i18n/v7-en";
 import { showroomEn } from "@/lib/i18n/showroom-en";
@@ -82,6 +83,9 @@ export const en: Dictionary = {
     READY: "Ready",
     DELIVERED: "Delivered",
     CANCELLED: "Cancelled",
+    QUOTE_REFUSED: "Quote refused",
+    WAITING_CUSTOMER: "Waiting for customer",
+    CLOSED: "Closed",
   },
   priority: { LOW: "Low", NORMAL: "Normal", URGENT: "Urgent" },
   fuel: { ESSENCE: "Petrol", DIESEL: "Diesel", HYBRID: "Hybrid", ELECTRIC: "Electric", GPL: "LPG" },
@@ -297,6 +301,12 @@ export const en: Dictionary = {
     locked: "Too many failed attempts. Try again in 15 minutes.",
   },
   errors: {
+    // V16
+    statusForbidden: "You are not allowed to make this status change.",
+    workWithoutQuote: "Send a quote first: work without a quote is turned off (Settings › Workshop flow).",
+    deliveryNoInvoice: "Delivery refused: no invoice. Issue the invoice, or a manager can deliver with an override (with a reason).",
+    deliveryBalanceDue: "Delivery refused: {amount} is still due. Collect the balance, or a manager can deliver with an override (with a reason).",
+    notSettled: "Cannot close: the invoice is not settled.",
     // V14 — compétences
     skillReasonRequired: "Give a reason (at least 3 characters).",
     skillNotOwnLevel: "You cannot decide your own skills: another manager must do it.",
@@ -983,4 +993,6 @@ export const en: Dictionary = {
   v14: v14En,
   /** V15 — file d'attente de l'accueil. */
   v15: v15En,
+  /** V16 — parcours atelier traçable. */
+  v16: v16En,
 };

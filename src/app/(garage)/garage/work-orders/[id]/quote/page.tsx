@@ -16,8 +16,10 @@ export default async function QuotePage({ params }: PageProps) {
   const { id } = await params;
   const [wo, settings, { t, lang }] = await Promise.all([getWorkOrder(id), getSettings(), getI18n()]);
   if (!wo) notFound();
+  // V16: voided lines are not part of the work any more.
+  const liveLines = wo.lines.filter((l) => !l.voidedAt);
 
-  const totals = computeTotals(wo.lines, settings.stampDuty);
+  const totals = computeTotals(liveLines, settings.stampDuty);
 
   return (
     <div className="space-y-4 bg-muted/30 p-6 print:bg-white print:p-0">
@@ -47,7 +49,7 @@ export default async function QuotePage({ params }: PageProps) {
           customer: { name: wo.customer.name, phone: wo.customer.phone, address: wo.customer.address, taxId: wo.customer.taxId },
           vehicle: { plate: wo.vehicle.plate, make: wo.vehicle.make, model: wo.vehicle.model, mileage: wo.mileageIn ?? wo.vehicle.mileage },
           workOrderNumber: wo.number,
-          lines: wo.lines.map((l) => ({ ...l, totalHt: lineTotalHt(l) })),
+          lines: liveLines.map((l) => ({ ...l, totalHt: lineTotalHt(l) })),
           totals,
         }}
       />

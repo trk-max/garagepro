@@ -52,7 +52,7 @@ export async function addPartNeed(actor: StaffUser, workOrderId: string, input: 
   return prisma.$transaction(async (tx) => {
     const wo = await tx.workOrder.findUnique({ where: { id: workOrderId }, select: { status: true } });
     if (!wo) throw new AppError("notFound", {}, 404);
-    if (wo.status === "DELIVERED" || wo.status === "CANCELLED") throw new AppError("laborClosedOrder", {}, 409);
+    if (wo.status === "DELIVERED" || wo.status === "CLOSED" || wo.status === "CANCELLED") throw new AppError("laborClosedOrder", {}, 409);
     const need = await tx.workOrderPartNeed.create({
       data: { workOrderId, ...input, partId: input.partId || null, supplierId: input.supplierId || null, note: input.note || null, createdById: actor.id },
       select: { id: true },

@@ -40,6 +40,10 @@ export const TODO_WHERE = {
     events: { none: { type: "STATUS_CHANGED", createdAt: { gte: quoteCut(now) } } },
   }),
   readyNotDelivered: { status: "READY" } satisfies Prisma.WorkOrderWhereInput,
+  // V16 — only orders following the V16 rules: a delivered one that is not CLOSED was delivered by override
+  // (no invoice or balance due). Older delivered orders are not listed (non-retroactive).
+  waitingCustomer: { status: "WAITING_CUSTOMER" } satisfies Prisma.WorkOrderWhereInput,
+  deliveredUnpaid: { status: "DELIVERED", workflowV16: true } satisfies Prisma.WorkOrderWhereInput,
   missingParts: { status: { in: ["NEEDED", "ORDERED"] }, workOrder: { status: { in: ACTIVE_STATUSES } } } satisfies Prisma.WorkOrderPartNeedWhereInput,
   insuranceWaiting: { status: "WAITING_INSURANCE", insuranceDecision: null } satisfies Prisma.WorkOrderWhereInput,
   certificateFields: { isActive: true, OR: [{ jobTitle: null }, { jobTitle: "" }, { hireDate: null }] } satisfies Prisma.UserWhereInput,
@@ -86,6 +90,8 @@ function counter(key: TodoKey, actor: TodoActor, now: Date): Promise<number> {
     case "vehicleInfo": return countVehicleInfo();
     case "quoteWaiting": return prisma.workOrder.count({ where: TODO_WHERE.quoteWaiting(now) });
     case "readyNotDelivered": return prisma.workOrder.count({ where: TODO_WHERE.readyNotDelivered });
+    case "waitingCustomer": return prisma.workOrder.count({ where: TODO_WHERE.waitingCustomer });
+    case "deliveredUnpaid": return prisma.workOrder.count({ where: TODO_WHERE.deliveredUnpaid });
     case "lateRepairs": return countLateRepairs(now);
     case "missingParts": return prisma.workOrderPartNeed.count({ where: TODO_WHERE.missingParts });
     case "insuranceWaiting": return prisma.workOrder.count({ where: TODO_WHERE.insuranceWaiting });

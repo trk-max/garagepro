@@ -21,8 +21,8 @@ export async function recentOrderRows(opts: { finance: boolean }, take = 8) {
       vehicle: { select: { plate: true, make: true, model: true } },
       customer: { select: { name: true } },
       lines: opts.finance
-        ? { orderBy: { position: "asc" }, select: { description: true, quantityX100: true, unitPrice: true, taxRateBp: true } }
-        : { orderBy: { position: "asc" }, take: 1, select: { description: true, quantityX100: true, unitPrice: true, taxRateBp: true } },
+        ? { where: { voidedAt: null }, orderBy: { position: "asc" }, select: { description: true, quantityX100: true, unitPrice: true, taxRateBp: true } }
+        : { where: { voidedAt: null }, orderBy: { position: "asc" }, take: 1, select: { description: true, quantityX100: true, unitPrice: true, taxRateBp: true } },
       invoice: opts.finance ? { select: { totalTtc: true } } : false,
     },
   });

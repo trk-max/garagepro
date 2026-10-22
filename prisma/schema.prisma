@@ -48,6 +48,9 @@ enum WorkOrderStatus {
   READY // prêt, client prévenu
   DELIVERED // rendu au client (final)
   CANCELLED // annulé (final, pièces remises en stock)
+  QUOTE_REFUSED // V16 — devis refusé par le client (motif) : remontage, contrôle qualité, puis « Prêt »
+  WAITING_CUSTOMER // V16 — en attente d'une réponse / décision du client sur le devis
+  CLOSED // V16 — livré ET facture soldée : clôture automatique (final)
 }
 
 enum Priority {
@@ -341,6 +344,11 @@ model WorkOrder {
   skillOverrideReason  String?
   skillOverrideById    String?
   skillOverrideAt      DateTime?
+  /// V16 — première date promise, jamais modifiée ensuite (backfill = promisedAt).
+  promisedAtInitial    DateTime?
+  /// V16 — règles bloquantes du parcours V16 (travaux sans devis, facture / solde à la livraison) :
+  /// false pour les OR ouverts avant la migration 25 (non-rétroactivité), true pour les nouveaux.
+  workflowV16          Boolean         @default(true)
   createdAt            DateTime        @default(now())
   updatedAt            DateTime        @updatedAt
 
@@ -388,6 +396,11 @@ model WorkOrderLine {
   /// null = inconnu (lignes antérieures à la V7.3, ou pièce saisie à la main) → coût estimé / incomplet.
   unitCost     Int?
   position     Int      @default(0)
+  /// V16 — ligne annulée (pas supprimée) parce qu'elle existait au dernier accord du client : exclue des
+  /// totaux, de la facture et des documents ; reste visible, barrée, avec son motif, sur la fiche de l'OR.
+  voidedAt     DateTime?
+  voidReason   String?
+  voidedById   String?
   createdAt    DateTime @default(now())
 
   workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
@@ -683,6 +696,11 @@ model Setting {
   skillCertReminderDays   Int     @default(30)
   skillSupervisorVerifies Boolean @default(false)
   skillPublicLabels       Boolean @default(false)
+  /// V16 — parcours atelier : travaux sans devis (Réceptionné / Diagnostic → En réparation) pour les nouveaux
+  /// OR (désactivé par défaut) ; livraison seulement avec une facture soldée, acompte déduit, sauf dérogation
+  /// tracée (activé par défaut).
+  allowWorkWithoutQuote     Boolean @default(false)
+  requirePaidBeforeDelivery Boolean @default(true)
   openingHours           Json     @default("{\"0\":null,\"1\":{\"open\":\"08:00\",\"close\":\"17:00\"},\"2\":{\"open\":\"08:00\",\"close\":\"17:00\"},\"3\":{\"open\":\"08:00\",\"close\":\"17:00\"},\"4\":{\"open\":\"08:00\",\"close\":\"17:00\"},\"5\":{\"open\":\"08:00\",\"close\":\"17:00\"},\"6\":{\"open\":\"08:00\",\"close\":\"13:00\"}}")
   updatedAt              DateTime @updatedAt
 }
@@ -1439,7 +1457,7 @@ model MaintenanceForecast {
 /// empêche d'envoyer deux fois le même rappel. Jamais simulé : SKIPPED dit pourquoi.
 model Notification {
   id            String    @id @default(cuid())
-  /// "MAINTENANCE", "APPOINTMENT" ou "DELIVERY".
+  /// "MAINTENANCE", "APPOINTMENT", "DELIVERY", "AGENDA" (V12), "QUEUE" (V15) ou "READY" (V16, véhicule prêt).
   kind          String
   /// "SMS", "EMAIL" ou "NONE" (aucun canal possible).
   channel       String

@@ -190,7 +190,7 @@ async function repairSnap(db: Db, workOrderId: string, tz: string) {
       vehicleId: true,
       customer: { select: { id: true, name: true, phone: true, email: true, address: true, taxId: true, isCompany: true } },
       vehicle: { select: vehicleSelect },
-      lines: { orderBy: { position: "asc" }, select: { type: true, description: true, quantityX100: true, unitPrice: true, taxRateBp: true } },
+      lines: { where: { voidedAt: null }, orderBy: { position: "asc" }, select: { type: true, description: true, quantityX100: true, unitPrice: true, taxRateBp: true } },
       invoice: { select: { number: true, totalHt: true, totalTax: true, stampDuty: true, totalTtc: true, paidAmount: true, status: true } },
       warranties: { where: { voidedAt: null }, select: { label: true, endsAt: true, endKm: true } },
     },

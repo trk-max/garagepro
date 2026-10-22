@@ -15,6 +15,9 @@ const STATUS_CLASS: Record<WorkOrderStatus, string> = {
   READY: "bg-emerald-500/10 text-emerald-700 border-emerald-500/30 dark:text-emerald-300",
   DELIVERED: "bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/20",
   CANCELLED: "bg-red-500/10 text-red-700 border-red-500/20 dark:text-red-300",
+  QUOTE_REFUSED: "bg-rose-500/10 text-rose-700 border-rose-500/30 dark:text-rose-300",
+  WAITING_CUSTOMER: "bg-yellow-500/10 text-yellow-800 border-yellow-500/30 dark:text-yellow-300",
+  CLOSED: "bg-zinc-500/10 text-zinc-500 dark:text-zinc-500 border-zinc-500/20",
 };
 
 export function StatusBadge({ status, t, className }: { status: WorkOrderStatus; t: Dictionary; className?: string }) {

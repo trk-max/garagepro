@@ -6,6 +6,7 @@ import { legalAr } from "@/lib/i18n/legal-ar";
 import { v12Ar } from "@/lib/i18n/v12-ar";
 import { v14Ar } from "@/lib/i18n/v14-ar";
 import { v15Ar } from "@/lib/i18n/v15-ar";
+import { v16Ar } from "@/lib/i18n/v16-ar";
 import { contractsAr } from "@/lib/i18n/contracts-ar";
 import { v7Ar } from "@/lib/i18n/v7-ar";
 import { showroomAr } from "@/lib/i18n/showroom-ar";
@@ -82,6 +83,9 @@ export const ar: Dictionary = {
     READY: "جاهزة",
     DELIVERED: "تم التسليم",
     CANCELLED: "ملغى",
+    QUOTE_REFUSED: "تقدير مرفوض",
+    WAITING_CUSTOMER: "في انتظار الحريف",
+    CLOSED: "مغلق",
   },
   priority: { LOW: "منخفضة", NORMAL: "عادية", URGENT: "عاجلة" },
   fuel: { ESSENCE: "بنزين", DIESEL: "ديزل", HYBRID: "هجينة", ELECTRIC: "كهربائية", GPL: "غاز" },
@@ -297,6 +301,12 @@ export const ar: Dictionary = {
     locked: "محاولات فاشلة كثيرة. أعد المحاولة بعد 15 دقيقة.",
   },
   errors: {
+    // V16
+    statusForbidden: "ليس لديك الحق في تغيير الحالة بهذا الشكل.",
+    workWithoutQuote: "أرسل التقدير أولاً: الأشغال دون تقدير معطلة (الإعدادات › مسار الورشة).",
+    deliveryNoInvoice: "التسليم مرفوض: لا توجد فاتورة. أصدر الفاتورة، أو يمكن لمسؤول التسليم استثنائياً (مع سبب).",
+    deliveryBalanceDue: "التسليم مرفوض: يبقى {amount} للدفع. استخلص الباقي، أو يمكن لمسؤول التسليم استثنائياً (مع سبب).",
+    notSettled: "لا يمكن الغلق: الفاتورة غير مسددة.",
     // V14 — compétences
     skillReasonRequired: "اذكر سببًا (3 أحرف على الأقل).",
     skillNotOwnLevel: "لا يمكنك تحديد كفاءاتك بنفسك: يجب أن يقوم بذلك مسؤول آخر.",
@@ -983,4 +993,6 @@ export const ar: Dictionary = {
   v14: v14Ar,
   /** V15 — file d'attente de l'accueil. */
   v15: v15Ar,
+  /** V16 — parcours atelier traçable. */
+  v16: v16Ar,
 };

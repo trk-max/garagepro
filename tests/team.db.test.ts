@@ -211,8 +211,8 @@ describe("contrôle qualité obligatoire", () => {
     await approveQualityCheck(manager, wo.id);
     await changeStatus(wo.id, "READY", manager);
     expect((await prisma.workOrder.findUnique({ where: { id: wo.id } }))!.status).toBe("READY");
-    // Back to the workshop → must be validated again.
-    await changeStatus(wo.id, "IN_PROGRESS", manager);
+    // Back to the workshop → must be validated again (V16: with a reason).
+    await changeStatus(wo.id, "IN_PROGRESS", manager, { reason: "Bruit au freinage à l’essai" });
     expect((await prisma.qualityCheck.findUnique({ where: { workOrderId: wo.id } }))!.approvedAt).toBeNull();
   });
 

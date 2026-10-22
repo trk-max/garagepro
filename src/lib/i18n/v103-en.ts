@@ -92,6 +92,12 @@ export const v103En: typeof v103Fr = {
       viewReceptionReports: "Reception reports",
       configureReception: "Reception: reasons, counters, priorities",
       manageReceptionDevices: "Reception: kiosk and screen tokens",
+      // V16
+      manageQuotes: "Quotes: send, waiting for customer, refusal, start work",
+      cancelWorkOrder: "Cancel a repair order (with a reason)",
+      deliverWorkOrder: "Deliver the vehicle",
+      deliverWithBalance: "Deliver despite an unpaid invoice (override with a reason)",
+      closeWorkOrder: "Close a delivered and paid order",
     },
   },
   dash: {

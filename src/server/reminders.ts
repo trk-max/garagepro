@@ -60,7 +60,8 @@ export const realSender: Sender = {
 /** V12: "AGENDA" = message of the upcoming repairs agenda (sent only after the garage validated it). */
 export type Item = {
   // V15: "QUEUE" = message of the reception queue (« c'est votre tour », « encore N personnes »), consent given at the kiosk.
-  kind: "MAINTENANCE" | "APPOINTMENT" | "DELIVERY" | "AGENDA" | "QUEUE";
+  // V16: "READY" = « votre véhicule est prêt » (after the move to READY), journalised like the others.
+  kind: "MAINTENANCE" | "APPOINTMENT" | "DELIVERY" | "AGENDA" | "QUEUE" | "READY";
   dedupeKey: string;
   phone: string | null;
   email: string | null;
@@ -146,7 +147,7 @@ export async function collectDue(now = new Date()): Promise<Item[]> {
 }
 
 /** Writes one row per possible channel (or one SKIPPED row saying why none). Duplicates are ignored. */
-export async function queueItems(items: Item[], sender: Sender = realSender) {
+export async function queueItems(items: Item[], sender: Sender = realSender, db: Pick<Prisma.TransactionClient, "notification"> = prisma) {
   const configured = sender.channels();
   const rows = items.flatMap((it) => {
     const common = {
@@ -175,7 +176,7 @@ export async function queueItems(items: Item[], sender: Sender = realSender) {
     return out;
   });
   if (rows.length === 0) return 0;
-  const { count } = await prisma.notification.createMany({ data: rows, skipDuplicates: true });
+  const { count } = await db.notification.createMany({ data: rows, skipDuplicates: true });
   return count;
 }
 

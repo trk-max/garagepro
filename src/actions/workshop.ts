@@ -33,17 +33,24 @@ const done = (redirectTo?: string): Result => {
 
 // ── Status from the mobile workshop view (+ "ready" notification) ────────────
 
-export async function workshopStatusAction(workOrderId: string, status: string): Promise<Result> {
+export async function workshopStatusAction(workOrderId: string, status: string, reason?: string | null): Promise<Result> {
   try {
     const actor = await requirePermission("useWorkshop");
     const woId = id.parse(workOrderId);
     const parsed = statusSchema.parse(status);
-    await changeStatus(woId, parsed, actor);
-    if (parsed === "READY") await notifyVehicleReady(woId);
+    // V16: the move's own permission is checked by changeStatus (a mechanic cannot cancel nor deliver).
+    await changeStatus(woId, parsed, actor, { reason: z.string().trim().max(500).nullish().parse(reason) });
+    if (parsed === "READY") await notifyVehicleReady(woId, actor);
     return done();
   } catch (error) {
     return toActionError(error);
   }
+}
+
+/** V16 — same, from the reason dialog (back to the workshop after the quality check…). */
+export async function workshopStatusFormAction(workOrderId: string, form: FormData): Promise<Result> {
+  const raw = formToObject(form);
+  return workshopStatusAction(workOrderId, raw.status ?? "", raw.reason || null);
 }
 
 // ── Tracking code & media ────────────────────────────────────────────────────
@@ -90,8 +97,8 @@ export async function sendTrackingAction(workOrderId: string): Promise<Result> {
 
 export async function toggleMediaAction(mediaId: string, visible: boolean): Promise<Result> {
   try {
-    await requirePermission("uploadMedia");
-    await setMediaVisibility(id.parse(mediaId), visible);
+    const actor = await requirePermission("uploadMedia");
+    await setMediaVisibility(id.parse(mediaId), visible, actor);
     return done();
   } catch (error) {
     return toActionError(error);
@@ -100,8 +107,8 @@ export async function toggleMediaAction(mediaId: string, visible: boolean): Prom
 
 export async function deleteMediaAction(mediaId: string): Promise<Result> {
   try {
-    await requirePermission("uploadMedia");
-    await removeMedia(id.parse(mediaId));
+    const actor = await requirePermission("uploadMedia");
+    await removeMedia(id.parse(mediaId), actor);
     return done();
   } catch (error) {
     return toActionError(error);

@@ -92,8 +92,8 @@ export async function createWarranty(actor: StaffUser, workOrderId: string, inpu
     if (!wo) throw new AppError("notFound", {}, 404);
     let partId: string | null = null;
     if (input.lineId) {
-      const line = await tx.workOrderLine.findUnique({ where: { id: input.lineId }, select: { workOrderId: true, type: true, partId: true } });
-      if (!line || line.workOrderId !== workOrderId || line.type !== "PART") throw new AppError("invalid", {}, 422);
+      const line = await tx.workOrderLine.findUnique({ where: { id: input.lineId }, select: { workOrderId: true, type: true, partId: true, voidedAt: true } });
+      if (!line || line.workOrderId !== workOrderId || line.type !== "PART" || line.voidedAt) throw new AppError("invalid", {}, 422);
       partId = line.partId;
     }
     if (input.supplierId) {

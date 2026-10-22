@@ -93,6 +93,12 @@ export const v103Fr = {
       viewReceptionReports: "Rapports de l’accueil",
       configureReception: "Accueil : motifs, guichets, priorités",
       manageReceptionDevices: "Accueil : jetons de la borne et de l’écran",
+      // V16 — parcours atelier.
+      manageQuotes: "Devis : envoyer, attente client, refus, passage en travaux",
+      cancelWorkOrder: "Annuler un ordre de réparation (avec motif)",
+      deliverWorkOrder: "Livrer le véhicule",
+      deliverWithBalance: "Livrer malgré une facture non soldée (dérogation avec motif)",
+      closeWorkOrder: "Clôturer un ordre livré et soldé",
     } satisfies Record<Permission, string>,
   },
   dash: {

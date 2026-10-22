@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import type { StaffUser } from "@/lib/session";
 import { audit } from "@/server/audit";
 import { getSettings } from "@/server/settings";
+import { closeIfSettled } from "@/server/work-orders";
 import type { SnapshotLegal } from "@/lib/invoice-snapshot";
 
 /** Frozen copy stored on the invoice so later edits never change a legal document. */
@@ -27,7 +28,8 @@ export async function createInvoice(workOrderId: string, actor: StaffUser) {
   return prisma.$transaction(async (tx) => {
     const wo = await tx.workOrder.findUnique({
       where: { id: workOrderId },
-      include: { customer: true, vehicle: true, lines: { orderBy: { position: "asc" } }, invoice: { select: { id: true } } },
+      // V16: voided lines are not invoiced.
+      include: { customer: true, vehicle: true, lines: { where: { voidedAt: null }, orderBy: { position: "asc" } }, invoice: { select: { id: true } } },
     });
     if (!wo) throw new AppError("notFound", {}, 404);
     if (wo.invoice) throw new AppError("alreadyInvoiced", {}, 409);
@@ -128,6 +130,8 @@ export async function recordPayment(
     await tx.workOrderEvent.create({
       data: { workOrderId: invoice.workOrderId, actorId: actor.id, type: "PAYMENT", data: { amount: input.amount, method: input.method } },
     });
+    // V16: a delivered order whose invoice is now settled is closed automatically.
+    await closeIfSettled(tx, invoice.workOrderId, actor);
   });
 }
 
@@ -247,7 +251,7 @@ export async function getInvoice(id: string) {
           depositAmount: true,
           depositMethod: true,
           vehicle: { select: { plate: true, make: true, model: true, mileage: true } },
-          lines: { orderBy: { position: "asc" }, select: { type: true, description: true, quantityX100: true, unitPrice: true, taxRateBp: true } },
+          lines: { where: { voidedAt: null }, orderBy: { position: "asc" }, select: { type: true, description: true, quantityX100: true, unitPrice: true, taxRateBp: true } },
         },
       },
       customer: { select: { name: true, phone: true, email: true, address: true, taxId: true } },

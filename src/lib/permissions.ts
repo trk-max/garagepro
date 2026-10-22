@@ -10,7 +10,8 @@ const MATRIX = {
   viewCustomers: ["ADMIN", "MANAGER", "RECEPTION", "MECHANIC"],
   printQuote: ["ADMIN", "MANAGER", "RECEPTION", "MECHANIC"],
   viewClientInvoices: ["ADMIN", "MANAGER", "RECEPTION", "ACCOUNTANT"],
-  createInvoice: ["ADMIN"],
+  /// V16 : la réception et le chef d’atelier facturent aussi (livraison seulement avec facture soldée).
+  createInvoice: ["ADMIN", "MANAGER", "RECEPTION"],
   recordPayment: ["ADMIN", "MANAGER", "RECEPTION"],
   sendReminder: ["ADMIN", "MANAGER", "RECEPTION"],
   viewFinance: ["ADMIN", "MANAGER", "RECEPTION", "ACCOUNTANT"],
@@ -46,6 +47,17 @@ const MATRIX = {
   fillQualityCheck: ["ADMIN", "MANAGER", "RECEPTION", "MECHANIC"],
   /// Validation finale du contrôle qualité (débloque « Prêt »).
   approveQualityCheck: ["ADMIN", "MANAGER"],
+  // ── Parcours atelier (V16) : une permission par décision, réglable par employé ──
+  /// Devis : envoyer, attente client, refus (motif), accord enregistré (passage en travaux), devis complémentaire.
+  manageQuotes: ["ADMIN", "MANAGER", "RECEPTION"],
+  /// Annuler un ordre de réparation (motif obligatoire ; pièces remises en stock).
+  cancelWorkOrder: ["ADMIN", "MANAGER"],
+  /// Livrer le véhicule (Prêt → Livré).
+  deliverWorkOrder: ["ADMIN", "MANAGER", "RECEPTION"],
+  /// Livrer malgré une facture absente ou un solde dû (dérogation, motif obligatoire, journalisée).
+  deliverWithBalance: ["ADMIN", "MANAGER"],
+  /// Clôturer un ordre livré dont la facture est soldée (sinon automatique au paiement).
+  closeWorkOrder: ["ADMIN", "MANAGER", "RECEPTION"],
   /// Comptes du portail entreprise d'un client.
   manageCompanyAccess: ["ADMIN", "MANAGER"],
 
@@ -198,7 +210,7 @@ export function normaliseOverrides(role: Role, wanted: Partial<Record<string, Ov
 
 /** Display groups for the "Accès" editor (every permission appears exactly once). */
 export const PERMISSION_GROUPS = {
-  workshop: ["viewWorkOrders", "useWorkshop", "printQuote", "uploadMedia", "obdDiagnose", "viewAppointments", "manageAppointments", "manageTracking", "manageRepairFollowUp", "reportMissingPart", "logOwnLabor", "manageLabor", "fillQualityCheck", "approveQualityCheck", "manageClaims", "manageWarranties"],
+  workshop: ["viewWorkOrders", "useWorkshop", "printQuote", "uploadMedia", "obdDiagnose", "viewAppointments", "manageAppointments", "manageTracking", "manageRepairFollowUp", "reportMissingPart", "logOwnLabor", "manageLabor", "fillQualityCheck", "approveQualityCheck", "manageClaims", "manageWarranties", "manageQuotes", "cancelWorkOrder", "deliverWorkOrder", "deliverWithBalance", "closeWorkOrder"],
   customers: ["viewCustomers", "manageMaintenance", "viewAgenda", "manageAgenda", "configureAgenda", "manageVehicleQr", "viewNotifications", "manageCompanyAccess"],
   money: ["viewFinance", "viewClientInvoices", "createInvoice", "recordPayment", "sendReminder", "manageExpenses", "viewWarrantyMoney", "viewCashForecast", "readCashForecast", "viewProfit", "viewReports"],
   stock: ["viewStock", "manageStock", "reserveStock", "viewSuppliers", "manageSuppliers", "requestPurchase", "approvePurchase", "receiveGoods", "viewSupplierInvoices", "manageSupplierInvoices", "paySupplier"],

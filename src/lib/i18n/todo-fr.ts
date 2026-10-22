@@ -14,6 +14,8 @@ export const todoFr = {
     vehicleInfo: "Réparations dont le véhicule est incomplet (VIN, année, carburant, couleur)",
     quoteWaiting: "Devis envoyés sans réponse depuis {n} jours",
     readyNotDelivered: "Véhicules prêts, pas encore rendus",
+    waitingCustomer: "Devis en attente de la décision du client",
+    deliveredUnpaid: "Véhicules livrés sans facture soldée (dérogation)",
     lateRepairs: "Livraisons promises dépassées",
     missingParts: "Pièces manquantes attendues",
     insuranceWaiting: "Dossiers assurance sans réponse",

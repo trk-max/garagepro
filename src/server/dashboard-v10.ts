@@ -8,7 +8,7 @@ import type { StaffUser } from "@/lib/session";
 import { audit } from "@/server/audit";
 import { lowStockParts } from "@/server/parts";
 import { getSettings } from "@/server/settings";
-import { ACTIVE_STATUSES } from "@/server/workflow";
+import { ACTIVE_STATUSES, DELIVERED_STATUSES } from "@/server/workflow";
 
 /**
  * V10 dashboard — figures (money = integer millimes, periods cut in Setting.timezone).
@@ -50,12 +50,12 @@ export async function todayRevenue(viewer: Viewer, now = new Date()): Promise<Co
  */
 export async function openOrdersAt(at: Date): Promise<number | null> {
   const orders = await prisma.workOrder.findMany({
-    where: { createdAt: { lte: at }, OR: [{ status: { in: ACTIVE_STATUSES } }, { status: "DELIVERED", OR: [{ deliveredAt: null }, { deliveredAt: { gt: at } }] }, { status: "CANCELLED", updatedAt: { gt: at } }] },
+    where: { createdAt: { lte: at }, OR: [{ status: { in: ACTIVE_STATUSES } }, { status: { in: DELIVERED_STATUSES }, OR: [{ deliveredAt: null }, { deliveredAt: { gt: at } }] }, { status: "CANCELLED", updatedAt: { gt: at } }] },
     select: { status: true, deliveredAt: true, events: { where: { type: "STATUS_CHANGED" }, orderBy: { createdAt: "asc" }, select: { data: true, createdAt: true } } },
   });
   let open = 0;
   for (const o of orders) {
-    if (o.status === "DELIVERED" && !o.deliveredAt) return null;
+    if ((o.status === "DELIVERED" || o.status === "CLOSED") && !o.deliveredAt) return null;
     if (o.status === "CANCELLED") {
       const cancel = o.events.filter((e) => (e.data as { to?: string } | null)?.to === "CANCELLED").at(-1);
       if (!cancel) return null;
@@ -84,7 +84,7 @@ export async function kpis(viewer: Viewer, now = new Date()): Promise<Kpis> {
     can(viewer, "viewFinance") ? received(monthToDateWindows(now, zone)) : null,
     prisma.workOrder.count({ where: { status: { in: ACTIVE_STATUSES } } }),
     openOrdersAt(new Date(now.getTime() - 7 * 86_400_000)),
-    prisma.workOrder.findMany({ where: { status: "DELIVERED", deliveredAt: { gte: week.previous.from, lt: now } }, select: { deliveredAt: true } }),
+    prisma.workOrder.findMany({ where: { status: { in: DELIVERED_STATUSES }, deliveredAt: { gte: week.previous.from, lt: now } }, select: { deliveredAt: true } }),
     lowStockParts(),
   ]);
   const count = (w: { from: Date; to: Date }) => sumIn(delivered, w, (o) => o.deliveredAt!, () => 1);

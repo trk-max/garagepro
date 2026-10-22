@@ -540,7 +540,7 @@ export const v7En: typeof v7Fr = {
     message: "Message",
     status: "Status",
     retry: "Retry",
-    kinds: { MAINTENANCE: "Maintenance", APPOINTMENT: "Appointment", DELIVERY: "Planned delivery", AGENDA: "Maintenance agenda" },
+    kinds: { MAINTENANCE: "Maintenance", APPOINTMENT: "Appointment", DELIVERY: "Planned delivery", AGENDA: "Maintenance agenda", READY: "Vehicle ready" },
     statuses: { PENDING: "waiting", SENDING: "sending", SENT: "sent", FAILED: "failed", SKIPPED: "not sent" },
   },
   reminderSettings: {

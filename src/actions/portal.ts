@@ -1,5 +1,6 @@
 "use server";
 
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { getBaseUrl } from "@/lib/base-url";
 import { AppError, toActionError, type ActionResult } from "@/lib/http";
@@ -40,7 +41,7 @@ async function requirePortal(): Promise<string> {
 
 export async function approveQuoteAction(): Promise<Result> {
   try {
-    await approveQuoteByCustomer(await requirePortal());
+    await approveQuoteByCustomer(await requirePortal(), { ip: await clientIp(), userAgent: (await headers()).get("user-agent") });
     return { ok: true, data: {} };
   } catch (error) {
     return toActionError(error);
@@ -50,7 +51,7 @@ export async function approveQuoteAction(): Promise<Result> {
 export async function customerMessageAction(form: FormData): Promise<Result> {
   try {
     const workOrderId = await requirePortal();
-    await customerMessage(workOrderId, customerMessageSchema.parse(formToObject(form)).body);
+    await customerMessage(workOrderId, customerMessageSchema.parse(formToObject(form)).body, { ip: await clientIp() });
     return { ok: true, data: {} };
   } catch (error) {
     return toActionError(error);

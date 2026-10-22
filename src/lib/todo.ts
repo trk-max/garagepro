@@ -10,7 +10,7 @@ export type TodoGroup = "incomplete" | "approval";
 
 export const TODO_KEYS = [
   // A. Incomplete
-  "vehicleInfo", "quoteWaiting", "readyNotDelivered", "lateRepairs", "missingParts", "insuranceWaiting",
+  "vehicleInfo", "quoteWaiting", "waitingCustomer", "readyNotDelivered", "deliveredUnpaid", "lateRepairs", "missingParts", "insuranceWaiting",
   "overdueInvoices", "openClaims", "unreadMessages", "warrantyOpen", "contractDrafts", "contractsExpiring",
   "certificateFields", "lowStock", "backup", "agendaDue", "agendaParts",
   // V14 — compétences
@@ -37,6 +37,9 @@ export const TODO_DEFS: Record<TodoKey, Def> = {
   vehicleInfo: { group: "incomplete", href: "/garage/work-orders", visible: (r) => can(r, "viewWorkOrders") },
   quoteWaiting: { group: "incomplete", href: "/garage/work-orders?status=QUOTE_SENT", visible: followUp },
   readyNotDelivered: { group: "incomplete", href: "/garage/work-orders?status=READY", visible: followUp },
+  // V16 — décision du client attendue ; livrés (nouveaux ordres) dont la facture n’est pas soldée.
+  waitingCustomer: { group: "incomplete", href: "/garage/work-orders?status=WAITING_CUSTOMER", visible: (r) => can(r, "manageQuotes") },
+  deliveredUnpaid: { group: "incomplete", href: "/garage/work-orders?status=DELIVERED", visible: (r) => can(r, "recordPayment") },
   lateRepairs: { group: "incomplete", href: "/garage/suivi", visible: followUp },
   missingParts: { group: "incomplete", href: "/garage/suivi", visible: (r) => followUp(r) || can(r, "manageStock") },
   insuranceWaiting: { group: "incomplete", href: "/garage/work-orders?status=WAITING_INSURANCE", visible: followUp },

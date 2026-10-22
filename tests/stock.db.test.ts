@@ -48,7 +48,7 @@ describe("réservations de pièces", () => {
     await reservePart(admin, wo.id, p.id, 100);
     await releaseReservation(admin, r1.id, "plus nécessaire");
     expect(await code(releaseReservation(admin, r1.id, "encore"))).toBe("reservationClosed");
-    await changeStatus(wo.id, "CANCELLED", admin);
+    await changeStatus(wo.id, "CANCELLED", admin, { reason: "Client renonce" }); // V16: reason mandatory
     expect(await part(p.id)).toEqual({ stockX100: 300, reservedX100: 0 });
     expect(await prisma.stockReservation.count({ where: { workOrderId: wo.id, status: "ACTIVE" } })).toBe(0);
     expect(await code(reservePart(admin, wo.id, p.id, 100))).toBe("final");

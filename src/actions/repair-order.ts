@@ -5,7 +5,7 @@ import { toActionError, type ActionResult } from "@/lib/http";
 import { parseIntakeForm, parseRepairTermsForm } from "@/lib/repair-order-forms";
 import { requirePermission, requireStaff } from "@/lib/session";
 import { id } from "@/lib/validators";
-import { saveRepairTerms, setRepairTermsReview, updateIntake } from "@/server/repair-order";
+import { saveRepairTerms, saveWorkflowSettings, setRepairTermsReview, updateIntake } from "@/server/repair-order";
 
 /** Work order page → « Prise en charge » card (fuel, body, parts origin, estimate, deposit, CIN). */
 export async function updateIntakeAction(workOrderId: string, form: FormData): Promise<ActionResult> {
@@ -24,6 +24,18 @@ export async function saveRepairTermsAction(form: FormData): Promise<ActionResul
   try {
     const actor = await requirePermission("manageSettings");
     await saveRepairTerms(actor, parseRepairTermsForm(form));
+    revalidatePath("/garage/settings");
+    return { ok: true, data: null };
+  } catch (error) {
+    return toActionError(error);
+  }
+}
+
+/** V16 — Paramètres › Parcours atelier (two switches; permission checked again in the server function). */
+export async function saveWorkflowSettingsAction(form: FormData): Promise<ActionResult> {
+  try {
+    const actor = await requirePermission("manageSettings");
+    await saveWorkflowSettings(actor, { allowWorkWithoutQuote: form.get("allowWorkWithoutQuote") === "on", requirePaidBeforeDelivery: form.get("requirePaidBeforeDelivery") === "on" });
     revalidatePath("/garage/settings");
     return { ok: true, data: null };
   } catch (error) {

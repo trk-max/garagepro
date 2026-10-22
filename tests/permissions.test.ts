@@ -4,10 +4,13 @@ import { can, rolesFor } from "@/lib/permissions";
 import { TRANSITIONS, customerSteps } from "@/server/workflow";
 
 describe("permission matrix (server-side source of truth)", () => {
-  it("only the admin can invoice, approve purchases, pay suppliers and change settings", () => {
-    for (const p of ["createInvoice", "approvePurchase", "paySupplier", "manageSettings"] as const) {
+  it("only the admin approves purchases, pays suppliers and changes settings", () => {
+    for (const p of ["approvePurchase", "paySupplier", "manageSettings"] as const) {
       expect(rolesFor(p), p).toEqual(["ADMIN"]);
     }
+  });
+  it("V16 (owner decision): reception and workshop manager invoice too, so that they can deliver", () => {
+    expect(rolesFor("createInvoice")).toEqual(["ADMIN", "MANAGER", "RECEPTION"]);
   });
   it("mechanic: works on repairs but sees no money", () => {
     expect(can("MECHANIC", "viewWorkOrders")).toBe(true);
@@ -23,9 +26,11 @@ describe("permission matrix (server-side source of truth)", () => {
       expect(can("STOREKEEPER", p), p).toBe(false);
     }
   });
-  it("reception: cashes in but cannot invoice", () => {
+  it("reception: cashes in and (V16) invoices, but cannot cancel an order nor deliver with a balance due", () => {
     expect(can("RECEPTION", "recordPayment")).toBe(true);
-    expect(can("RECEPTION", "createInvoice")).toBe(false);
+    expect(can("RECEPTION", "createInvoice")).toBe(true);
+    expect(can("RECEPTION", "cancelWorkOrder")).toBe(false);
+    expect(can("RECEPTION", "deliverWithBalance")).toBe(false);
   });
   it("HR (V9): team, leave, certificates and contracts page — no money, no settings, no repairs", () => {
     for (const p of ["useTimeClock", "manageTeam", "issueCertificates", "showClockKiosk", "viewContracts"] as const) expect(can("HR", p), p).toBe(true);
@@ -62,9 +67,10 @@ describe("permission matrix (server-side source of truth)", () => {
 });
 
 describe("work-order status machine", () => {
-  it("delivered and cancelled are final", () => {
-    expect(TRANSITIONS.DELIVERED).toEqual([]);
+  it("cancelled and closed are final; delivered only moves on to closed (V16)", () => {
+    expect(TRANSITIONS.DELIVERED).toEqual(["CLOSED"]);
     expect(TRANSITIONS.CANCELLED).toEqual([]);
+    expect(TRANSITIONS.CLOSED).toEqual([]);
   });
   it("a car cannot be delivered before it is ready", () => {
     for (const [from, to] of Object.entries(TRANSITIONS)) {

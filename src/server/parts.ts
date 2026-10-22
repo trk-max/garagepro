@@ -197,7 +197,7 @@ export async function reservePart(actor: StaffUser, workOrderId: string, partId:
   return prisma.$transaction(async (tx) => {
     const wo = await tx.workOrder.findUnique({ where: { id: workOrderId }, select: { status: true } });
     if (!wo) throw new AppError("notFound", {}, 404);
-    if (wo.status === "DELIVERED" || wo.status === "CANCELLED") throw new AppError("final", {}, 409);
+    if (wo.status === "DELIVERED" || wo.status === "CLOSED" || wo.status === "CANCELLED") throw new AppError("final", {}, 409);
     // Atomic: only if that quantity is still free (stock − already reserved).
     const rows = await tx.$queryRaw<{ stockX100: number; reservedX100: number }[]>`
       UPDATE "Part" SET "reservedX100" = "reservedX100" + ${quantityX100}, "updatedAt" = now()

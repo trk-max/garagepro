@@ -36,7 +36,7 @@ export async function calendarItems(viewer: StaffUser, from: Date, to: Date): Pr
       : [],
     can(viewer, "viewWorkOrders")
       ? prisma.workOrder.findMany({
-          where: { promisedAt: { gte: from, lt: to }, status: { notIn: ["DELIVERED", "CANCELLED"] } },
+          where: { promisedAt: { gte: from, lt: to }, status: { notIn: ["DELIVERED", "CLOSED", "CANCELLED"] } },
           select: { id: true, number: true, promisedAt: true, vehicle: { select: { plate: true } } },
         })
       : [],

@@ -16,7 +16,8 @@ export function describeEvent(e: Pick<WorkOrderEvent, "type" | "data">, t: Dicti
       return d.to ? fmt(t.events.ASSIGNED, { to: str(d.to) }) : t.events.UNASSIGNED;
     case "LINE_ADDED":
     case "LINE_REMOVED":
-      return fmt(t.events[e.type], { description: str(d.description) });
+      // V16: a line of the accepted quote is voided (kept), not deleted.
+      return fmt(e.type === "LINE_REMOVED" && d.voided ? t.v16.events.lineVoided : t.events[e.type], { description: str(d.description) });
     case "PACKAGE_APPLIED":
       return fmt(t.events.PACKAGE_APPLIED, { name: str(d.name) });
     case "INVOICED":
@@ -26,6 +27,16 @@ export function describeEvent(e: Pick<WorkOrderEvent, "type" | "data">, t: Dicti
     default:
       return t.events[e.type];
   }
+}
+
+/** V16 — internal details of an event (staff only, never on the portal): reason, delivery override, automatic closing. */
+export function eventDetails(e: Pick<WorkOrderEvent, "data">, t: Dictionary, lang: Lang): string[] {
+  const d = (e.data ?? {}) as Record<string, unknown>;
+  const out: string[] = [];
+  if (d.override) out.push(fmt(t.v16.events.override, { amount: formatMoney(typeof d.balanceDue === "number" ? d.balanceDue : 0, lang) }));
+  if (typeof d.reason === "string" && d.reason) out.push(fmt(t.v16.events.reason, { reason: d.reason }));
+  if (d.auto) out.push(t.v16.events.auto);
+  return out;
 }
 
 export function Timeline({ events, t, lang }: { events: EventWithActor[]; t: Dictionary; lang: Lang }) {
@@ -41,6 +52,11 @@ export function Timeline({ events, t, lang }: { events: EventWithActor[]; t: Dic
               </span>{" "}
               <span className="text-muted-foreground">{describeEvent(e, t, lang)}</span>
             </p>
+            {eventDetails(e, t, lang).map((x) => (
+              <p key={x} className="mt-0.5 text-xs text-gp-accent-ink">
+                {x}
+              </p>
+            ))}
             {e.body && <p className="mt-1 whitespace-pre-line rounded-md bg-amber-50 px-3 py-2 dark:bg-amber-950/30">{e.body}</p>}
             <time className="text-xs text-muted-foreground">{formatDateTime(e.createdAt, lang)}</time>
           </div>

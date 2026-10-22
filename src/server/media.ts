@@ -3,6 +3,7 @@ import { createId } from "@/lib/id";
 import { AppError } from "@/lib/http";
 import { prisma } from "@/lib/prisma";
 import type { StaffUser } from "@/lib/session";
+import { audit } from "@/server/audit";
 import { MAX_PHOTO_BYTES, MAX_VIDEO_BYTES, createSignedUpload, deleteObject, putObject, readObjectHead, sniffMedia } from "@/server/storage";
 
 export class MediaError extends Error {
@@ -106,15 +107,29 @@ export async function finishDirectUpload(
   return recordMedia(workOrderId, { storageKey: file.storageKey, type, size: stored.size, caption: file.caption, visibleToCustomer: file.visibleToCustomer }, actor);
 }
 
-export async function setMediaVisibility(mediaId: string, visibleToCustomer: boolean) {
-  const media = await prisma.workOrderMedia.update({ where: { id: mediaId }, data: { visibleToCustomer }, select: { workOrderId: true } });
-  await prisma.workOrder.update({ where: { id: media.workOrderId }, data: { updatedAt: new Date() } });
-  return media.workOrderId;
+/** Shows / hides a photo on the customer portal (V16: journalised, same transaction). */
+export async function setMediaVisibility(mediaId: string, visibleToCustomer: boolean, actor: StaffUser) {
+  return prisma.$transaction(async (tx) => {
+    const before = await tx.workOrderMedia.findUnique({ where: { id: mediaId }, select: { workOrderId: true, visibleToCustomer: true, caption: true } });
+    if (!before) throw new AppError("notFound", {}, 404);
+    await tx.workOrderMedia.update({ where: { id: mediaId }, data: { visibleToCustomer } });
+    await tx.workOrder.update({ where: { id: before.workOrderId }, data: { updatedAt: new Date() } });
+    await audit(tx, actor, "media.visibility", "WorkOrderMedia", mediaId, {
+      before: { workOrderId: before.workOrderId, visibleToCustomer: before.visibleToCustomer },
+      after: { visibleToCustomer },
+    });
+    return before.workOrderId;
+  });
 }
 
-export async function removeMedia(mediaId: string) {
-  const media = await prisma.workOrderMedia.delete({ where: { id: mediaId }, select: { workOrderId: true, storageKey: true } });
+/** Deletes a photo / video. V16: journalised in the same transaction; the file goes only once the row is gone. */
+export async function removeMedia(mediaId: string, actor: StaffUser) {
+  const media = await prisma.$transaction(async (tx) => {
+    const m = await tx.workOrderMedia.delete({ where: { id: mediaId }, select: { workOrderId: true, storageKey: true, kind: true, caption: true, visibleToCustomer: true, uploadedById: true, createdAt: true } });
+    await tx.workOrder.update({ where: { id: m.workOrderId }, data: { updatedAt: new Date() } });
+    await audit(tx, actor, "media.remove", "WorkOrderMedia", mediaId, { before: m });
+    return m;
+  });
   await deleteObject(media.storageKey);
-  await prisma.workOrder.update({ where: { id: media.workOrderId }, data: { updatedAt: new Date() } });
   return media.workOrderId;
 }

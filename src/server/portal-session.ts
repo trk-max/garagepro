@@ -66,7 +66,7 @@ export async function getPortalWorkOrderId(): Promise<string | null> {
 
 export function isTrackable(wo: { status: string; deliveredAt: Date | null }): boolean {
   if (wo.status === "CANCELLED") return false;
-  if (wo.status === "DELIVERED") return !!wo.deliveredAt && Date.now() - wo.deliveredAt.getTime() < AFTER_DELIVERY_MS;
+  if (wo.status === "DELIVERED" || wo.status === "CLOSED") return !!wo.deliveredAt && Date.now() - wo.deliveredAt.getTime() < AFTER_DELIVERY_MS;
   return true;
 }
 

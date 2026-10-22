@@ -843,7 +843,7 @@ export async function openInvoicesFor(customerId: string) {
 
 /** Open work order of the vehicle (in the workshop), for the check-in link. */
 export async function openOrderFor(vehicleId: string) {
-  return prisma.workOrder.findFirst({ where: { vehicleId, status: { notIn: ["DELIVERED", "CANCELLED"] } }, orderBy: { createdAt: "desc" }, select: { id: true, number: true, status: true } });
+  return prisma.workOrder.findFirst({ where: { vehicleId, status: { notIn: ["DELIVERED", "CLOSED", "CANCELLED"] } }, orderBy: { createdAt: "desc" }, select: { id: true, number: true, status: true } });
 }
 
 export async function reportStats(from: string, to: string) {

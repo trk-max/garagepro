@@ -66,9 +66,9 @@ export async function getReport(period: ReportPeriod, now = new Date()) {
       select: { createdAt: true, deliveredAt: true, mechanic: { select: { name: true } } },
     }),
     prisma.workOrder.count({ where: { status: "CANCELLED", updatedAt: range } }),
-    prisma.workOrder.findMany({ where: { status: { notIn: ["DELIVERED", "CANCELLED"] } }, select: { status: true } }),
+    prisma.workOrder.findMany({ where: { status: { notIn: ["DELIVERED", "CLOSED", "CANCELLED"] } }, select: { status: true } }),
     prisma.workOrderLine.findMany({
-      where: { workOrder: { invoice: { issuedAt: range } } },
+      where: { voidedAt: null, workOrder: { invoice: { issuedAt: range } } },
       select: {
         type: true,
         quantityX100: true,

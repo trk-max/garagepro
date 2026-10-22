@@ -22,6 +22,9 @@ export const STATUS_DOT: Record<WorkOrderStatus, string> = {
   READY: "#2e9e5b",
   DELIVERED: "#a1a1aa",
   CANCELLED: "#d64545",
+  QUOTE_REFUSED: "#c2416b",
+  WAITING_CUSTOMER: "#c9a227",
+  CLOSED: "#71717a",
 };
 
 type Row = Awaited<ReturnType<typeof recentOrderRows>>[number];
@@ -52,7 +55,7 @@ export function RecentOrders({ t, lang, rows, finance }: { t: Dictionary; lang: 
         <DataTable
           caption={o.recentOrders}
           columns={columns}
-          filters={[...ACTIVE_STATUSES, "DELIVERED", "CANCELLED"].filter((s) => statuses.includes(s as WorkOrderStatus)).map((s) => ({ value: s, label: t.status[s as WorkOrderStatus] }))}
+          filters={[...ACTIVE_STATUSES, "DELIVERED", "CLOSED", "CANCELLED"].filter((s) => statuses.includes(s as WorkOrderStatus)).map((s) => ({ value: s, label: t.status[s as WorkOrderStatus] }))}
           labels={{ search: o.filterRows, filter: o.filter, all: o.allStatuses, empty: o.noMatch }}
           rows={rows.map((r) => ({
             id: r.id,

@@ -242,6 +242,38 @@ describe.skipIf(!BASE)("garage hub ↔ online database", () => {
     expect((await one(cloud, `SELECT status, "counterId" FROM "QueueTicket" WHERE id='qt1'`))).toEqual({ status: "CALLED", counterId: "qc_1" });
   });
 
+  it("V16 workflow: migration 25 replays twice without logging its backfill; new statuses and voided lines travel both ways", async () => {
+    // An order whose first promised date is still empty (as before migration 25), on the garage PC (hub on).
+    await local.query(`UPDATE "WorkOrder" SET "promisedAt"='2026-11-02 15:00:00', "promisedAtInitial"=NULL, "updatedAt"=now() WHERE id='w1'`);
+    expect((await syncOnce(local, cloud)).errors).toEqual([]);
+    await cloud.query(`UPDATE "WorkOrder" SET "promisedAtInitial"=NULL WHERE id='w1'`);
+    const logged = async (db: pg.Client) => Number((await one(db, `SELECT count(*) FROM "_sync_log"`)).count);
+    const before = await logged(local);
+    for (const db of [local, cloud]) for (let i = 0; i < 2; i++) await db.query(migrationSql("25_workflow_v16"));
+    // Backfill done on both sides, and NOT written to the change log (garagepro.sync = on during the backfill).
+    expect(await logged(local)).toBe(before);
+    for (const db of [local, cloud]) expect((await one(db, `SELECT "promisedAtInitial" = "promisedAt" AS same FROM "WorkOrder" WHERE id='w1'`)).same).toBe(true);
+    // Garage: refused quote + a voided line.
+    await local.query(`UPDATE "WorkOrder" SET status='QUOTE_REFUSED', "updatedAt"=now() WHERE id='w1'`);
+    await local.query(`INSERT INTO "WorkOrderLine"(id, "workOrderId", type, description, "quantityX100", "unitPrice", "voidedAt", "voidReason", "voidedById") VALUES ('l16', 'w1', 'PART', 'Disque', 100, 50000, now(), 'Pièce du client', 'u1')`);
+    // Online at the same time: waiting for the customer on another order, and a new order closed there.
+    await cloud.query(`UPDATE "WorkOrder" SET status='WAITING_CUSTOMER', "updatedAt"=now() WHERE id='w2'`);
+    await addWorkOrder(cloud, "w16", "c1", "v1");
+    await cloud.query(`UPDATE "WorkOrder" SET status='CLOSED', "updatedAt"=now() WHERE id='w16'`);
+    const r = await syncOnce(local, cloud);
+    expect(r.errors).toEqual([]);
+    for (const db of [local, cloud]) {
+      expect((await db.query(`SELECT id, status FROM "WorkOrder" WHERE id IN ('w1', 'w2', 'w16') ORDER BY id`)).rows).toEqual([
+        { id: "w1", status: "QUOTE_REFUSED" },
+        { id: "w16", status: "CLOSED" },
+        { id: "w2", status: "WAITING_CUSTOMER" },
+      ]);
+      // Created after migration 25 on the online side: follows the V16 rules on both sides.
+      expect((await one(db, `SELECT "workflowV16" FROM "WorkOrder" WHERE id='w16'`)).workflowV16).toBe(true);
+      expect((await one(db, `SELECT "voidReason", "voidedAt" IS NOT NULL AS voided FROM "WorkOrderLine" WHERE id='l16'`))).toEqual({ voidReason: "Pièce du client", voided: true });
+    }
+  }, 20_000);
+
   it("a database without a hub logs nothing", async () => {
     const plain = await freshDb(admin, `${HUB}_plain`, allMigrations);
     try {

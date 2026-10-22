@@ -1,5 +1,5 @@
 import type { Setting } from "@prisma/client";
-import { saveRepairTermsAction, setRepairTermsReviewAction } from "@/actions/repair-order";
+import { saveRepairTermsAction, saveWorkflowSettingsAction, setRepairTermsReviewAction } from "@/actions/repair-order";
 import { ActionButton, ActionForm } from "@/components/action-form";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle, Field, Textarea } from "@/components/ui/field";
@@ -77,6 +77,36 @@ export function SettingsRepairOrder({ t, lang, settings, reviewerName, canReview
             <Textarea name="invoicePenaltyText" rows={2} maxLength={500} defaultValue={settings.invoicePenaltyText ?? ""} />
           </Field>
         </div>
+        <div>
+          <Button type="submit">{t.common.save}</Button>
+        </div>
+      </ActionForm>
+    </Card>
+  );
+}
+
+/** V16 — Paramètres › « Parcours atelier »: the two switches of the new orders' rules. */
+export function SettingsWorkflow({ t, settings }: { t: Dictionary; settings: Setting }) {
+  const s = t.v16.settings;
+  return (
+    <Card className="lg:col-span-2">
+      <CardTitle>{s.title}</CardTitle>
+      <p className="mb-3 text-xs text-muted-foreground">{s.intro}</p>
+      <ActionForm action={saveWorkflowSettingsAction} reset={false} successMessage={s.saved} className="grid gap-3">
+        <label className="flex items-start gap-3 text-sm">
+          <input type="checkbox" name="allowWorkWithoutQuote" defaultChecked={settings.allowWorkWithoutQuote} className="mt-0.5 size-4" />
+          <span>
+            {s.allowWorkWithoutQuote}
+            <span className="block text-xs text-muted-foreground">{s.allowWorkWithoutQuoteHint}</span>
+          </span>
+        </label>
+        <label className="flex items-start gap-3 text-sm">
+          <input type="checkbox" name="requirePaidBeforeDelivery" defaultChecked={settings.requirePaidBeforeDelivery} className="mt-0.5 size-4" />
+          <span>
+            {s.requirePaidBeforeDelivery}
+            <span className="block text-xs text-muted-foreground">{s.requirePaidBeforeDeliveryHint}</span>
+          </span>
+        </label>
         <div>
           <Button type="submit">{t.common.save}</Button>
         </div>

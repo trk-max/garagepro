@@ -132,3 +132,14 @@ export async function repairTermsReviewer(userId: string | null) {
   if (!userId) return null;
   return (await prisma.user.findUnique({ where: { id: userId }, select: { name: true } }))?.name ?? null;
 }
+
+/** V16 — Paramètres › Parcours atelier: work without a quote (off by default), paid before delivery (on by default). */
+export async function saveWorkflowSettings(actor: StaffUser, input: { allowWorkWithoutQuote: boolean; requirePaidBeforeDelivery: boolean }) {
+  if (!can(actor, "manageSettings")) throw new AppError("forbidden", {}, 403);
+  await prisma.$transaction(async (tx) => {
+    const s = await tx.setting.upsert({ where: { id: "garage" }, update: {}, create: { id: "garage" } });
+    const before = { allowWorkWithoutQuote: s.allowWorkWithoutQuote, requirePaidBeforeDelivery: s.requirePaidBeforeDelivery };
+    await tx.setting.update({ where: { id: "garage" }, data: input });
+    await audit(tx, actor, "settings.workflow", "Setting", "garage", { before, after: input });
+  });
+}

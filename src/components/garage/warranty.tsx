@@ -59,7 +59,7 @@ export async function WarrantyCard({ workOrderId, staff, t, lang }: { workOrderI
   const [list, suppliers, lines] = await Promise.all([
     listWarranties(staff, { workOrderId }),
     supplierOptions(),
-    prisma.workOrderLine.findMany({ where: { workOrderId, type: "PART" }, select: { id: true, description: true }, orderBy: { position: "asc" } }),
+    prisma.workOrderLine.findMany({ where: { workOrderId, type: "PART", voidedAt: null }, select: { id: true, description: true }, orderBy: { position: "asc" } }),
   ]);
   return (
     <Card>

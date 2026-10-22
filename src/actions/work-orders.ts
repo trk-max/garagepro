@@ -23,7 +23,9 @@ import { createInvoice } from "@/server/invoices";
 import { parseIntakeForm } from "@/lib/repair-order-forms";
 import { getSettings } from "@/server/settings";
 import { zonedToUtc } from "@/lib/booking";
+import { z } from "zod";
 import {
+  type StatusChangeOptions,
   completeVehicleInfo,
   addLine,
   addNote,
@@ -36,6 +38,11 @@ import {
 } from "@/server/work-orders";
 
 type Redirect = { redirectTo?: string; warning?: string };
+
+const statusOptionsSchema = z.object({
+  reason: z.string().trim().max(500).nullish(),
+  override: z.boolean().optional(),
+});
 
 /** "2026-10-07T17:30" typed in the garage → UTC instant. */
 async function localToUtc(value: string | undefined): Promise<Date | undefined> {
@@ -100,17 +107,28 @@ export async function completeVehicleAction(workOrderId: string, form: FormData)
   }
 }
 
-export async function changeStatusAction(workOrderId: string, status: string): Promise<ActionResult<Redirect>> {
+/**
+ * Status change. The page only offers the moves the user may make; the server checks again the permission
+ * of the move (server/workflow.ts transitionPermission), the reason, the quote and delivery rules.
+ */
+export async function changeStatusAction(workOrderId: string, status: string, opts: StatusChangeOptions = {}): Promise<ActionResult<Redirect>> {
   try {
     const actor = await requirePermission("viewWorkOrders");
     const to = statusSchema.parse(status);
-    await changeStatus(id.parse(workOrderId), to, actor);
-    if (to === "READY") await notifyVehicleReady(workOrderId);
+    const options = statusOptionsSchema.parse(opts);
+    await changeStatus(id.parse(workOrderId), to, actor, options);
+    if (to === "READY") await notifyVehicleReady(workOrderId, actor);
     refresh(workOrderId);
     return { ok: true, data: {} };
   } catch (error) {
     return toActionError(error);
   }
+}
+
+/** V16 — status dialog (status + reason + "deliver despite the balance"). */
+export async function changeStatusFormAction(workOrderId: string, form: FormData): Promise<ActionResult<Redirect>> {
+  const raw = formToObject(form);
+  return changeStatusAction(workOrderId, raw.status ?? "", { reason: raw.reason || null, override: raw.override === "on" });
 }
 
 export async function assignAction(workOrderId: string, mechanicId: string): Promise<ActionResult<Redirect>> {
@@ -126,9 +144,9 @@ export async function assignAction(workOrderId: string, mechanicId: string): Pro
 
 export async function updateMetaAction(workOrderId: string, form: FormData): Promise<ActionResult<Redirect>> {
   try {
-    await requirePermission("viewWorkOrders");
+    const actor = await requirePermission("viewWorkOrders");
     const meta = workOrderMetaSchema.parse(formToObject(form));
-    await updateMeta(id.parse(workOrderId), { ...meta, promisedAt: await localToUtc(meta.promisedAt) });
+    await updateMeta(id.parse(workOrderId), { ...meta, promisedAt: await localToUtc(meta.promisedAt) }, actor);
     refresh(workOrderId);
     return { ok: true, data: {} };
   } catch (error) {
@@ -158,10 +176,12 @@ export async function addLineAction(workOrderId: string, form: FormData): Promis
   }
 }
 
-export async function removeLineAction(workOrderId: string, lineId: string): Promise<ActionResult<Redirect>> {
+export async function removeLineAction(workOrderId: string, lineId: string, form?: FormData): Promise<ActionResult<Redirect>> {
   try {
     const actor = await requirePermission("viewWorkOrders");
-    await removeLine(id.parse(lineId), actor);
+    // V16: a line of the accepted quote is voided with a reason (dialog), not deleted.
+    const reason = form ? statusOptionsSchema.shape.reason.parse(formToObject(form).reason || null) : null;
+    await removeLine(id.parse(lineId), actor, reason);
     refresh(workOrderId);
     return { ok: true, data: {} };
   } catch (error) {

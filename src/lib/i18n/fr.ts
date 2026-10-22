@@ -6,6 +6,7 @@ import { legalFr } from "@/lib/i18n/legal-fr";
 import { v12Fr } from "@/lib/i18n/v12-fr";
 import { v14Fr } from "@/lib/i18n/v14-fr";
 import { v15Fr } from "@/lib/i18n/v15-fr";
+import { v16Fr } from "@/lib/i18n/v16-fr";
 import { contractsFr } from "@/lib/i18n/contracts-fr";
 import { v7Fr } from "@/lib/i18n/v7-fr";
 import { showroomFr } from "@/lib/i18n/showroom-fr";
@@ -80,6 +81,9 @@ export const fr = {
     READY: "Prêt",
     DELIVERED: "Livré",
     CANCELLED: "Annulé",
+    QUOTE_REFUSED: "Devis refusé",
+    WAITING_CUSTOMER: "Attente client",
+    CLOSED: "Clôturé",
   },
   priority: { LOW: "Basse", NORMAL: "Normale", URGENT: "Urgente" },
   fuel: { ESSENCE: "Essence", DIESEL: "Diesel", HYBRID: "Hybride", ELECTRIC: "Électrique", GPL: "GPL" },
@@ -295,6 +299,12 @@ export const fr = {
     locked: "Trop de tentatives échouées. Réessayez dans 15 minutes.",
   },
   errors: {
+    // V16 — parcours atelier
+    statusForbidden: "Vous n’avez pas le droit de faire ce changement de statut.",
+    workWithoutQuote: "Envoyez d’abord un devis : les travaux sans devis sont désactivés (Paramètres › Parcours atelier).",
+    deliveryNoInvoice: "Livraison refusée : aucune facture. Émettez la facture, ou un responsable peut livrer par dérogation (avec motif).",
+    deliveryBalanceDue: "Livraison refusée : il reste {amount} à payer. Encaissez le solde, ou un responsable peut livrer par dérogation (avec motif).",
+    notSettled: "Clôture impossible : la facture n’est pas soldée.",
     // V14 — compétences
     skillReasonRequired: "Indiquez un motif (3 caractères au moins).",
     skillNotOwnLevel: "Vous ne pouvez pas décider de vos propres compétences : un autre responsable doit le faire.",
@@ -982,6 +992,8 @@ export const fr = {
   v14: v14Fr,
   /** V15 — file d'attente de l'accueil. */
   v15: v15Fr,
+  /** V16 — parcours atelier traçable. */
+  v16: v16Fr,
 };
 
 export type Dictionary = typeof fr;

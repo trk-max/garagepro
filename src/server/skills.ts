@@ -31,7 +31,7 @@ import {
 import { stateAfter } from "@/lib/timeclock";
 import { audit } from "@/server/audit";
 import { putObject, readObject } from "@/server/storage";
-import { ACTIVE_STATUSES, isFinal } from "@/server/workflow";
+import { ACTIVE_STATUSES, DELIVERED_STATUSES, isFinal } from "@/server/workflow";
 
 /**
  * V14 — carte des compétences (serveur). Every read of a person's skills checks the access here
@@ -273,7 +273,7 @@ const ORDER_SKILL_SELECT = {
   id: true,
   complaint: true,
   skillIds: true,
-  lines: { select: { description: true } },
+  lines: { where: { voidedAt: null }, select: { description: true } },
   events: { where: { type: "PACKAGE_APPLIED" }, select: { data: true } },
 } satisfies Prisma.WorkOrderSelect;
 type OrderSkillSource = Prisma.WorkOrderGetPayload<{ select: typeof ORDER_SKILL_SELECT }>;
@@ -296,7 +296,7 @@ export async function jobsFor(userIds: readonly string[], from: Date | null, ski
   if (userIds.length === 0) return out;
   const orders = await prisma.workOrder.findMany({
     where: {
-      status: "DELIVERED",
+      status: { in: DELIVERED_STATUSES },
       ...(from ? { deliveredAt: { gte: from } } : {}),
       OR: [{ mechanicId: { in: [...userIds] } }, { laborEntries: { some: { userId: { in: [...userIds] }, voidedAt: null } } }],
     },

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Activity, CheckCircle2, Eye, EyeOff, FileText, MessageCircle, Printer, Trash2 } from "lucide-react";
+import { Activity, Ban, CheckCircle2, Eye, EyeOff, FileText, MessageCircle, Printer, Trash2 } from "lucide-react";
 import { Priority } from "@prisma/client";
 import {
   addLineAction,
@@ -8,12 +8,14 @@ import {
   applyPackageAction,
   assignAction,
   changeStatusAction,
+  changeStatusFormAction,
   createInvoiceAction,
   removeLineAction,
   updateMetaAction,
 } from "@/actions/work-orders";
 import { deleteMediaAction, toggleMediaAction } from "@/actions/workshop";
 import { ActionButton, ActionForm, ActionSelect } from "@/components/action-form";
+import { StatusDialog, VoidLineDialog, type StatusChoice } from "@/components/garage/status-dialog";
 import { MediaUploader } from "@/components/garage/media-uploader";
 import { RepairPanels } from "@/components/garage/repair-panels";
 import { ProfitPanel } from "@/components/garage/profit-panel";
@@ -48,8 +50,8 @@ import { requirePageAccess } from "@/lib/session";
 import { packageOptions } from "@/server/admin";
 import { partOptions } from "@/server/parts";
 import { getSettings } from "@/server/settings";
-import { getVehicleHistoryFor, getWorkOrder, listMechanics } from "@/server/work-orders";
-import { NEXT_STEP, TRANSITIONS, isFinal } from "@/server/workflow";
+import { getVehicleHistoryFor, getWorkOrder, listMechanics, voidOnlyLineIds } from "@/server/work-orders";
+import { NEXT_STEP, availableTransitions, balanceDue, deliveryBlock, isDelivered, isFinal } from "@/server/workflow";
 
 type PageProps = { params: Promise<{ id: string }> };
 
@@ -82,8 +84,23 @@ export default async function WorkOrderPage({ params }: PageProps) {
   const linesLocked = final || Boolean(wo.invoice);
   const canInvoice = can(staff, "createInvoice");
   const canSeeInvoice = can(staff, "viewClientInvoices");
-  const totals = computeTotals(wo.lines, settings.stampDuty);
+  // V16: voided lines stay on the page (struck through) but count nowhere.
+  const liveLines = wo.lines.filter((l) => !l.voidedAt);
+  const totals = computeTotals(liveLines, settings.stampDuty);
   const next = NEXT_STEP[wo.status];
+  // V16: only the moves this user may make (permission per move), the reason when required, and the delivery check.
+  const block = deliveryBlock({ requirePaidBeforeDelivery: settings.requirePaidBeforeDelivery, workflowV16: wo.workflowV16, invoice: wo.invoice, depositAmount: wo.depositAmount });
+  const choices: StatusChoice[] = availableTransitions(wo.status, staff, {
+    workflowV16: wo.workflowV16,
+    quoteApproved: !!wo.quoteApprovedAt,
+    allowWorkWithoutQuote: settings.allowWorkWithoutQuote,
+    invoiced: !!wo.invoice,
+  }).map((o) => ({ to: o.to, label: t.status[o.to], reason: o.reason, block: o.to === "DELIVERED" ? block : null }));
+  const nextChoice = next ? choices.find((c) => c.to === next) : undefined;
+  const canOverride = can(staff, "deliverWithBalance");
+  const balanceText = formatMoney(balanceDue(wo.invoice, wo.depositAmount) ?? 0, lang);
+  const voidOnly = new Set(linesLocked ? [] : await voidOnlyLineIds(wo.id));
+  const promiseMoved = !!wo.promisedAtInitial && (!wo.promisedAt || wo.promisedAt.getTime() !== wo.promisedAtInitial.getTime());
   // Vehicle file incomplete (VIN, year, fuel, colour, check-in mileage): asked on top of the order.
   const vehicleMissing: string[] = [...missingVehicleInfo(wo.vehicle), ...(wo.mileageIn === null ? ["mileage"] : [])];
 
@@ -106,7 +123,8 @@ export default async function WorkOrderPage({ params }: PageProps) {
             <LiveRefresh url={`/api/staff/live?topic=wo:${wo.id}`} liveLabel={t.portal.live} reconnectingLabel={t.portal.reconnecting} className="ms-auto" />
           </div>
           <StatusStepper status={wo.status} t={t} className="rounded-[18px] bg-gp-panel px-2 py-4" />
-          {customerApproval && wo.status !== "DELIVERED" && (
+          {!wo.workflowV16 && !final && <p className="text-xs text-gp-muted">{t.v16.status.legacy}</p>}
+          {customerApproval && !isDelivered(wo.status) && (
             <p className="flex items-center gap-2 rounded-[14px] bg-gp-success-bg px-3 py-2 text-sm text-gp-success-ink">
               <CheckCircle2 className="size-4" aria-hidden /> {fmt(t.tracking.customerApproved, { date: formatDateTime(customerApproval.createdAt, lang) })}
             </p>
@@ -130,18 +148,30 @@ export default async function WorkOrderPage({ params }: PageProps) {
           </p>
 
           <div className="flex flex-wrap items-center gap-2">
-            {next && (
-              <ActionButton action={changeStatusAction.bind(null, wo.id, next)}>
-                {t.workOrders.nextStep}: {t.status[next]}
-              </ActionButton>
-            )}
-            {!final && (
-              <ActionSelect
+            {nextChoice &&
+              (nextChoice.reason || nextChoice.block ? (
+                <StatusDialog
+                  action={changeStatusFormAction.bind(null, wo.id)}
+                  choices={choices}
+                  defaultTo={nextChoice.to}
+                  canOverride={canOverride}
+                  balanceText={balanceText}
+                  variant="default"
+                  trigger={<>{t.workOrders.nextStep}: {t.status[nextChoice.to as keyof typeof t.status]}</>}
+                />
+              ) : (
+                <ActionButton action={changeStatusAction.bind(null, wo.id, nextChoice.to, {})}>
+                  {t.workOrders.nextStep}: {t.status[nextChoice.to as keyof typeof t.status]}
+                </ActionButton>
+              ))}
+            {choices.length > 0 && (
+              <StatusDialog
                 key={`status-${wo.status}`}
-                ariaLabel={t.workOrders.changeStatus}
-                action={changeStatusAction.bind(null, wo.id)}
-                defaultValue={wo.status}
-                options={[wo.status, ...TRANSITIONS[wo.status]].map((s) => ({ value: s, label: t.status[s] }))}
+                action={changeStatusFormAction.bind(null, wo.id)}
+                choices={choices}
+                canOverride={canOverride}
+                balanceText={balanceText}
+                trigger={t.v16.status.open}
               />
             )}
             <ActionSelect
@@ -174,7 +204,7 @@ export default async function WorkOrderPage({ params }: PageProps) {
               ) : (
                 canInvoice &&
                 wo.status !== "CANCELLED" && (
-                  <ActionButton size="sm" action={createInvoiceAction.bind(null, wo.id)} disabled={wo.lines.length === 0}>
+                  <ActionButton size="sm" action={createInvoiceAction.bind(null, wo.id)} disabled={liveLines.length === 0}>
                     <FileText className="size-4" aria-hidden /> {t.workOrders.createInvoice}
                   </ActionButton>
                 )
@@ -207,35 +237,48 @@ export default async function WorkOrderPage({ params }: PageProps) {
                 </tr>
               </thead>
               <tbody>
-                {wo.lines.map((line) => (
-                  <tr key={line.id}>
-                    <Td className="text-xs text-muted-foreground">{t.lineType[line.type]}</Td>
-                    <Td>
-                      {line.description}
-                      {line.part && <span className="ms-2 font-mono text-xs text-muted-foreground">{line.part.sku}</span>}
-                    </Td>
-                    <Td className="text-end tabular-nums">{formatQty(line.quantityX100, lang)}</Td>
-                    <Td className="text-end tabular-nums" dir="ltr">{formatMoney(line.unitPrice, lang)}</Td>
-                    <Td className="text-end font-medium tabular-nums" dir="ltr">{formatMoney(lineTotalHt(line), lang)}</Td>
-                    {!linesLocked && (
-                      <Td className="w-10">
-                        <ActionButton
-                          variant="ghost"
-                          size="icon-sm"
-                          aria-label={t.common.delete}
-                          action={removeLineAction.bind(null, wo.id, line.id)}
-                        >
-                          <Trash2 className="size-4 text-muted-foreground" />
-                        </ActionButton>
+                {wo.lines.map((line) => {
+                  // V16: a voided line stays visible, greyed and struck through, with its reason; it counts nowhere.
+                  const voided = !!line.voidedAt;
+                  return (
+                    <tr key={line.id} className={voided ? "text-muted-foreground" : undefined} data-voided={voided || undefined}>
+                      <Td className="text-xs text-muted-foreground">{t.lineType[line.type]}</Td>
+                      <Td>
+                        <span className={voided ? "line-through" : undefined}>{line.description}</span>
+                        {line.part && <span className="ms-2 font-mono text-xs text-muted-foreground">{line.part.sku}</span>}
+                        {voided && (
+                          <span className="mt-0.5 block text-xs">
+                            {fmt(t.v16.line.voided, { date: formatDateTime(line.voidedAt!, lang), reason: line.voidReason ?? "" })}
+                          </span>
+                        )}
                       </Td>
-                    )}
-                  </tr>
-                ))}
+                      <Td className={`text-end tabular-nums${voided ? " line-through" : ""}`}>{formatQty(line.quantityX100, lang)}</Td>
+                      <Td className={`text-end tabular-nums${voided ? " line-through" : ""}`} dir="ltr">{formatMoney(line.unitPrice, lang)}</Td>
+                      <Td className={`text-end font-medium tabular-nums${voided ? " line-through" : ""}`} dir="ltr">{formatMoney(lineTotalHt(line), lang)}</Td>
+                      {!linesLocked && (
+                        <Td className="w-10">
+                          {voided ? null : voidOnly.has(line.id) ? (
+                            <VoidLineDialog action={removeLineAction.bind(null, wo.id, line.id)} label={t.v16.line.void} trigger={<Ban className="size-4 text-muted-foreground" />} />
+                          ) : (
+                            <ActionButton
+                              variant="ghost"
+                              size="icon-sm"
+                              aria-label={t.common.delete}
+                              action={removeLineAction.bind(null, wo.id, line.id)}
+                            >
+                              <Trash2 className="size-4 text-muted-foreground" />
+                            </ActionButton>
+                          )}
+                        </Td>
+                      )}
+                    </tr>
+                  );
+                })}
               </tbody>
             </Table>
           )}
 
-          {wo.lines.length > 0 && (
+          {liveLines.length > 0 && (
             <dl className="ms-auto mb-4 w-full max-w-xs space-y-1 text-sm">
               <div className="flex justify-between">
                 <dt className="text-muted-foreground">{t.invoices.totalHt}</dt>
@@ -490,6 +533,12 @@ export default async function WorkOrderPage({ params }: PageProps) {
               <>
                 <dt className="text-muted-foreground">{t.workOrders.promisedAt}</dt>
                 <dd>{formatDateTime(wo.promisedAt, lang)}</dd>
+              </>
+            )}
+            {promiseMoved && (
+              <>
+                <dt className="text-muted-foreground">{t.v16.promisedInitial}</dt>
+                <dd className="line-through decoration-gp-muted">{formatDateTime(wo.promisedAtInitial!, lang)}</dd>
               </>
             )}
           </dl>

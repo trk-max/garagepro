@@ -33,7 +33,7 @@ export async function saveQualityCheck(actor: StaffUser, workOrderId: string, it
   return prisma.$transaction(async (tx) => {
     const wo = await tx.workOrder.findUnique({ where: { id: workOrderId }, select: { status: true, supervisorId: true } });
     if (!wo) throw new AppError("notFound", {}, 404);
-    if (wo.status === "DELIVERED" || wo.status === "CANCELLED") throw new AppError("laborClosedOrder", {}, 409);
+    if (wo.status === "DELIVERED" || wo.status === "CLOSED" || wo.status === "CANCELLED") throw new AppError("laborClosedOrder", {}, 409);
     const old = await tx.qualityCheck.findUnique({ where: { workOrderId } });
     // V14: when the garage chose so, only the order's supervisor ticks « travaux vérifiés ».
     if (wo.supervisorId && items.workVerified && !old?.workVerified && actor.id !== wo.supervisorId) {

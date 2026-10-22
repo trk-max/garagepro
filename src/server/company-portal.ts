@@ -57,7 +57,7 @@ export async function companyOverview(viewer: CompanyViewer) {
       },
     }),
     prisma.workOrder.findMany({
-      where: { customerId, status: { notIn: ["DELIVERED", "CANCELLED"] } },
+      where: { customerId, status: { notIn: ["DELIVERED", "CLOSED", "CANCELLED"] } },
       orderBy: { createdAt: "desc" },
       select: { id: true, number: true, status: true, promisedAt: true, complaint: true, createdAt: true, vehicle: { select: { plate: true, make: true, model: true } } },
     }),
@@ -102,7 +102,7 @@ export async function companyWorkOrder(viewer: CompanyViewer, workOrderId: strin
       deliveredAt: true,
       createdAt: true,
       vehicle: { select: { plate: true, make: true, model: true, year: true } },
-      lines: { orderBy: { position: "asc" }, select: { id: true, type: true, description: true, quantityX100: true, unitPrice: money, taxRateBp: money } },
+      lines: { where: { voidedAt: null }, orderBy: { position: "asc" }, select: { id: true, type: true, description: true, quantityX100: true, unitPrice: money, taxRateBp: money } },
       media: { where: { visibleToCustomer: true }, orderBy: { createdAt: "asc" }, select: { id: true, kind: true, caption: true } },
       invoice: money ? { select: { id: true, number: true, totalHt: true, totalTtc: true, paidAmount: true, status: true, issuedAt: true, dueDate: true } } : false,
     },
