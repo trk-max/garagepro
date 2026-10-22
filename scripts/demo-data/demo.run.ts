@@ -36,6 +36,7 @@ import { linkComeback } from "@/server/comebacks";
 import { completeInspection, convertResultToLine, saveResult, startInspection } from "@/server/inspections";
 import { createFeedback } from "@/server/claims";
 import { queueSatisfactionSurveys } from "@/server/reminders";
+import { recordPaymentPromise } from "@/server/payment-promises";
 
 /** V16 Lot 4 — a real PNG « signature » (scribble) drawn here, like the tablet canvas would send it (data URL). */
 function signaturePng(seedValue: number): string {
@@ -528,6 +529,17 @@ it("demo data", async () => {
   if (reasons?.[0]) {
     await step("ticket 1", () => createTicket({ reasonId: reasons[0]!.id, plate: rdvPlate, source: "DESK", actor: S.accueil! }));
     await step("ticket 2", () => createTicket({ reasonId: (reasons[3] ?? reasons[0])!.id, source: "DESK", actor: S.accueil! }));
+  }
+
+  // ── Paiements partiels : une date de prochain paiement à venir, une promesse dépassée (non tenue) ──
+  const partial = await prisma.invoice.findMany({ where: { status: "PARTIAL" }, orderBy: { issuedAt: "asc" }, select: { id: true, workOrderId: true, totalTtc: true, paidAmount: true }, take: 3 });
+  if (partial[0]) {
+    const day = new Date(Date.now() + 6 * DAY).toISOString().slice(0, 10);
+    await step("promesse à venir", () => recordPaymentPromise(partial[0]!.id, { day, amount: Math.round((partial[0]!.totalTtc - partial[0]!.paidAmount) / 2), note: "Paiera après le salaire" }, S.accueil!));
+  }
+  if (partial[1]) {
+    // Recorded 10 days ago for 3 days ago (an old promise cannot be typed in the form: written as the history would have it).
+    await prisma.paymentPromise.create({ data: { invoiceId: partial[1].id, workOrderId: partial[1].workOrderId, promisedAt: new Date(Date.now() - 3 * DAY), amount: null, note: "Promis au téléphone", recordedById: S.accueil!.id, createdAt: new Date(Date.now() - 10 * DAY) } });
   }
 
   const out = {

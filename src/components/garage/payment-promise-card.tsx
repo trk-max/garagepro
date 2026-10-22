@@ -59,8 +59,7 @@ export function PaymentPromiseCard({
             <p className="text-xs">{p.kept}</p>
           ) : (
             <p className="font-medium">
-              {formatDate(latest.promisedAt, lang, tz)} ·{" "}
-              <span dir="ltr">{latest.amount ? formatMoney(latest.amount, lang) : p.rest}</span>
+              <bdi>{formatDate(latest.promisedAt, lang, tz)}</bdi> · {latest.amount ? <bdi dir="ltr">{formatMoney(latest.amount, lang)}</bdi> : p.rest}
             </p>
           )}
           {latest.note && <p className="mt-1 text-xs opacity-80">{latest.note}</p>}

@@ -22,11 +22,12 @@ export function TodoRows({ rows, t, lang, tz, compact = false }: { rows: TodoRow
   );
 }
 
-function figureText(f: TodoFigure, t: Dictionary, lang: Lang): string {
+function figureText(f: TodoFigure, t: Dictionary, lang: Lang): string | null {
   const d = t.todo.detail;
   switch (f.kind) {
     case "money": return formatMoney(f.amount, lang);
-    case "days": return fmt(d.since, { n: f.days });
+    // Same day: the date beside it says it (no « depuis 0 j »).
+    case "days": return f.days > 0 ? fmt(d.since, { n: f.days }) : null;
     case "late": return fmt(d.late, { n: f.days });
     case "minutes": return fmt(d.minutes, { n: f.minutes });
     case "noInvoice": return d.noInvoice;
@@ -95,9 +96,14 @@ function InvoiceFacts({ r, t, lang, tz, compact }: { r: TodoRow; t: Dictionary; 
   const inv = r.invoice!;
   const next = inv.next ? (
     <span className={inv.next.overdue ? "font-semibold text-gp-danger-ink" : "font-medium"} data-testid={inv.next.overdue ? "promise-overdue" : "promise-next"}>
-      {inv.next.overdue && `${p.overdue} · `}
-      {formatDate(inv.next.at, lang, tz)}
-      {inv.next.amount ? <span dir="ltr"> · {formatMoney(inv.next.amount, lang)}</span> : null}
+      {inv.next.overdue && <span className="block">{p.overdue}</span>}
+      <bdi>{formatDate(inv.next.at, lang, tz)}</bdi>
+      {inv.next.amount ? (
+        <>
+          {" · "}
+          <bdi dir="ltr">{formatMoney(inv.next.amount, lang)}</bdi>
+        </>
+      ) : null}
     </span>
   ) : (
     <span className="text-muted-foreground">{p.toSet}</span>

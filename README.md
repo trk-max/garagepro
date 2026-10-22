@@ -41,6 +41,19 @@ Il n'y a **qu'une seule base de données** (Supabase en ligne + sa copie sur le 
 - Réservez l'adresse du PC du garage dans la box (bail DHCP fixe) ; si elle change, refaites `npm run shortcut`.
 - Pour que le site en ligne s'ouvre sans compte Vercel : Vercel → projet → *Settings* → *Deployment Protection* → *Vercel Authentication* → ne protéger que les *Preview Deployments* (sinon chaque PC doit se connecter à Vercel).
 
+## Nouveautés — « À traiter » montre la voiture, paiements partiels et date du prochain paiement
+
+- **Chaque ligne d'« À traiter » mène aux fiches exactes** (cloche et page) : `/garage/a-traiter/<élément>` liste
+  exactement ce qui est compté, avec la plaque, la marque / le modèle, le client, le n° d'ordre ou de facture, le
+  chiffre clé (reste dû, jours de retard, pièce manquante…) et un lien direct. « Ouvrir le module » garde les
+  anciennes listes.
+- **Factures partiellement payées** et **promesses de paiement dépassées** (en rouge, « Relancer le client ») :
+  nouveaux éléments ; une facture n'apparaît que dans une seule liste.
+- **Date du prochain paiement** sur la facture et l'ordre (date, montant facultatif ≤ reste dû, note), historique
+  gardé (ajout seul), colonne « Prochain paiement » dans la liste des factures.
+- Migration **30_payment_promises** (une table ajoutée, rien de modifié) : appliquée au redémarrage du hub ; en
+  ligne avec `npm run db:cloud` comme les autres. Détails : [docs/PAIEMENTS-PARTIELS.md](docs/PAIEMENTS-PARTIELS.md).
+
 ## Nouveautés V16 — Lot 5 : qualité, suivi et pilotage
 
 - **Contrôle qualité** : kilomètres parcourus pendant l’**essai routier** (obligatoire quand l’essai est fait) ; *Paramètres › Contrôle qualité* : **points en plus** des 6 points actuels (un par ligne), à cocher pour valider le contrôle ; un point ajouté plus tard n’annule pas un contrôle déjà validé.
