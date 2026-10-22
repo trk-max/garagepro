@@ -1440,6 +1440,139 @@ model Notification {
   @@index([createdAt])
 }
 
+// ── V15 — File d'attente de l'accueil (borne, écran de salle, poste d'accueil) ──
+// Bloc séparé (fusion facile). Pas de relation Prisma vers Customer / Vehicle / Appointment / WorkOrder /
+// Invoice / User : de simples identifiants indexés, pour ne modifier aucun modèle existant.
+
+/// V15 — réglages de la file d'attente (une seule ligne, id = "garage").
+model QueueSetting {
+  id                String   @id @default("garage")
+  /// Temps d'attente estimé = moyenne réelle des N derniers tickets appelés de ce motif (fenêtre réglable).
+  waitWindow        Int      @default(20)
+  /// En dessous de ce nombre de tickets observés : « — » (pas d'estimation).
+  waitMinTickets    Int      @default(3)
+  /// RDV « à l'heure » : arrivé dans la fenêtre ± N minutes autour de l'heure du RDV → servi en premier.
+  apptWindowMin     Int      @default(15)
+  /// Motifs « rapides » (paiement, récupération) prioritaires après les RDV.
+  fastFirst         Boolean  @default(false)
+  /// Appels sans réponse avant « absent », et délai entre deux appels (secondes).
+  maxCalls          Int      @default(3)
+  callTimeoutSec    Int      @default(60)
+  /// Message « encore N personnes avant vous » quand il reste N personnes ou moins (0 = jamais).
+  aheadThreshold    Int      @default(2)
+  /// Écran de salle : "ALTERNATE" (fr puis ar) ou "SIDE" (côte à côte) ; thème "DARK" ou "LIGHT".
+  screenLangMode    String   @default("ALTERNATE")
+  screenTheme       String   @default("DARK")
+  /// Écran de salle : plaque masquée (« 215 TU 12** ») à côté du numéro. Désactivé par défaut.
+  screenMaskedPlate Boolean  @default(false)
+  /// « À traiter » : client en attente depuis plus de N minutes.
+  waitAlertMin      Int      @default(20)
+  /// Imprimante de tickets réseau ESC/POS (facultative) : adresse IP et port (9100 en général).
+  printerHost       String?
+  printerPort       Int      @default(9100)
+  updatedAt         DateTime @updatedAt
+}
+
+/// V15 — motifs de visite (catalogue fr/ar/en, préfixe du numéro : A, B…).
+model QueueReason {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  /// Lettre(s) du numéro de ticket, ex. "A" → A-12.
+  prefix    String
+  nameFr    String
+  nameAr    String?
+  nameEn    String?
+  /// "DROP_OFF" (dépôt), "PICKUP" (récupération), "QUOTE" (devis / question), "PAYMENT" (paiement) ou "OTHER".
+  kind      String   @default("OTHER")
+  /// Motif rapide (prioritaire si QueueSetting.fastFirst).
+  fast      Boolean  @default(false)
+  isActive  Boolean  @default(true)
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// V15 — guichets (Guichet 1, Caisse…) et l'employé qui y est connecté.
+model QueueCounter {
+  id        String    @id @default(cuid())
+  name      String
+  nameAr    String?
+  isActive  Boolean   @default(true)
+  position  Int       @default(0)
+  userId    String?
+  userSince DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+/// V15 — ticket de la file d'attente. Jamais supprimé (absent / annulé restent dans l'historique).
+model QueueTicket {
+  id            String    @id @default(cuid())
+  /// Jour du garage "AAAA-MM-JJ" : la numérotation repart à 1 chaque jour (par préfixe).
+  day           String
+  prefix        String
+  number        Int
+  reasonId      String
+  reasonKind    String
+  /// Immatriculation normalisée (facultative). Jamais affichée en entier sur l'écran public.
+  plate         String?
+  vehicleId     String?
+  customerId    String?
+  appointmentId String?
+  /// Heure du RDV reconnu (priorité « RDV à l'heure »).
+  apptAt        DateTime?
+  workOrderId   String?
+  /// "WAITING", "CALLED", "SERVING", "DONE", "ABSENT" ou "CANCELLED".
+  status        String    @default("WAITING")
+  /// Priorité manuelle (0 = normale, 1 = passée devant par l'accueil).
+  priority      Int       @default(0)
+  callCount     Int       @default(0)
+  counterId     String?
+  userId        String?
+  /// "KIOSK" (borne) ou "DESK" (poste d'accueil).
+  source        String    @default("KIOSK")
+  deviceId      String?
+  /// Langue choisie à la borne ("fr" / "ar" / "en") pour les messages.
+  lang          String    @default("fr")
+  /// Téléphone pour le SMS « c'est votre tour » : seulement avec le consentement du client.
+  phone         String?
+  notifyConsent Boolean   @default(false)
+  consentAt     DateTime?
+  aheadNotified Boolean   @default(false)
+  /// Jeton du lien de suivi public du ticket (aucune donnée personnelle sur cette page).
+  trackToken    String    @unique
+  cancelReason  String?
+  takenAt       DateTime  @default(now())
+  calledAt      DateTime?
+  servingAt     DateTime?
+  doneAt        DateTime?
+  absentAt      DateTime?
+  cancelledAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([day, prefix, number])
+  @@index([day, status])
+  @@index([status, takenAt])
+  @@index([reasonId, calledAt])
+}
+
+/// V15 — appareils de l'accueil (tablette de la borne, TV de la salle), sans compte : jeton d'appareil
+/// créé par l'administrateur. Seule l'empreinte SHA-256 du jeton est gardée (le jeton n'est montré qu'une fois).
+model QueueDevice {
+  id          String    @id @default(cuid())
+  name        String
+  /// "KIOSK" (borne d'entrée) ou "SCREEN" (écran de salle).
+  kind        String
+  tokenHash   String    @unique
+  createdById String?
+  revokedAt   DateTime?
+  revokedById String?
+  lastSeenAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
 /// Suivi d'une alerte de la page « Suivi & retards » : assignée, traitée, reportée.
 /// La clé contient la date concernée : si la situation change (nouvelle date promise…),
 /// c'est une nouvelle alerte.
