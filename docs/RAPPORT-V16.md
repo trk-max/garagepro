@@ -204,3 +204,107 @@ Branche `feat/v16-consolidation` (suite du Lot 1). Plan suivi : [PLAN-V16-LOT2.m
 - Les ordres en devis ouverts depuis la mise en ligne du Lot 1 n'ont pas de devis versionné : *Enregistrer l'accord* le crée (au garage avec un hub).
 - Avec le hub, **envoyer un devis se fait au garage** ; l'accord du client en ligne arrive par la synchronisation et c'est au garage qu'on passe en réparation.
 - Le mécanicien n'enregistre pas d'accord par défaut ; un droit particulier se donne dans *Équipe › Accès*.
+
+
+---
+
+## Lot 3 — Refus de devis, attente client, retards, attente pièces
+
+Branche `feat/v16-consolidation` (suite des Lots 1 et 2). Plan suivi : [PLAN-V16-LOT3.md](PLAN-V16-LOT3.md) (aucune question bloquante : les contradictions avec le code ont un choix prudent, listé au § 7 du plan et ci-dessous). Rien n'a été fusionné dans `main`, rien n'a été poussé, `db:cloud` n'a pas été lancé.
+
+### 1. Ce qui a été fait
+
+1. **Frais annoncés** (`WorkOrderLine.isAnnouncedFee`) : `Setting.diagnosticFee` (millimes HT, vide = aucun) proposé à la réception (case cochée par défaut) → ligne *Frais de diagnostic* **acceptée dès la création** (annonce faite à la réception, tracée dans le journal). Un autre frais annoncé (démontage…) : main-d'œuvre seulement, nouveaux ordres, **avant l'envoi du devis** (Réceptionné / Diagnostic), permission `manageQuotes` — sinon refus `announcedFeeNotAllowed`. Ces lignes ne font pas partie de la décision sur le devis et ne lancent jamais les travaux (`AGREED_WORK_LINE`) : le premier devis reste `INITIAL` et affiche à part le TTC des frais (`snapshot.announcedTtc`, absent des copies sans frais : empreintes anciennes inchangées).
+2. **Devis refusé** : par le client (portail), par l'accueil (*Enregistrer l'accord*, tout refusé) ou par le garage (*Devis refusé* + motif, depuis *Devis envoyé* ou *Attente client*) → `refuseOpenQuoteTx` : lignes en attente → `REFUSED` (conservées pour la relance du Lot 5), devis ouvert → `REFUSED`, réservations des lignes **et** réservations faites à la main pour l'ordre libérées (`releaseAllFor`), journal. Un refus fait par le garage **n'écrit pas de `QuoteApproval`** (ce serait une fausse preuve du client) : motif dans l'événement et le journal. Facture = lignes acceptées = **frais annoncés seulement**. Rien de facturable : la livraison n'exige pas de facture (`deliveryBlock(..., billable: false)`) et l'ordre se clôture à la livraison (`closeIfSettled`).
+3. **Remontage** : case « Véhicule remonté » au passage `QUOTE_REFUSED → READY`, enregistrée dans l'événement (`reassembled`). Contrôle qualité complet gardé (décision du propriétaire).
+4. **Décharge de sécurité** : une ligne `SAFETY` refusée → page imprimable `/garage/work-orders/[id]/decharge` (fr / ar / en, lignes refusées, texte, lieu / date, deux cadres de signature). Avant *Prêt* (réglage `requireSafetyWaiver`, activé par défaut, nouveaux ordres) : case « Décharge signée par le client (papier) » obligatoire (`safetyWaiverRequired`), nouvelle permission `recordSafetyWaiver` (ADMIN, MANAGER, RECEPTION ; jamais MECHANIC) ; enregistrée comme événement (lignes couvertes) + journal `workOrder.safetyWaiver`. Une décharge couvre ses lignes (un nouveau passage à *Prêt* ne la redemande pas).
+5. **Retards** : table **`PromiseRevision`** (ajout seul, trigger `PromiseRevision_readonly`, la synchronisation passe) : ancienne / nouvelle date, motif (`PARTS`, `EXTRA_WORK`, `CUSTOMER_DECISION`, `INSURANCE`, `WORKSHOP_LOAD`, `OTHER`), note interne, `notified`, clé du message. `updateMeta` : changer ou effacer une date promise existante exige le motif (`promiseReasonRequired`) et crée la révision dans la même transaction (journal `workOrder.promiseRevision`, événement) ; même minute = pas de changement (la date enregistrée est gardée) ; première date = date initiale, pas de révision.
+6. **Message au client** à chaque révision par la file existante (`queueItems`, kinds `PROMISE` / `PART_DATE`, clé `promise:` / `part-date:`), envoyé après la validation (`deliverQuoteNotice`, avec un hub c'est le hub qui envoie) : jamais à un client qui a refusé les messages (`reminderOptOut`) ; sans canal ni contact, ligne « non envoyé + raison ». Libellé client du motif seulement, jamais la note.
+7. **KPI** « Livrés à la date promise initiale » (et « à la date promise actuelle ») dans *Rapports* (`promiseKpi`, ordres livrés de la période qui avaient une date promise).
+8. **Attente pièces** : `WorkOrderPartNeed.workOrderLineId` (choix de la ligne au signalement) ; chaque date prévue (première ou changée) = révision motivée (PARTS par défaut) + message au client ; date prévue sur le portail (« Pièce attendue le … », nom de la ligne du devis). **Passage automatique en `WAITING_PARTS`** (réglage `autoWaitingParts`, activé par défaut, nouveaux ordres) quand une ligne **acceptée** attend une pièce : à l'accord (au lieu de *En réparation*) ou au signalement pendant la réparation ; événement marqué `autoParts`. Pas de retour automatique (fait à la main quand la pièce est là). Décision « le véhicule reste au garage » / « restitué, le client reviendra » + « attente imputable au garage » (événement + journal `workOrder.partsWaitDecision`).
+9. **Bon de réception → pièce manquante** (audit n° 13, A-12) : `createReceipt` passe à *Reçue* les besoins ouverts de la pièce (ceux du bon d'abord, puis les plus anciens ; seulement si la quantité reçue couvre le besoin), les rattache au bon, réserve la pièce pour l'ordre (ou complète la réservation de la ligne du devis encore en attente ; rien si la pièce de la ligne est déjà sortie), événement « pièce reçue » + journal.
+10. **Magasinier** (audit n° 14, en partie) : nouvelle permission `managePartNeeds` (ADMIN, MANAGER, RECEPTION, STOREKEEPER) pour mettre à jour une pièce manquante, vérifiée par l'action **et** le serveur.
+11. **Gardiennage (point 5, règle pour le Lot 4)** : rien n'est facturé au Lot 3 ; données prêtes : périodes `WAITING_PARTS` (événements `STATUS_CHANGED`), décision garder / restituer et « imputable au garage » (événement `partsWait`, `garageCaused`), dates prévues des pièces (`PromiseRevision`). Règle à appliquer au Lot 4 : pas de gardiennage pendant une attente imputable au garage ni quand le véhicule a été restitué.
+12. **Interface** (fr / ar / en) : bandeaux *Devis refusé* et décharge sur la fiche, badge « Frais annoncé », case dans l'ajout de ligne, fenêtre de statut (remontage, décharge + lien d'impression), motif et note dans *Diagnostic & planning*, bloc *Changements de date* (état réel du message), pièces manquantes (ligne, motif de la date, note), bloc *Pendant l'attente des pièces*, case des frais à la réception, *Paramètres › Parcours atelier* (3 réglages), historique (révisions, pièce reçue, décharge, remontage, passage automatique), portail (nouvelle date, pièces attendues, frais annoncés), devis imprimé (frais annoncés), *Historique des envois* (2 nouveaux types).
+13. Données de démonstration : frais de diagnostic réglé, ordre refusé avec frais annoncés et ligne Sécurité, date promise décalée avec motif, pièce manquante liée à une ligne avec date prévue, historique avec dates promises (KPI).
+
+### 2. Fichiers modifiés / créés
+
+**Créés** : `prisma/migrations/27_delays_refusal/migration.sql`, `src/lib/delays.ts`, `src/server/delays.ts`, `src/app/(garage)/garage/work-orders/[id]/decharge/page.tsx`, `tests/delays-v16.test.ts`, `tests/delays-v16.db.test.ts`, `docs/PLAN-V16-LOT3.md`, `docs/media/v16/lot3/*`.
+
+**Modifiés — fichiers partagés avec d'autres modules** (à surveiller lors des fusions) : `prisma/schema.prisma`, `src/lib/permissions.ts`, `src/lib/i18n/fr.ts` / `ar.ts` / `en.ts` (erreurs), `v16-*` (bloc `lot3`), `v103-*` (2 libellés de droits), `v7-*` (2 types de messages), `src/lib/quote.ts`, `src/lib/report.ts`, `src/lib/validators.ts`, `src/server/work-orders.ts`, `workflow.ts`, `quotes.ts`, `parts.ts` (`reserveFree`, `releaseAllFor` accepte un acteur vide), `purchasing.ts` (`createReceipt`), `portal.ts`, `reminders.ts` (types de messages), `reports.ts`, `tests/hub-sync.test.ts`, `tests/audit-v16/reproductions.audit.ts`.
+
+**Modifiés — autres** : `src/actions/follow-up.ts`, `work-orders.ts`, `repair-order.ts` ; `src/server/follow-up.ts`, `repair-order.ts` ; pages `work-orders/[id]` (+ `quote`), `work-orders/new`, `suivi/vehicule` ; composants `check-in-form`, `document-view`, `line-adder`, `repair-panels`, `report-view`, `settings-repair-order`, `status-dialog`, `timeline` ; `tests/workflow-v16.db.test.ts` (date promise changée avec motif) ; `scripts/demo-data/demo.run.ts` ; `README.md`, `docs/AUDIT-V16.md`.
+
+### 3. Migration `27_delays_refusal`
+
+- Type créé (jamais d'`ALTER TYPE … ADD VALUE`) : `PromiseReason`.
+- Table `PromiseRevision` (FK `WorkOrder` RESTRICT ; `partNeedId` sans FK pour ne jamais devoir modifier la ligne) + trigger `PromiseRevision_readonly` (refuse `UPDATE` / `DELETE` sauf `garagepro.sync = 'on'`).
+- `Setting.diagnosticFee` (nullable), `Setting.requireSafetyWaiver` (true), `Setting.autoWaitingParts` (true) ; `WorkOrderLine.isAnnouncedFee` (false) ; `WorkOrderPartNeed.workOrderLineId` (nullable, index).
+- **Aucun backfill** : colonnes nullables ou avec un défaut neutre ; les ordres existants gardent exactement leur comportement (aucune ligne de frais annoncé, aucune pièce liée).
+- Bloc final `_sync_log_trg` identique à `24_accueil` (pose la sync sur `PromiseRevision`). Rejouée deux fois sans erreur.
+
+### 4. Tests et résultats (chiffres réels, bases jetables `gp_test_v16l3*`)
+
+| Vérification | Résultat |
+|---|---|
+| `npx prisma generate` | OK (client 6.19.3) |
+| `npx tsc --noEmit` | 0 erreur |
+| `npx eslint src tests` | 0 problème |
+| `npm run check` | 56 fichiers, **539 tests réussis**, 14 ignorés (tests base / hub sans variable) |
+| `npm run test:db` (`TEST_DB_NAME=gp_test_v16l3`) | 30 fichiers, **251 tests réussis** (dont 14 nouveaux dans `delays-v16.db.test.ts`) |
+| `npm run test:hub` (`TEST_HUB_DB_PREFIX=gp_test_v16l3_hub`) | **15 tests réussis** (dont « V16 Lot 3 : migration 27 rejouée deux fois sans rien journaliser ; révisions de date (ajout seul) dans les deux sens ; frais annoncé et pièce liée à une ligne synchronisés ; preuve non modifiable des deux côtés ») |
+| `node scripts/verify-migrations.mjs … gp_test_v16l3_mig` | 28 migrations, la 27 rejouée sans erreur ; structure identique au schéma Prisma |
+| Suite d'audit `tests/audit-v16` (`gp_test_v16l3_audit`) | **25 réussies** (26 avant : A-12 corrigé, inversé et déplacé dans `test:db` ; A-13 réduit à ce qui reste) |
+| `npx next build` | compilé sans erreur (nouvelle page `/garage/work-orders/[id]/decharge`) |
+
+**Tests ajoutés** : unitaires (9) — même minute / révision nécessaire, client qui refuse les messages, KPI (première et actuelle, à l'heure pile, sans promesse), lignes à couvrir par la décharge, livraison sans rien à facturer, case de remontage, frais annoncés dans la copie figée (empreinte inchangée sans frais), droits, traductions des motifs ; base (14) — frais de diagnostic à la réception → devis INITIAL avec frais à part → refus du client → facture = 30 000 + TVA + timbre seulement ; frais annoncé à la main (pièce, mécanicien, après le devis refusés ; accord → réparation) ; refus par le garage (motif, lignes refusées gardées, devis fermé, aucune `QuoteApproval`, réservations libérées, `noLines`, remontage, livraison sans facture puis clôture) ; décharge exigée / mécanicien refusé / tracée / déjà couverte / réglage désactivé ; date promise (motif obligatoire, même minute, révision + message SMS en file avec libellé client sans note, date initiale intacte, 2ᵉ changement, effacement, ajout seul) ; client sans messages et sans canal ; pièce liée à une ligne acceptée (passage auto, révisions + messages, portail sans note) ; besoin avant l'accord (passage auto à l'accord, réglage désactivé) ; nouvelle date sur le portail ; A-12 corrigé ; réception partielle puis complète d'une ligne de devis ; magasinier / mécanicien ; décision garder / restituer ; KPI sur une période isolée (2031).
+
+**Contrôle des tests** (code retiré temporairement, puis remis par `git checkout` — 14/14 ensuite) :
+- règle « devis refusé → seuls les frais annoncés facturables » retirée (frais comptés comme accord dans `applyDecisionEffects` + refus du garage sans `refuseOpenQuoteTx`) → `delays-v16.db.test.ts` : **2 échecs / 12 réussis** ;
+- « changement de date = une révision » retiré de `updateMeta` → **3 échecs / 11 réussis**.
+
+**Vérification dans le navigateur** (`next start -p 3300` depuis la branche, base de démo `gp_test_v16l3_demo`, Edge sans interface ; serveur arrêté ensuite, hub du port 3000 jamais touché) : fiche d'un ordre refusé par téléphone (chef d'atelier) — bandeau « seuls les frais annoncés sont facturables (36,700 DT TTC) », bandeau décharge, ligne « Frais annoncé » acceptée, lignes refusées barrées ; décharge imprimable (nom, véhicule, ligne Sécurité, texte, cadres de signature) ; contrôle qualité validé puis *Étape suivante : Prêt* → fenêtre avec « Véhicule remonté » et la case décharge (bouton *Valider* grisé tant qu'elle n'est pas cochée) → *Prêt*, « Décharge de sécurité signée (papier) le … », total 36,700 DT ; accueil — date promise changée sans motif → « Choisissez le motif du changement de date promise », avec motif *Travaux supplémentaires* + note → bloc *Changements de date* (2 révisions, « client non prévenu (— : non envoyé) » car aucun canal SMS / e-mail sur la base de démo) ; *Historique des envois* (administrateur) : lignes « Date promise modifiée » / « Date prévue d'une pièce » avec le libellé client et sans la note ; chef d'atelier — pièce manquante signalée pour la ligne acceptée avec une date → l'ordre passe tout seul *Attente pièces* (« Passage automatique : une ligne acceptée attend une pièce ») ; portail au téléphone (390 px) en **français** et en **arabe** (RTL) : « Nouvelle date de livraison : 27/10/2026 17:45 (travaux supplémentaires) » / « موعد التسليم الجديد … (أشغال إضافية) », « Pièce attendue le 27 oct. 2026 : Amortisseur AV », jamais la note interne ; *Rapports* (3 mois) : « Livrés à la date promise initiale 35 / 53 (66 %) », « à la date promise actuelle 53 / 53 (100 %) » ; *Paramètres › Parcours atelier* : les 3 nouveaux réglages. Captures : `docs/media/v16/lot3/`.
+
+### 5. Mise en production
+
+- **En ligne + garage (hub)** — dans cet ordre, sans attendre entre les étapes :
+  1. `npm run db:cloud` **avant** le `git push` (migration 27, et 25 / 26 si les Lots 1 et 2 n'y sont pas encore) ;
+  2. **tout de suite** au garage : fermer puis relancer `start-hub.cmd` (le hub applique les migrations à la base du PC) ;
+  3. `git push`, puis vérifier le déploiement Vercel.
+- **Sans hub** : `npx prisma db execute --file prisma/migrations/27_delays_refusal/migration.sql --schema prisma/schema.prisma` (après `25_workflow_v16` puis `26_quotes`).
+
+### 6. Points à vérifier à la main
+
+1. *Paramètres › Parcours atelier* (administrateur) : saisir les *Frais de diagnostic* (ex. 30), laisser « Exiger la décharge » et « Attente pièces automatique » cochés ; enregistrer.
+2. *Nouvel ordre* : la case « Frais de diagnostic annoncés au client : 30,000 DT HT » est cochée ; créer → la fiche montre la ligne *Frais de diagnostic* « Frais annoncé », *Accepté*.
+3. Ajouter 2 lignes (dont une *Priorité : Sécurité*), *Devis envoyé*, *Imprimer le devis* : ligne « Frais annoncés à la réception (dus même en cas de refus) ».
+4. Portail client (`/suivi`) : tout refuser → l'ordre passe *Devis refusé* ; la fiche affiche « seuls les frais annoncés sont facturables » ; *Facturer* → facture des seuls frais.
+5. *Imprimer la décharge* (bandeau rouge) : nom, véhicule, ligne Sécurité ; contrôle qualité validé, *Étape suivante : Prêt* → cases « Véhicule remonté » et « Décharge signée » (avec un **mécanicien** : message « Seul l'accueil ou un responsable… »).
+6. Un autre ordre en devis → *Changer le statut… › Attente client* puis *Devis refusé* + motif : lignes *Refusé* gardées ; *Stock* : la réservation de la pièce du devis est libérée ; sans frais annoncés → livraison sans facture → *Clôturé*.
+7. *Diagnostic & planning* : changer la date promise sans motif → message ; avec motif → bloc *Changements de date* ; *Historique des envois* : « Date promise modifiée » (envoyé, ou « non envoyé » + raison sans SMS / e-mail configuré).
+8. Ordre en réparation → *Signaler une pièce manquante* liée à une ligne acceptée, avec une date → l'ordre passe *Attente pièces* ; changer la date (motif) → nouvelle révision + message ; portail : « Pièce attendue le … » en français et en arabe.
+9. *Pendant l'attente des pièces* : « Véhicule restitué, le client reviendra » → historique « attente pièces : véhicule restitué » (+ « imputable au garage » si coché).
+10. *Achats* : bon de commande puis bon de réception de la pièce manquante → la pièce passe *Reçue*, réservée pour l'ordre (*Pièces réservées* de la fiche), historique « pièce reçue … (bon BR…) ».
+11. Compte **magasinier** : mettre à jour une pièce manquante (statut, date) depuis la fiche d'un ordre.
+12. *Rapports* : lignes « Livrés à la date promise initiale » et « … actuelle ».
+13. Client marqué « refuse les rappels » : changer la date promise → la révision dit « client non prévenu », aucune ligne dans *Historique des envois*.
+
+### 7. Ce qui n'a pas été fait (et pourquoi)
+
+- **Signature sur tablette** de la décharge : table `Signature` du Lot 4 ; au Lot 3, papier imprimé + case « signée » tracée.
+- **Gardiennage** : calculé et facturé au Lot 4 ; la règle et les données sont prêtes (§ 1.11).
+- **Relance des lignes refusées** : Lot 5 (les lignes refusées sont gardées).
+- **Retour automatique en réparation** à l'arrivée de la pièce : non (la pièce reçue est signalée sur l'ordre ; l'équipe peut travailler sur les autres lignes pendant l'attente) — choix prudent, à confirmer.
+- **Pièce reçue partiellement** : le besoin reste ouvert tant que la quantité reçue ne le couvre pas en entier (pas de besoin « reçu en partie »).
+- **Problème n° 14** : en partie — le magasinier met à jour les pièces manquantes, mais le lien de sa cloche mène toujours à `/garage/suivi`, réservé à `manageRepairFollowUp` (A-13 garde cette reproduction).
+- **Messages en arabe** : les SMS / e-mails au client restent en français (comme les autres messages ; pas de langue enregistrée pour le client).
+
+### À savoir avant la mise en ligne (Lot 3)
+
+- **Changer une date promise demande maintenant un motif** (tous les ordres, comme les motifs du Lot 1) et prévient le client par SMS / e-mail s'il n'a pas refusé les messages.
+- Après un **devis refusé** sur un nouvel ordre, **seuls les frais annoncés** sont facturables ; un ordre refusé sans frais annoncés se livre sans facture et se clôture tout seul.
+- Une ligne **Sécurité refusée** bloque *Prêt* tant que la décharge signée n'est pas confirmée (réglage désactivable).
+- Un nouvel ordre dont une ligne acceptée attend une pièce passe **tout seul en *Attente pièces*** (réglage désactivable) ; le retour en réparation reste manuel.
+- Un **bon de réception** réserve désormais la pièce reçue pour l'ordre qui l'attendait (le stock « libre » baisse d'autant).
+- `reminderOptOut` (« refuse les rappels ») s'applique désormais aussi aux messages de changement de date (consigne reçue) ; les autres messages de service (véhicule prêt, devis) partent comme avant.

@@ -14,6 +14,8 @@ Ces tests vérifient le comportement **fautif actuel** ; en phase C, chaque test
 
 **Suivi des corrections — V16 Lot 2 (voir docs/RAPPORT-V16.md)** : n° 11 et 12 en partie (pour un nouvel ordre, les pièces d'un devis ne sont plus sorties du stock à l'ajout mais réservées atomiquement sur le stock libre, et sortent à l'accord ; A-10 / A-11 restent reproduits sur des ordres d'avant la V16). Les reproductions qui facturent passent maintenant par un accord enregistré (aide `agreeAll`). 26 réussies.
 
+**Suivi des corrections — V16 Lot 3 (voir docs/RAPPORT-V16.md)** : n° 13 corrigé (le bon de réception passe la pièce manquante à « reçue », la rattache au bon, la réserve pour l’ordre et le signale ; A-12 inversé et déplacé dans `tests/delays-v16.db.test.ts`) ; n° 14 en partie (le magasinier met à jour les pièces manquantes avec le nouveau droit `managePartNeeds` ; le lien de sa cloche vers `/garage/suivi` reste refusé, A-13 réduit à cela). 25 réussies.
+
 ## Bilan
 
 | Gravité | Nombre |

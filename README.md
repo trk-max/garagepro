@@ -41,6 +41,29 @@ Il n'y a **qu'une seule base de données** (Supabase en ligne + sa copie sur le 
 - Réservez l'adresse du PC du garage dans la box (bail DHCP fixe) ; si elle change, refaites `npm run shortcut`.
 - Pour que le site en ligne s'ouvre sans compte Vercel : Vercel → projet → *Settings* → *Deployment Protection* → *Vercel Authentication* → ne protéger que les *Preview Deployments* (sinon chaque PC doit se connecter à Vercel).
 
+## Nouveautés V16 — Lot 3 : devis refusé, attente client, retards, attente pièces
+
+- **Frais annoncés** : *Paramètres › Parcours atelier › Frais de diagnostic* (DT HT, vide = aucun). À la réception, la case « Frais de diagnostic annoncés au client » (cochée par défaut) ajoute la ligne *Frais de diagnostic*, **acceptée dès la création** et facturable même si le devis est refusé. Un autre frais annoncé (démontage…) s’ajoute en main-d’œuvre avec la case « Frais annoncé au client », **seulement avant l’envoi du devis** (accueil / responsables). Le devis imprimé et le portail l’affichent à part (« dus même en cas de refus »).
+- **Devis refusé** (par le client sur le portail, par l’accueil avec *Enregistrer l’accord*, ou par le garage avec *Changer le statut… › Devis refusé* + motif) : les lignes en attente passent *Refusé* et **restent sur la fiche** (relance au Lot 5), le devis est fermé, les pièces réservées pour l’ordre sont libérées ; **seuls les frais annoncés sont facturables** (bandeau sur la fiche). Sans frais annoncés : rien à facturer, la livraison n’exige pas de facture et l’ordre se clôture à la livraison.
+- **Remontage et décharge** : au passage *Devis refusé → Prêt*, case « Véhicule remonté » (gardée dans l’historique). Si une ligne **Sécurité** a été refusée : bouton *Imprimer la décharge* (texte à signer sur papier) et, avant *Prêt*, case obligatoire « Décharge de sécurité signée par le client » (nouveau droit `recordSafetyWaiver` : accueil, chef d’atelier, administrateur ; réglage *Exiger la décharge signée*, activé par défaut). La signature sur tablette viendra au Lot 4.
+- **Retards** : changer (ou effacer) une date promise exige un **motif** (pièces, travaux supplémentaires, décision du client, assurance, charge de l’atelier, autre) + une note interne facultative. Chaque changement est une ligne `PromiseRevision` **en ajout seul** (bloc *Changements de date* sur la fiche, historique) et un **message au client** par la file existante (*Historique des envois*, type « Date promise modifiée ») — sauf si le client a refusé les messages ; sans téléphone / e-mail / canal configuré, la ligne est « non envoyé » avec la raison (jamais un faux envoi). Le portail montre la nouvelle date avec un libellé client (jamais la note interne).
+- **KPI** dans *Rapports* : « Livrés à la date promise initiale » (et « à la date promise actuelle »).
+- **Attente pièces** : une pièce manquante peut être **rattachée à une ligne** de l’ordre ; chaque date prévue (première ou changée) est une révision motivée + un message au client (« Date prévue d’une pièce ») et s’affiche sur le portail (« Pièce attendue le … »). Quand une ligne **acceptée** attend une pièce, l’ordre passe **tout seul en *Attente pièces*** (à l’accord du client, ou au signalement de la pièce pendant la réparation ; réglage *Passer en « Attente pièces »*, activé par défaut). Bloc *Pendant l’attente des pièces* : « Le véhicule reste au garage » / « Véhicule restitué, le client reviendra », avec « attente imputable au garage » (utilisé par le gardiennage du Lot 4).
+- **Bon de réception** : une pièce reçue passe les pièces manquantes de cette pièce à *Reçue* (celles du bon d’abord), la réserve pour l’ordre et l’indique dans l’historique (correction de l’audit n° 13). Le **magasinier** peut mettre à jour une pièce manquante (nouveau droit `managePartNeeds`).
+- Plan : [docs/PLAN-V16-LOT3.md](docs/PLAN-V16-LOT3.md). Rapport : [docs/RAPPORT-V16.md](docs/RAPPORT-V16.md).
+
+### Mise à jour vers la V16 (Lot 3) — à faire une commande à la fois, dans cet ordre
+
+Le Lot 3 contient les Lots 1 et 2 : `db:cloud` applique les migrations 25, 26 et 27 qui manquent.
+
+1. `npm install`
+2. `npm run db:cloud` — **avant le push** : ajoute la migration `27_delays_refusal` (et `25`, `26` si besoin) à la base en ligne (n’efface rien, rejouable).
+3. **Tout de suite après**, au garage : fermez puis relancez `start-hub.cmd` (le hub applique les migrations à la base du PC du garage). Le PC du garage doit connaître la table `PromiseRevision` et les nouvelles colonnes **avant** que l’en-ligne les écrive ; sinon une ligne de synchronisation reste en échec.
+4. `npm run check`
+5. `git add -A` puis `git commit -m "V16 Lot 3 : refus, retards, attente pièces"` puis `git push` (dans la foulée).
+6. **Sans hub** (base locale seule) : `npx prisma db execute --file prisma/migrations/27_delays_refusal/migration.sql --schema prisma/schema.prisma` (après celles des Lots 1 et 2 : `25_workflow_v16`, puis `26_quotes`).
+7. Dans l’application : *Paramètres › Parcours atelier* (frais de diagnostic, décharge, attente pièces automatique), puis *Équipe › Accès* si un employé particulier doit (ou ne doit pas) confirmer une décharge ou gérer les pièces manquantes.
+
 ## Nouveautés V16 — Lot 2 : devis versionné et accord tracé ligne par ligne
 
 - **Devis versionné** : « Devis envoyé » crée une version numérotée (`D2026-0001`, version 1, 2…) avec une **copie figée** des lignes (priorité, nature de la pièce, montants HT / TVA / timbre / TTC) et son **empreinte SHA-256**. Le devis imprimé montre le numéro, la version, la date de validité (15 jours), la priorité et la nature de chaque pièce. Avec un hub, un devis **se numérote au PC du garage** : l’envoyer depuis l’en-ligne est refusé avec un message clair (comme les factures) ; le client peut ensuite l’accepter en ligne.
