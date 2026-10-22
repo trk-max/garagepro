@@ -55,7 +55,7 @@ const messageOf = async (res: Response) => ((await res.json().catch(() => null))
 async function uploadDirect(
   workOrderId: string,
   blob: Blob,
-  meta: { caption: string; visible: boolean },
+  meta: { caption: string; visible: boolean; stage: string },
   onProgress: (pct: number) => void,
 ): Promise<UploadResult | null> {
   const start = await fetch(`/api/work-orders/${workOrderId}/media/upload-url`, {
@@ -71,13 +71,22 @@ async function uploadDirect(
   const done = await fetch(`/api/work-orders/${workOrderId}/media/complete`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ storageKey: plan.storageKey, caption: meta.caption, visible: meta.visible }),
+    body: JSON.stringify({ storageKey: plan.storageKey, caption: meta.caption, visible: meta.visible, stage: meta.stage || null }),
   });
   return done.ok ? { ok: true } : { ok: false, message: await messageOf(done) };
 }
 
-export function MediaUploader({ workOrderId, compact = false }: { workOrderId: string; compact?: boolean }) {
+/** V16 Lot 4 — default stage of a new photo: reception before the work, delivery once ready, work otherwise. */
+function stageFor(status: string | undefined, intakeLocked: boolean): "" | "INTAKE" | "WORK" | "DELIVERY" {
+  if (!status) return "";
+  if ((status === "RECEIVED" || status === "DIAGNOSIS") && !intakeLocked) return "INTAKE";
+  if (status === "READY" || status === "DELIVERED" || status === "CLOSED") return "DELIVERY";
+  return "WORK";
+}
+
+export function MediaUploader({ workOrderId, compact = false, status, intakeLocked = false }: { workOrderId: string; compact?: boolean; status?: string; intakeLocked?: boolean }) {
   const { t } = useI18n();
+  const [stage, setStage] = useState(stageFor(status, intakeLocked));
   const router = useRouter();
   const input = useRef<HTMLInputElement>(null);
   const [caption, setCaption] = useState("");
@@ -93,7 +102,7 @@ export function MediaUploader({ workOrderId, compact = false }: { workOrderId: s
         const blob = await shrinkImage(file);
         let result: UploadResult | null = null;
         if (blob.size > DIRECT_THRESHOLD && blob.type) {
-          result = await uploadDirect(workOrderId, blob, { caption, visible }, setProgress);
+          result = await uploadDirect(workOrderId, blob, { caption, visible, stage }, setProgress);
           setProgress(null);
         }
         if (result === null) {
@@ -101,6 +110,7 @@ export function MediaUploader({ workOrderId, compact = false }: { workOrderId: s
           body.set("file", blob, file.name);
           body.set("caption", caption);
           body.set("visible", String(visible));
+          if (stage) body.set("stage", stage);
           const res = await fetch(`/api/work-orders/${workOrderId}/media`, { method: "POST", body });
           result = res.ok ? { ok: true } : { ok: false, message: await messageOf(res) };
         }
@@ -144,6 +154,23 @@ export function MediaUploader({ workOrderId, compact = false }: { workOrderId: s
     <div className="flex flex-wrap items-center gap-2 rounded-md border border-dashed p-3">
       {picker}
       <Input value={caption} onChange={(e) => setCaption(e.target.value)} placeholder={t.tracking.caption} aria-label={t.tracking.caption} maxLength={200} className="min-w-48 flex-1" />
+      {status && (
+        <select
+          value={stage}
+          onChange={(e) => setStage(e.target.value as typeof stage)}
+          aria-label={t.v16.lot4.media.stage}
+          className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+          data-testid="media-stage"
+        >
+          {(["INTAKE", "WORK", "DELIVERY"] as const)
+            .filter((s) => s !== "INTAKE" || !intakeLocked)
+            .map((s) => (
+              <option key={s} value={s}>
+                {t.v16.lot4.media.stages[s]}
+              </option>
+            ))}
+        </select>
+      )}
       <label className="inline-flex items-center gap-1.5 text-sm">
         <input type="checkbox" checked={visible} onChange={(e) => setVisible(e.target.checked)} className="size-5 accent-emerald-600" />
         {t.tracking.visible}

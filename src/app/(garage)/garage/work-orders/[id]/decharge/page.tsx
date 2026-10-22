@@ -2,10 +2,16 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PrintButton } from "@/components/garage/print-button";
 import { Button } from "@/components/ui/button";
-import { displayPlate, fmt, formatDate, formatMoney, lineTotalHt, woNumber } from "@/lib/format";
+import { displayPlate, fmt, formatDate, formatDateTime, formatMoney, lineTotalHt, woNumber } from "@/lib/format";
 import { getI18n } from "@/lib/i18n/server";
 import { prisma } from "@/lib/prisma";
 import { requirePageAccess } from "@/lib/session";
+import type { Prisma } from "@prisma/client";
+import { signWaiverAction } from "@/actions/lot4";
+import { ActionForm } from "@/components/action-form";
+import { SignaturePad } from "@/components/garage/signature-pad";
+import { can } from "@/lib/permissions";
+import { safetyWaiverMissing } from "@/server/work-orders";
 import { getSettings } from "@/server/settings";
 
 type PageProps = { params: Promise<{ id: string }> };
@@ -16,7 +22,7 @@ type PageProps = { params: Promise<{ id: string }> };
  * kind SAFETY_WAIVER) comes with Lot 4.
  */
 export default async function SafetyWaiverPage({ params }: PageProps) {
-  await requirePageAccess("viewWorkOrders");
+  const staff = await requirePageAccess("viewWorkOrders");
   const { id } = await params;
   const [wo, settings, { t, lang }] = await Promise.all([
     prisma.workOrder.findUnique({
@@ -38,6 +44,11 @@ export default async function SafetyWaiverPage({ params }: PageProps) {
   ]);
   if (!wo) notFound();
   const r = t.v16.lot3.refusal;
+  // V16 Lot 4: the waiver can also be signed on the tablet (Signature SAFETY_WAIVER), instead of paper.
+  const [missing, tabletSig] = await Promise.all([
+    safetyWaiverMissing(prisma as unknown as Prisma.TransactionClient, wo.id),
+    prisma.signature.findFirst({ where: { workOrderId: wo.id, kind: "SAFETY_WAIVER" }, orderBy: { signedAt: "desc" } }),
+  ]);
   const today = formatDate(new Date(), lang, settings.timezone);
 
   return (
@@ -49,6 +60,25 @@ export default async function SafetyWaiverPage({ params }: PageProps) {
         <span className="ms-auto" />
         <PrintButton />
       </div>
+      {wo.lines.length > 0 && (tabletSig || (missing.length > 0 && can(staff, "recordSafetyWaiver"))) && (
+        <section className="mx-auto max-w-[210mm] rounded-[18px] border border-gp-line bg-gp-card p-4 print:hidden" data-testid="waiver-tablet">
+          {tabletSig ? (
+            <p className="text-sm">{fmt(t.v16.lot4.signature.waiverSigned, { name: tabletSig.signerName, date: formatDateTime(tabletSig.signedAt, lang) })}</p>
+          ) : (
+            <ActionForm action={signWaiverAction.bind(null, wo.id)} reset={false} className="grid gap-3">
+              <p className="text-sm font-medium">{t.v16.lot4.signature.waiverTablet}</p>
+              <label className="grid gap-1 text-sm">
+                {t.v16.lot4.signature.signerName}
+                <input name="signerName" required minLength={2} maxLength={120} defaultValue={wo.customer.name} className="h-10 rounded-md border bg-background px-3" />
+              </label>
+              <SignaturePad required />
+              <div>
+                <Button type="submit">{t.v16.lot4.signature.submit}</Button>
+              </div>
+            </ActionForm>
+          )}
+        </section>
+      )}
       <article className="mx-auto max-w-[210mm] space-y-5 bg-white p-10 text-[13px] leading-relaxed text-black shadow print:shadow-none" data-testid="safety-waiver">
         <header className="flex items-start justify-between gap-4 border-b pb-4">
           <div>

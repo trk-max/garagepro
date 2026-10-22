@@ -59,6 +59,13 @@ import { revisionHistory } from "@/server/delays";
 import { safetyWaiverMissing } from "@/server/work-orders";
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
+import { Lock } from "lucide-react";
+import { depositOutstanding, invoiceBalance } from "@/lib/billing";
+import { HandoverCard, IntakeSignatureCard, StorageFeeCard } from "@/components/garage/lot4-cards";
+import { handoverSinceReady, listHandovers } from "@/server/handover";
+import { documentIntact, latestSignature } from "@/server/signatures";
+import { orderStorageFee } from "@/server/storage-fees";
+import { handoverMissing } from "@/server/workflow";
 
 type PageProps = { params: Promise<{ id: string }> };
 
@@ -86,12 +93,24 @@ export default async function WorkOrderPage({ params }: PageProps) {
   if (!wo) notFound();
   // V16 Lot 2: versions and decisions; may the work start (decision recorded on the latest quote)?
   // V16 Lot 3: date changes (promise and parts), refused SAFETY lines still waiting for the signed waiver.
-  const [quotes, quoteState, revisions, waiverMissing] = await Promise.all([
+  const db = prisma as unknown as Prisma.TransactionClient;
+  // V16 Lot 4: intake signature (frozen document), handovers, storage fee due before invoicing.
+  const [quotes, quoteState, revisions, waiverMissing, intakeSig, handovers, handoverDone, storage, readyNotices] = await Promise.all([
     quoteHistory(wo.id),
     orderQuoteState(wo.id),
     revisionHistory(wo.id),
-    wo.workflowV16 && settings.requireSafetyWaiver ? safetyWaiverMissing(prisma as unknown as Prisma.TransactionClient, wo.id) : Promise.resolve([] as string[]),
+    wo.workflowV16 && settings.requireSafetyWaiver ? safetyWaiverMissing(db, wo.id) : Promise.resolve([] as string[]),
+    latestSignature(prisma, wo.id, "INTAKE"),
+    listHandovers(wo.id),
+    handoverSinceReady(prisma, wo.id, wo.readyAt),
+    wo.workflowLot4 && wo.status === "READY" && !wo.invoice ? orderStorageFee(db, wo.id) : Promise.resolve(null),
+    prisma.notification.findMany({ where: { workOrderId: wo.id, kind: "READY", status: "SENT" }, orderBy: { sentAt: "desc" }, select: { sentAt: true, createdAt: true } }),
   ]);
+  const intakeIntact = intakeSig ? await documentIntact(intakeSig.id) : null;
+  const intakeLocked = !!intakeSig;
+  const manualNotices = wo.events.filter((e) => (e.data as { readyNotified?: boolean } | null)?.readyNotified).map((e) => e.createdAt);
+  const notices = [...readyNotices.map((n) => n.sentAt ?? n.createdAt), ...manualNotices].filter((d) => !wo.readyAt || d >= new Date(wo.readyAt.getTime() - 60_000));
+  const needHandover = isFinal(wo.status) ? false : handoverMissing({ requireSignedHandover: settings.requireSignedHandover, workflowLot4: wo.workflowLot4, handoverDone });
   // Orders opened before V16: the one-click agreement banner of Lot 1 (V16 orders: the quote panel).
   const customerApproval = wo.workflowV16 ? undefined : wo.events.find((e) => e.type === "QUOTE_APPROVED");
   const unreadCustomerMessages = wo.events.filter((e) => e.type === "CUSTOMER_MESSAGE").slice(0, 3);
@@ -113,7 +132,15 @@ export default async function WorkOrderPage({ params }: PageProps) {
   // V16: only the moves this user may make (permission per move), the reason when required, and the delivery check.
   // V16 Lot 3: what would go on the invoice (refused quote: the announced fees only).
   const billableLines = wo.lines.filter((l) => !l.voidedAt && (wo.workflowV16 ? l.approvalStatus === "APPROVED" : l.approvalStatus !== "REFUSED"));
-  const block = deliveryBlock({ requirePaidBeforeDelivery: settings.requirePaidBeforeDelivery, workflowV16: wo.workflowV16, invoice: wo.invoice, depositAmount: wo.depositAmount, billable: billableLines.length > 0 });
+  // V16 Lot 4: the deposit of a new order is already a payment on its invoice (never deducted twice); credited = settled.
+  const deposit = depositOutstanding(wo);
+  const block = deliveryBlock({
+    requirePaidBeforeDelivery: settings.requirePaidBeforeDelivery,
+    workflowV16: wo.workflowV16,
+    invoice: wo.invoice?.status === "CREDITED" ? { totalTtc: 0, paidAmount: 0 } : wo.invoice,
+    depositAmount: deposit,
+    billable: billableLines.length > 0,
+  });
   const refusedSafety = wo.lines.filter((l) => l.priority === "SAFETY" && l.approvalStatus === "REFUSED" && !l.voidedAt);
   const waiverEvent = wo.events.find((e) => (e.data as { safetyWaiver?: boolean } | null)?.safetyWaiver);
   const choices: StatusChoice[] = availableTransitions(wo.status, staff, {
@@ -125,13 +152,13 @@ export default async function WorkOrderPage({ params }: PageProps) {
     to: o.to,
     label: t.status[o.to],
     reason: o.reason,
-    block: o.needsApproval ? "approvalMissing" : o.to === "DELIVERED" ? block : null,
+    block: o.needsApproval ? "approvalMissing" : o.to === "DELIVERED" ? (needHandover ? "handoverMissing" : block) : null,
     reassembly: asksReassembly(wo.status, o.to),
     waiver: o.to === "READY" && waiverMissing.length > 0 ? { canSign: can(staff, "recordSafetyWaiver"), href: `/garage/work-orders/${wo.id}/decharge` } : null,
   }));
   const nextChoice = next ? choices.find((c) => c.to === next) : undefined;
   const canOverride = can(staff, "deliverWithBalance");
-  const balanceText = formatMoney(balanceDue(wo.invoice, wo.depositAmount) ?? 0, lang);
+  const balanceText = formatMoney(balanceDue(wo.invoice, deposit) ?? 0, lang);
   const voidOnly = new Set(linesLocked ? [] : await voidOnlyLineIds(wo.id));
   const promiseMoved = !!wo.promisedAtInitial && (!wo.promisedAt || wo.promisedAt.getTime() !== wo.promisedAtInitial.getTime());
   // Vehicle file incomplete (VIN, year, fuel, colour, check-in mileage): asked on top of the order.
@@ -443,6 +470,31 @@ export default async function WorkOrderPage({ params }: PageProps) {
         {/* ── Time per mechanic, quality control, missing parts, insurance (V7) ── */}
         <RepairPanels wo={wo} staff={staff} t={t} lang={lang} tz={settings.timezone} />
 
+        {/* ── V16 Lot 4: storage fee due before invoicing (READY), then the signed handover (bon de restitution) ── */}
+        {storage && (
+          <StorageFeeCard
+            workOrderId={wo.id}
+            fee={storage}
+            notices={notices}
+            canWaive={can(staff, "waiveStorageFee")}
+            canNotify={can(staff, "deliverWorkOrder")}
+            t={t}
+            lang={lang}
+          />
+        )}
+        {(wo.status === "READY" || handovers.length > 0) && (
+          <HandoverCard
+            workOrderId={wo.id}
+            ready={wo.status === "READY"}
+            required={needHandover}
+            handovers={handovers}
+            canRecord={can(staff, "recordHandover")}
+            defaults={{ mileage: wo.mileageIn ?? wo.vehicle.mileage, fuelLevel: wo.fuelLevel, signer: wo.customer.name }}
+            t={t}
+            lang={lang}
+          />
+        )}
+
         {/* ── Vehicle QR Code (created at check-in) ── */}
         {can(staff, "manageVehicleQr") && <VehicleQrCard vehicle={{ id: wo.vehicle.id, qrToken: wo.vehicle.qrToken ?? null }} t={t} />}
 
@@ -480,7 +532,7 @@ export default async function WorkOrderPage({ params }: PageProps) {
         {/* ── Photos & videos (shared with the customer when "visible") ── */}
         <Card>
           <CardTitle>{t.tracking.media}</CardTitle>
-          {wo.status !== "CANCELLED" && can(staff, "uploadMedia") && <MediaUploader workOrderId={wo.id} />}
+          {wo.status !== "CANCELLED" && can(staff, "uploadMedia") && <MediaUploader workOrderId={wo.id} intakeLocked={intakeLocked} status={wo.status} />}
           {wo.media.length === 0 ? (
             <p className="mt-3 text-sm text-muted-foreground">{t.tracking.noMedia}</p>
           ) : (
@@ -496,6 +548,7 @@ export default async function WorkOrderPage({ params }: PageProps) {
                     )}
                   </a>
                   <div className="space-y-1 p-2 text-xs">
+                    {m.stage && <p className="text-[11px] font-medium uppercase tracking-wide text-gp-muted">{t.v16.lot4.media.stages[m.stage]}</p>}
                     {m.caption && <p className="line-clamp-2">{m.caption}</p>}
                     <p className="text-muted-foreground">
                       {m.uploadedBy?.name ?? ""} · {formatDateTime(m.createdAt, lang)}
@@ -511,9 +564,16 @@ export default async function WorkOrderPage({ params }: PageProps) {
                           {m.visibleToCustomer ? <Eye className="size-3.5" aria-hidden /> : <EyeOff className="size-3.5" aria-hidden />}
                           {m.visibleToCustomer ? t.tracking.visible : t.tracking.hidden}
                         </ActionButton>
-                        <ActionButton size="icon-sm" variant="ghost" aria-label={t.common.delete} confirm={`${t.common.delete} ?`} action={deleteMediaAction.bind(null, m.id)}>
-                          <Trash2 className="size-3.5 text-muted-foreground" />
-                        </ActionButton>
+                        {/* V16 Lot 4: a photo of the signed intake is hidden at most, never deleted. */}
+                        {m.stage === "INTAKE" && intakeLocked ? (
+                          <span className="px-1 text-muted-foreground" title={t.v16.lot4.media.locked} aria-label={t.v16.lot4.media.locked}>
+                            <Lock className="size-3.5" aria-hidden />
+                          </span>
+                        ) : (
+                          <ActionButton size="icon-sm" variant="ghost" aria-label={t.common.delete} confirm={`${t.common.delete} ?`} action={deleteMediaAction.bind(null, m.id)}>
+                            <Trash2 className="size-3.5 text-muted-foreground" />
+                          </ActionButton>
+                        )}
                       </div>
                     )}
                   </div>
@@ -526,9 +586,22 @@ export default async function WorkOrderPage({ params }: PageProps) {
         {/* ── V10.6: repair order (prise en charge) — fuel, body, parts origin, estimate, deposit, CIN ── */}
         <IntakeCard
           workOrderId={wo.id}
-          locked={final}
+          locked={final || intakeLocked}
+          lockedNote={intakeSig ? fmt(t.v16.lot4.intake.locked, { name: intakeSig.signerName, date: formatDateTime(intakeSig.signedAt, lang) }) : undefined}
           t={t}
           defaults={{ ...wo, customerNationalId: wo.customer.nationalId }}
+        />
+
+        {/* ── V16 Lot 4: the customer signs the intake on the tablet (frozen document + SHA-256, locks the intake) ── */}
+        <IntakeSignatureCard
+          workOrderId={wo.id}
+          signature={intakeSig}
+          intact={intakeIntact}
+          signerDefault={wo.customer.name}
+          canSign={can(staff, "signIntake")}
+          final={final}
+          t={t}
+          lang={lang}
         />
 
         {/* ── Diagnosis & planning ── */}
@@ -716,7 +789,7 @@ export default async function WorkOrderPage({ params }: PageProps) {
             <p className="mt-2 text-sm text-muted-foreground">
               {t.invoices.balance}:{" "}
               <span className="font-medium text-foreground" dir="ltr">
-                {formatMoney(wo.invoice.totalTtc - wo.invoice.paidAmount, lang)}
+                {formatMoney(invoiceBalance(wo.invoice), lang)}
               </span>
             </p>
           </Card>

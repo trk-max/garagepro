@@ -123,6 +123,16 @@ export function SettingsWorkflow({ t, settings }: { t: Dictionary; settings: Set
             <span className="block text-xs text-muted-foreground">{l3.autoWaitingPartsHint}</span>
           </span>
         </label>
+        {/* V16 Lot 4 — signed handover, storage fee on the invoice, graduated invoice reminders. */}
+        {(["requireSignedHandover", "autoStorageFee", "autoInvoiceReminders"] as const).map((k) => (
+          <label key={k} className="flex items-start gap-3 text-sm">
+            <input type="checkbox" name={k} defaultChecked={settings[k]} className="mt-0.5 size-4" />
+            <span>
+              {t.v16.lot4.settings[k]}
+              <span className="block text-xs text-muted-foreground">{t.v16.lot4.settings[`${k}Hint`]}</span>
+            </span>
+          </label>
+        ))}
         <label className="grid max-w-sm gap-1 text-sm">
           {l3.diagnosticFee}
           <input

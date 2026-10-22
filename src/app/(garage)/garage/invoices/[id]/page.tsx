@@ -20,6 +20,11 @@ import { daysLate, getInvoice, isOverdue } from "@/server/invoices";
 import { getSettings } from "@/server/settings";
 import { completeSnapshot, snapshotLegal } from "@/lib/invoice-snapshot";
 import { invoiceAmountSentence } from "@/lib/amount-words";
+import { randomUUID } from "node:crypto";
+import { issueCreditNoteAction, reversePaymentAction } from "@/actions/lot4";
+import { invoiceBalance, refundDue } from "@/lib/billing";
+import { snapshotHash } from "@/lib/quote";
+import { utcToZoned } from "@/lib/booking";
 
 type PageProps = { params: Promise<{ id: string }> };
 
@@ -30,7 +35,13 @@ export default async function InvoicePage({ params }: PageProps) {
   const [invoice, { t, lang }, settings] = await Promise.all([getInvoice(id), getI18n(), getSettings()]);
   if (!invoice) notFound();
 
-  const balance = invoice.totalTtc - invoice.paidAmount;
+  // V16 Lot 4: a credited invoice owes nothing; what was paid on it is owed back to the customer.
+  const balance = invoiceBalance(invoice);
+  const refund = refundDue(invoice);
+  const credited = invoice.status === "CREDITED";
+  const hashOk = invoice.snapshotHash ? snapshotHash(invoice.snapshot) === invoice.snapshotHash : null;
+  const today = utcToZoned(new Date(), settings.timezone).date;
+  const l4 = t.v16.lot4;
   // Old invoices may lack part of the frozen copy: complete it from live data and say so (never a 500).
   const s = completeSnapshot(invoice.snapshot, {
     garage: { name: settings.garageName, address: settings.address ?? null, phone: settings.phone ?? null, email: settings.email ?? null, taxId: settings.taxId ?? null, footer: settings.invoiceFooter ?? null },
@@ -114,7 +125,16 @@ export default async function InvoicePage({ params }: PageProps) {
             </div>
           </dl>
 
-          {invoice.workOrder.depositAmount && invoice.payments.length === 0 ? (
+          {credited && invoice.creditNote && (
+            <p className="mt-3 rounded-md bg-gp-panel px-3 py-2 text-xs" data-testid="credited">
+              {fmt(l4.invoice.creditDone, { number: invoice.creditNote.number, date: formatDate(invoice.creditNote.issuedAt, lang) })} —{" "}
+              <Link href={`/garage/invoices/${invoice.id}/avoir`} className="font-medium underline">
+                {l4.invoice.printCredit}
+              </Link>
+            </p>
+          )}
+          {refund > 0 && <p className="mt-2 rounded-md bg-gp-danger-bg px-3 py-2 text-xs text-gp-danger-ink">{fmt(l4.invoice.refundDue, { amount: formatMoney(refund, lang) })}</p>}
+          {invoice.workOrder.depositAmount && !invoice.workOrder.workflowLot4 && invoice.payments.length === 0 ? (
             <p className="mt-3 rounded-md bg-gp-accent-tint px-3 py-2 text-xs text-gp-accent-ink">
               {fmt(t.legal.invoice.depositToRecord, { amount: formatMoney(invoice.workOrder.depositAmount, lang), method: t.paymentMethod[(invoice.workOrder.depositMethod ?? "CASH") as PaymentMethod] ?? "" })}
             </p>
@@ -124,13 +144,33 @@ export default async function InvoicePage({ params }: PageProps) {
           ) : (
             <ul className="mt-4 space-y-2 text-sm">
               {invoice.payments.map((p) => (
-                <li key={p.id} className="flex justify-between gap-2 rounded-md bg-muted/50 px-3 py-2">
-                  <span>
-                    {t.paymentMethod[p.method]}
-                    {p.reference && <span className="text-muted-foreground"> · {p.reference}</span>}
-                    <span className="block text-xs text-muted-foreground">{formatDateTime(p.paidAt, lang)}</span>
-                  </span>
-                  <span className="font-medium tabular-nums" dir="ltr">{formatMoney(p.amount, lang)}</span>
+                <li key={p.id} className="rounded-md bg-muted/50 px-3 py-2" data-testid="payment-row">
+                  <div className="flex justify-between gap-2">
+                    <span>
+                      {p.reversalOfId ? l4.payment.reversal : t.paymentMethod[p.method]}
+                      {p.isDeposit && <span className="text-muted-foreground"> · {l4.payment.deposit}</span>}
+                      {p.reference && <span className="text-muted-foreground"> · {p.reference}</span>}
+                      {p.reversedBy && <span className="text-gp-danger-ink"> · {l4.payment.reversed}</span>}
+                      <span className="block text-xs text-muted-foreground">{formatDateTime(p.paidAt, lang)}</span>
+                      {p.reason && <span className="block text-xs text-muted-foreground">{p.reason}</span>}
+                    </span>
+                    <span className={`font-medium tabular-nums${p.reversedBy ? " line-through" : ""}`} dir="ltr">
+                      {formatMoney(p.amount, lang)}
+                    </span>
+                  </div>
+                  {/* V16 Lot 4: cancel a payment (negative line, reason) — the payment itself is never changed. */}
+                  {!p.reversalOfId && !p.reversedBy && p.amount > 0 && can(staff, "reversePayment") && (
+                    <details className="mt-1">
+                      <summary className="cursor-pointer text-xs text-muted-foreground">{l4.payment.reverse}</summary>
+                      <ActionForm action={reversePaymentAction.bind(null, p.id, invoice.id)} className="mt-2 grid gap-2">
+                        <p className="text-xs text-muted-foreground">{l4.payment.reverseHint}</p>
+                        <Input name="reason" required minLength={3} maxLength={500} placeholder={l4.payment.reasonPlaceholder} aria-label={t.v16.status.reason} />
+                        <Button type="submit" size="sm" variant="secondary">
+                          {l4.payment.reverseTitle}
+                        </Button>
+                      </ActionForm>
+                    </details>
+                  )}
                 </li>
               ))}
             </ul>
@@ -176,6 +216,11 @@ export default async function InvoicePage({ params }: PageProps) {
           <Card>
             <CardTitle>{t.invoices.recordPayment}</CardTitle>
             <ActionForm action={recordPaymentAction.bind(null, invoice.id)} className="grid gap-3">
+              {/* V16 Lot 4: one key per form shown — the same form sent twice records ONE payment (server check). */}
+              <input type="hidden" name="requestKey" value={randomUUID()} />
+              <Field label={l4.payment.paidAt} hint={l4.payment.paidAtHint}>
+                <Input name="paidAt" type="date" max={today} defaultValue={today} dir="ltr" required />
+              </Field>
               <Field label={`${t.common.amount} (DT)`}>
                 <Input name="amount" inputMode="decimal" required defaultValue={(balance / 1000).toFixed(3)} dir="ltr" />
               </Field>
@@ -201,6 +246,31 @@ export default async function InvoicePage({ params }: PageProps) {
             </ActionForm>
           </Card>
         )}
+        {/* V16 Lot 4: frozen invoice (fingerprint) and its cancellation by a credit note (never edited nor deleted). */}
+        <Card>
+          <CardTitle>{l4.invoice.cardTitle}</CardTitle>
+          <p className="text-xs text-muted-foreground">{l4.invoice.frozen}</p>
+          {invoice.snapshotHash && (
+            <p className="mt-1 text-xs text-muted-foreground" dir="ltr">
+              {l4.invoice.fingerprint} <span className="font-mono">{invoice.snapshotHash.slice(0, 16)}…</span>{" "}
+              <span className={hashOk ? "text-gp-success-ink" : "font-medium text-gp-danger-ink"}>({hashOk ? l4.invoice.intact : l4.invoice.altered})</span>
+            </p>
+          )}
+          {!credited && can(staff, "issueCreditNote") && (
+            <details className="mt-3 rounded-[14px] border border-gp-line p-3">
+              <summary className="cursor-pointer text-sm font-medium">{l4.invoice.issueCredit}</summary>
+              <ActionForm action={issueCreditNoteAction.bind(null, invoice.id)} className="mt-2 grid gap-2">
+                <p className="text-xs text-muted-foreground">{l4.invoice.creditHint}</p>
+                <Field label={l4.invoice.reason}>
+                  <Input name="reason" required minLength={3} maxLength={500} />
+                </Field>
+                <Button type="submit" size="sm" variant="secondary">
+                  {l4.invoice.creditTitle}
+                </Button>
+              </ActionForm>
+            </details>
+          )}
+        </Card>
         {/* V9: contract of the repair invoiced here (its page shows the payment status too). */}
         <RelatedContracts staff={staff} filter={{ workOrderId: invoice.workOrder.id }} t={t} lang={lang} />
       </aside>

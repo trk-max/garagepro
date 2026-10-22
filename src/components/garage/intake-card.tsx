@@ -8,7 +8,7 @@ import { Card, CardTitle } from "@/components/ui/field";
 import type { Dictionary } from "@/lib/i18n/fr";
 
 /** Work order page → « Prise en charge » (V10.6): details printed on the repair order + print link. */
-export function IntakeCard({ workOrderId, defaults, locked, t }: { workOrderId: string; defaults: IntakeDefaults; locked: boolean; t: Dictionary }) {
+export function IntakeCard({ workOrderId, defaults, locked, lockedNote, t }: { workOrderId: string; defaults: IntakeDefaults; locked: boolean; /** V16 Lot 4 — signed intake. */ lockedNote?: string; t: Dictionary }) {
   const l = t.legal.intake;
   return (
     <Card>
@@ -21,6 +21,7 @@ export function IntakeCard({ workOrderId, defaults, locked, t }: { workOrderId: 
         </Button>
       </div>
       <p className="mb-3 text-xs text-muted-foreground">{l.intro}</p>
+      {lockedNote && <p className="mb-3 rounded-[14px] bg-gp-panel px-3 py-2 text-sm" data-testid="intake-locked">{lockedNote}</p>}
       <ActionForm action={updateIntakeAction.bind(null, workOrderId)} reset={false} successMessage={l.saved} className="grid gap-3">
         <IntakeFields t={t} defaults={defaults} disabled={locked} />
         {!locked && (

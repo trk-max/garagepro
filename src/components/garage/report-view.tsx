@@ -117,8 +117,26 @@ export function ReportView({ data, t, lang }: { data: Data; t: Dictionary; lang:
               [r.supplierPaid, money(data.money.supplierPaid)],
               [r.cashBalance, money(data.money.cashBalance), data.money.cashBalance < 0 ? "text-brand-500" : "font-semibold"],
               [r.outstanding, `${money(data.money.outstandingNow)}${data.money.overdueNow ? ` · ${fmt(r.overdue, { n: data.money.overdueNow })}` : ""}`],
+              // V16 Lot 4 — credit notes of the period (already deducted from the invoiced revenue).
+              ...(data.money.credits.count
+                ? ([[`${t.v16.lot4.reports.credits} (${t.v16.lot4.reports.creditsHint})`, `− ${money(data.money.credits.ttc)} · ${data.money.credits.count}`]] as [string, string][])
+                : []),
             ]}
           />
+          {/* V16 Lot 4 — aged balance of what is still owed (0–30, 31–60, 61–90, > 90 days since the invoice date). */}
+          {data.money.aged && (
+            <div data-testid="aged-balance">
+              <p className="label-tech mt-5 mb-2">{t.v16.lot4.reports.aged}</p>
+              <Rows
+                rows={[
+                  ...(["d0_30", "d31_60", "d61_90", "d90_plus"] as const).map(
+                    (b) => [t.v16.lot4.reports.buckets[b], `${money(data.money.aged![b].amount)} · ${fmt(t.v16.lot4.reports.count, { n: data.money.aged![b].count })}`, b === "d90_plus" && data.money.aged![b].count ? "text-brand-500" : undefined] as [string, string, string | undefined],
+                  ),
+                  [t.v16.lot4.reports.total, money(data.money.aged.total), "font-semibold"] as [string, string, string],
+                ]}
+              />
+            </div>
+          )}
           {data.money.byMethod.length > 0 && (
             <>
               <p className="label-tech mt-5 mb-2">{r.byMethod}</p>

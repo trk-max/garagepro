@@ -35,6 +35,9 @@ export function CheckInForm({ initialCustomer, mechanics, preset, diagnosticFee 
   const vehicle = vehicles.find((v) => v.id === vehicleId);
   // Known car with an incomplete file: the missing pieces must be typed now.
   const missing = vehicle ? missingVehicleInfo(vehicle) : [];
+  // V16 Lot 4: a mileage lower than the car's last reading is never saved without an explicit confirmation.
+  const [km, setKm] = useState("");
+  const lower = !!vehicle?.mileage && km !== "" && Number(km) < vehicle.mileage;
   const req = ` (${t.customers.required})`;
 
   return (
@@ -125,8 +128,14 @@ export function CheckInForm({ initialCustomer, mechanics, preset, diagnosticFee 
           </Field>
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label={t.workOrders.mileageIn + req} hint={vehicle?.mileage ? `${t.customers.mileage}: ${vehicle.mileage} km` : undefined}>
-              <Input name="mileageIn" type="number" required min={0} max={10_000_000} dir="ltr" />
+              <Input name="mileageIn" type="number" required min={0} max={10_000_000} dir="ltr" value={km} onChange={(e) => setKm(e.target.value)} />
             </Field>
+            {lower && (
+              <label className="flex items-start gap-2 rounded-[14px] bg-gp-accent-tint px-3 py-2 text-sm text-gp-accent-ink sm:col-span-2" data-testid="mileage-confirm">
+                <input type="checkbox" name="confirmLowerMileage" required className="mt-0.5 size-4" />
+                {t.v16.lot4.intake.mileageConfirm.replace("{km}", String(vehicle!.mileage))}
+              </label>
+            )}
             <Field label={t.workOrders.promisedAt}>
               <Input name="promisedAt" type="datetime-local" min="2000-01-01T00:00" max="2100-12-31T23:59" dir="ltr" />
             </Field>

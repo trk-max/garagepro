@@ -69,6 +69,11 @@ export function MissingVehicleFields({ missing, prefix, vinDefault }: { missing:
       {has("mileage") && (
         <Field label={t.workOrders.mileageIn + req}>
           <Input name="mileageIn" type="number" required min={0} max={10_000_000} dir="ltr" />
+          {/* V16 Lot 4: needed only when the mileage is lower than the car's last reading (the server says so). */}
+          <label className="mt-1 flex items-start gap-2 text-xs text-muted-foreground">
+            <input type="checkbox" name="confirmLowerMileage" className="mt-0.5 size-3.5" />
+            {t.v16.lot4.intake.mileageConfirm.replace(/\s*\(\{km\}[^)]*\)/, "")}
+          </label>
         </Field>
       )}
       {has("vin") && (

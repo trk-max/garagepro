@@ -6,6 +6,7 @@ import { ClipboardCheck, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { QuoteLineChoices, type ChoiceLine } from "@/components/garage/quote-line-choices";
+import { SignaturePad } from "@/components/garage/signature-pad";
 import { useI18n } from "@/lib/i18n/client";
 
 type Result = { ok: true; data: { redirectTo?: string; warning?: string; message?: string } | null | undefined } | { ok: false; error: string };
@@ -99,6 +100,13 @@ export function QuoteDecisionDialog({
               <input name="note" maxLength={1000} className="h-11 rounded-[14px] border border-gp-line bg-gp-card px-3 text-sm" />
             </label>
           </div>
+          {/* V16 Lot 4 — optional: the customer signs on the tablet (kept with the proof, QuoteApproval.signatureKey). */}
+          <details className="rounded-[14px] border border-gp-line p-3">
+            <summary className="cursor-pointer text-sm font-medium">{t.v16.lot4.signature.quoteOptional}</summary>
+            <div className="mt-2">
+              <SignaturePad />
+            </div>
+          </details>
           <div className="flex justify-end">
             <Button type="submit" disabled={pending}>
               {q.submit}

@@ -41,6 +41,8 @@ const INVOICE_CLASS: Record<InvoiceStatus, string> = {
   ISSUED: "bg-amber-500/10 text-amber-700 border-amber-500/30 dark:text-amber-300",
   PARTIAL: "bg-orange-500/10 text-orange-700 border-orange-500/30 dark:text-orange-300",
   PAID: "bg-emerald-500/10 text-emerald-700 border-emerald-500/30 dark:text-emerald-300",
+  // V16 Lot 4 — cancelled by a credit note.
+  CREDITED: "bg-slate-500/10 text-slate-600 border-slate-500/30 line-through dark:text-slate-300",
 };
 
 export function InvoiceBadge({ status, t }: { status: InvoiceStatus; t: Dictionary }) {

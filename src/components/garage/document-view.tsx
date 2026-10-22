@@ -21,11 +21,13 @@ export type DocumentData = {
   amountWords?: string | null;
   /** V16 Lot 2 (versioned quote): version, validity date, and for a supplement the old / new totals. */
   quote?: { version: number; validUntil: Date | null; previousTtc: number | null; newTotalTtc: number | null; supplement: boolean; sha256: string; /** V16 Lot 3 — fees announced at reception (due even if refused). */ announcedTtc?: number | null };
+  /** V16 Lot 4 — credit note (avoir): the invoice it cancels, the reason, its fingerprint. */
+  creditNote?: { invoiceNumber: string; invoiceDate: Date; reason: string; sha256: string };
 };
 
 /** A4 printable quote / invoice. Print with the browser (Ctrl+P → PDF). */
 export function DocumentView({ doc, t, lang, logo }: { doc: DocumentData; t: Dictionary; lang: Lang; logo?: string | null }) {
-  const title = doc.kind === "invoice" ? t.invoices.invoice : t.invoices.quote;
+  const title = doc.creditNote ? t.v16.lot4.invoice.creditDocTitle : doc.kind === "invoice" ? t.invoices.invoice : t.invoices.quote;
   const money = (m: number) => formatMoney(m, lang);
 
   return (
@@ -53,6 +55,7 @@ export function DocumentView({ doc, t, lang, logo }: { doc: DocumentData; t: Dic
           <p className="text-2xl font-bold uppercase tracking-wide">{title}</p>
           <p className="font-mono">{doc.number}</p>
           {doc.quote && <p className="text-xs">{fmt(t.v16.quote.printVersion, { version: doc.quote.version })}{doc.quote.supplement ? ` · ${t.v16.quote.kind.SUPPLEMENT}` : ""}</p>}
+          {doc.creditNote && <p className="text-xs">{fmt(t.v16.lot4.invoice.creditOf, { number: doc.creditNote.invoiceNumber, date: formatDate(doc.creditNote.invoiceDate, lang) })}</p>}
           <p>{formatDate(doc.date, lang)}</p>
           {doc.dueDate !== undefined && (
             <p>
@@ -182,6 +185,13 @@ export function DocumentView({ doc, t, lang, logo }: { doc: DocumentData; t: Dic
       <p className="mt-8 text-center text-xs text-zinc-500">
         {doc.kind === "quote" ? (doc.quote?.validUntil ? fmt(t.v16.quote.printValid, { date: formatDate(doc.quote.validUntil, lang) }) : t.invoices.quoteValidity) : t.invoices.thanks}
       </p>
+      {doc.creditNote && (
+        <p className="mt-4 text-xs text-zinc-600">
+          {t.v16.lot4.invoice.reason} : {doc.creditNote.reason}
+          <br />
+          <span dir="ltr">SHA-256 {doc.creditNote.sha256}</span>
+        </p>
+      )}
       {doc.quote && (
         <p className="mt-1 text-center font-mono text-[10px] text-zinc-400" dir="ltr">
           SHA-256 {doc.quote.sha256}

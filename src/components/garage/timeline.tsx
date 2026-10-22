@@ -23,6 +23,9 @@ export function describeEvent(e: Pick<WorkOrderEvent, "type" | "data">, t: Dicti
     case "INVOICED":
       return fmt(t.events.INVOICED, { number: str(d.number) });
     case "PAYMENT":
+      // V16 Lot 4: a cancelled payment (negative row) and the reception deposit turned into a payment.
+      if (d.reversal) return fmt(t.v16.lot4.events.paymentReversed, { amount: formatMoney(typeof d.amount === "number" ? -d.amount : 0, lang), reason: str(d.reason) });
+      if (d.deposit) return fmt(t.v16.lot4.events.depositPayment, { amount: formatMoney(typeof d.amount === "number" ? d.amount : 0, lang) });
       return fmt(t.events.PAYMENT, { amount: formatMoney(typeof d.amount === "number" ? d.amount : 0, lang) });
     // V16 Lot 2: decision on a versioned quote (portal or staff), with its number and the accepted amount.
     case "QUOTE_APPROVED":
@@ -45,7 +48,16 @@ export function describeEvent(e: Pick<WorkOrderEvent, "type" | "data">, t: Dicti
       if (d.partReceived) return fmt(l3.parts.received, { part: str(d.part), number: str(d.receipt) });
       if (typeof d.partsWait === "string" && d.partsWait in l3.parts.decision)
         return fmt(l3.parts.eventDecision, { decision: l3.parts.decision[d.partsWait as keyof typeof l3.parts.decision] });
-      if (d.safetyWaiver) return fmt(l3.refusal.events.waiver, { n: Array.isArray(d.lineIds) ? d.lineIds.length : 0 });
+      if (d.safetyWaiver) return d.signedOnTablet ? t.v16.lot4.events.waiverTablet : fmt(l3.refusal.events.waiver, { n: Array.isArray(d.lineIds) ? d.lineIds.length : 0 });
+      // V16 Lot 4: signed intake, handover, storage fee, customer told, ceiling, credit note, automatic reminder.
+      const l4 = t.v16.lot4.events;
+      if (d.intakeSigned) return fmt(l4.intakeSigned, { name: str(d.signerName) });
+      if (d.handover) return fmt(l4.handover, { km: typeof d.mileageOut === "number" ? d.mileageOut : "" });
+      if (d.storageWaived) return fmt(l4.storageWaived, { reason: str(d.reason) });
+      if (d.readyNotified) return l4.readyNotified;
+      if (d.preAuthorized) return fmt(l4.preAuthorized, { amount: formatMoney(typeof d.ceiling === "number" ? d.ceiling : 0, lang) });
+      if (d.creditNote) return fmt(l4.creditNote, { number: str(d.creditNote), reason: str(d.reason) });
+      if (typeof d.invoiceReminder === "number") return fmt(t.v16.lot4.reminder.level, { level: d.invoiceReminder });
       return d.quoteSent
         ? fmt(t.v16.quote.events.sent, {
             kind: (d.kind === "SUPPLEMENT" ? t.v16.quote.kind.SUPPLEMENT : t.v16.quote.kind.INITIAL).toLowerCase(),
@@ -66,7 +78,10 @@ export function eventDetails(e: Pick<WorkOrderEvent, "data">, t: Dictionary, lan
   const out: string[] = [];
   if (d.override) out.push(fmt(t.v16.events.override, { amount: formatMoney(typeof d.balanceDue === "number" ? d.balanceDue : 0, lang) }));
   if (typeof d.reason === "string" && d.reason) out.push(fmt(t.v16.events.reason, { reason: d.reason }));
-  if (d.auto) out.push(t.v16.events.auto);
+  if (d.auto && !d.reopened) out.push(t.v16.events.auto);
+  // V16 Lot 4
+  if (d.reopened) out.push(t.v16.lot4.events.reopened);
+  if (d.storageFee) out.push(fmt(t.v16.lot4.events.storageLine, { days: typeof d.days === "number" ? d.days : 0 }));
   // V16 Lot 3
   if (d.autoParts) out.push(t.v16.lot3.parts.autoWaiting);
   if (typeof d.refusedLines === "number") out.push(fmt(t.v16.lot3.refusal.events.refusedLines, { n: d.refusedLines }));

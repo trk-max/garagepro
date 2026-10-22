@@ -16,7 +16,7 @@ export type StatusChoice = {
   /** A reason is mandatory for this move. */
   reason: boolean;
   /** Delivery refused as it is (V16): "noInvoice" | "balanceDue" (a manager may override); V16 Lot 2: "approvalMissing" (no override: record the agreement first). */
-  block?: "noInvoice" | "balanceDue" | "approvalMissing" | null;
+  block?: "noInvoice" | "balanceDue" | "approvalMissing" | "handoverMissing" | null;
   /** V16 Lot 3 — refused quote → « Prêt »: ask whether the car was put back together. */
   reassembly?: boolean;
   /** V16 Lot 3 — a refused SAFETY line: the signed waiver must be confirmed (by someone allowed to). */
@@ -146,7 +146,15 @@ export function StatusDialog({
 
           {blocked && (
             <div role="alert" className="grid gap-2 rounded-[14px] bg-gp-accent-tint px-3 py-2 text-sm text-gp-accent-ink">
-              <p>{blocked === "approvalMissing" ? t.v16.quote.approvalMissing : blocked === "noInvoice" ? v.noInvoice : v.balanceDue.replace("{amount}", balanceText ?? "")}</p>
+              <p>
+                {blocked === "approvalMissing"
+                  ? t.v16.quote.approvalMissing
+                  : blocked === "handoverMissing"
+                    ? t.v16.lot4.handover.required
+                    : blocked === "noInvoice"
+                      ? v.noInvoice
+                      : v.balanceDue.replace("{amount}", balanceText ?? "")}
+              </p>
               {!overridable ? null : canOverride ? (
                 <label className="flex items-start gap-2 font-medium">
                   <input type="checkbox" name="override" checked={override} onChange={(e) => setOverride(e.target.checked)} className="mt-0.5 size-4" />
