@@ -12,6 +12,8 @@ Ces tests vérifient le comportement **fautif actuel** ; en phase C, chaque test
 
 **Suivi des corrections — V16 Lot 1 (voir docs/RAPPORT-V16.md)** : corrigés n° 1, 2, 4, 7, 9 (tests A-01, A-04, A-07, A-09 et la moitié « livraison sans facture » de A-02/A-03 inversés et déplacés dans `tests/workflow-v16.db.test.ts`, qui fait partie de `npm run test:db`) ; en partie n° 3, 27 et 36. Il reste 26 reproductions dans `tests/audit-v16` (26 réussies = 26 problèmes encore présents ou en partie).
 
+**Suivi des corrections — V16 Lot 2 (voir docs/RAPPORT-V16.md)** : n° 11 et 12 en partie (pour un nouvel ordre, les pièces d'un devis ne sont plus sorties du stock à l'ajout mais réservées atomiquement sur le stock libre, et sortent à l'accord ; A-10 / A-11 restent reproduits sur des ordres d'avant la V16). Les reproductions qui facturent passent maintenant par un accord enregistré (aide `agreeAll`). 26 réussies.
+
 ## Bilan
 
 | Gravité | Nombre |

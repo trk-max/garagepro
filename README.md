@@ -41,6 +41,31 @@ Il n'y a **qu'une seule base de données** (Supabase en ligne + sa copie sur le 
 - Réservez l'adresse du PC du garage dans la box (bail DHCP fixe) ; si elle change, refaites `npm run shortcut`.
 - Pour que le site en ligne s'ouvre sans compte Vercel : Vercel → projet → *Settings* → *Deployment Protection* → *Vercel Authentication* → ne protéger que les *Preview Deployments* (sinon chaque PC doit se connecter à Vercel).
 
+## Nouveautés V16 — Lot 2 : devis versionné et accord tracé ligne par ligne
+
+- **Devis versionné** : « Devis envoyé » crée une version numérotée (`D2026-0001`, version 1, 2…) avec une **copie figée** des lignes (priorité, nature de la pièce, montants HT / TVA / timbre / TTC) et son **empreinte SHA-256**. Le devis imprimé montre le numéro, la version, la date de validité (15 jours), la priorité et la nature de chaque pièce. Avec un hub, un devis **se numérote au PC du garage** : l’envoyer depuis l’en-ligne est refusé avec un message clair (comme les factures) ; le client peut ensuite l’accepter en ligne.
+- **Portail client** (`/suivi/vehicule`) : chaque ligne avec sa priorité (*Sécurité*, *Conseillé*, *À surveiller*), boutons *Accepter* / *Refuser*, total recalculé en direct, nom à saisir ; la décision garde l’adresse IP et le navigateur. Un devis expiré ou remplacé ne peut plus être accepté.
+- **Accord par téléphone / au comptoir / SMS / e-mail / WhatsApp** : bouton *Enregistrer l’accord* sur la fiche (nouveau droit `recordQuoteApproval` : accueil, chef d’atelier, administrateur — **jamais le mécanicien** par défaut) : nom, contact, canal, ligne par ligne, note.
+- **Preuve** : chaque décision est une ligne `QuoteApproval` **en ajout seul** (impossible à modifier ou effacer, sauf par la synchronisation du hub). La fiche affiche *Devis et accords* : versions, qui, quand, canal, montant, lignes acceptées / refusées, empreinte « copie intacte ».
+- **Passage en réparation** (nouveaux ordres) : seulement sur un **accord enregistré** (plus de simple clic ni de motif) ; tout accepté ou en partie → *En réparation* ; tout refusé → *Devis refusé*.
+- **Lignes verrouillées** : une ligne acceptée ne se supprime plus (annulation avec motif seulement) ; une ligne refusée est gardée ; une ligne ajoutée après l’accord est un **supplément en attente** (bandeau sur la fiche) ; *En réparation → Devis envoyé* crée un **devis complémentaire** (ancien total, supplément, nouveau total).
+- **Facture** : seulement les lignes **acceptées** et non annulées ; s’il reste des lignes en attente, la facture est refusée avec un message (on ne les laisse pas tomber sans le dire).
+- **Stock** (nouveaux ordres) : une pièce ajoutée au devis est **réservée** (stock libre seulement) ; elle sort du stock **à l’accord** de la ligne ; refusée ou supprimée → réservation libérée. Les ordres d’avant la V16 ne changent pas.
+- **Messages au client** (file des rappels, *Historique des envois*) : « devis à valider » / « supplément à valider » avec le lien du suivi, et une relance après 3 jours sans réponse.
+- Plan : [docs/PLAN-V16-LOT2.md](docs/PLAN-V16-LOT2.md). Rapport : [docs/RAPPORT-V16.md](docs/RAPPORT-V16.md).
+
+### Mise à jour vers la V16 (Lot 2) — à faire une commande à la fois, dans cet ordre
+
+Le Lot 2 contient le Lot 1 : si le Lot 1 n’est pas encore en ligne, faites seulement les étapes ci-dessous (`db:cloud` applique les migrations 25 et 26).
+
+1. `npm install`
+2. `npm run db:cloud` — **avant le push** : ajoute la migration `26_quotes` (et `25_workflow_v16` si besoin) à la base en ligne (n’efface rien, rejouable).
+3. **Tout de suite après**, au garage : fermez puis relancez `start-hub.cmd` (le hub applique les migrations à la base du PC du garage). Le PC du garage doit connaître les nouvelles tables et valeurs **avant** que l’en-ligne les écrive ; sinon une ligne de synchronisation reste en échec.
+4. `npm run check`
+5. `git add -A` puis `git commit -m "V16 Lot 2 : devis versionné et accord tracé"` puis `git push` (dans la foulée).
+6. **Sans hub** (base locale seule) : `npx prisma db execute --file prisma/migrations/26_quotes/migration.sql --schema prisma/schema.prisma` (après celle du Lot 1 : `npx prisma db execute --file prisma/migrations/25_workflow_v16/migration.sql --schema prisma/schema.prisma`).
+7. Dans l’application : *Équipe › Accès* si un employé particulier doit (ou ne doit pas) enregistrer les accords.
+
 ## Nouveautés V16 — parcours atelier traçable (Lot 1 : statuts, motifs, journal)
 
 - **3 nouveaux statuts** : *Attente client* (pas de réponse au devis), *Devis refusé* (motif obligatoire ; remontage, contrôle qualité complet, puis *Prêt*), *Clôturé* (livré **et** facture soldée — automatique, au paiement ou à la livraison). Tous les anciens passages sont conservés ; *Annuler* est possible à toute étape avant la livraison (motif obligatoire, refusé si une facture existe, comme avant).

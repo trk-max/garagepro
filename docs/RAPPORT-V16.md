@@ -104,3 +104,103 @@ Branche `feat/v16-consolidation`. Plan suivi : [PLAN-V16-LOT1.md](PLAN-V16-LOT1.
 - Les **anciens ordres** gardent l'ancien comportement pour le devis et la livraison, mais les **droits et motifs** s'appliquent à tous (correction de sécurité).
 - Le message « véhicule prêt » n'est plus envoyé par la copie en ligne quand un hub existe : il est mis en file et c'est le hub qui l'envoie (comme les rappels).
 - Incident pendant la vérification : l'outil d'aperçu du navigateur a lancé quelques secondes `next dev -p 3100` **dans le dossier principal** (fichier `.claude/launch.json` du dossier principal) ; arrêté aussitôt, aucun fichier de `.next` du dossier principal modifié (vérifié), client Prisma du dossier principal inchangé, hub du port 3000 jamais arrêté. Le serveur de vérification a ensuite été lancé depuis la branche sur le port 3300 avec la base de démo.
+
+
+---
+
+## Lot 2 — Devis versionné et accord tracé ligne par ligne
+
+Branche `feat/v16-consolidation` (suite du Lot 1). Plan suivi : [PLAN-V16-LOT2.md](PLAN-V16-LOT2.md) (aucune question bloquante : les choix ci-dessous sont les plus prudents). Rien n'a été fusionné dans `main`, rien n'a été poussé, `db:cloud` n'a pas été lancé.
+
+### 1. Ce qui a été fait
+
+1. **Devis versionné** (`src/server/quotes.ts`, `src/lib/quote.ts`) : « Devis envoyé » crée une `Quote` (numéro `D2026-0001` par `Sequence` `quote-AAAA` + `assertCanNumberDocuments`, version 1, 2…, `INITIAL` ou `SUPPLEMENT`, validité 15 jours) avec la copie figée des lignes `PENDING` (nature, priorité, état de la pièce, montants, totaux HT / TVA / timbre / TTC ; pour un supplément : ancien total, supplément, nouveau total) et son empreinte **SHA-256** (JSON aux clés triées : stable malgré le réordonnancement de PostgreSQL). Renvoyer le même contenu ne crée pas de version ; un contenu changé crée une nouvelle version et l'ancienne passe `SUPERSEDED`.
+2. **Numérotation en ligne avec un hub** : décision la plus sûre — **refus clair** (« Le devis se numérote au garage… »), comme les factures. Un devis numéroté plus tard par le hub aurait demandé de modifier la ligne `Quote` des deux côtés (risque d'écrasement « le plus récent gagne »). L'accord du client en ligne et l'accord téléphonique sur un devis déjà envoyé restent possibles en ligne.
+3. **Accord tracé** : `QuoteApproval` **en ajout seul** (trigger `QuoteApproval_readonly`, identique à celui d'`AuditLog`, qui laisse passer la synchronisation) : décision `APPROVED / PARTIAL / REFUSED`, lignes acceptées et refusées, montant TTC accepté, nom, contact, canal, employé (vide = portail), IP, navigateur, note, empreinte du devis accepté. Écrit dans la même transaction que le statut des lignes, le statut du devis, l'événement et `audit()` ; double clic = une seule décision (verrou + mise à jour conditionnelle).
+4. **Portail** (`/suivi/vehicule`) : accepter / refuser par ligne, total recalculé en direct, nom obligatoire, session portail + limite (10 décisions / heure / ordre), devis expiré ou remplacé refusé. `approveQuoteByCustomer` = « tout accepter » par le même chemin (ordres V16) ; ordres d'avant la V16 : accord en un clic du Lot 1, inchangé.
+5. **Accord par l'équipe** (téléphone, sur place, SMS, e-mail, WhatsApp) : nouvelle permission `recordQuoteApproval` (ADMIN, MANAGER, RECEPTION — **pas** MECHANIC), contrôlée par l'action **et** par le serveur ; libellés fr / ar / en dans *Équipe › Accès*. Si aucun devis ouvert ne contient les lignes en attente (ordre resté en devis depuis le Lot 1, assurance, travaux sans devis), le formulaire établit d'abord le devis (au garage seulement avec un hub). Signature sur tablette : non faite (Lot 4, table `Signature`) ; `signatureKey` reste vide.
+6. **Après l'accord** : lignes `APPROVED` / `REFUSED`, devis décidé, `quoteApprovedAt` renseigné ; passage automatique en réparation (quelque chose d'accepté, ou supplément décidé) ou en `QUOTE_REFUSED` (tout le devis initial refusé, motif interne « Devis refusé par le client »). Un accord reçu en *Attente client* fait aussi passer en réparation (conséquence de l'accord, aucun passage manuel ajouté). **Règle de passage** des nouveaux ordres : `QUOTE_SENT / WAITING_INSURANCE → IN_PROGRESS / WAITING_PARTS` exige une décision enregistrée sur le dernier devis et au moins une ligne acceptée — la règle provisoire du Lot 1 (motif) est retirée ; la fenêtre de statut affiche le passage bloqué avec « Pas encore d'accord du client enregistré ».
+7. **Hors ligne / hub** : en ligne avec un hub, la décision du client n'écrit que des lignes nouvelles (`QuoteApproval`, événement, journal) et le statut des lignes / du devis ; **ni la ligne `WorkOrder` ni le stock** (`Part`), pour ne jamais écraser une modification faite au garage. Au garage, la fiche affiche « Accord du client reçu… vous pouvez passer en réparation » ; le passage et la sortie de stock se font au garage. Si un conflit de synchronisation faisait perdre un statut de ligne, il est **rétabli depuis la preuve** (`reapplyApprovals`) au prochain changement de statut, à la facture ou au prochain accord.
+8. **Lignes verrouillées** : une ligne acceptée ne se supprime plus (annulation motivée du Lot 1) ; une ligne refusée est conservée (relance au Lot 5) ; une ligne en attente se supprime, et si elle était dans le devis envoyé, ce devis passe `SUPERSEDED` (le client ne peut plus accepter un contenu qui a changé). Ligne ajoutée après l'accord = `PENDING`, bandeau « Supplément en attente d'accord du client » ; `IN_PROGRESS → QUOTE_SENT` = devis `SUPPLEMENT` avec les seules nouvelles lignes. Le technicien signale une découverte avec la note et la photo existantes ; la ligne qu'il ajoute reste en attente jusqu'à l'accord.
+9. **Facture** : ordres V16 = lignes `APPROVED` non annulées seulement ; une ligne `PENDING` restante **bloque** la facture avec un message (« enregistrez la décision du client ou supprimez-les »). Ordres d'avant la V16 : inchangé (lignes refusées exclues, cas impossible avant la V16). Totaux, documents et statistiques (fiche, prise en charge, portail client et entreprise, contrats, rentabilité, rapports, compétences, temps vendu) excluent les lignes refusées ; détection d'entretien (agenda), garanties et historique showroom ne comptent que les lignes acceptées.
+10. **Stock (point 8)** — décision : **réservation au devis, sortie à l'accord**, seulement pour les nouveaux ordres (colonne `stockDeferred`, réservation liée à la ligne `StockReservation.workOrderLineId`). À l'ajout : réservation atomique sur le stock **libre** (les réservations faites à la main pour cet ordre et cette pièce sont reprises d'abord), avertissement si le libre ne suffit pas (comme avant). À l'accord : sortie `WORK_ORDER`, réservation consommée, une seule fois. Refus ou suppression : réservation libérée, aucun mouvement. Annulation de l'ordre : seules les pièces vraiment sorties reviennent. **Ordres d'avant la V16 : aucun changement** (sortie à l'ajout).
+11. **Messages au client** par la file existante (`queueItems` / `deliverPending`, *Historique des envois*) : `QUOTE` (« devis / supplément à valider », lien du suivi + code) à l'envoi, `QUOTE_REMINDER` (une relance après `QUOTE_WAIT_DAYS` = 3 jours sans réponse, devis encore valable) par la tâche des rappels ; avec un hub, c'est le hub qui envoie.
+12. **Interface** : bloc *Devis et accords* sur la fiche (versions, statut, validité, totaux, empreinte « copie intacte », décisions : qui, quand, canal, montant, lignes acceptées / refusées, enregistré par) ; colonne *Accord* et priorité / nature / « réservée » sur chaque ligne ; *Enregistrer l'accord* (fenêtre ligne par ligne) ; *Renvoyer le devis* (pendant l'attente du client) ; devis imprimé = copie figée de la version (`?v=2`), avec version, validité, priorité, nature, supplément et empreinte ; priorité et nature dans l'ajout de ligne ; journal de l'ordre (« a envoyé le supplément D… », « décision sur le devis… »). Tout en fr / ar / en.
+13. Données de démonstration : ordre accepté en partie (ligne refusée), supplément en attente, priorités et natures de pièces ; accords enregistrés par l'accueil.
+
+### 2. Fichiers modifiés / créés
+
+**Créés** : `prisma/migrations/26_quotes/migration.sql`, `src/lib/quote.ts`, `src/server/quotes.ts`, `src/components/garage/quote-panel.tsx`, `quote-decision-dialog.tsx`, `quote-line-choices.tsx`, `src/components/portal/quote-decision.tsx`, `tests/quotes-v16.db.test.ts`, `tests/quote-v16.test.ts`, `docs/PLAN-V16-LOT2.md`, `docs/media/v16/lot2/*`.
+
+**Modifiés — fichiers partagés avec d'autres modules** (à surveiller lors des fusions) : `prisma/schema.prisma`, `src/lib/permissions.ts`, `src/lib/i18n/fr.ts` / `ar.ts` / `en.ts` (erreurs), `v16-*` (textes du lot), `v103-*` (libellé de la permission), `v7-*` (types de messages), `src/server/work-orders.ts`, `workflow.ts`, `invoices.ts`, `portal.ts`, `parts.ts`, `reminders.ts`, `tests/helpers/db.ts` (aide `agreeAll`), `tests/hub-sync.test.ts`.
+
+**Modifiés — autres** : `src/actions/work-orders.ts`, `portal.ts` ; `src/server/agenda.ts`, `company-portal.ts`, `contracts.ts`, `labor.ts`, `overview-orders.ts`, `profit.ts`, `reports.ts`, `showroom.ts`, `skills.ts` ; pages `work-orders/[id]` (+ `quote`, `prise-en-charge`), `atelier`, `suivi/vehicule` ; composants `document-view`, `line-adder`, `status-dialog`, `timeline`, `warranty` ; tests existants adaptés au nouvel accord (`workflow-v16`, `workflow-v16.db`, `agenda.db`, `cash.db`, `journal.db`, `legal-kit.db`, `profit.db`, `stock.db`, `audit-v16/reproductions.audit.ts`) ; `scripts/demo-data/demo.run.ts` ; `README.md`, `docs/AUDIT-V16.md`.
+
+### 3. Migration `26_quotes`
+
+- Types créés (jamais d'`ALTER TYPE … ADD VALUE`) : `QuoteKind`, `QuoteStatus`, `ApprovalDecision`, `ApprovalChannel`, `LineApprovalStatus`, `LinePriority`, `PartCondition`.
+- Tables `Quote` (numéro unique, version unique par ordre) et `QuoteApproval` + trigger `QuoteApproval_readonly` (refuse `UPDATE` / `DELETE` sauf `garagepro.sync = 'on'`).
+- `WorkOrderLine` : `approvalStatus` (défaut `PENDING`), `priority`, `partCondition`, `quoteId` (FK `SET NULL`), `stockDeferred` (défaut false) ; `StockReservation.workOrderLineId`.
+- **Backfill** : `approvalStatus` ajoutée avec `DEFAULT 'APPROVED'` → toutes les lignes existantes APPROVED **sans UPDATE** (rien dans le journal de sync), puis défaut `PENDING`. Au **premier passage seulement**, les lignes des ordres actuellement `QUOTE_SENT` sans `quoteApprovedAt` repassent `PENDING`, écrites avec `garagepro.sync = 'on'` (non journalisé, valeur restaurée). Aucun total ni comportement d'un ordre existant ne change.
+- Bloc final `_sync_log_trg` identique à `24_accueil` (pose la sync sur `Quote` et `QuoteApproval`). Rejouée deux fois sans erreur.
+
+### 4. Tests et résultats (chiffres réels, bases jetables `gp_test_v16l2*`)
+
+| Vérification | Résultat |
+|---|---|
+| `npx prisma generate` | OK (client 6.19.3) |
+| `npx tsc --noEmit` | 0 erreur |
+| `npx eslint src tests` | 0 problème |
+| `npm run check` | 55 fichiers, **530 tests réussis**, 13 ignorés (tests base / hub sans variable) |
+| `npm run test:db` (`TEST_DB_NAME=gp_test_v16l2`) | 29 fichiers, **237 tests réussis** (dont 16 nouveaux dans `quotes-v16.db.test.ts`) |
+| `npm run test:hub` (`TEST_HUB_DB_PREFIX=gp_test_v16l2_hub`) | **14 tests réussis** (dont 2 nouveaux : migration 26 rejouée deux fois sans journaliser son backfill ; décision portail faite en ligne pendant que le garage est hors ligne → arrive au hub sans écraser le diagnostic, la ligne et la note ajoutés au garage ; preuve non modifiable des deux côtés) |
+| `node scripts/verify-migrations.mjs … gp_test_v16l2_mig2` | 27 migrations, la 26 rejouée sans erreur ; structure identique au schéma Prisma |
+| Suite d'audit `tests/audit-v16` (`gp_test_v16l2_audit`) | **26 réussies** (adaptées : accord enregistré avant facture ; A-10 / A-11 reproduits sur des ordres d'avant la V16) |
+| `npx next build` | compilé sans erreur |
+
+**Tests ajoutés** : unitaires (7) — empreinte stable quel que soit l'ordre des clés et changée par 1 millime, totaux initial / supplément, décision, montant accepté, découpage accepté / refusé, expiration, droit `recordQuoteApproval` (jamais MECHANIC), traductions ; base (16) — version 1 + empreinte recalculée depuis la base, renvoi sans changement = même version, nouvelle version et `SUPERSEDED`, accord partiel (statuts, montant exact, journal, facture), refus total → `QUOTE_REFUSED`, mécanicien refusé (`forbidden`, `statusForbidden`), travaux refusés sans accord même avec motif (`approvalRequired`), lignes verrouillées / refusée gardée / attente supprimable, facture = lignes acceptées non annulées et blocage `pendingLines`, supplément (seulement les nouvelles lignes, ancien / nouveau total, refus → retour en réparation), portail (nom, IP, navigateur, double envoi, devis changé, expiré), `QuoteApproval` non modifiable sauf sync, en ligne avec hub (ni ordre ni stock écrits, numérotation refusée, appliqué au garage), statut perdu rétabli, stock (réservé / sorti / libéré / rendu une fois, avertissement), ordre d'avant la V16 inchangé, messages « devis à valider » et relance.
+
+**Contrôle des tests** (code retiré temporairement, puis remis — 16/16 ensuite) :
+- contrôle « un mécanicien ne peut pas enregistrer d'accord » retiré de `recordStaffDecision` → `quotes-v16.db.test.ts` : **1 échec / 15 réussis** ;
+- filtre « facture = lignes APPROVED » retiré de `invoiceLineWhere` → **3 échecs / 13 réussis** (accord partiel, refus total, facture = lignes acceptées).
+
+**Vérification dans le navigateur** (`next start -p 3300` depuis la branche, base de démo `gp_test_v16l2_demo`, Edge sans interface ; serveur arrêté ensuite, hub du port 3000 jamais touché) : portail au téléphone (390 px) en **français** — devis ligne par ligne, une ligne refusée → total passé à 55,740 DT en direct, nom, validation, « Merci, votre décision est enregistrée » ; en **arabe** (sens RTL) — ordre en attente client, total 426,425 → 405,600 د.ت, décision enregistrée, l'ordre passe « الإصلاح جارٍ » et le portail affiche « قرارك بتاريخ … قُبل جزئياً ». Mécanicien : bloc *Devis et accords* visible, **pas** de bouton *Enregistrer l'accord*. Accueil : supplément en attente (bandeau), accord téléphonique ligne par ligne (canal, note), puis historique : supplément D2026-0013 v2 (déjà accepté 426,425, supplément 65,450, nouveau total 491,875, empreinte « copie intacte », « Tout accepté », contact, « enregistré par Sonia Accueil ») au-dessus du devis v1 ; ordre accepté en partie : deux lignes « Accepté » avec seulement l'icône d'annulation, ligne « Refusé » barrée sans action ; devis imprimé de la version 2 avec « Version 2 », « Déjà accepté », « Nouveau total » et l'empreinte ; historique en arabe. Captures : `docs/media/v16/lot2/`.
+
+### 5. Mise en production
+
+- **En ligne + garage (hub)** — dans cet ordre, sans attendre entre les étapes :
+  1. `npm run db:cloud` **avant** le `git push` (migrations 25 et 26 sur la base en ligne si le Lot 1 n'y est pas encore) ;
+  2. **tout de suite** au garage : fermer puis relancer `start-hub.cmd` (le hub applique les migrations à la base du PC) ;
+  3. `git push`, puis vérifier le déploiement Vercel.
+- **Sans hub** : `npx prisma db execute --file prisma/migrations/26_quotes/migration.sql --schema prisma/schema.prisma` (après la 25 du Lot 1).
+
+### 6. Points à vérifier à la main
+
+1. Nouvel ordre › ajouter 2 lignes (choisir *Priorité* et, pour une pièce, *Nature de la pièce*) › *Changer le statut… › Devis envoyé* : bloc *Devis et accords* avec D…-… version 1, empreinte « copie intacte » ; *Historique des envois* : une ligne « Devis à valider ».
+2. *Changer le statut…* sur cet ordre : « En réparation » bloqué, message « Pas encore d'accord du client enregistré ».
+3. Portail client au téléphone (`/suivi`, plaque + code) : refuser une ligne, le total change ; saisir le nom, *Valider ma décision* ; l'ordre passe *En réparation* (sans hub). Recommencer en arabe.
+4. Avec l'**accueil** : *Enregistrer l'accord* (canal *Téléphone*, une ligne refusée, note) ; la fiche montre la décision, le montant et « enregistré par … ». Avec un **mécanicien** : le bouton n'apparaît pas.
+5. Ordre accepté › ligne acceptée : seule l'annulation avec motif est proposée ; la ligne refusée n'a aucune action.
+6. Ordre en réparation › ajouter une ligne : bandeau « Supplément en attente » ; *Facturer* grisé ; *Changer le statut… › Devis envoyé* → devis *Supplément* v2 (ancien total, supplément, nouveau total) ; *Imprimer le devis* de la v2.
+7. Pièce de stock ajoutée à un devis : *Stock* › la pièce : « réservé » augmente, le stock ne baisse qu'à l'accord ; refuser la ligne → réservation libérée.
+8. Avec le hub : accepter un devis sur le portail **en ligne** pendant que le PC du garage est déconnecté ; au retour, la fiche au garage montre « Accord du client reçu », passer en réparation (la pièce sort du stock à ce moment).
+9. En ligne avec un hub : *Renvoyer le devis* depuis le site → message « Le devis se numérote au garage… ».
+10. Interface en **arabe** : bloc *التقديرات والموافقات*, fenêtre d'accord, portail.
+
+### 7. Ce qui n'a pas été fait (et pourquoi)
+
+- **Signature sur tablette** pour l'accord : prévue avec la table `Signature` du Lot 4 (facultative ici) ; `QuoteApproval.signatureKey` est prêt.
+- **Numérotation d'un devis en ligne avec un hub** : refusée (voir § 1.2) ; à revoir seulement si le garage veut envoyer des devis depuis l'extérieur.
+- **Passage automatique en réparation après un accord fait en ligne avec un hub** : volontairement fait au garage (un clic, autorisé par l'accord) pour ne pas écraser une modification de l'ordre faite au garage.
+- **Découverte du technicien** : pas de nouvel écran ; elle passe par la note + photo existantes et une ligne en attente.
+- **Statut `EXPIRED`** : calculé à l'affichage (date de validité dépassée) ; la ligne `Quote` reste `SENT` jusqu'à une nouvelle version.
+- **Problème n° 10** (montants vus par le mécanicien) : non traité (hors de l'accord ; à faire avec la refonte de la fiche).
+- **Problèmes n° 11 / 12** : en partie — pour un nouvel ordre, une pièce de devis n'est réservée que sur le stock libre, de façon atomique ; la sortie à l'accord garde la règle d'avant (autorisée avec un avertissement si le stock enregistré manque) et les ordres d'avant la V16 ne changent pas.
+- Devis refusé : suite du parcours (frais annoncés, décharge sécurité, relance) au Lot 3.
+
+### À savoir avant la mise en ligne (Lot 2)
+
+- Pour un **nouvel ordre**, plus aucun passage en réparation depuis un devis sans **accord enregistré** (portail ou *Enregistrer l'accord*) ; et la **facture refuse les lignes en attente** : un ordre lancé sans devis (réglage) ou par l'assurance doit aussi recevoir son accord avant facturation.
+- Les ordres en devis ouverts depuis la mise en ligne du Lot 1 n'ont pas de devis versionné : *Enregistrer l'accord* le crée (au garage avec un hub).
+- Avec le hub, **envoyer un devis se fait au garage** ; l'accord du client en ligne arrive par la synchronisation et c'est au garage qu'on passe en réparation.
+- Le mécanicien n'enregistre pas d'accord par défaut ; un droit particulier se donne dans *Équipe › Accès*.
