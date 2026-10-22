@@ -190,6 +190,33 @@ describe.skipIf(!BASE)("garage hub ↔ online database", () => {
     }
   });
 
+  it("V14 skills tables travel too (catalogue, levels, append-only history, certificates, goals, reviews, supervisor)", async () => {
+    await local.query(`INSERT INTO "User"(id, email, name, "passwordHash", "updatedAt") VALUES ('u14', 'u14@test.tn', 'Méca', 'x', now()) ON CONFLICT DO NOTHING`);
+    await local.query(`INSERT INTO "Skill"(id, code, "nameFr", keywords, "habilitationRequired", "updatedAt") VALUES ('sk_HV', 'HV', 'Haute tension', '["hybride"]', true, now())`);
+    await local.query(`INSERT INTO "EmployeeSkill"(id, "userId", "skillId", level, "updatedAt") VALUES ('es_1', 'u14', 'sk_HV', 'SUPERVISED', now())`);
+    await local.query(`INSERT INTO "SkillLevelHistory"(id, "userId", "skillId", "toLevel", reason, "actorName") VALUES ('h1', 'u14', 'sk_HV', 'SUPERVISED', 'Formation', 'Chef')`);
+    await local.query(`INSERT INTO "SkillCertificate"(id, "userId", "skillId", type, "expiresOn", "fileKey", "fileType", "updatedAt") VALUES ('c1', 'u14', 'sk_HV', 'B1VL', '2030-01-01', 'skills/u14/a.pdf', 'application/pdf', now())`);
+    await local.query(`INSERT INTO "SkillGoal"(id, "userId", "skillId", kind, target, since, "updatedAt") VALUES ('g1', 'u14', 'sk_HV', 'SUPERVISED_NO_RETURN', 5, now(), now())`);
+    await local.query(`INSERT INTO "SkillReviewRequest"(id, "userId", source, message, "updatedAt") VALUES ('r1', 'u14', 'EMPLOYEE', 'À revoir', now())`);
+    await local.query(`UPDATE "WorkOrder" SET "supervisorId"='u14', "skillWarnings"='[{"code":"NEEDS_SUPERVISOR"}]' WHERE id='w1'`);
+    const r1 = await syncOnce(local, cloud);
+    expect(r1.errors).toEqual([]);
+    expect((await one(cloud, `SELECT level FROM "EmployeeSkill" WHERE id='es_1'`)).level).toBe("SUPERVISED");
+    expect((await one(cloud, `SELECT reason FROM "SkillLevelHistory" WHERE id='h1'`)).reason).toBe("Formation");
+    expect((await one(cloud, `SELECT "fileKey" FROM "SkillCertificate" WHERE id='c1'`)).fileKey).toBe("skills/u14/a.pdf");
+    expect(Number((await one(cloud, `SELECT count(*) FROM "SkillGoal" WHERE id='g1'`)).count)).toBe(1);
+    expect((await one(cloud, `SELECT status FROM "SkillReviewRequest" WHERE id='r1'`)).status).toBe("OPEN");
+    expect((await one(cloud, `SELECT "supervisorId", "skillWarnings" FROM "WorkOrder" WHERE id='w1'`))).toEqual({ supervisorId: "u14", skillWarnings: [{ code: "NEEDS_SUPERVISOR" }] });
+    // A level changed online (same deterministic id) comes back to the garage; the history stays append-only.
+    await cloud.query(`UPDATE "EmployeeSkill" SET level='AUTONOMOUS', "updatedAt"=now() WHERE id='es_1'`);
+    await cloud.query(`INSERT INTO "SkillLevelHistory"(id, "userId", "skillId", "fromLevel", "toLevel", reason, "actorName") VALUES ('h2', 'u14', 'sk_HV', 'SUPERVISED', 'AUTONOMOUS', 'Évaluation', 'Admin')`);
+    const r2 = await syncOnce(local, cloud);
+    expect(r2.errors).toEqual([]);
+    expect((await one(local, `SELECT level FROM "EmployeeSkill" WHERE id='es_1'`)).level).toBe("AUTONOMOUS");
+    expect(Number((await one(local, `SELECT count(*) FROM "SkillLevelHistory" WHERE "userId"='u14'`)).count)).toBe(2);
+    await expect(local.query(`UPDATE "SkillLevelHistory" SET reason='x' WHERE id='h1'`)).rejects.toThrow(/append-only/);
+  });
+
   it("a database without a hub logs nothing", async () => {
     const plain = await freshDb(admin, "gp_hub_plain", allMigrations);
     try {
