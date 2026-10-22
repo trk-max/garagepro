@@ -263,6 +263,9 @@ export const v7En: typeof v7Fr = {
       CompanyUser: "Company accounts",
       ServicePackage: "Packages",
       BookableService: "Online services",
+      WorkOrderLine: "Order lines",
+      WorkOrderMedia: "Order photos",
+      WorkOrderEvent: "Customer messages",
     },
   },
   company: {

@@ -263,6 +263,9 @@ export const v7Ar: typeof v7Fr = {
       CompanyUser: "حسابات المؤسسات",
       ServicePackage: "الباقات",
       BookableService: "الخدمات عبر الإنترنت",
+      WorkOrderLine: "أسطر أوامر الإصلاح",
+      WorkOrderMedia: "صور أوامر الإصلاح",
+      WorkOrderEvent: "رسائل الحرفاء",
     },
   },
   company: {

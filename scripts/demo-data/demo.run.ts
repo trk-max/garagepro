@@ -10,7 +10,7 @@ import { it } from "vitest";
 import type { Role, WorkOrderStatus } from "@prisma/client";
 import type { StaffUser } from "@/lib/session";
 import { prisma } from "../../tests/helpers/test-prisma";
-import { addLine, applyPackage, changeStatus, createWorkOrder } from "@/server/work-orders";
+import { addLine, applyPackage, changeStatus, createWorkOrder, removeLine } from "@/server/work-orders";
 import { createInvoice, recordPayment } from "@/server/invoices";
 import { createPart } from "@/server/parts";
 import { approveQualityCheck, saveQualityCheck } from "@/server/quality";
@@ -35,6 +35,12 @@ let seed = 11;
 const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
 const pick = <T,>(a: readonly T[]) => a[Math.floor(rnd() * a.length)]!;
 const errors: string[] = [];
+/** V16: the reason the workshop flow asks for (internal, never shown to the customer). */
+const REASON: Partial<Record<WorkOrderStatus, string>> = {
+  IN_PROGRESS: "Démo : accord du client par téléphone",
+  CANCELLED: "Démo : le client reprend son véhicule",
+  QUOTE_REFUSED: "Démo : le client trouve le devis trop cher",
+};
 async function step<T>(label: string, f: () => Promise<T>): Promise<T | null> {
   try {
     return await f();
@@ -156,6 +162,8 @@ it("demo data", async () => {
     const at = new Date(Date.now() - (240 - i * 1.4) * DAY);
     const wo = await step("ordre historique", () => createWorkOrder({ customerId: c.id, vehicleId: v.id, complaint: pick(["Bruit au freinage", "Entretien", "Voyant moteur allumé", "Batterie faible", "Suspension qui cogne"]), priority: "NORMAL", mileageIn: 60_000 + i * 300, mechanicId: pick(mechs).id }, S.accueil!));
     if (!wo) continue;
+    // History = orders of before V16 (non-retroactive rules: delivered even when unpaid, as before).
+    await prisma.workOrder.update({ where: { id: wo.id }, data: { workflowV16: false } });
     if (i % 3 === 0 && pkg) await step("forfait", () => applyPackage(wo.id, pkg.id, S.chef!));
     else for (const l of pick(lineSets)) await step("ligne", () => addLine(wo.id, l.type === "PART" ? { type: "PART", partId: P[(l as { sku: string }).sku]!.id, quantityX100: Q(l.q) } : { type: "LABOR", description: (l as { d: string }).d, quantityX100: Q(l.q), unitPrice: DT((l as { p: number }).p) }, S.chef!));
     for (const s of ["IN_PROGRESS", "QUALITY_CONTROL"] as WorkOrderStatus[]) await step("statut", () => changeStatus(wo.id, s, S.chef!));
@@ -187,26 +195,39 @@ it("demo data", async () => {
     ["QUOTE_SENT", ["DIAGNOSIS", "QUOTE_SENT"]],
     ["WAITING_INSURANCE", ["WAITING_INSURANCE"]],
     ["WAITING_PARTS", ["DIAGNOSIS", "WAITING_PARTS"]],
-    ["IN_PROGRESS", ["IN_PROGRESS"]],
-    ["QUALITY_CONTROL", ["IN_PROGRESS", "QUALITY_CONTROL"]],
-    ["WASHING", ["IN_PROGRESS", "QUALITY_CONTROL"]],
-    ["READY", ["IN_PROGRESS", "QUALITY_CONTROL"]],
-    ["READY_INVOICED", ["IN_PROGRESS", "QUALITY_CONTROL"]],
+    ["IN_PROGRESS", ["QUOTE_SENT", "IN_PROGRESS"]],
+    ["QUALITY_CONTROL", ["QUOTE_SENT", "IN_PROGRESS", "QUALITY_CONTROL"]],
+    ["WASHING", ["QUOTE_SENT", "IN_PROGRESS", "QUALITY_CONTROL"]],
+    ["READY", ["QUOTE_SENT", "IN_PROGRESS", "QUALITY_CONTROL"]],
+    ["READY_INVOICED", ["QUOTE_SENT", "IN_PROGRESS", "QUALITY_CONTROL"]],
     ["CANCELLED", ["CANCELLED"]],
+    // V16 — new statuses, a voided line, a delivery with a balance due (override).
+    ["WAITING_CUSTOMER", ["DIAGNOSIS", "QUOTE_SENT", "WAITING_CUSTOMER"]],
+    ["QUOTE_REFUSED", ["DIAGNOSIS", "QUOTE_SENT", "QUOTE_REFUSED"]],
+    ["VOIDED_LINE", ["QUOTE_SENT", "IN_PROGRESS"]],
+    ["READY_BALANCE", ["QUOTE_SENT", "IN_PROGRESS", "QUALITY_CONTROL"]],
   ];
   for (const [n, [label, path]] of stages.entries()) {
     const c = customers[n]!;
     const v = c.vehicles[0]!;
     const wo = await createWorkOrder({ customerId: c.id, vehicleId: v.id, complaint: `Démo — ${label}`, priority: n % 4 === 0 ? "URGENT" : "NORMAL", mileageIn: 120_000 + n * 1000, mechanicId: mechs[n % 3]!.id, promisedAt: new Date(Date.now() + (n - 5) * 6 * 3_600_000) }, S.accueil!);
     if (label !== "RECEIVED") for (const l of lineSets[n % lineSets.length]!) await step("ligne", () => addLine(wo.id, l.type === "PART" ? { type: "PART", partId: P[(l as { sku: string }).sku]!.id, quantityX100: Q(l.q) } : { type: "LABOR", description: (l as { d: string }).d, quantityX100: Q(l.q), unitPrice: DT((l as { p: number }).p) }, S.chef!));
-    for (const s of path) await step(`statut ${label}`, () => changeStatus(wo.id, s, S.chef!));
-    if (["WASHING", "READY", "READY_INVOICED"].includes(label)) {
+    for (const s of path) await step(`statut ${label}`, () => changeStatus(wo.id, s, S.chef!, { reason: REASON[s] }));
+    if (label === "VOIDED_LINE") {
+      const first = await prisma.workOrderLine.findFirst({ where: { workOrderId: wo.id }, orderBy: { position: "asc" } });
+      if (first) await step("ligne annulée", () => removeLine(first.id, S.chef!, "Démo : pièce fournie par le client"));
+    }
+    if (["WASHING", "READY", "READY_INVOICED", "READY_BALANCE"].includes(label)) {
       await step("qc", () => saveQualityCheck(S.chef!, wo.id, { roadTest: "DONE", fluidsOk: true, warningsOk: true, toolsRemoved: true, workVerified: true, billingVerified: true }));
       await step("qc ok", () => approveQualityCheck(S.chef!, wo.id));
       await step("statut", () => changeStatus(wo.id, label === "WASHING" ? "WASHING" : "READY", S.chef!));
     }
     if (label === "QUALITY_CONTROL") await step("qc partiel", () => saveQualityCheck(S.karim!, wo.id, { roadTest: "DONE", fluidsOk: true, warningsOk: false, toolsRemoved: true, workVerified: true, billingVerified: false }));
-    if (label === "READY_INVOICED") await step("facture", () => createInvoice(wo.id, admin));
+    if (label === "READY_INVOICED" || label === "READY_BALANCE") await step("facture", () => createInvoice(wo.id, admin));
+    if (label === "READY_BALANCE") {
+      const inv = await prisma.invoice.findUnique({ where: { workOrderId: wo.id } });
+      if (inv) await step("acompte partiel", () => recordPayment(inv.id, { amount: Math.round(inv.totalTtc / 3), method: "CASH" }, S.accueil!));
+    }
     if (label === "IN_PROGRESS") await step("chrono", () => startLabor(mechs[n % 3]!, wo.id));
     if (label === "IN_PROGRESS") await step("temps", () => addLaborEntry(S.chef!, { workOrderId: wo.id, userId: S.hedi!.id, startedAt: new Date(Date.now() - 3 * 3_600_000), endedAt: new Date(Date.now() - 2 * 3_600_000) }));
     if (label === "WAITING_PARTS") {

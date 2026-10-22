@@ -262,6 +262,10 @@ export const v7Fr = {
       CompanyUser: "Comptes entreprise",
       ServicePackage: "Forfaits",
       BookableService: "Prestations en ligne",
+      // V16 — lignes des ordres, photos, messages des clients.
+      WorkOrderLine: "Lignes des ordres",
+      WorkOrderMedia: "Photos des ordres",
+      WorkOrderEvent: "Messages des clients",
     },
   },
   company: {
