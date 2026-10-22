@@ -2,7 +2,7 @@ import type { LineType } from "@prisma/client";
 import { displayPlate, fmt, formatDate, formatKm, formatMoney, formatQty, woNumber, type Lang } from "@/lib/format";
 import type { Dictionary } from "@/lib/i18n/fr";
 import { DocFooter, DocLogo } from "@/components/garage/doc-brand";
-import { InvoiceLegal } from "@/components/garage/invoice-legal";
+import { InvoiceMentions, VatBreakdown } from "@/components/garage/invoice-legal";
 import type { SnapshotLegal } from "@/lib/invoice-snapshot";
 
 export type DocumentData = {
@@ -118,7 +118,10 @@ export function DocumentView({ doc, t, lang, logo }: { doc: DocumentData; t: Dic
       </table>
       </div>
 
-      <dl className="ms-auto mt-4 w-full max-w-xs space-y-1">
+      {/* V10.6: VAT breakdown by rate beside the totals (one page on paper). */}
+      <div className="mt-4 flex flex-wrap items-start justify-between gap-6 print:flex-nowrap">
+      <VatBreakdown t={t} lang={lang} taxByRate={doc.totals.taxByRate} />
+      <dl className="ms-auto w-full max-w-xs space-y-1">
         <div className="flex justify-between">
           <dt>{t.invoices.totalHt}</dt>
           <dd className="tabular-nums" dir="ltr">{money(doc.totals.totalHt)}</dd>
@@ -144,10 +147,11 @@ export function DocumentView({ doc, t, lang, logo }: { doc: DocumentData; t: Dic
           <dd className="tabular-nums" dir="ltr">{money(doc.totals.totalTtc)}</dd>
         </div>
       </dl>
+      </div>
 
-      <InvoiceLegal t={t} lang={lang} taxByRate={doc.totals.taxByRate} amountWords={doc.amountWords} paymentTerms={doc.legal?.paymentTerms} penaltyText={doc.legal?.penaltyText} />
+      <InvoiceMentions t={t} amountWords={doc.amountWords} paymentTerms={doc.legal?.paymentTerms} penaltyText={doc.legal?.penaltyText} />
 
-      <p className="mt-10 text-center text-xs text-zinc-500">{doc.kind === "quote" ? t.invoices.quoteValidity : t.invoices.thanks}</p>
+      <p className="mt-8 text-center text-xs text-zinc-500">{doc.kind === "quote" ? t.invoices.quoteValidity : t.invoices.thanks}</p>
       <DocFooter garage={doc.garage} text={doc.garage.footer} taxIdLabel={t.common.taxId} />
     </article>
   );
