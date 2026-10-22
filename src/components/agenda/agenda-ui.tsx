@@ -34,7 +34,8 @@ export function DueText({ f, t, lang }: { f: DueLike; t: Dictionary; lang: Lang 
   if (f.method === "IMPOSSIBLE") return <span className="text-gp-danger-ink">{fmt(t.v12.impossible, { missing: missingText(f.missing, t) })}</span>;
   return (
     <span>
-      {f.dueDate && <span className="font-medium">{formatDate(f.dueDate, lang)}</span>}
+      {f.dueDate && <span className={f.dueDate.getTime() < Date.now() ? "font-semibold text-gp-danger-ink" : "font-medium"}>{formatDate(f.dueDate, lang)}</span>}
+      {f.dueDate && f.dueDate.getTime() < Date.now() && <span className="text-xs text-gp-danger-ink"> ({t.v12.overdue})</span>}
       {f.dueDate && f.dueKm !== null && " · "}
       {f.dueKm !== null && <span dir="ltr">{fmt(t.v12.aroundKm, { km: formatKm(f.dueKm, lang) })}</span>}{" "}
       <span className="text-xs text-gp-muted">({t.v12.estimate})</span>

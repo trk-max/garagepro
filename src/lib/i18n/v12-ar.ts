@@ -42,6 +42,7 @@ export const v12Ar: typeof v12Fr = {
   missingAlso: "ينقص: {missing}.",
   byKm: "حسب الكيلومترات: حوالي {km}",
   aroundKm: "حوالي {km}",
+  overdue: "متجاوز",
   byKmDate: " (≈ {date})",
   byTime: "حسب الزمن: {date}",
   kept: "المعتمد",

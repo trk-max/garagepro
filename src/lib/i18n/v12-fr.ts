@@ -41,6 +41,7 @@ export const v12Fr = {
   missingAlso: "Manque : {missing}.",
   byKm: "Par le kilométrage : vers {km}",
   aroundKm: "vers {km}",
+  overdue: "dépassée",
   byKmDate: " (≈ {date})",
   byTime: "Par le temps : {date}",
   kept: "retenue",

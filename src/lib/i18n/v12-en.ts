@@ -42,6 +42,7 @@ export const v12En: typeof v12Fr = {
   missingAlso: "Missing: {missing}.",
   byKm: "By mileage: around {km}",
   aroundKm: "around {km}",
+  overdue: "overdue",
   byKmDate: " (≈ {date})",
   byTime: "By time: {date}",
   kept: "kept",

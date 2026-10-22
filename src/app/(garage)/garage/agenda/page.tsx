@@ -140,7 +140,7 @@ export default async function AgendaPage({ searchParams }: PageProps) {
             {rows.map((f) => (
               <li key={f.id} className="flex flex-wrap items-start gap-x-4 gap-y-2 rounded-[18px] border border-gp-line bg-gp-card p-3 shadow-gp">
                 {canManage && <input type="checkbox" name="forecast" value={f.id} className="mt-1 size-4" aria-label={`${nameOf(f.item, lang)} ${displayPlate(f.vehicle.plate)}`} />}
-                <div className="min-w-40 flex-1">
+                <div className="min-w-40 flex-1 sm:w-60 sm:flex-none">
                   <Link href={`/garage/vehicules/${f.vehicle.id}/entretien`} className="font-medium underline-offset-4 hover:underline">
                     <span className="font-mono text-xs" dir="ltr">
                       {displayPlate(f.vehicle.plate)}
@@ -152,7 +152,7 @@ export default async function AgendaPage({ searchParams }: PageProps) {
                     {f.vehicle.mileage !== null && <span dir="ltr"> · {formatKm(f.vehicle.mileage, lang)}</span>}
                   </p>
                 </div>
-                <div className="min-w-40 flex-1">
+                <div className="min-w-40 flex-1 sm:w-80 sm:flex-none">
                   <p className="font-semibold">{nameOf(f.item, lang)}</p>
                   <p className="text-sm">
                     <DueText f={f} t={t} lang={lang} />

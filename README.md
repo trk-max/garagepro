@@ -41,6 +41,21 @@ Il n'y a **qu'une seule base de données** (Supabase en ligne + sa copie sur le 
 - Réservez l'adresse du PC du garage dans la box (bail DHCP fixe) ; si elle change, refaites `npm run shortcut`.
 - Pour que le site en ligne s'ouvre sans compte Vercel : Vercel → projet → *Settings* → *Deployment Protection* → *Vercel Authentication* → ne protéger que les *Preview Deployments* (sinon chaque PC doit se connecter à Vercel).
 
+## Nouveautés V12 — agenda des prochaines réparations (maintenance préventive)
+
+- **Agenda** (menu *Plus* › *Agenda*) : pour chaque véhicule et chaque élément d'entretien (vidange, filtres, plaquettes, courroie, batterie, pneus…), une **échéance estimée** (km et/ou date, fourchette, confiance, méthode, nombre de cas). Calcul à partir des **ordres livrés** du garage (médiane des intervalles observés sur le même modèle, au moins 5 cas) ou, à défaut, de l'**intervalle saisi par le garage** ; sinon « estimation impossible » avec ce qui manque. Rien n'est inventé ; les relevés OBD simulés et les kilométrages incohérents sont exclus.
+- **Rien n'est envoyé sans validation** : valider, préparer le message (français / arabe), envoyer par SMS / e-mail (canaux existants), refus du client respecté, un seul rappel par élément et par cycle. Envoi automatique **désactivé par défaut** (administrateur seulement).
+- Fiche véhicule (*Prochaines réparations*), « À faire aussi sur cette voiture » sur l'ordre (ajout au devis en un clic), « À traiter », bloc du tableau de bord, suivi client et QR (« Prochains entretiens » + *Prendre RDV*), portail entreprise (planning par mois, export Excel / CSV).
+- Guide : [docs/AGENDA-ENTRETIEN.md](docs/AGENDA-ENTRETIEN.md). Rapport : [docs/RAPPORT-V12.md](docs/RAPPORT-V12.md).
+
+### Mise à jour vers la V12 — à faire une commande à la fois
+
+1. `npm install`
+2. `npm run db:cloud` — **avant le push** : ajoute la migration `22_agenda` à la base en ligne (n'efface rien).
+3. `npm run check`
+4. `git add -A` puis `git commit -m "V12 : agenda des prochaines réparations"` puis `git push`
+5. Dans l'application : *Agenda* › *Réglages de l'agenda* › **Créer le catalogue de départ**, puis saisissez **vos** intervalles (km / mois) pour les éléments qui en ont besoin, liez vos forfaits et pièces, et cliquez **Recalculer** dans l'agenda.
+
 ## Nouveautés V9 — showroom et messagerie acheteurs
 
 - **Showroom** : annonces de véhicules (photos, documents PDF, fiche technique, équipements, prix, historique prix / km / statut), pages publiques `/showroom` avec recherche, filtres, tri et favoris (sans compte). Chaque information indique sa source : « vérifié par le garage » ou « déclaré par le vendeur ». Rôles **Vendeur** (ses annonces seulement) et **Responsable showroom** ; **messagerie** acheteur ↔ vendeur par lien privé, non-lus et mises à jour en direct. Voir [docs/SHOWROOM-MESSAGERIE.md](docs/SHOWROOM-MESSAGERIE.md).
