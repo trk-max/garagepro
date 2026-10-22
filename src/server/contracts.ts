@@ -1,5 +1,6 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
+import { LIVE_LINE } from "@/lib/quote";
 import type { Prisma } from "@prisma/client";
 import { utcToZoned } from "@/lib/booking";
 import { buildContractDoc, readContractData, type ContractDataJson, type ContractSnapshot, type GarageSnap, type PartySnap, type RepairSnap, type VehicleSnap } from "@/lib/contract-document";
@@ -190,7 +191,7 @@ async function repairSnap(db: Db, workOrderId: string, tz: string) {
       vehicleId: true,
       customer: { select: { id: true, name: true, phone: true, email: true, address: true, taxId: true, isCompany: true } },
       vehicle: { select: vehicleSelect },
-      lines: { where: { voidedAt: null }, orderBy: { position: "asc" }, select: { type: true, description: true, quantityX100: true, unitPrice: true, taxRateBp: true } },
+      lines: { where: { ...LIVE_LINE }, orderBy: { position: "asc" }, select: { type: true, description: true, quantityX100: true, unitPrice: true, taxRateBp: true } },
       invoice: { select: { number: true, totalHt: true, totalTax: true, stampDuty: true, totalTtc: true, paidAmount: true, status: true } },
       warranties: { where: { voidedAt: null }, select: { label: true, endsAt: true, endKm: true } },
     },

@@ -15,7 +15,7 @@ import { approveQuoteByCustomer, customerMessage, getTrackingView } from "@/serv
 import { approveQualityCheck, saveQualityCheck } from "@/server/quality";
 import type { Sender } from "@/server/reminders";
 import { addLine, applyPackage, changeStatus, createWorkOrder, removeLine, updateMeta } from "@/server/work-orders";
-import { makeUser, makeWorkOrder, prisma } from "./helpers/db";
+import { agreeAll, makeUser, makeWorkOrder, prisma } from "./helpers/db";
 
 const QC_OK = { roadTest: "DONE" as const, fluidsOk: true, warningsOk: true, toolsRemoved: true, workVerified: true, billingVerified: true };
 const code = (p: Promise<unknown>) => p.then(() => "ok", (e: { code?: string }) => e.code ?? String(e));
@@ -26,12 +26,12 @@ const setFlow = (data: { allowWorkWithoutQuote?: boolean; requirePaidBeforeDeliv
 beforeAll(() => setFlow({ allowWorkWithoutQuote: false, requirePaidBeforeDelivery: true, stampDuty: 1000 }));
 afterAll(() => setFlow({ allowWorkWithoutQuote: false, requirePaidBeforeDelivery: true }));
 
-/** New (V16) order brought to READY the normal way: quote → agreement (reason, Lot 1) → work → QC. */
+/** New (V16) order brought to READY the normal way: quote → recorded agreement (Lot 2) → work → QC. */
 async function readyOrder(manager: Awaited<ReturnType<typeof makeUser>>, unitPrice = 100_000) {
   const { wo, customer, vehicle } = await makeWorkOrder();
   await addLine(wo.id, { type: "LABOR", description: "Main-d'œuvre", quantityX100: 100, unitPrice }, manager);
   await changeStatus(wo.id, "QUOTE_SENT", manager);
-  await changeStatus(wo.id, "IN_PROGRESS", manager, { reason: "Accord du client par téléphone" });
+  await agreeAll(wo.id, manager); // the customer's agreement, recorded → the work starts (IN_PROGRESS)
   await changeStatus(wo.id, "QUALITY_CONTROL", manager);
   await saveQualityCheck(manager, wo.id, QC_OK);
   await approveQualityCheck(manager, wo.id);
@@ -114,15 +114,19 @@ describe("V16 — devis et non-rétroactivité", () => {
     expect(await status(legacy.id)).toBe("IN_PROGRESS");
   });
 
-  it("Devis envoyé → En réparation : motif demandé tant qu'aucun accord n'est enregistré (Lot 2), puis accord daté", async () => {
+  it("Devis envoyé → En réparation : refusé sans accord ENREGISTRÉ (Lot 2, plus de simple motif), puis accord daté", async () => {
     const rec = await makeUser("RECEPTION");
-    const { wo } = await makeWorkOrder({ status: "QUOTE_SENT" });
-    expect(await code(changeStatus(wo.id, "IN_PROGRESS", rec))).toBe("reasonRequired");
-    await changeStatus(wo.id, "IN_PROGRESS", rec, { reason: "Accord au comptoir" });
+    const { wo } = await makeWorkOrder();
+    await addLine(wo.id, { type: "LABOR", description: "Main-d'œuvre", quantityX100: 100, unitPrice: 30_000 }, rec);
+    await changeStatus(wo.id, "QUOTE_SENT", rec);
+    expect(await code(changeStatus(wo.id, "IN_PROGRESS", rec))).toBe("approvalRequired");
+    expect(await code(changeStatus(wo.id, "IN_PROGRESS", rec, { reason: "Accord au comptoir" }))).toBe("approvalRequired");
+    await agreeAll(wo.id, rec);
     const after = await prisma.workOrder.findUniqueOrThrow({ where: { id: wo.id } });
+    expect(after.status).toBe("IN_PROGRESS");
     expect(after.quoteApprovedAt).not.toBeNull();
-    const ev = await prisma.workOrderEvent.findFirstOrThrow({ where: { workOrderId: wo.id, type: "STATUS_CHANGED" } });
-    expect(ev.data).toMatchObject({ approval: true, reason: "Accord au comptoir" });
+    const ev = await prisma.workOrderEvent.findFirstOrThrow({ where: { workOrderId: wo.id, type: "STATUS_CHANGED", data: { path: ["to"], equals: "IN_PROGRESS" } } });
+    expect(ev.data).toMatchObject({ from: "QUOTE_SENT", approval: true });
   });
 
   it("un ordre créé avant la migration se termine normalement jusqu'à Livré (sans facture)", async () => {
@@ -269,7 +273,8 @@ describe("V16 — lignes annulées au lieu de supprimées", () => {
     await addLine(wo.id, { type: "PART", partId: part.id, quantityX100: 400 }, admin);
     await addLine(wo.id, { type: "LABOR", description: "Allumage", quantityX100: 100, unitPrice: 20_000 }, admin);
     await changeStatus(wo.id, "QUOTE_SENT", admin);
-    await changeStatus(wo.id, "IN_PROGRESS", admin, { reason: "Accord téléphonique" });
+    await agreeAll(wo.id, admin); // Lot 2: recorded agreement (the parts leave the stock now)
+    expect((await prisma.part.findUniqueOrThrow({ where: { id: part.id } })).stockX100).toBe(600);
     const partLine = await prisma.workOrderLine.findFirstOrThrow({ where: { workOrderId: wo.id, partId: part.id } });
     await removeLine(partLine.id, admin, "Bougies en bon état");
     const view = await getTrackingView(wo.id);
@@ -285,7 +290,7 @@ describe("V16 — journal d'audit et portail", () => {
     const { wo } = await makeWorkOrder();
     await addLine(wo.id, { type: "LABOR", description: "MO", quantityX100: 100, unitPrice: 10_000 }, manager);
     await changeStatus(wo.id, "QUOTE_SENT", manager);
-    await changeStatus(wo.id, "IN_PROGRESS", manager, { reason: "Accord" });
+    await agreeAll(wo.id, manager);
     await changeStatus(wo.id, "QUALITY_CONTROL", manager);
     await saveQualityCheck(manager, wo.id, QC_OK);
     await approveQualityCheck(manager, wo.id);
@@ -297,13 +302,26 @@ describe("V16 — journal d'audit et portail", () => {
   });
 
   it("A-07 accord du devis par le client : deux clics simultanés → un seul accord ; IP et navigateur journalisés", async () => {
+    // Order opened before V16: the one-click agreement of Lot 1.
     const { wo } = await makeWorkOrder({ status: "QUOTE_SENT" });
+    await prisma.workOrder.update({ where: { id: wo.id }, data: { workflowV16: false } });
     const results = await Promise.allSettled([approveQuoteByCustomer(wo.id, { ip: "41.1.1.1", userAgent: "UA-1" }), approveQuoteByCustomer(wo.id, { ip: "41.1.1.1", userAgent: "UA-1" })]);
     expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
     expect(await prisma.workOrderEvent.count({ where: { workOrderId: wo.id, type: "QUOTE_APPROVED" } })).toBe(1);
     const log = await prisma.auditLog.findFirstOrThrow({ where: { action: "workOrder.quoteApprovedByCustomer", entityId: wo.id } });
     expect(log).toMatchObject({ ip: "41.1.1.1", actorId: null });
     expect(log.after).toMatchObject({ channel: "PORTAL", userAgent: "UA-1" });
+    // New order (Lot 2): « accept all » goes through the traced line-by-line path, still one decision.
+    const admin = await makeUser("ADMIN");
+    const { wo: v16 } = await makeWorkOrder();
+    await addLine(v16.id, { type: "LABOR", description: "MO", quantityX100: 100, unitPrice: 10_000 }, admin);
+    await changeStatus(v16.id, "QUOTE_SENT", admin);
+    const both = await Promise.allSettled([approveQuoteByCustomer(v16.id, { ip: "41.1.1.2", userAgent: "UA-2" }), approveQuoteByCustomer(v16.id, { ip: "41.1.1.2", userAgent: "UA-2" })]);
+    expect(both.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+    expect(await prisma.quoteApproval.count({ where: { workOrderId: v16.id } })).toBe(1);
+    const decision = await prisma.auditLog.findFirstOrThrow({ where: { action: "quote.decision", after: { path: ["workOrderId"], equals: v16.id } } });
+    expect(decision).toMatchObject({ ip: "41.1.1.2", actorId: null });
+    expect(decision.after).toMatchObject({ channel: "PORTAL", decision: "APPROVED", userAgent: "UA-2" });
   });
 
   it("A-09 « véhicule prêt » : mis en file (Notification READY, statut et erreur), envoyé, journalisé ; pas deux fois", async () => {

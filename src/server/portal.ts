@@ -7,6 +7,8 @@ import { clientIp, isTrackable, startPortalSession } from "@/server/portal-sessi
 import { getSettings } from "@/server/settings";
 import { audit } from "@/server/audit";
 import { customerSteps } from "@/server/workflow";
+import { isExpired, type QuoteSnapshot } from "@/lib/quote";
+import { recordPortalDecision } from "@/server/quotes";
 
 /** Wrong codes allowed per plate (and per IP) before a 15-minute lock. */
 const MAX_FAILS_PER_PLATE = 5;
@@ -89,13 +91,22 @@ export async function getTrackingView(workOrderId: string, lang = "fr") {
         complaint: true,
         promisedAt: true,
         quoteApprovedAt: true,
+        workflowV16: true,
         mileageIn: true,
         updatedAt: true,
         vehicle: { select: { plate: true, make: true, model: true, year: true, color: true } },
         customer: { select: { name: true } },
         mechanic: { select: { name: true } },
         // V16: voided lines are not part of the work any more.
-        lines: { where: { voidedAt: null }, orderBy: { position: "asc" }, select: { type: true, description: true, quantityX100: true, unitPrice: true, taxRateBp: true } },
+        // V16 Lot 2: refused lines are not part of the work either.
+        lines: { where: { voidedAt: null, approvalStatus: { not: "REFUSED" } }, orderBy: { position: "asc" }, select: { type: true, description: true, quantityX100: true, unitPrice: true, taxRateBp: true } },
+        // V16 Lot 2: the open quote (line-by-line decision) and the last decision, from the frozen copy only.
+        quotes: {
+          where: { status: { not: "SUPERSEDED" } },
+          orderBy: { version: "desc" },
+          take: 1,
+          select: { id: true, number: true, version: true, kind: true, status: true, validUntil: true, snapshot: true, approvals: { orderBy: { createdAt: "desc" }, take: 1, select: { decision: true, amountApprovedTtc: true, createdAt: true } } },
+        },
         media: {
           where: { visibleToCustomer: true },
           orderBy: { createdAt: "desc" },
@@ -123,8 +134,29 @@ export async function getTrackingView(workOrderId: string, lang = "fr") {
     wo.status === "WAITING_PARTS" ||
     wo.events.some((e) => e.type === "STATUS_CHANGED" && (e.data as { to?: string } | null)?.to === "WAITING_PARTS");
 
-  const quotePending = wo.status === "QUOTE_SENT" && !wo.quoteApprovedAt && wo.lines.length > 0;
+  // Orders opened before V16: the one-click quote of Lot 1. V16 orders: the versioned quote below.
+  const quotePending = !wo.workflowV16 && wo.status === "QUOTE_SENT" && !wo.quoteApprovedAt && wo.lines.length > 0;
   const totals = computeTotals(wo.lines, settings.stampDuty);
+  const latest = wo.workflowV16 ? wo.quotes[0] : undefined;
+  const waiting = wo.status === "QUOTE_SENT" || wo.status === "WAITING_CUSTOMER";
+  const snap = latest?.snapshot as unknown as QuoteSnapshot | undefined;
+  const quoteV16 =
+    latest && snap && latest.status === "SENT" && waiting
+      ? {
+          id: latest.id,
+          number: latest.number,
+          version: latest.version,
+          kind: latest.kind,
+          validUntil: latest.validUntil,
+          expired: isExpired(latest),
+          // Only what the customer needs: no cost, no internal id other than the line's own.
+          lines: snap.lines.map((l) => ({ id: l.id, type: l.type, description: l.description, quantityX100: l.quantityX100, unitPrice: l.unitPrice, taxRateBp: l.taxRateBp, totalHt: l.totalHt, priority: l.priority, partCondition: l.partCondition })),
+          totals: snap.totals,
+          previousTtc: snap.previousTtc,
+          stampDuty: snap.totals.stampDuty,
+        }
+      : null;
+  const lastDecision = latest?.approvals[0] ?? null;
 
   return {
     ...wo,
@@ -139,6 +171,9 @@ export async function getTrackingView(workOrderId: string, lang = "fr") {
     quote: quotePending
       ? { lines: wo.lines.map((l) => ({ ...l, totalHt: lineTotalHt(l) })), totals }
       : null,
+    quoteV16,
+    lastDecision,
+    quotes: undefined,
     garage: { name: settings.garageName, phone: settings.phone, address: settings.address },
   };
 }
@@ -151,12 +186,26 @@ export type TrackingView = NonNullable<Awaited<ReturnType<typeof getTrackingView
  * customer's IP address and browser.
  */
 export async function approveQuoteByCustomer(workOrderId: string, from: { ip?: string | null; userAgent?: string | null } = {}): Promise<void> {
+  // V16 Lot 2: on a new order this is « accept everything » through the traced, line-by-line path.
+  const head = await prisma.workOrder.findUnique({
+    where: { id: workOrderId },
+    select: { workflowV16: true, customer: { select: { name: true } }, quotes: { where: { status: "SENT" }, orderBy: { version: "desc" }, take: 1, select: { id: true, snapshot: true } } },
+  });
+  if (head?.workflowV16) {
+    const open = head.quotes[0];
+    if (!open) throw new AppError("quoteNotPending", {}, 409);
+    const ids = (open.snapshot as unknown as QuoteSnapshot).lines.map((l) => l.id);
+    await recordPortalDecision(workOrderId, { quoteId: open.id, approvedLineIds: ids, approverName: head.customer.name, ip: from.ip, userAgent: from.userAgent });
+    return;
+  }
   await prisma.$transaction(async (tx) => {
     const wo = await tx.workOrder.findUnique({ where: { id: workOrderId }, select: { status: true, quoteApprovedAt: true, lines: { where: { voidedAt: null }, select: { quantityX100: true, unitPrice: true, taxRateBp: true } } } });
     if (!wo || wo.status !== "QUOTE_SENT" || wo.quoteApprovedAt) throw new AppError("quoteNotPending", {}, 409);
     const now = new Date();
     const { count } = await tx.workOrder.updateMany({ where: { id: workOrderId, status: "QUOTE_SENT", quoteApprovedAt: null }, data: { status: "IN_PROGRESS", quoteApprovedAt: now } });
     if (count === 0) throw new AppError("quoteNotPending", {}, 409);
+    // V16 Lot 2: the lines of this older order are accepted with it (display, locked lines).
+    await tx.workOrderLine.updateMany({ where: { workOrderId, approvalStatus: "PENDING", voidedAt: null }, data: { approvalStatus: "APPROVED" } });
     await tx.workOrderEvent.createMany({
       data: [
         { workOrderId, type: "QUOTE_APPROVED", createdAt: now },

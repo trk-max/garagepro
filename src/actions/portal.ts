@@ -10,6 +10,7 @@ import { createClaim, createFeedback } from "@/server/claims";
 import { fmt } from "@/lib/format";
 import { cancelByCustomer, createAppointment, manageToken, sendBookingConfirmation } from "@/server/booking";
 import { approveQuoteByCustomer, customerMessage, portalLogin } from "@/server/portal";
+import { recordPortalDecision } from "@/server/quotes";
 import { clientIp, endPortalSession, getPortalWorkOrderId } from "@/server/portal-session";
 import { releaseAttempts, reserveAttempt } from "@/server/rate-limit";
 
@@ -43,6 +44,24 @@ export async function approveQuoteAction(): Promise<Result> {
   try {
     await approveQuoteByCustomer(await requirePortal(), { ip: await clientIp(), userAgent: (await headers()).get("user-agent") });
     return { ok: true, data: {} };
+  } catch (error) {
+    return toActionError(error);
+  }
+}
+
+/**
+ * V16 Lot 2 — the customer's line-by-line decision on the open quote (portal session + rate limit in
+ * recordPortalDecision): accepted line ids (« accept » fields), the rest refused, the name typed, IP and browser.
+ */
+export async function decideQuoteAction(form: FormData): Promise<Result> {
+  try {
+    const workOrderId = await requirePortal();
+    const { t } = await getI18n();
+    const quoteId = String(form.get("quoteId") ?? "").slice(0, 64);
+    const approvedLineIds = form.getAll("accept").map(String).filter((x) => /^[a-z0-9]{10,40}$/i.test(x)).slice(0, 200);
+    const approverName = String(form.get("approverName") ?? "").slice(0, 120);
+    await recordPortalDecision(workOrderId, { quoteId, approvedLineIds, approverName, ip: await clientIp(), userAgent: (await headers()).get("user-agent") });
+    return { ok: true, data: { message: t.v16.portalQuote.done } };
   } catch (error) {
     return toActionError(error);
   }

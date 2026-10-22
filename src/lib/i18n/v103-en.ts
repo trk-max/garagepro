@@ -94,6 +94,7 @@ export const v103En: typeof v103Fr = {
       manageReceptionDevices: "Reception: kiosk and screen tokens",
       // V16
       manageQuotes: "Quotes: send, waiting for customer, refusal, start work",
+      recordQuoteApproval: "Record the customer’s agreement on a quote (phone, in person…), line by line",
       cancelWorkOrder: "Cancel a repair order (with a reason)",
       deliverWorkOrder: "Deliver the vehicle",
       deliverWithBalance: "Deliver despite an unpaid invoice (override with a reason)",

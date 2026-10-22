@@ -95,6 +95,7 @@ export const v103Fr = {
       manageReceptionDevices: "Accueil : jetons de la borne et de l’écran",
       // V16 — parcours atelier.
       manageQuotes: "Devis : envoyer, attente client, refus, passage en travaux",
+      recordQuoteApproval: "Enregistrer l’accord du client sur un devis (téléphone, sur place…), ligne par ligne",
       cancelWorkOrder: "Annuler un ordre de réparation (avec motif)",
       deliverWorkOrder: "Livrer le véhicule",
       deliverWithBalance: "Livrer malgré une facture non soldée (dérogation avec motif)",

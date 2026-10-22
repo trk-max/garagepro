@@ -12,6 +12,7 @@ import type { StaffUser } from "@/lib/session";
 import { prisma } from "../../tests/helpers/test-prisma";
 import { addLine, applyPackage, changeStatus, createWorkOrder, removeLine } from "@/server/work-orders";
 import { createInvoice, recordPayment } from "@/server/invoices";
+import { recordStaffDecision } from "@/server/quotes";
 import { createPart } from "@/server/parts";
 import { approveQualityCheck, saveQualityCheck } from "@/server/quality";
 import { addPartNeed, updatePartNeed } from "@/server/follow-up";
@@ -206,13 +207,32 @@ it("demo data", async () => {
     ["QUOTE_REFUSED", ["DIAGNOSIS", "QUOTE_SENT", "QUOTE_REFUSED"]],
     ["VOIDED_LINE", ["QUOTE_SENT", "IN_PROGRESS"]],
     ["READY_BALANCE", ["QUOTE_SENT", "IN_PROGRESS", "QUALITY_CONTROL"]],
+    // V16 Lot 2 — partial agreement (last line refused), and a supplement waiting for the customer.
+    ["PARTIAL", ["DIAGNOSIS", "QUOTE_SENT", "IN_PROGRESS"]],
+    ["SUPPLEMENT", ["QUOTE_SENT", "IN_PROGRESS"]],
   ];
   for (const [n, [label, path]] of stages.entries()) {
     const c = customers[n]!;
     const v = c.vehicles[0]!;
     const wo = await createWorkOrder({ customerId: c.id, vehicleId: v.id, complaint: `Démo — ${label}`, priority: n % 4 === 0 ? "URGENT" : "NORMAL", mileageIn: 120_000 + n * 1000, mechanicId: mechs[n % 3]!.id, promisedAt: new Date(Date.now() + (n - 5) * 6 * 3_600_000) }, S.accueil!);
-    if (label !== "RECEIVED") for (const l of lineSets[n % lineSets.length]!) await step("ligne", () => addLine(wo.id, l.type === "PART" ? { type: "PART", partId: P[(l as { sku: string }).sku]!.id, quantityX100: Q(l.q) } : { type: "LABOR", description: (l as { d: string }).d, quantityX100: Q(l.q), unitPrice: DT((l as { p: number }).p) }, S.chef!));
-    for (const s of path) await step(`statut ${label}`, () => changeStatus(wo.id, s, S.chef!, { reason: REASON[s] }));
+    // V16 Lot 2: priority and part condition shown to the customer on the quote.
+    if (label !== "RECEIVED") for (const l of lineSets[n % lineSets.length]!) await step("ligne", () => addLine(wo.id, l.type === "PART" ? { type: "PART", partId: P[(l as { sku: string }).sku]!.id, quantityX100: Q(l.q), priority: /^(PLQ|AMO)/.test((l as { sku: string }).sku) ? "SAFETY" : "RECOMMENDED", partCondition: "NEW" } : { type: "LABOR", description: (l as { d: string }).d, quantityX100: Q(l.q), unitPrice: DT((l as { p: number }).p) }, S.chef!));
+    if (label === "PARTIAL") await step("ligne conseillée", () => addLine(wo.id, { type: "LABOR", description: "Nettoyage injecteurs (conseillé)", quantityX100: Q(1), unitPrice: DT(60), priority: "WATCH" }, S.chef!));
+    for (const s of path) {
+      // V16 Lot 2: work starts on the customer's RECORDED agreement (phone, reception) — the order then moves to IN_PROGRESS.
+      if (s === "IN_PROGRESS") {
+        await step(`accord ${label}`, async () => {
+          const pending = await prisma.workOrderLine.findMany({ where: { workOrderId: wo.id, approvalStatus: "PENDING", voidedAt: null }, orderBy: { position: "asc" }, select: { id: true } });
+          const ids = pending.map((l) => l.id);
+          const cust = await prisma.customer.findUniqueOrThrow({ where: { id: c.id }, select: { name: true, phone: true } });
+          return recordStaffDecision(wo.id, { approvedLineIds: label === "PARTIAL" ? ids.slice(0, -1) : ids, approverName: cust.name, approverContact: cust.phone, channel: "PHONE", note: "Démo : accord par téléphone" }, S.accueil!);
+        });
+      } else await step(`statut ${label}`, () => changeStatus(wo.id, s, S.chef!, { reason: REASON[s] }));
+    }
+    if (label === "SUPPLEMENT") {
+      await step("découverte", () => addLine(wo.id, { type: "LABOR", description: "Remplacement flexible de frein (découvert au démontage)", quantityX100: Q(1), unitPrice: DT(55), priority: "SAFETY" }, S.chef!));
+      await step("supplément envoyé", () => changeStatus(wo.id, "QUOTE_SENT", S.chef!));
+    }
     if (label === "VOIDED_LINE") {
       const first = await prisma.workOrderLine.findFirst({ where: { workOrderId: wo.id }, orderBy: { position: "asc" } });
       if (first) await step("ligne annulée", () => removeLine(first.id, S.chef!, "Démo : pièce fournie par le client"));

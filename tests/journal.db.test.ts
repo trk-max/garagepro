@@ -11,7 +11,7 @@ import { approvePurchaseOrder, createPurchaseOrder, createReceipt, createSupplie
 import { delays } from "@/server/follow-up";
 import { addVehicle, createCustomer, updateCustomer } from "@/server/customers";
 import { createWorkOrder } from "@/server/work-orders";
-import { makeUser, makeWorkOrder, prisma } from "./helpers/db";
+import { agreeAll, makeUser, makeWorkOrder, prisma } from "./helpers/db";
 import { paymentSchema } from "@/lib/validators";
 
 beforeAll(async () => {
@@ -25,6 +25,7 @@ describe("journal : factures et paiements", () => {
     const admin = await makeUser("ADMIN");
     const { wo } = await makeWorkOrder();
     await addLine(wo.id, { type: "LABOR", description: "Plaquettes", quantityX100: 100, unitPrice: 50_000 }, admin);
+    await agreeAll(wo.id, admin); // V16 Lot 2: the customer's agreement before invoicing
     const invoice = await createInvoice(wo.id, admin);
 
     const created = (await lines(invoice.id))[0]!;
@@ -44,6 +45,7 @@ describe("journal : factures et paiements", () => {
     const admin = await makeUser("ADMIN");
     const { wo } = await makeWorkOrder();
     await addLine(wo.id, { type: "LABOR", description: "Vidange", quantityX100: 100, unitPrice: 10_000 }, admin);
+    await agreeAll(wo.id, admin); // V16 Lot 2: the customer's agreement before invoicing
     const invoice = await createInvoice(wo.id, admin);
     await expect(recordPayment(invoice.id, { amount: 99_999_999, method: "CASH" }, admin)).rejects.toMatchObject({ code: "overpaid" });
     expect(await prisma.auditLog.count({ where: { action: "payment.record", actorId: admin.id } })).toBe(0);
@@ -68,6 +70,8 @@ describe("journal : stock", () => {
 
     const mech = await makeUser("MECHANIC");
     const { wo } = await makeWorkOrder();
+    // Order opened before V16: the part leaves the stock as soon as it is added (V16 orders: at the agreement).
+    await prisma.workOrder.update({ where: { id: wo.id }, data: { workflowV16: false } });
     await addLine(wo.id, { type: "PART", partId: part.id, quantityX100: 100 }, mech);
     const line = await prisma.workOrderLine.findFirstOrThrow({ where: { workOrderId: wo.id } });
     await removeLine(line.id, mech);

@@ -19,6 +19,8 @@ import {
   workOrderMetaSchema,
 } from "@/lib/validators";
 import { notifyVehicleReady } from "@/server/customer-notifications";
+import { recordStaffDecision, sendQuote } from "@/server/quotes";
+import { LINE_PRIORITIES, PART_CONDITIONS, STAFF_CHANNELS } from "@/lib/quote";
 import { createInvoice } from "@/server/invoices";
 import { parseIntakeForm } from "@/lib/repair-order-forms";
 import { getSettings } from "@/server/settings";
@@ -38,6 +40,8 @@ import {
 } from "@/server/work-orders";
 
 type Redirect = { redirectTo?: string; warning?: string };
+
+const lineQuoteSchema = z.object({ priority: z.enum(LINE_PRIORITIES).optional(), partCondition: z.enum(PART_CONDITIONS).optional() });
 
 const statusOptionsSchema = z.object({
   reason: z.string().trim().max(500).nullish(),
@@ -163,10 +167,13 @@ async function stockWarning(warnings: { name: string; stockX100: number }[]): Pr
 export async function addLineAction(workOrderId: string, form: FormData): Promise<ActionResult<Redirect>> {
   try {
     const actor = await requirePermission("viewWorkOrders");
-    const input = addLineSchema.parse(formToObject(form));
+    const raw = formToObject(form);
+    const input = addLineSchema.parse(raw);
+    // V16 Lot 2: priority and part condition shown to the customer on the quote (both optional).
+    const extra = lineQuoteSchema.parse({ priority: raw.priority || undefined, partCondition: raw.partCondition || undefined });
     const warning = await addLine(
       id.parse(workOrderId),
-      { type: input.type, partId: input.partId, description: input.description, quantityX100: input.quantity, unitPrice: input.unitPrice },
+      { type: input.type, partId: input.partId, description: input.description, quantityX100: input.quantity, unitPrice: input.unitPrice, ...extra },
       actor,
     );
     refresh(workOrderId);
@@ -204,6 +211,46 @@ export async function addNoteAction(workOrderId: string, form: FormData): Promis
   try {
     const actor = await requirePermission("viewWorkOrders");
     await addNote(id.parse(workOrderId), noteSchema.parse(formToObject(form)).body, actor);
+    refresh(workOrderId);
+    return { ok: true, data: {} };
+  } catch (error) {
+    return toActionError(error);
+  }
+}
+
+// ── V16 Lot 2 — versioned quote and recorded agreement ──────────────────────
+
+/** « Renvoyer le devis »: a new version of the pending lines (permission manageQuotes). */
+export async function sendQuoteAction(workOrderId: string): Promise<ActionResult<Redirect>> {
+  try {
+    const actor = await requirePermission("manageQuotes");
+    await sendQuote(id.parse(workOrderId), actor);
+    refresh(workOrderId);
+    return { ok: true, data: {} };
+  } catch (error) {
+    return toActionError(error);
+  }
+}
+
+const staffDecisionSchema = z.object({
+  quoteId: z.string().trim().max(64).optional().transform((v) => v || undefined),
+  approverName: z.string().trim().min(2).max(120),
+  approverContact: z.string().trim().max(120).optional().transform((v) => v || null),
+  channel: z.enum(STAFF_CHANNELS),
+  note: z.string().trim().max(1000).optional().transform((v) => v || null),
+});
+
+/**
+ * Phone / in-person / SMS / e-mail / WhatsApp agreement typed by the team: permission recordQuoteApproval
+ * (reception, workshop manager, admin — never a mechanic by default). Every quote line: accepted (« accept »
+ * field) or refused.
+ */
+export async function recordQuoteDecisionAction(workOrderId: string, form: FormData): Promise<ActionResult<Redirect>> {
+  try {
+    const actor = await requirePermission("recordQuoteApproval");
+    const input = staffDecisionSchema.parse(formToObject(form));
+    const approvedLineIds = form.getAll("accept").map(String).filter((x) => /^[a-z0-9]{10,40}$/i.test(x)).slice(0, 200);
+    await recordStaffDecision(id.parse(workOrderId), { ...input, approvedLineIds }, actor);
     refresh(workOrderId);
     return { ok: true, data: {} };
   } catch (error) {

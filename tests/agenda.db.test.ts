@@ -60,7 +60,8 @@ async function vehicleWithReplacement(item: { code: string }, opts: { customerId
   const wo = await prisma.workOrder.create({
     data: { complaint: "Freins", customerId: customer.id, vehicleId: vehicle.id, mileageIn: 44_000, status: "DELIVERED", deliveredAt: new Date(Date.now() - 20 * DAY), createdAt: new Date(Date.now() - 21 * DAY) },
   });
-  await prisma.workOrderLine.create({ data: { workOrderId: wo.id, type: "PART", description: opts.line ?? `Plaquettes ${item.code.toLowerCase()} Bosch`, quantityX100: 100, unitPrice: 150_000 } });
+  // V16 Lot 2: work actually done = lines the customer accepted (a delivered order's lines).
+  await prisma.workOrderLine.create({ data: { workOrderId: wo.id, approvalStatus: "APPROVED", type: "PART", description: opts.line ?? `Plaquettes ${item.code.toLowerCase()} Bosch`, quantityX100: 100, unitPrice: 150_000 } });
   await agenda.detectForOrders([wo.id]);
   await agenda.recomputeForecasts([vehicle.id]);
   return { vehicle, customer, wo };
@@ -79,8 +80,8 @@ describe("détection des remplacements", () => {
     await prisma.workOrder.update({ where: { id: wo.id }, data: { deliveredAt: new Date(), mileageIn: 80_000 } });
     await prisma.workOrderLine.createMany({
       data: [
-        { workOrderId: wo.id, type: "PART", description: "Filtre", partId: part.id, quantityX100: 100, unitPrice: 20_000 },
-        { workOrderId: wo.id, type: "LABOR", description: "Remplacement Courroie de distribution", quantityX100: 200, unitPrice: 35_000 },
+        { workOrderId: wo.id, approvalStatus: "APPROVED", type: "PART", description: "Filtre", partId: part.id, quantityX100: 100, unitPrice: 20_000 },
+        { workOrderId: wo.id, approvalStatus: "APPROVED", type: "LABOR", description: "Remplacement Courroie de distribution", quantityX100: 200, unitPrice: 35_000 },
       ],
     });
     await prisma.workOrderEvent.create({ data: { workOrderId: wo.id, type: "PACKAGE_APPLIED", data: { name: pkg.name, packageId: pkg.id } } });
@@ -105,7 +106,7 @@ describe("détection des remplacements", () => {
     const admin = await makeUser("ADMIN");
     const { wo, vehicle } = await makeWorkOrder({ status: "READY" });
     await prisma.workOrder.update({ where: { id: wo.id }, data: { mileageIn: 30_000 } });
-    await prisma.workOrderLine.create({ data: { workOrderId: wo.id, type: "LABOR", description: `Plaquettes ${item.code.toLowerCase()}`, quantityX100: 100, unitPrice: 50_000 } });
+    await prisma.workOrderLine.create({ data: { workOrderId: wo.id, approvalStatus: "APPROVED", type: "LABOR", description: `Plaquettes ${item.code.toLowerCase()}`, quantityX100: 100, unitPrice: 50_000 } });
     await changeStatus(wo.id, "DELIVERED", admin, { override: true, reason: "Test : livraison sans facture (dérogation V16)" }); // V16: no invoice here → traced override
     const f = await current(vehicle.id, item.id);
     expect(f).toMatchObject({ method: "REFERENCE", dueKm: 40_000, lastDoneKm: 30_000, status: "PROPOSED" });
@@ -198,7 +199,7 @@ describe("recalcul", () => {
     await agenda.validateForecasts(rec, [v1.id]);
     await agenda.sendForecasts(rec, [v1.id], { sender: fakeSender().sender });
     const wo = await prisma.workOrder.create({ data: { complaint: "x", customerId: customer.id, vehicleId: vehicle.id, mileageIn: 53_500, status: "DELIVERED", deliveredAt: new Date() } });
-    await prisma.workOrderLine.create({ data: { workOrderId: wo.id, type: "PART", description: `Plaquettes ${item.code.toLowerCase()}`, quantityX100: 100, unitPrice: 150_000 } });
+    await prisma.workOrderLine.create({ data: { workOrderId: wo.id, approvalStatus: "APPROVED", type: "PART", description: `Plaquettes ${item.code.toLowerCase()}`, quantityX100: 100, unitPrice: 150_000 } });
     await agenda.afterOrderDelivered(wo.id);
     const old = await prisma.maintenanceForecast.findUniqueOrThrow({ where: { id: v1.id } });
     expect([old.status, old.doneWorkOrderId]).toEqual(["DONE", wo.id]);

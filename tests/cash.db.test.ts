@@ -12,7 +12,7 @@ import { createInvoice, recordPayment } from "@/server/invoices";
 import { paySupplierInvoice } from "@/server/purchasing";
 import { addRefund, createWarranty, moveClaim, openClaim, setClaimAmounts } from "@/server/warranties";
 import { addLine } from "@/server/work-orders";
-import { makeUser, makeWorkOrder, prisma } from "./helpers/db";
+import { agreeAll, makeUser, makeWorkOrder, prisma } from "./helpers/db";
 
 const today = () => utcToZoned(new Date(), "Africa/Tunis").date;
 const setAlert = (cashAlertThreshold: number, cashAlertScenario = "PRUDENT") =>
@@ -28,6 +28,7 @@ afterAll(() => setAlert(0));
 async function invoicedOrder(admin: { id: string; name: string; email: string; role: "ADMIN" }, unitPrice: number) {
   const { wo } = await makeWorkOrder();
   await addLine(wo.id, { type: "LABOR", description: "Main-d'œuvre", quantityX100: 100, unitPrice }, admin);
+  await agreeAll(wo.id, admin); // V16 Lot 2: the customer's agreement before invoicing
   return createInvoice(wo.id, admin);
 }
 

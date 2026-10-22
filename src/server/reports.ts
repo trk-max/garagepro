@@ -1,5 +1,6 @@
 import "server-only";
 import { addDays, utcToZoned, zonedToUtc } from "@/lib/booking";
+import { LIVE_LINE } from "@/lib/quote";
 import { prisma } from "@/lib/prisma";
 import { PERIOD_DAYS, buildReport, type ReportPeriod, type ReportRows } from "@/lib/report";
 import { lowStockParts } from "@/server/parts";
@@ -68,7 +69,7 @@ export async function getReport(period: ReportPeriod, now = new Date()) {
     prisma.workOrder.count({ where: { status: "CANCELLED", updatedAt: range } }),
     prisma.workOrder.findMany({ where: { status: { notIn: ["DELIVERED", "CLOSED", "CANCELLED"] } }, select: { status: true } }),
     prisma.workOrderLine.findMany({
-      where: { voidedAt: null, workOrder: { invoice: { issuedAt: range } } },
+      where: { ...LIVE_LINE, workOrder: { invoice: { issuedAt: range } } },
       select: {
         type: true,
         quantityX100: true,

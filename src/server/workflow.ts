@@ -89,18 +89,31 @@ export function transitionPermission(from: WorkOrderStatus, to: WorkOrderStatus)
 export type TransitionContext = {
   /** The order follows the V16 rules (opened after migration 25). */
   workflowV16: boolean;
-  /** An agreement is recorded (quoteApprovedAt), e.g. accepted by the customer on the portal. */
+  /**
+   * An agreement is recorded. V16 orders (Lot 2): a customer decision (QuoteApproval) on the latest quote with at
+   * least one accepted line (server/quotes approvalAllowsWork). Older orders: quoteApprovedAt.
+   */
   quoteApproved: boolean;
 };
 
 /** Reason (3–500 characters) mandatory for this move: stored in the event and the audit journal, never shown to the customer. */
-export function reasonRequired(from: WorkOrderStatus, to: WorkOrderStatus, ctx: TransitionContext): boolean {
+export function reasonRequired(from: WorkOrderStatus, to: WorkOrderStatus): boolean {
   if (to === "CANCELLED" || to === "QUOTE_REFUSED") return true;
   // Back to the workshop after the quality check or once ready: why?
   if (to === "IN_PROGRESS" && (from === "QUALITY_CONTROL" || from === "READY")) return true;
-  // Until the traced agreement of Lot 2: work started on a quote with no recorded agreement must be justified.
-  if (ctx.workflowV16 && !ctx.quoteApproved && (from === "QUOTE_SENT" || from === "WAITING_INSURANCE") && (to === "IN_PROGRESS" || to === "WAITING_PARTS")) return true;
+  // (Lot 1's provisional « reason instead of an agreement » is gone: V16 orders now need a RECORDED agreement,
+  // see approvalMissing; older orders keep their one-click agreement.)
   return false;
+}
+
+/** The customer's (or the insurer's) agreement: the quote phase ends and the work starts. */
+export function isApprovalMove(from: WorkOrderStatus, to: WorkOrderStatus): boolean {
+  return (from === "QUOTE_SENT" || from === "WAITING_INSURANCE") && (to === "IN_PROGRESS" || to === "WAITING_PARTS");
+}
+
+/** V16 Lot 2 — work refused on a new order until the customer's decision is recorded (portal or staff form). */
+export function approvalMissing(from: WorkOrderStatus, to: WorkOrderStatus, ctx: TransitionContext): boolean {
+  return ctx.workflowV16 && !ctx.quoteApproved && isApprovalMove(from, to);
 }
 
 export const REASON_MIN = 3;
@@ -140,7 +153,7 @@ export function deliveryBlock(input: {
   return (balanceDue(input.invoice, input.depositAmount) ?? 0) > 0 ? "balanceDue" : null;
 }
 
-export type TransitionOption = { to: WorkOrderStatus; reason: boolean };
+export type TransitionOption = { to: WorkOrderStatus; reason: boolean; /** V16 Lot 2: shown but refused until the agreement is recorded. */ needsApproval?: boolean };
 
 /** The moves this user may offer from `from` (status dialog, workshop view). */
 export function availableTransitions(
@@ -152,7 +165,7 @@ export function availableTransitions(
     .filter((to) => can(subject, transitionPermission(from, to)))
     .filter((to) => !workWithoutQuoteBlocked(from, to, ctx))
     .filter((to) => !(to === "CANCELLED" && ctx.invoiced))
-    .map((to) => ({ to, reason: reasonRequired(from, to, ctx) }));
+    .map((to) => ({ to, reason: reasonRequired(from, to), ...(approvalMissing(from, to, ctx) ? { needsApproval: true } : {}) }));
 }
 
 // ── Customer view (portail) ──────────────────────────────────────────────────

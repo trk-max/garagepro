@@ -8,6 +8,7 @@ import type { StaffUser } from "@/lib/session";
 import { audit } from "@/server/audit";
 import { getSettings } from "@/server/settings";
 import { closeIfSettled } from "@/server/work-orders";
+import { reapplyApprovals, settleDeferredStock } from "@/server/quotes";
 import type { SnapshotLegal } from "@/lib/invoice-snapshot";
 
 /** Frozen copy stored on the invoice so later edits never change a legal document. */
@@ -22,14 +23,30 @@ export type InvoiceSnapshot = {
   legal?: SnapshotLegal;
 };
 
+/** V16 Lot 2 — lines that go on the invoice: accepted by the customer (V16 orders) / not voided nor refused (older orders). */
+export function invoiceLineWhere(workflowV16: boolean): Prisma.WorkOrderLineWhereInput {
+  return workflowV16 ? { voidedAt: null, approvalStatus: "APPROVED" } : { voidedAt: null, approvalStatus: { not: "REFUSED" } };
+}
+
 export async function createInvoice(workOrderId: string, actor: StaffUser) {
   const settings = await getSettings();
 
   return prisma.$transaction(async (tx) => {
+    const head = await tx.workOrder.findUnique({ where: { id: workOrderId }, select: { workflowV16: true } });
+    if (!head) throw new AppError("notFound", {}, 404);
+    if (head.workflowV16) {
+      // V16 Lot 2: decisions synchronised from online applied, accepted parts taken out of the stock.
+      await reapplyApprovals(tx, workOrderId);
+      await settleDeferredStock(tx, actor, workOrderId);
+      // Never invoice a line the customer has not accepted: say so instead of leaving it out silently.
+      const pending = await tx.workOrderLine.count({ where: { workOrderId, voidedAt: null, approvalStatus: "PENDING" } });
+      if (pending > 0) throw new AppError("pendingLines", { count: pending }, 409);
+    }
     const wo = await tx.workOrder.findUnique({
       where: { id: workOrderId },
-      // V16: voided lines are not invoiced.
-      include: { customer: true, vehicle: true, lines: { where: { voidedAt: null }, orderBy: { position: "asc" } }, invoice: { select: { id: true } } },
+      // V16: voided lines are not invoiced; V16 Lot 2: only the lines the customer ACCEPTED (orders opened before
+      // V16: every line not refused, as before).
+      include: { customer: true, vehicle: true, lines: { where: invoiceLineWhere(head.workflowV16), orderBy: { position: "asc" } }, invoice: { select: { id: true } } },
     });
     if (!wo) throw new AppError("notFound", {}, 404);
     if (wo.invoice) throw new AppError("alreadyInvoiced", {}, 409);
@@ -251,7 +268,7 @@ export async function getInvoice(id: string) {
           depositAmount: true,
           depositMethod: true,
           vehicle: { select: { plate: true, make: true, model: true, mileage: true } },
-          lines: { where: { voidedAt: null }, orderBy: { position: "asc" }, select: { type: true, description: true, quantityX100: true, unitPrice: true, taxRateBp: true } },
+          lines: { where: { voidedAt: null, approvalStatus: { not: "REFUSED" } }, orderBy: { position: "asc" }, select: { type: true, description: true, quantityX100: true, unitPrice: true, taxRateBp: true } },
         },
       },
       customer: { select: { name: true, phone: true, email: true, address: true, taxId: true } },

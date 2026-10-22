@@ -10,7 +10,7 @@ import { addLine, createWorkOrder } from "@/server/work-orders";
 import { ensureTemplates } from "@/server/contracts";
 import { snapshotLegal } from "@/lib/invoice-snapshot";
 import { DEFAULT_REPAIR_CLAUSES } from "@/lib/repair-order";
-import { makeUser, makeWorkOrder, prisma } from "./helpers/db";
+import { agreeAll, makeUser, makeWorkOrder, prisma } from "./helpers/db";
 
 const code = (p: Promise<unknown>) => p.then(() => "NO ERROR", (e: { code?: string }) => e.code ?? String(e));
 const resetTerms = () =>
@@ -95,6 +95,7 @@ describe("facture : mentions légales figées sur les NOUVELLES factures", () =>
     const { wo, customer } = await makeWorkOrder();
     await prisma.customer.update({ where: { id: customer.id }, data: { nationalId: "01234567" } });
     await addLine(wo.id, { type: "LABOR", description: "Main-d'œuvre", quantityX100: 100, unitPrice: 100_000 }, admin);
+    await agreeAll(wo.id, admin); // V16 Lot 2: the customer's agreement before invoicing
     const inv = await createInvoice(wo.id, admin);
     const row = await prisma.invoice.findUniqueOrThrow({ where: { id: inv.id } });
     // Legal numbering unchanged: F<year>-<4 digits>, continuous per year.

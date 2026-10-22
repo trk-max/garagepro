@@ -1,12 +1,13 @@
 import "server-only";
 import { newToken as newQrToken } from "@/server/vehicle-qr";
-import { consumeReservations, releaseAllFor } from "@/server/parts";
+import { consumeReservations, releaseAllFor, releaseForLine, reserveForLine, workOrderStockMove } from "@/server/parts";
+import { approvalAllowsWork, deliverQuoteNotice, reapplyApprovals, sendQuoteTx, settleDeferredStock } from "@/server/quotes";
 import { audit } from "@/server/audit";
 import { assertQualityApproved, resetQualityApproval } from "@/server/quality";
 import { createAutoRepairWarranty } from "@/server/warranties";
 import { missingVehicleInfo } from "@/lib/vehicle-info";
 import type { IntakeForm } from "@/lib/repair-order-forms";
-import type { FuelType, LineType, Prisma, Priority, WorkOrderStatus } from "@prisma/client";
+import type { FuelType, LinePriority, LineType, PartCondition, Prisma, Priority, WorkOrderStatus } from "@prisma/client";
 import { formatMoney, normalizePlate } from "@/lib/format";
 import { AppError } from "@/lib/http";
 import { can } from "@/lib/permissions";
@@ -20,6 +21,7 @@ import {
   balanceDue,
   cleanReason,
   deliveryBlock,
+  isApprovalMove,
   isFinal,
   reasonRequired,
   transitionPermission,
@@ -159,7 +161,7 @@ export async function listMechanics() {
 async function loadEditable(tx: Tx, workOrderId: string, { allowInvoiced = false } = {}) {
   const wo = await tx.workOrder.findUnique({
     where: { id: workOrderId },
-    select: { id: true, status: true, mechanicId: true, invoice: { select: { id: true } } },
+    select: { id: true, status: true, mechanicId: true, workflowV16: true, quoteApprovedAt: true, invoice: { select: { id: true } } },
   });
   if (!wo) throw new AppError("notFound", {}, 404);
   if (isFinal(wo.status)) throw new AppError("final", {}, 409);
@@ -178,22 +180,13 @@ function event(
   return tx.workOrderEvent.create({ data: { workOrderId, actorId, type, data, body } });
 }
 
-async function moveStock(
+/** Stock movement of a repair (exit / return), journalised — shared with the quote decisions (server/parts.ts). */
+function moveStock(
   tx: Tx,
   actor: StaffUser,
   input: { partId: string; deltaX100: number; reason: "WORK_ORDER" | "WORK_ORDER_RETURN"; workOrderId: string },
 ) {
-  const updated = await tx.part.update({
-    where: { id: input.partId },
-    data: { stockX100: { increment: input.deltaX100 } },
-    select: { stockX100: true },
-  });
-  const movement = await tx.stockMovement.create({ data: { ...input, actorId: actor.id }, select: { id: true } });
-  await audit(tx, actor, "stock.workOrder", "StockMovement", movement.id, {
-    before: { stockX100: updated.stockX100 - input.deltaX100 },
-    after: { ...input, stockX100: updated.stockX100 },
-  });
-  return updated.stockX100;
+  return workOrderStockMove(tx, actor, input);
 }
 
 export type CreateWorkOrderInput = {
@@ -343,7 +336,9 @@ export type StatusChangeOptions = {
 };
 
 export async function changeStatus(workOrderId: string, to: WorkOrderStatus, actor: StaffUser, opts: StatusChangeOptions = {}) {
-  await changeStatusTx(workOrderId, to, actor, opts);
+  const done = await changeStatusTx(workOrderId, to, actor, opts);
+  // V16 Lot 2: « devis à valider » queued with the quote, sent after the commit (never blocks the move).
+  await deliverQuoteNotice(done.quoteNotice);
   // V12: delivered → replacements detected in its lines → forecasts of the vehicle recomputed.
   // After the commit and never blocking: a failure here does not undo the delivery.
   if (to === "DELIVERED") {
@@ -357,8 +352,16 @@ async function workflowSettings(tx: Tx) {
   return { allowWorkWithoutQuote: s?.allowWorkWithoutQuote ?? false, requirePaidBeforeDelivery: s?.requirePaidBeforeDelivery ?? true };
 }
 
-async function changeStatusTx(workOrderId: string, to: WorkOrderStatus, actor: StaffUser, opts: StatusChangeOptions) {
+async function changeStatusTx(workOrderId: string, to: WorkOrderStatus, actor: StaffUser, opts: StatusChangeOptions): Promise<{ quoteNotice: string | null }> {
   return prisma.$transaction(async (tx) => {
+    const head = await tx.workOrder.findUnique({ where: { id: workOrderId }, select: { workflowV16: true } });
+    if (!head) throw new AppError("notFound", {}, 404);
+    // V16 Lot 2: customer decisions synchronised from online are re-applied to the lines (append-only proof),
+    // and accepted parts still in reservation leave the stock now (not when cancelling: nothing to take out).
+    if (head.workflowV16) {
+      await reapplyApprovals(tx, workOrderId);
+      if (to !== "CANCELLED") await settleDeferredStock(tx, actor, workOrderId);
+    }
     const wo = await tx.workOrder.findUnique({
       where: { id: workOrderId },
       select: {
@@ -367,8 +370,9 @@ async function changeStatusTx(workOrderId: string, to: WorkOrderStatus, actor: S
         quoteApprovedAt: true,
         depositAmount: true,
         invoice: { select: { id: true, totalTtc: true, paidAmount: true } },
-        // Voided lines already gave their parts back: never twice.
-        lines: { where: { partId: { not: null }, voidedAt: null }, select: { partId: true, quantityX100: true } },
+        // Voided lines already gave their parts back, and parts still in reservation (V16 quote) never left
+        // the shelf: never returned twice.
+        lines: { where: { partId: { not: null }, voidedAt: null, stockDeferred: false }, select: { partId: true, quantityX100: true } },
       },
     });
     if (!wo) throw new AppError("notFound", {}, 404);
@@ -380,8 +384,11 @@ async function changeStatusTx(workOrderId: string, to: WorkOrderStatus, actor: S
     const settings = await workflowSettings(tx);
     // New orders only (non-retroactive): no work straight from reception / diagnosis unless allowed.
     if (workWithoutQuoteBlocked(wo.status, to, { workflowV16: wo.workflowV16, ...settings })) throw new AppError("workWithoutQuote", {}, 409);
+    // V16 Lot 2 (new orders): the work starts only on a RECORDED agreement (portal or staff form) on the latest
+    // quote, with at least one accepted line — never on a simple click any more (replaces the Lot 1 reason).
+    if (wo.workflowV16 && isApprovalMove(wo.status, to) && !(await approvalAllowsWork(tx, workOrderId))) throw new AppError("approvalRequired", {}, 409);
     const reason = cleanReason(opts.reason);
-    if (reasonRequired(wo.status, to, { workflowV16: wo.workflowV16, quoteApproved: !!wo.quoteApprovedAt }) && !reason) {
+    if (reasonRequired(wo.status, to) && !reason) {
       throw new AppError("reasonRequired", {}, 422);
     }
 
@@ -406,11 +413,16 @@ async function changeStatusTx(workOrderId: string, to: WorkOrderStatus, actor: S
     if (to === "READY") await assertQualityApproved(tx, workOrderId);
     // Back to the workshop: the checklist must be validated again afterwards.
     if (to === "IN_PROGRESS" || to === "WAITING_PARTS" || to === "QUOTE_SENT") await resetQualityApproval(tx, workOrderId);
+    // V16 Lot 2: sending the quote (initial, or supplement from the workshop) creates its version: frozen copy,
+    // number, SHA-256 fingerprint, customer notice. With a hub, refused online (numbered at the garage).
+    const quoteNotice = to === "QUOTE_SENT" && wo.workflowV16 ? (await sendQuoteTx(tx, actor, workOrderId, { channel: "PORTAL" })).dedupeKey : null;
 
     const now = new Date();
     const data: Prisma.WorkOrderUpdateManyMutationInput = { status: to };
     const approval = isApprovalMove(wo.status, to);
     if (approval && wo.status === "QUOTE_SENT") data.quoteApprovedAt = now;
+    // Orders opened before V16 keep the one-click agreement: their pending lines become accepted with it.
+    if (approval && !wo.workflowV16) await tx.workOrderLine.updateMany({ where: { workOrderId, approvalStatus: "PENDING", voidedAt: null }, data: { approvalStatus: "APPROVED" } });
     // A new (or complementary) quote must be approved again by the customer.
     if (to === "QUOTE_SENT") data.quoteApprovedAt = null;
     if (to === "READY") data.readyAt = now;
@@ -451,6 +463,7 @@ async function changeStatusTx(workOrderId: string, to: WorkOrderStatus, actor: S
 
     // Delivered and already paid: closed at once (owner's decision: automatic closing).
     if (to === "DELIVERED") await closeIfSettled(tx, workOrderId, actor);
+    return { quoteNotice };
   });
 }
 
@@ -471,13 +484,9 @@ export async function closeIfSettled(tx: Tx, workOrderId: string, actor: { id: s
   return true;
 }
 
-/** The customer's (or the insurer's) agreement: the quote phase ends and the work starts. */
-function isApprovalMove(from: WorkOrderStatus, to: WorkOrderStatus) {
-  return (from === "QUOTE_SENT" || from === "WAITING_INSURANCE") && (to === "IN_PROGRESS" || to === "WAITING_PARTS");
-}
-
 /**
- * V16 — last known agreement on this order (until the traced agreements of Lot 2): the latest of
+ * V16 — last known agreement on an order opened BEFORE V16 (V16 orders use the traced agreements of Lot 2,
+ * server/quotes.ts): the latest of
  * quoteApprovedAt, a portal approval (QUOTE_APPROVED) and a move from the quote / insurance to the work.
  * quoteApprovedAt alone is not enough: each complementary quote clears it.
  */
@@ -569,13 +578,37 @@ export async function updateMeta(
   });
 }
 
-type NewLine = { type: LineType; partId?: string; description?: string; quantityX100: number; unitPrice?: number };
+type NewLine = {
+  type: LineType;
+  partId?: string;
+  description?: string;
+  quantityX100: number;
+  unitPrice?: number;
+  /** V16 Lot 2 — shown to the customer on the quote. */
+  priority?: LinePriority | null;
+  partCondition?: PartCondition | null;
+};
+type EditableOrder = { id: string; status: WorkOrderStatus; workflowV16: boolean; quoteApprovedAt: Date | null };
 
 /**
- * Adds a labour or part line. Part lines take name/price from stock unless
- * overridden, and consume stock immediately. Returns a low-stock warning.
+ * V16 Lot 2 — agreement status of a new line. New orders: always PENDING (the customer accepts it on a quote,
+ * a line added after the agreement is a supplement). Orders opened before V16 keep their one-click agreement:
+ * accepted at once, except while their quote waits for the answer (then accepted with it).
  */
-async function insertLine(tx: Tx, workOrderId: string, line: NewLine, actor: StaffUser, laborRate: number, taxBp: number) {
+function newLineApproval(wo: EditableOrder) {
+  if (wo.workflowV16) return "PENDING" as const;
+  return wo.status === "QUOTE_SENT" && !wo.quoteApprovedAt ? ("PENDING" as const) : ("APPROVED" as const);
+}
+
+/**
+ * Adds a labour or part line. Part lines take name/price from stock unless overridden. Orders opened before
+ * V16: the part leaves the stock immediately (unchanged). V16 Lot 2 orders: the part is RESERVED until the
+ * customer accepts the line (then it leaves the stock), released if refused. Returns a low-stock warning.
+ */
+async function insertLine(tx: Tx, wo: EditableOrder, line: NewLine, actor: StaffUser, laborRate: number, taxBp: number) {
+  const workOrderId = wo.id;
+  const deferred = wo.workflowV16 && line.type === "PART" && !!line.partId;
+  let partName: string | null = null;
   let description = line.description;
   let unitPrice = line.unitPrice;
   // Purchase cost at the moment of use: later price changes never rewrite a repair's real cost.
@@ -591,13 +624,16 @@ async function insertLine(tx: Tx, workOrderId: string, line: NewLine, actor: Sta
       description ??= part.brand ? `${part.name} (${part.brand})` : part.name;
       unitPrice ??= part.salePrice;
       unitCost = part.costPrice > 0 ? part.costPrice : null;
-      // Business rule (unchanged): a part may be used even if the recorded stock is short
-      // (it can be physically on the shelf); the user gets a warning instead of a block.
-      await consumeReservations(tx, actor, workOrderId, part.id, line.quantityX100);
-      const remaining = await moveStock(tx, actor, { partId: part.id, deltaX100: -line.quantityX100, reason: "WORK_ORDER", workOrderId });
-      // Business rule (unchanged): allowed, with a warning, even when the recorded free stock is short.
-      const after = await tx.part.findUnique({ where: { id: part.id }, select: { reservedX100: true } });
-      if (remaining - (after?.reservedX100 ?? 0) < 0) warning = { name: part.name, stockX100: remaining - (after?.reservedX100 ?? 0) };
+      partName = part.name;
+      if (!deferred) {
+        // Business rule (unchanged): a part may be used even if the recorded stock is short
+        // (it can be physically on the shelf); the user gets a warning instead of a block.
+        await consumeReservations(tx, actor, workOrderId, part.id, line.quantityX100);
+        const remaining = await moveStock(tx, actor, { partId: part.id, deltaX100: -line.quantityX100, reason: "WORK_ORDER", workOrderId });
+        // Business rule (unchanged): allowed, with a warning, even when the recorded free stock is short.
+        const after = await tx.part.findUnique({ where: { id: part.id }, select: { reservedX100: true } });
+        if (remaining - (after?.reservedX100 ?? 0) < 0) warning = { name: part.name, stockX100: remaining - (after?.reservedX100 ?? 0) };
+      }
     }
   } else {
     if (!description) throw new AppError("invalid");
@@ -617,19 +653,38 @@ async function insertLine(tx: Tx, workOrderId: string, line: NewLine, actor: Sta
       partId: line.type === "PART" ? (line.partId ?? null) : null,
       unitCost,
       position,
+      approvalStatus: newLineApproval(wo),
+      priority: line.priority ?? null,
+      partCondition: line.type === "PART" ? (line.partCondition ?? null) : null,
+      stockDeferred: deferred,
     },
   });
+  if (deferred) {
+    // Put aside on the free stock (atomic); what cannot be reserved is only a warning, as before.
+    const short = await reserveForLine(tx, actor, { workOrderId, partId: line.partId!, lineId: created.id, quantityX100: line.quantityX100 });
+    if (short > 0) warning = { name: partName ?? description!, stockX100: -short };
+  }
   return { id: created.id, description: description!, unitPrice: unitPrice!, warning };
 }
 
 export async function addLine(workOrderId: string, line: NewLine, actor: StaffUser) {
   const settings = await getSettings();
   return prisma.$transaction(async (tx) => {
-    await loadEditable(tx, workOrderId);
-    const result = await insertLine(tx, workOrderId, line, actor, settings.laborRate, settings.defaultTaxBp);
+    const wo = await loadEditable(tx, workOrderId);
+    const result = await insertLine(tx, wo, line, actor, settings.laborRate, settings.defaultTaxBp);
     await event(tx, workOrderId, actor.id, "LINE_ADDED", { description: result.description });
     await audit(tx, actor, "workOrder.lineAdd", "WorkOrderLine", result.id, {
-      after: { workOrderId, type: line.type, description: result.description, quantityX100: line.quantityX100, unitPrice: result.unitPrice, partId: line.partId ?? null },
+      after: {
+        workOrderId,
+        type: line.type,
+        description: result.description,
+        quantityX100: line.quantityX100,
+        unitPrice: result.unitPrice,
+        partId: line.partId ?? null,
+        approvalStatus: newLineApproval(wo),
+        priority: line.priority ?? null,
+        partCondition: line.partCondition ?? null,
+      },
     });
     // V16 (audit n° 4): the work changed, the quality check must be validated again.
     await resetQualityApproval(tx, workOrderId);
@@ -648,9 +703,17 @@ export async function removeLine(lineId: string, actor: StaffUser, reason?: stri
     const line = await tx.workOrderLine.findUnique({ where: { id: lineId } });
     if (!line) throw new AppError("notFound", {}, 404);
     if (line.voidedAt) throw new AppError("invalid", {}, 409);
-    await loadEditable(tx, line.workOrderId);
-    const approvedAt = await lastApprovalAt(tx, line.workOrderId);
-    const voidIt = !!approvedAt && line.createdAt <= approvedAt;
+    const wo = await loadEditable(tx, line.workOrderId);
+    let voidIt: boolean;
+    if (wo.workflowV16) {
+      // V16 Lot 2: an ACCEPTED line is locked (voided with a reason, never deleted); a REFUSED line is kept as
+      // the customer's answer (follow-up later); only a PENDING line may be deleted.
+      if (line.approvalStatus === "REFUSED") throw new AppError("lineRefusedLocked", {}, 409);
+      voidIt = line.approvalStatus === "APPROVED";
+    } else {
+      const approvedAt = await lastApprovalAt(tx, line.workOrderId);
+      voidIt = !!approvedAt && line.createdAt <= approvedAt;
+    }
     const why = cleanReason(reason);
     if (voidIt) {
       if (!why) throw new AppError("reasonRequired", {}, 422);
@@ -660,13 +723,22 @@ export async function removeLine(lineId: string, actor: StaffUser, reason?: stri
     } else {
       await tx.workOrderLine.delete({ where: { id: lineId } });
     }
-    if (line.partId) {
+    if (line.partId && line.stockDeferred) {
+      // V16 Lot 2: the part never left the shelf, it was only put aside for the quote.
+      await releaseForLine(tx, actor, line.id, voidIt ? "ligne annulée" : "ligne supprimée");
+    } else if (line.partId) {
       await moveStock(tx, actor, {
         partId: line.partId,
         deltaX100: line.quantityX100,
         reason: "WORK_ORDER_RETURN",
         workOrderId: line.workOrderId,
       });
+    }
+    // V16 Lot 2: a pending line removed from the quote the customer is reading: that version no longer matches
+    // the work, it is replaced (the customer cannot accept it any more; « Renvoyer le devis » sends a new one).
+    if (!voidIt && line.quoteId) {
+      const { count } = await tx.quote.updateMany({ where: { id: line.quoteId, status: "SENT" }, data: { status: "SUPERSEDED" } });
+      if (count) await audit(tx, actor, "quote.supersede", "Quote", line.quoteId, { before: { status: "SENT" }, after: { status: "SUPERSEDED", removedLine: line.description } });
     }
     await event(tx, line.workOrderId, actor.id, "LINE_REMOVED", { description: line.description, ...(voidIt ? { voided: true, reason: why } : {}) });
     const snapshot = { workOrderId: line.workOrderId, type: line.type, description: line.description, quantityX100: line.quantityX100, unitPrice: line.unitPrice, partId: line.partId };
@@ -681,6 +753,9 @@ export async function removeLine(lineId: string, actor: StaffUser, reason?: stri
 
 /** Lines of this order that will be voided (not deleted) when removed: they existed at the last agreement. */
 export async function voidOnlyLineIds(workOrderId: string): Promise<string[]> {
+  const wo = await prisma.workOrder.findUnique({ where: { id: workOrderId }, select: { workflowV16: true } });
+  // V16 Lot 2: the lines the customer accepted (locked).
+  if (wo?.workflowV16) return (await prisma.workOrderLine.findMany({ where: { workOrderId, voidedAt: null, approvalStatus: "APPROVED" }, select: { id: true } })).map((l) => l.id);
   const approvedAt = await lastApprovalAt(prisma as unknown as Tx, workOrderId);
   if (!approvedAt) return [];
   const lines = await prisma.workOrderLine.findMany({ where: { workOrderId, voidedAt: null, createdAt: { lte: approvedAt } }, select: { id: true } });
@@ -690,7 +765,7 @@ export async function voidOnlyLineIds(workOrderId: string): Promise<string[]> {
 export async function applyPackage(workOrderId: string, packageId: string, actor: StaffUser) {
   const settings = await getSettings();
   return prisma.$transaction(async (tx) => {
-    await loadEditable(tx, workOrderId);
+    const wo = await loadEditable(tx, workOrderId);
     const pkg = await tx.servicePackage.findFirst({
       where: { id: packageId, isActive: true },
       include: { lines: { orderBy: { position: "asc" } } },
@@ -702,7 +777,7 @@ export async function applyPackage(workOrderId: string, packageId: string, actor
     for (const l of pkg.lines) {
       const result = await insertLine(
         tx,
-        workOrderId,
+        wo,
         {
           type: l.type,
           partId: l.partId ?? undefined,

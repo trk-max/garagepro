@@ -50,6 +50,8 @@ const MATRIX = {
   // ── Parcours atelier (V16) : une permission par décision, réglable par employé ──
   /// Devis : envoyer, attente client, refus (motif), accord enregistré (passage en travaux), devis complémentaire.
   manageQuotes: ["ADMIN", "MANAGER", "RECEPTION"],
+  /// V16 Lot 2 — enregistrer l'accord du client (téléphone, sur place, SMS, e-mail, WhatsApp) ligne par ligne. Jamais le mécanicien par défaut.
+  recordQuoteApproval: ["ADMIN", "MANAGER", "RECEPTION"],
   /// Annuler un ordre de réparation (motif obligatoire ; pièces remises en stock).
   cancelWorkOrder: ["ADMIN", "MANAGER"],
   /// Livrer le véhicule (Prêt → Livré).
@@ -210,7 +212,7 @@ export function normaliseOverrides(role: Role, wanted: Partial<Record<string, Ov
 
 /** Display groups for the "Accès" editor (every permission appears exactly once). */
 export const PERMISSION_GROUPS = {
-  workshop: ["viewWorkOrders", "useWorkshop", "printQuote", "uploadMedia", "obdDiagnose", "viewAppointments", "manageAppointments", "manageTracking", "manageRepairFollowUp", "reportMissingPart", "logOwnLabor", "manageLabor", "fillQualityCheck", "approveQualityCheck", "manageClaims", "manageWarranties", "manageQuotes", "cancelWorkOrder", "deliverWorkOrder", "deliverWithBalance", "closeWorkOrder"],
+  workshop: ["viewWorkOrders", "useWorkshop", "printQuote", "uploadMedia", "obdDiagnose", "viewAppointments", "manageAppointments", "manageTracking", "manageRepairFollowUp", "reportMissingPart", "logOwnLabor", "manageLabor", "fillQualityCheck", "approveQualityCheck", "manageClaims", "manageWarranties", "manageQuotes", "recordQuoteApproval", "cancelWorkOrder", "deliverWorkOrder", "deliverWithBalance", "closeWorkOrder"],
   customers: ["viewCustomers", "manageMaintenance", "viewAgenda", "manageAgenda", "configureAgenda", "manageVehicleQr", "viewNotifications", "manageCompanyAccess"],
   money: ["viewFinance", "viewClientInvoices", "createInvoice", "recordPayment", "sendReminder", "manageExpenses", "viewWarrantyMoney", "viewCashForecast", "readCashForecast", "viewProfit", "viewReports"],
   stock: ["viewStock", "manageStock", "reserveStock", "viewSuppliers", "manageSuppliers", "requestPurchase", "approvePurchase", "receiveGoods", "viewSupplierInvoices", "manageSupplierInvoices", "paySupplier"],

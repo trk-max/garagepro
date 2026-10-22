@@ -274,6 +274,90 @@ describe.skipIf(!BASE)("garage hub ↔ online database", () => {
     }
   }, 20_000);
 
+  it("V16 Lot 2: migration 26 replays twice; its backfill is not logged (orders waiting for a quote answer → PENDING, the rest APPROVED)", async () => {
+    // A garage database still at migration 25 (with the hub change log), with two orders.
+    const before26 = allMigrations.filter((m) => parseInt(m) < 26);
+    const old = await freshDb(admin, `${HUB}_m26`, before26);
+    try {
+      await old.query(`INSERT INTO "User"(id, email, name, "passwordHash", "updatedAt") VALUES ('u9', 'z@g.tn', 'Admin', 'x', now())`);
+      await addCustomer(old, "c9", "Avant V16");
+      await addVehicle(old, "v9", "900TU9000", "c9");
+      await addWorkOrder(old, "wq", "c9", "v9");
+      await addWorkOrder(old, "wi", "c9", "v9");
+      await old.query(`UPDATE "WorkOrder" SET status='QUOTE_SENT' WHERE id='wq'`);
+      await old.query(`UPDATE "WorkOrder" SET status='IN_PROGRESS', "quoteApprovedAt"=now() WHERE id='wi'`);
+      for (const [id, wo] of [["lq", "wq"], ["li", "wi"]]) {
+        await old.query(`INSERT INTO "WorkOrderLine"(id, "workOrderId", type, description, "quantityX100", "unitPrice") VALUES ($1, $2, 'LABOR', 'MO', 100, 10000)`, [id, wo]);
+      }
+      await old.query(`DELETE FROM "_sync_log"`);
+      for (let i = 0; i < 2; i++) await old.query(migrationSql("26_quotes"));
+      expect(Number((await one(old, `SELECT count(*) FROM "_sync_log"`)).count)).toBe(0);
+      expect((await old.query(`SELECT id, "approvalStatus" AS s, "stockDeferred" AS d FROM "WorkOrderLine" ORDER BY id`)).rows).toEqual([
+        { id: "li", s: "APPROVED", d: false },
+        { id: "lq", s: "PENDING", d: false },
+      ]);
+      // New lines: PENDING by default; the hub logs the two new tables.
+      await old.query(`INSERT INTO "WorkOrderLine"(id, "workOrderId", type, description, "quantityX100", "unitPrice") VALUES ('ln', 'wi', 'LABOR', 'Neuve', 100, 1)`);
+      expect((await one(old, `SELECT "approvalStatus" AS s FROM "WorkOrderLine" WHERE id='ln'`)).s).toBe("PENDING");
+      const trg = await old.query(`SELECT c.relname FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid WHERE t.tgname = '_sync_log_trg' AND c.relname IN ('Quote', 'QuoteApproval') ORDER BY 1`);
+      expect(trg.rows.map((r) => r.relname)).toEqual(["Quote", "QuoteApproval"]);
+    } finally {
+      await old.end();
+      await admin.query(`DROP DATABASE IF EXISTS ${HUB}_m26 WITH (FORCE)`);
+    }
+  }, 30_000);
+
+  it("V16 Lot 2: a customer's portal decision made online while the garage is offline reaches the garage without overwriting its work", async () => {
+    for (const db of [local, cloud]) for (let i = 0; i < 2; i++) await db.query(migrationSql("26_quotes"));
+    // Garage: order waiting for the answer to quote D2026-0001 (two lines), sent to the customer, synchronised.
+    await addCustomer(local, "c26", "Client devis");
+    await addVehicle(local, "v26", "260TU2600", "c26");
+    await addWorkOrder(local, "w26", "c26", "v26");
+    await local.query(`UPDATE "WorkOrder" SET status='QUOTE_SENT', "updatedAt"=now() WHERE id='w26'`);
+    await local.query(
+      `INSERT INTO "Quote"(id, "workOrderId", number, version, snapshot, "snapshotHash", "sentAt") VALUES ('q26', 'w26', 'D2026-0001', 1, '{"lines":[]}', 'abc', now())`,
+    );
+    for (const [id, d] of [["l26a", "Plaquettes"], ["l26b", "Disques"]]) {
+      await local.query(`INSERT INTO "WorkOrderLine"(id, "workOrderId", type, description, "quantityX100", "unitPrice", "quoteId") VALUES ($1, 'w26', 'LABOR', $2, 100, 50000, 'q26')`, [id, d]);
+    }
+    expect((await syncOnce(local, cloud)).errors).toEqual([]);
+
+    // Internet down at the garage. Online, the customer decides on the portal — what recordPortalDecision writes
+    // with a hub: new rows (decision, event, journal) + line and quote statuses, never the WorkOrder row.
+    await cloud.query(`UPDATE "Quote" SET status='PARTIAL' WHERE id='q26' AND status='SENT'`);
+    await cloud.query(`UPDATE "WorkOrderLine" SET "approvalStatus"='APPROVED' WHERE id='l26a'`);
+    await cloud.query(`UPDATE "WorkOrderLine" SET "approvalStatus"='REFUSED' WHERE id='l26b'`);
+    await cloud.query(
+      `INSERT INTO "QuoteApproval"(id, "quoteId", "workOrderId", decision, "approvedLineIds", "refusedLineIds", "amountApprovedTtc", "approverName", channel, ip, "userAgent", "quoteHash")
+       VALUES ('qa26', 'q26', 'w26', 'PARTIAL', '["l26a"]', '["l26b"]', 60500, 'Client devis', 'PORTAL', '41.1.2.3', 'Phone', 'abc')`,
+    );
+    await cloud.query(`INSERT INTO "WorkOrderEvent"(id, "workOrderId", type, data) VALUES ('e26', 'w26', 'QUOTE_APPROVED', '{"decision":"PARTIAL"}')`);
+    // Meanwhile at the garage (later): diagnosis written, a supplement line added, a note.
+    await local.query(`UPDATE "WorkOrder" SET diagnosis='Flexible fissuré', "updatedAt"=now() WHERE id='w26'`);
+    await local.query(`INSERT INTO "WorkOrderLine"(id, "workOrderId", type, description, "quantityX100", "unitPrice") VALUES ('l26c', 'w26', 'LABOR', 'Flexible', 100, 30000)`);
+    await local.query(`INSERT INTO "WorkOrderEvent"(id, "workOrderId", type, body) VALUES ('n26', 'w26', 'NOTE', 'Vu au pont')`);
+
+    // Back online.
+    const r = await syncOnce(local, cloud);
+    expect(r.errors).toEqual([]);
+    for (const db of [local, cloud]) {
+      // The decision (append-only proof) and its derived statuses arrived…
+      expect(await one(db, `SELECT decision, ip, channel FROM "QuoteApproval" WHERE id='qa26'`)).toEqual({ decision: "PARTIAL", ip: "41.1.2.3", channel: "PORTAL" });
+      expect((await one(db, `SELECT status FROM "Quote" WHERE id='q26'`)).status).toBe("PARTIAL");
+      expect((await db.query(`SELECT id, "approvalStatus" AS s FROM "WorkOrderLine" WHERE "workOrderId"='w26' ORDER BY id`)).rows).toEqual([
+        { id: "l26a", s: "APPROVED" },
+        { id: "l26b", s: "REFUSED" },
+        { id: "l26c", s: "PENDING" },
+      ]);
+      // …and the garage's own work was not overwritten (the WorkOrder row was only changed at the garage).
+      expect(await one(db, `SELECT status, diagnosis FROM "WorkOrder" WHERE id='w26'`)).toEqual({ status: "QUOTE_SENT", diagnosis: "Flexible fissuré" });
+      expect(Number((await one(db, `SELECT count(*) FROM "WorkOrderEvent" WHERE id IN ('e26', 'n26')`)).count)).toBe(2);
+    }
+    // The proof cannot be changed afterwards, on either side (the sync itself may).
+    await expect(local.query(`UPDATE "QuoteApproval" SET "amountApprovedTtc"=1 WHERE id='qa26'`)).rejects.toThrow(/append-only/);
+    await expect(cloud.query(`DELETE FROM "QuoteApproval" WHERE id='qa26'`)).rejects.toThrow(/append-only/);
+  }, 30_000);
+
   it("a database without a hub logs nothing", async () => {
     const plain = await freshDb(admin, `${HUB}_plain`, allMigrations);
     try {

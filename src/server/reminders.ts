@@ -1,6 +1,9 @@
 import "server-only";
 import type { Prisma } from "@prisma/client";
-import { displayPlate, formatDate, formatTime } from "@/lib/format";
+import { getBaseUrl } from "@/lib/base-url";
+import { displayPlate, fmt, formatDate, formatTime } from "@/lib/format";
+import { fr } from "@/lib/i18n/fr";
+import { QUOTE_WAIT_DAYS } from "@/lib/todo";
 import { MAX_ATTEMPTS, maintenanceDedupeKey, nextDue, renderTemplate, retryDelayMs } from "@/lib/maintenance";
 import { prisma } from "@/lib/prisma";
 import { emailConfigured, sendEmail, type EmailResult } from "@/server/email";
@@ -61,7 +64,8 @@ export const realSender: Sender = {
 export type Item = {
   // V15: "QUEUE" = message of the reception queue (« c'est votre tour », « encore N personnes »), consent given at the kiosk.
   // V16: "READY" = « votre véhicule est prêt » (after the move to READY), journalised like the others.
-  kind: "MAINTENANCE" | "APPOINTMENT" | "DELIVERY" | "AGENDA" | "QUEUE" | "READY";
+  // V16 Lot 2: "QUOTE" = « devis / supplément à valider » (link + code), "QUOTE_REMINDER" = one reminder after QUOTE_WAIT_DAYS.
+  kind: "MAINTENANCE" | "APPOINTMENT" | "DELIVERY" | "AGENDA" | "QUEUE" | "READY" | "QUOTE" | "QUOTE_REMINDER";
   dedupeKey: string;
   phone: string | null;
   email: string | null;
@@ -81,7 +85,8 @@ export async function collectDue(now = new Date()): Promise<Item[]> {
   const tz = s.timezone;
   const base = { garage: s.garageName, phone: s.phone ?? "" };
   const in24h = new Date(now.getTime() + 24 * 3_600_000);
-  const [plans, appointments, orders] = await Promise.all([
+  const quoteCut = new Date(now.getTime() - QUOTE_WAIT_DAYS * 86_400_000);
+  const [plans, appointments, orders, quotes] = await Promise.all([
     prisma.vehicleMaintenance.findMany({
       where: { isActive: true },
       include: { vehicle: { select: { id: true, plate: true, mileage: true, customer: { select: { id: true, phone: true, email: true, reminderOptOut: true } } } } },
@@ -91,6 +96,12 @@ export async function collectDue(now = new Date()): Promise<Item[]> {
     prisma.workOrder.findMany({
       where: { status: { in: ACTIVE_STATUSES.filter((x) => x !== "READY") }, promisedAt: { gt: now, lte: in24h } },
       select: { id: true, promisedAt: true, vehicle: { select: { id: true, plate: true } }, customer: { select: { id: true, phone: true, email: true } } },
+      take: 1000,
+    }),
+    // V16 Lot 2: quotes still waiting for the customer after QUOTE_WAIT_DAYS, still valid: one reminder each.
+    prisma.quote.findMany({
+      where: { status: "SENT", sentAt: { lte: quoteCut }, validUntil: { gt: now }, workOrder: { status: { in: ["QUOTE_SENT", "WAITING_CUSTOMER"] } } },
+      select: { id: true, workOrder: { select: { id: true, trackingPin: true, vehicle: { select: { id: true, plate: true } }, customer: { select: { id: true, phone: true, email: true } } } } },
       take: 1000,
     }),
   ]);
@@ -142,6 +153,24 @@ export async function collectDue(now = new Date()): Promise<Item[]> {
       subject: `${s.garageName} : livraison prévue`,
       body,
     });
+  }
+  if (quotes.length) {
+    const base = await getBaseUrl().catch(() => null);
+    for (const q of quotes) {
+      const w = q.workOrder;
+      const body = fmt(fr.v16.quote.smsReminder, { garage: s.garageName, plate: displayPlate(w.vehicle.plate), url: base ? `${base}/suivi?plate=${w.vehicle.plate}` : "", pin: w.trackingPin ?? "" });
+      items.push({
+        kind: "QUOTE_REMINDER",
+        dedupeKey: `quote-remind:${q.id}`,
+        phone: w.customer.phone,
+        email: w.customer.email,
+        customerId: w.customer.id,
+        vehicleId: w.vehicle.id,
+        workOrderId: w.id,
+        subject: `${s.garageName} : devis en attente`,
+        body,
+      });
+    }
   }
   return items;
 }

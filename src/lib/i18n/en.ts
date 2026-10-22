@@ -307,6 +307,16 @@ export const en: Dictionary = {
     deliveryNoInvoice: "Delivery refused: no invoice. Issue the invoice, or a manager can deliver with an override (with a reason).",
     deliveryBalanceDue: "Delivery refused: {amount} is still due. Collect the balance, or a manager can deliver with an override (with a reason).",
     notSettled: "Cannot close: the invoice is not settled.",
+    // V16 Lot 2
+    approvalRequired: "Record the customer's agreement on the quote first (portal or « Record the agreement »).",
+    noQuoteLines: "No line is waiting for approval: add the quote lines before sending it.",
+    quoteHubOnly: "Quotes are numbered at the garage: send it from the garage PC (the customer can then accept it online).",
+    legacyQuote: "Order opened before V16: line-by-line quotes do not apply, use the usual move to repair.",
+    quoteChanged: "The quote changed meanwhile: reload the page to see the new version.",
+    quoteExpired: "This quote is no longer valid: contact the garage to get a new one.",
+    approverNameRequired: "Type your name to confirm your decision.",
+    pendingLines: "Cannot invoice: {count} line(s) are waiting for the customer's agreement. Record the decision or remove them.",
+    lineRefusedLocked: "Line refused by the customer: it is kept as it is (follow-up later).",
     // V14 — compétences
     skillReasonRequired: "Give a reason (at least 3 characters).",
     skillNotOwnLevel: "You cannot decide your own skills: another manager must do it.",

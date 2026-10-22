@@ -1,5 +1,6 @@
 import "server-only";
 import type { Prisma, Role } from "@prisma/client";
+import { AGREED_LINE } from "@/lib/quote";
 import { createId } from "@/lib/id";
 import { displayPlate, woNumber } from "@/lib/format";
 import { AppError } from "@/lib/http";
@@ -356,7 +357,7 @@ export async function historyDraft(actor: StaffUser, listingId: string): Promise
     where: { vehicleId: listing.vehicleId, status: { in: ["DELIVERED", "CLOSED"] } },
     orderBy: { deliveredAt: "asc" },
     take: 40,
-    select: { deliveredAt: true, createdAt: true, mileageIn: true, lines: { where: { type: { in: ["LABOR", "PART"] }, voidedAt: null }, orderBy: { position: "asc" }, select: { description: true } } },
+    select: { deliveredAt: true, createdAt: true, mileageIn: true, lines: { where: { type: { in: ["LABOR", "PART"] }, ...AGREED_LINE }, orderBy: { position: "asc" }, select: { description: true } } },
   });
   return orders
     .map((o) => {

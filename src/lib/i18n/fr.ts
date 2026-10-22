@@ -305,6 +305,16 @@ export const fr = {
     deliveryNoInvoice: "Livraison refusée : aucune facture. Émettez la facture, ou un responsable peut livrer par dérogation (avec motif).",
     deliveryBalanceDue: "Livraison refusée : il reste {amount} à payer. Encaissez le solde, ou un responsable peut livrer par dérogation (avec motif).",
     notSettled: "Clôture impossible : la facture n’est pas soldée.",
+    // V16 Lot 2 — devis et accords
+    approvalRequired: "Enregistrez d’abord l’accord du client sur le devis (portail ou « Enregistrer l’accord »).",
+    noQuoteLines: "Aucune ligne en attente d’accord : ajoutez les lignes du devis avant de l’envoyer.",
+    quoteHubOnly: "Le devis se numérote au garage : envoyez-le depuis le PC du garage (le client pourra l’accepter en ligne ensuite).",
+    legacyQuote: "Ordre ouvert avant la V16 : le devis par lignes ne s’applique pas, utilisez le passage en réparation habituel.",
+    quoteChanged: "Le devis a changé entre-temps : rechargez la page pour voir la nouvelle version.",
+    quoteExpired: "Ce devis n’est plus valable : contactez le garage pour en recevoir un nouveau.",
+    approverNameRequired: "Indiquez votre nom pour valider votre décision.",
+    pendingLines: "Facture impossible : {count} ligne(s) attendent l’accord du client. Enregistrez sa décision ou supprimez-les.",
+    lineRefusedLocked: "Ligne refusée par le client : elle est conservée telle quelle (relance plus tard).",
     // V14 — compétences
     skillReasonRequired: "Indiquez un motif (3 caractères au moins).",
     skillNotOwnLevel: "Vous ne pouvez pas décider de vos propres compétences : un autre responsable doit le faire.",

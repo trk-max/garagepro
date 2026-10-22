@@ -94,6 +94,7 @@ export const v103Ar: typeof v103Fr = {
       manageReceptionDevices: "الاستقبال: رموز الشاشة اللمسية وشاشة القاعة",
       // V16
       manageQuotes: "التقدير: إرسال، انتظار الحريف، رفض، بدء الأشغال",
+      recordQuoteApproval: "تسجيل موافقة الحريف على التقدير (هاتف، في الورشة…) سطراً بسطر",
       cancelWorkOrder: "إلغاء أمر إصلاح (مع سبب)",
       deliverWorkOrder: "تسليم السيارة",
       deliverWithBalance: "التسليم رغم فاتورة غير مسددة (استثناء مع سبب)",

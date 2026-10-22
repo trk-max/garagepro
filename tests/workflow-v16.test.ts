@@ -17,6 +17,7 @@ import {
   cleanReason,
   customerSteps,
   deliveryBlock,
+  approvalMissing,
   isFinal,
   reasonRequired,
   transitionPermission,
@@ -104,20 +105,25 @@ describe("V16 — permission per move × role (audit n° 1)", () => {
 
 describe("V16 — mandatory reason", () => {
   it("cancel, refused quote, back to the workshop after QC / ready", () => {
-    for (const from of ACTIVE_STATUSES) expect(reasonRequired(from, "CANCELLED", OLD), from).toBe(true);
-    expect(reasonRequired("QUOTE_SENT", "QUOTE_REFUSED", OLD)).toBe(true);
-    expect(reasonRequired("WAITING_CUSTOMER", "QUOTE_REFUSED", OLD)).toBe(true);
-    expect(reasonRequired("QUALITY_CONTROL", "IN_PROGRESS", OLD)).toBe(true);
-    expect(reasonRequired("READY", "IN_PROGRESS", OLD)).toBe(true);
-    expect(reasonRequired("IN_PROGRESS", "QUALITY_CONTROL", NEW)).toBe(false);
-    expect(reasonRequired("READY", "DELIVERED", NEW)).toBe(false);
+    for (const from of ACTIVE_STATUSES) expect(reasonRequired(from, "CANCELLED"), from).toBe(true);
+    expect(reasonRequired("QUOTE_SENT", "QUOTE_REFUSED")).toBe(true);
+    expect(reasonRequired("WAITING_CUSTOMER", "QUOTE_REFUSED")).toBe(true);
+    expect(reasonRequired("QUALITY_CONTROL", "IN_PROGRESS")).toBe(true);
+    expect(reasonRequired("READY", "IN_PROGRESS")).toBe(true);
+    expect(reasonRequired("IN_PROGRESS", "QUALITY_CONTROL")).toBe(false);
+    expect(reasonRequired("READY", "DELIVERED")).toBe(false);
   });
-  it("work started on a quote with no recorded agreement: reason for new orders only, until Lot 2", () => {
-    expect(reasonRequired("QUOTE_SENT", "IN_PROGRESS", NEW)).toBe(true);
-    expect(reasonRequired("QUOTE_SENT", "WAITING_PARTS", NEW)).toBe(true);
-    expect(reasonRequired("WAITING_INSURANCE", "IN_PROGRESS", NEW)).toBe(true);
-    expect(reasonRequired("QUOTE_SENT", "IN_PROGRESS", OLD)).toBe(false);
-    expect(reasonRequired("QUOTE_SENT", "IN_PROGRESS", { workflowV16: true, quoteApproved: true })).toBe(false);
+  it("Lot 2: work started on a quote needs a RECORDED agreement on new orders (no reason any more); old orders unchanged", () => {
+    expect(reasonRequired("QUOTE_SENT", "IN_PROGRESS")).toBe(false);
+    expect(approvalMissing("QUOTE_SENT", "IN_PROGRESS", NEW)).toBe(true);
+    expect(approvalMissing("QUOTE_SENT", "WAITING_PARTS", NEW)).toBe(true);
+    expect(approvalMissing("WAITING_INSURANCE", "IN_PROGRESS", NEW)).toBe(true);
+    expect(approvalMissing("QUOTE_SENT", "IN_PROGRESS", OLD)).toBe(false);
+    expect(approvalMissing("QUOTE_SENT", "IN_PROGRESS", { workflowV16: true, quoteApproved: true })).toBe(false);
+    expect(approvalMissing("IN_PROGRESS", "QUALITY_CONTROL", NEW)).toBe(false);
+    // Shown in the dialog, but refused until the agreement is recorded.
+    const opts = availableTransitions("QUOTE_SENT", "RECEPTION", { ...NEW, allowWorkWithoutQuote: false, invoiced: false });
+    expect(opts.find((o) => o.to === "IN_PROGRESS")).toEqual({ to: "IN_PROGRESS", reason: false, needsApproval: true });
   });
   it("a reason is 3 to 500 characters, trimmed", () => {
     expect(cleanReason("  ")).toBeNull();

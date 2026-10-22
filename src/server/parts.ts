@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import { AppError } from "@/lib/http";
 import { prisma } from "@/lib/prisma";
 import type { StaffUser } from "@/lib/session";
-import { audit } from "@/server/audit";
+import { audit, type AuditActor } from "@/server/audit";
 
 export async function listParts(q?: string, lowOnly = false) {
   const query = q?.trim();
@@ -232,9 +232,15 @@ export async function releaseReservation(actor: StaffUser | null, reservationId:
  * consumed (in full or in part), so the same units are not counted twice
  * (once reserved, once taken out).
  */
-export async function consumeReservations(tx: Tx, actor: StaffUser, workOrderId: string, partId: string, quantityX100: number) {
+export async function consumeReservations(tx: Tx, actor: AuditActor, workOrderId: string, partId: string, quantityX100: number, lineId?: string) {
   let remaining = quantityX100;
-  const active = await tx.stockReservation.findMany({ where: { workOrderId, partId, status: "ACTIVE" }, orderBy: { createdAt: "asc" } });
+  // V16 Lot 2: a quote line's own reservation first, then the ones made by hand for the order; never the
+  // reservation of ANOTHER quote line (it is released or consumed with that line).
+  const found = await tx.stockReservation.findMany({
+    where: { workOrderId, partId, status: "ACTIVE", OR: [{ workOrderLineId: null }, ...(lineId ? [{ workOrderLineId: lineId }] : [])] },
+    orderBy: { createdAt: "asc" },
+  });
+  const active = [...found.filter((r) => r.workOrderLineId), ...found.filter((r) => !r.workOrderLineId)];
   for (const r of active) {
     if (remaining <= 0) break;
     const take = Math.min(remaining, r.quantityX100);
@@ -246,6 +252,74 @@ export async function consumeReservations(tx: Tx, actor: StaffUser, workOrderId:
     await unreserve(tx, partId, take);
     await audit(tx, actor, "stock.consumeReservation", "StockReservation", r.id, { after: { workOrderId, partId, quantityX100: take } });
     remaining -= take;
+  }
+}
+
+// ── V16 Lot 2 — parts of a quote line: reserved until the customer's decision, taken out at the agreement ──
+
+/**
+ * Movement of a repair order (exit WORK_ORDER / return WORK_ORDER_RETURN), journalised. Same behaviour as
+ * before (an exit is allowed even when the recorded stock is short: the part may be on the shelf). Returns
+ * the new stock.
+ */
+export async function workOrderStockMove(
+  tx: Tx,
+  actor: AuditActor,
+  input: { partId: string; deltaX100: number; reason: "WORK_ORDER" | "WORK_ORDER_RETURN"; workOrderId: string },
+) {
+  const updated = await tx.part.update({
+    where: { id: input.partId },
+    data: { stockX100: { increment: input.deltaX100 } },
+    select: { stockX100: true },
+  });
+  const movement = await tx.stockMovement.create({ data: { ...input, actorId: actor?.id ?? null }, select: { id: true } });
+  await audit(tx, actor, "stock.workOrder", "StockMovement", movement.id, {
+    before: { stockX100: updated.stockX100 - input.deltaX100 },
+    after: { ...input, stockX100: updated.stockX100 },
+  });
+  return updated.stockX100;
+}
+
+/**
+ * A part proposed on a quote (V16 order): put aside, not taken out. Reservations made by hand for this order
+ * and this part are attached to the line first (whole reservations only), then what is still free is reserved,
+ * atomically (row lock). Returns the quantity that could NOT be reserved (0 = fully reserved): the caller warns.
+ */
+export async function reserveForLine(tx: Tx, actor: AuditActor, input: { workOrderId: string; partId: string; lineId: string; quantityX100: number }) {
+  let remaining = input.quantityX100;
+  const manual = await tx.stockReservation.findMany({ where: { workOrderId: input.workOrderId, partId: input.partId, status: "ACTIVE", workOrderLineId: null }, orderBy: { createdAt: "asc" } });
+  for (const r of manual) {
+    if (r.quantityX100 > remaining) continue;
+    await tx.stockReservation.update({ where: { id: r.id }, data: { workOrderLineId: input.lineId } });
+    remaining -= r.quantityX100;
+  }
+  if (remaining <= 0) return 0;
+  const rows = await tx.$queryRaw<{ take: number; reservedX100: number }[]>`
+    WITH p AS (SELECT id, LEAST(${remaining}::int, GREATEST(0, "stockX100" - "reservedX100")) AS take FROM "Part" WHERE id = ${input.partId} FOR UPDATE)
+    UPDATE "Part" SET "reservedX100" = "Part"."reservedX100" + p.take, "updatedAt" = now()
+    FROM p WHERE "Part".id = p.id
+    RETURNING p.take AS take, "Part"."reservedX100" AS "reservedX100"`;
+  const take = Number(rows[0]?.take ?? 0);
+  if (take > 0) {
+    const reservation = await tx.stockReservation.create({
+      data: { partId: input.partId, workOrderId: input.workOrderId, workOrderLineId: input.lineId, quantityX100: take, createdById: actor?.id ?? null },
+      select: { id: true },
+    });
+    await audit(tx, actor, "stock.reserve", "StockReservation", reservation.id, {
+      after: { workOrderId: input.workOrderId, partId: input.partId, lineId: input.lineId, quantityX100: take, reservedX100: rows[0]!.reservedX100 },
+    });
+  }
+  return remaining - take;
+}
+
+/** The customer refused (or the line was removed): what was put aside for this quote line becomes free again. */
+export async function releaseForLine(tx: Tx, actor: AuditActor, lineId: string, note: string) {
+  const active = await tx.stockReservation.findMany({ where: { workOrderLineId: lineId, status: "ACTIVE" } });
+  for (const r of active) {
+    const { count } = await tx.stockReservation.updateMany({ where: { id: r.id, status: "ACTIVE" }, data: { status: "RELEASED", closedAt: new Date(), closedNote: note } });
+    if (!count) continue;
+    await unreserve(tx, r.partId, r.quantityX100);
+    await audit(tx, actor, "stock.release", "StockReservation", r.id, { before: { status: "ACTIVE", quantityX100: r.quantityX100 }, after: { status: "RELEASED", note, lineId } });
   }
 }
 

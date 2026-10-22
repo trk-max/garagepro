@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 import { correctMovement, createPart, moveStock, releaseReservation, reservePart } from "@/server/parts";
 import { createSupplier } from "@/server/purchasing";
 import { addLine, changeStatus } from "@/server/work-orders";
-import { makeUser, makeWorkOrder, prisma } from "./helpers/db";
+import { agreeAll, makeUser, makeWorkOrder, prisma } from "./helpers/db";
 
 const sku = () => `S${Date.now()}${Math.random().toString(36).slice(2, 6)}`;
 const code = (p: Promise<unknown>) => p.then(() => "NO ERROR", (e: { code?: string }) => e.code ?? String(e));
@@ -34,7 +34,10 @@ describe("réservations de pièces", () => {
     await moveStock(p.id, { delta: -100, reason: "ADJUSTMENT" }, admin); // the 1 free litre
     expect(await part(p.id)).toEqual({ stockX100: 400, reservedX100: 400 });
 
-    await addLine(wo.id, { type: "PART", partId: p.id, quantityX100: 300 }, admin); // 3 of the 4 reserved litres used
+    await addLine(wo.id, { type: "PART", partId: p.id, quantityX100: 300 }, admin); // 3 of the 4 reserved litres proposed
+    // V16 Lot 2: on the quote the part is only put aside (nothing free to add: the manual reservation covers it).
+    expect(await part(p.id)).toEqual({ stockX100: 400, reservedX100: 400 });
+    await agreeAll(wo.id, admin); // accepted → 3 litres leave the stock, taken from the reservation
     expect(await part(p.id)).toEqual({ stockX100: 100, reservedX100: 100 });
     const r = await prisma.stockReservation.findFirstOrThrow({ where: { workOrderId: wo.id } });
     expect(r).toMatchObject({ status: "ACTIVE", quantityX100: 100 });
@@ -92,6 +95,7 @@ describe("retours fournisseur et corrections", () => {
     const p = await createPart({ sku: sku(), name: "Ampoule", unit: "pcs", salePrice: 3_000, stock: 500 }, admin);
     const { wo } = await makeWorkOrder();
     await addLine(wo.id, { type: "PART", partId: p.id, quantityX100: 100 }, admin);
+    await agreeAll(wo.id, admin); // V16 Lot 2: the part leaves the stock when the customer accepts the line
     const used = await prisma.stockMovement.findFirstOrThrow({ where: { partId: p.id, reason: "WORK_ORDER" } });
     expect(await code(correctMovement(admin, used.id, "test"))).toBe("notCorrectable");
   });

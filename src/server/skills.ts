@@ -1,5 +1,6 @@
 import "server-only";
 import { createHash, randomUUID } from "node:crypto";
+import { LIVE_LINE } from "@/lib/quote";
 import { Prisma } from "@prisma/client";
 import type { Role } from "@prisma/client";
 import { MAX_SCAN_BYTES, sniffScan } from "@/lib/contracts";
@@ -273,7 +274,7 @@ const ORDER_SKILL_SELECT = {
   id: true,
   complaint: true,
   skillIds: true,
-  lines: { where: { voidedAt: null }, select: { description: true } },
+  lines: { where: { ...LIVE_LINE }, select: { description: true } },
   events: { where: { type: "PACKAGE_APPLIED" }, select: { data: true } },
 } satisfies Prisma.WorkOrderSelect;
 type OrderSkillSource = Prisma.WorkOrderGetPayload<{ select: typeof ORDER_SKILL_SELECT }>;

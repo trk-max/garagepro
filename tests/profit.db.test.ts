@@ -8,7 +8,7 @@ import { createInvoice, recordPayment } from "@/server/invoices";
 import { createPart, updatePart } from "@/server/parts";
 import { addExpense, profitReport, voidExpense, workOrderProfit } from "@/server/profit";
 import { addLine, removeLine } from "@/server/work-orders";
-import { makeUser, makeWorkOrder, prisma } from "./helpers/db";
+import { agreeAll, makeUser, makeWorkOrder, prisma } from "./helpers/db";
 
 beforeAll(async () => {
   await prisma.setting.upsert({ where: { id: "garage" }, update: {}, create: { id: "garage" } });
@@ -67,6 +67,7 @@ describe("bénéfice réel par réparation", () => {
     const before = (await workOrderProfit(wo.id))!;
     expect(before.flags).toContain("notInvoiced");
 
+    await agreeAll(wo.id, admin); // V16 Lot 2: the customer's agreement before invoicing
     const invoice = await createInvoice(wo.id, admin);
     await recordPayment(invoice.id, { amount: 50_000, method: "TRANSFER", payer: "INSURANCE" }, admin);
     const p = (await workOrderProfit(wo.id))!;
@@ -91,6 +92,7 @@ describe("bénéfice réel par réparation", () => {
     const { wo: b } = await makeWorkOrder({ customerId: customer.id });
     for (const wo of [a, b]) {
       await addLine(wo.id, { type: "LABOR", description: "Diagnostic", quantityX100: 100, unitPrice: 40_000 }, admin);
+      await agreeAll(wo.id, admin); // V16 Lot 2: the customer's agreement before invoicing
       await createInvoice(wo.id, admin);
     }
     const from = new Date(Date.now() - 60_000);

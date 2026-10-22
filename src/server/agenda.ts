@@ -1,5 +1,6 @@
 import "server-only";
 import { DELIVERED_STATUSES } from "@/server/workflow";
+import { AGREED_LINE } from "@/lib/quote";
 import { createHash } from "node:crypto";
 import type { Prisma } from "@prisma/client";
 import {
@@ -173,7 +174,7 @@ export async function detectForOrders(workOrderIds: string[] | null, items?: Awa
         mileageIn: true,
         deliveredAt: true,
         updatedAt: true,
-        lines: { where: { voidedAt: null }, select: { description: true, partId: true, quantityX100: true, unitPrice: true, taxRateBp: true } },
+        lines: { where: { ...AGREED_LINE }, select: { description: true, partId: true, quantityX100: true, unitPrice: true, taxRateBp: true } },
         events: { where: { type: "PACKAGE_APPLIED" }, select: { data: true } },
       },
     });

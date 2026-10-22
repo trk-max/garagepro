@@ -28,7 +28,7 @@ import { setStaffRole } from "@/server/admin";
 import { teamPresence } from "@/server/timeclock";
 import { moveClaim, openClaim, setClaimAmounts } from "@/server/warranties";
 import { addLine, changeStatus, createWorkOrder } from "@/server/work-orders";
-import { makeUser, makeWorkOrder, prisma } from "../helpers/db";
+import { agreeAll, makeUser, makeWorkOrder, prisma } from "../helpers/db";
 
 const QC_OK = { roadTest: "DONE" as const, fluidsOk: true, warningsOk: true, toolsRemoved: true, workVerified: true, billingVerified: true };
 const day = (d: Date) => d.toISOString().slice(0, 10);
@@ -41,12 +41,12 @@ beforeAll(async () => {
   });
 });
 
-/** Order brought to READY the normal way (V16: quote → agreement with a reason → work → QC approved by a manager). */
+/** Order brought to READY the normal way (V16: quote → recorded agreement (Lot 2) → work → QC approved by a manager). */
 async function readyOrder(manager: Awaited<ReturnType<typeof makeUser>>, unitPrice = 100_000) {
   const { wo, customer, vehicle } = await makeWorkOrder();
   await addLine(wo.id, { type: "LABOR", description: "Main-d'œuvre", quantityX100: 100, unitPrice }, manager);
   await changeStatus(wo.id, "QUOTE_SENT", manager);
-  await changeStatus(wo.id, "IN_PROGRESS", manager, { reason: "Accord du client (audit)" });
+  await agreeAll(wo.id, manager); // V16 Lot 2: the customer's recorded agreement starts the work
   await changeStatus(wo.id, "QUALITY_CONTROL", manager);
   await saveQualityCheck(manager, wo.id, QC_OK);
   await approveQualityCheck(manager, wo.id);
@@ -105,6 +105,8 @@ describe("Stock et achats", () => {
     const part = await createPart({ sku: `RES-${Date.now()}`, name: "Dernière pièce", unit: "pce", salePrice: 10_000, stock: 100 }, admin);
     const { wo: a } = await makeWorkOrder({ status: "IN_PROGRESS" });
     const { wo: b } = await makeWorkOrder({ status: "IN_PROGRESS" });
+    // V16 Lot 2: still true for orders opened before V16 (and at the agreement of a V16 line); a V16 quote only reserves the FREE stock.
+    await prisma.workOrder.updateMany({ where: { id: { in: [a.id, b.id] } }, data: { workflowV16: false } });
     await reservePart(admin, a.id, part.id, 100);
     await addLine(b.id, { type: "PART", partId: part.id, quantityX100: 100 }, mech);
     const p = await prisma.part.findUniqueOrThrow({ where: { id: part.id } });
@@ -118,6 +120,8 @@ describe("Stock et achats", () => {
     const part = await createPart({ sku: `NEG-${Date.now()}`, name: "Pièce unique", unit: "pce", salePrice: 10_000, stock: 100 }, admin);
     const { wo: a } = await makeWorkOrder({ status: "IN_PROGRESS" });
     const { wo: b } = await makeWorkOrder({ status: "IN_PROGRESS" });
+    // V16 Lot 2: still true for orders opened before V16 (a V16 quote reserves atomically on the free stock).
+    await prisma.workOrder.updateMany({ where: { id: { in: [a.id, b.id] } }, data: { workflowV16: false } });
     await Promise.all([addLine(a.id, { type: "PART", partId: part.id, quantityX100: 100 }, admin), addLine(b.id, { type: "PART", partId: part.id, quantityX100: 100 }, admin)]);
     expect((await prisma.part.findUniqueOrThrow({ where: { id: part.id } })).stockX100).toBe(-100);
   });
@@ -191,6 +195,7 @@ describe("Argent", () => {
     const admin = await makeUser("ADMIN");
     const { wo } = await makeWorkOrder();
     await addLine(wo.id, { type: "LABOR", description: "MO", quantityX100: 100, unitPrice: 500_000 }, admin);
+    await agreeAll(wo.id, admin); // V16 Lot 2: the customer's agreement before invoicing
     const inv = await createInvoice(wo.id, admin);
     await Promise.all([recordPayment(inv.id, { amount: 100_000, method: "CASH" }, admin), recordPayment(inv.id, { amount: 100_000, method: "CASH" }, admin)]);
     const after = await prisma.invoice.findUniqueOrThrow({ where: { id: inv.id }, include: { payments: true } });
@@ -202,6 +207,7 @@ describe("Argent", () => {
     const admin = await makeUser("ADMIN");
     const { wo } = await makeWorkOrder();
     await addLine(wo.id, { type: "LABOR", description: "Reprise sous garantie", quantityX100: 100, unitPrice: 0 }, admin);
+    await agreeAll(wo.id, admin); // V16 Lot 2: the customer's agreement before invoicing
     const created = await createInvoice(wo.id, admin);
     const inv = await prisma.invoice.findUniqueOrThrow({ where: { id: created.id } });
     expect(inv.totalHt).toBe(0);
@@ -220,6 +226,7 @@ describe("Argent", () => {
     const part = await createPart({ sku: `CP-${Date.now()}`, name: "Pièce coût", unit: "pce", salePrice: 30_000, costPrice: 10_000, stock: 1_000 }, admin);
     const { wo } = await makeWorkOrder();
     await addLine(wo.id, { type: "PART", partId: part.id, quantityX100: 100 }, admin);
+    await agreeAll(wo.id, admin); // V16 Lot 2: the customer's agreement before invoicing
     await createInvoice(wo.id, admin);
     await prisma.part.update({ where: { id: part.id }, data: { costPrice: 15_000 } });
     // Only this order is invoiced in the window: isolate by using its own day.
@@ -253,6 +260,7 @@ describe("Argent", () => {
       const { wo } = await makeWorkOrder();
       await addLine(wo.id, { type: "LABOR", description: "MO", quantityX100: 100, unitPrice: 10_000 }, admin);
       await prisma.invoice.updateMany({ data: { status: "PAID" } }); // only the new invoice stays unpaid
+      await agreeAll(wo.id, admin); // V16 Lot 2: the customer's agreement before invoicing
       await createInvoice(wo.id, admin);
       await new Promise((r) => setTimeout(r, 1200));
       const report = await getReport("day");
@@ -286,6 +294,7 @@ describe("Argent", () => {
     const before = (await cashForecast(admin, { scenario: "NORMAL", horizon: 30 })).result.opening;
     const { wo } = await makeWorkOrder();
     await addLine(wo.id, { type: "LABOR", description: "MO", quantityX100: 100, unitPrice: 300_000 }, admin);
+    await agreeAll(wo.id, admin); // V16 Lot 2: the customer's agreement before invoicing
     const inv = await createInvoice(wo.id, admin);
     await recordPayment(inv.id, { amount: 200_000, method: "CASH" }, admin);
     const after = (await cashForecast(admin, { scenario: "NORMAL", horizon: 30 })).result.opening;
@@ -298,6 +307,7 @@ describe("Argent", () => {
     const { wo } = await makeWorkOrder();
     await prisma.workOrder.update({ where: { id: wo.id }, data: { depositAmount: 100_000 } as never });
     await addLine(wo.id, { type: "LABOR", description: "MO", quantityX100: 100, unitPrice: 420_000 }, admin);
+    await agreeAll(wo.id, admin); // V16 Lot 2: the customer's agreement before invoicing
     const created = await createInvoice(wo.id, admin);
     const inv = await prisma.invoice.findUniqueOrThrow({ where: { id: created.id } });
     expect(inv.paidAmount).toBe(0);

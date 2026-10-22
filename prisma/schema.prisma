@@ -373,6 +373,8 @@ model WorkOrder {
   readings       VehicleReading[]
   qualityCheck   QualityCheck?
   warranties     Warranty[]
+  /// V16 Lot 2 — devis versionnés et accords tracés.
+  quotes         Quote[]
 
   @@index([status, updatedAt(sort: Desc)])
   @@index([mechanicId, status])
@@ -401,12 +403,136 @@ model WorkOrderLine {
   voidedAt     DateTime?
   voidReason   String?
   voidedById   String?
+  /// V16 Lot 2 — accord du client sur cette ligne : PENDING (à accepter), APPROVED (facturable), REFUSED.
+  /// Lignes d'avant la migration 26 : APPROVED (sauf OR alors en devis sans accord : PENDING).
+  approvalStatus LineApprovalStatus @default(PENDING)
+  /// V16 Lot 2 — priorité montrée au client : sécurité, conseillé, à surveiller.
+  priority       LinePriority?
+  /// V16 Lot 2 — nature de la pièce : neuve, occasion, échange standard, réutilisée, fournie par le client.
+  partCondition  PartCondition?
+  /// V16 Lot 2 — dernier devis où cette ligne a été proposée.
+  quoteId        String?
+  /// V16 Lot 2 — true : la pièce n'est pas encore sortie du stock (réservée en attendant l'accord du client).
+  /// false (défaut, toutes les lignes d'avant le Lot 2) : sortie du stock à l'ajout, comme avant.
+  stockDeferred  Boolean  @default(false)
   createdAt    DateTime @default(now())
 
   workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
   part      Part?     @relation(fields: [partId], references: [id], onDelete: SetNull)
+  quote     Quote?    @relation(fields: [quoteId], references: [id], onDelete: SetNull)
 
   @@index([workOrderId, position])
+  @@index([quoteId])
+}
+
+// ── V16 Lot 2 — devis versionné et accord tracé ligne par ligne ──────────────
+
+enum QuoteKind {
+  INITIAL
+  SUPPLEMENT
+}
+
+enum QuoteStatus {
+  SENT
+  APPROVED
+  PARTIAL
+  REFUSED
+  EXPIRED
+  SUPERSEDED
+}
+
+enum ApprovalDecision {
+  APPROVED
+  PARTIAL
+  REFUSED
+}
+
+enum ApprovalChannel {
+  PORTAL
+  PHONE
+  IN_PERSON
+  SMS
+  EMAIL
+  WHATSAPP
+}
+
+enum LineApprovalStatus {
+  PENDING
+  APPROVED
+  REFUSED
+}
+
+enum LinePriority {
+  SAFETY
+  RECOMMENDED
+  WATCH
+}
+
+enum PartCondition {
+  NEW
+  USED
+  EXCHANGE
+  REUSED
+  CUSTOMER_SUPPLIED
+}
+
+/// V16 Lot 2 — une version de devis envoyée au client (copie figée + empreinte SHA-256).
+/// Numéro « D2026-0001 » via Sequence (avec un hub : au PC du garage seulement).
+model Quote {
+  id           String      @id @default(cuid())
+  workOrderId  String
+  number       String      @unique
+  /// 1, 2… par ordre de réparation.
+  version      Int
+  kind         QuoteKind   @default(INITIAL)
+  status       QuoteStatus @default(SENT)
+  validUntil   DateTime?
+  /// Lignes (id, nature, priorité, état de la pièce, montants) et totaux HT / TVA / timbre / TTC à l'envoi.
+  snapshot     Json
+  /// SHA-256 du snapshot (JSON aux clés triées).
+  snapshotHash String
+  sentAt       DateTime    @default(now())
+  sentById     String?
+  /// PRINT, PORTAL, SMS, EMAIL, WHATSAPP, PHONE, IN_PERSON.
+  sentChannel  String?
+  createdAt    DateTime    @default(now())
+
+  workOrder WorkOrder       @relation(fields: [workOrderId], references: [id], onDelete: Restrict)
+  lines     WorkOrderLine[]
+  approvals QuoteApproval[]
+
+  @@unique([workOrderId, version])
+  @@index([status, sentAt])
+}
+
+/// V16 Lot 2 — décision du client sur un devis. AJOUT SEUL (trigger « lecture seule » qui laisse passer la sync).
+/// Preuve : qui, quand, comment, quelles lignes, quel montant, sur quelle empreinte de devis.
+model QuoteApproval {
+  id                String           @id @default(cuid())
+  quoteId           String
+  workOrderId       String
+  decision          ApprovalDecision
+  approvedLineIds   Json             @default("[]")
+  refusedLineIds    Json             @default("[]")
+  amountApprovedTtc Int
+  approverName      String
+  approverContact   String?
+  channel           ApprovalChannel
+  /// null = le client lui-même sur le portail.
+  recordedById      String?
+  ip                String?
+  userAgent         String?
+  /// Signature sur tablette (Lot 4) ; vide au Lot 2.
+  signatureKey      String?
+  note              String?
+  /// Empreinte du devis accepté (Quote.snapshotHash au moment de la décision).
+  quoteHash         String
+  createdAt         DateTime         @default(now())
+
+  quote Quote @relation(fields: [quoteId], references: [id], onDelete: Restrict)
+
+  @@index([quoteId, createdAt])
+  @@index([workOrderId, createdAt])
 }
 
 model WorkOrderEvent {
@@ -1299,12 +1425,15 @@ model StockReservation {
   createdAt    DateTime  @default(now())
   closedAt     DateTime?
   closedNote   String?
+  /// V16 Lot 2 — réservation d'une ligne de devis (pièce mise de côté en attendant l'accord du client).
+  workOrderLineId String?
 
   part      Part      @relation(fields: [partId], references: [id], onDelete: Restrict)
   workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Restrict)
 
   @@index([partId, status])
   @@index([workOrderId, status])
+  @@index([workOrderLineId])
 }
 
 /// Plan d'entretien d'un véhicule : à refaire tous les N jours et/ou tous les N km.
