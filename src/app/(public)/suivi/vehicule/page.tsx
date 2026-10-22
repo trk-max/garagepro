@@ -15,6 +15,8 @@ import { ClaimForm } from "@/components/portal/claim-form";
 import { FeedbackForm } from "@/components/portal/feedback-form";
 import { hasFeedback } from "@/server/claims";
 import { getTrackingView, type TrackingView } from "@/server/portal";
+import { ClientForecasts } from "@/components/agenda/client-forecasts";
+import { trackingForecasts } from "@/server/agenda";
 import { getPortalWorkOrderId } from "@/server/portal-session";
 
 export const dynamic = "force-dynamic";
@@ -31,7 +33,8 @@ export default async function TrackerPage() {
   const workOrderId = await getPortalWorkOrderId();
   if (!workOrderId) redirect("/suivi");
 
-  const [view, { t, lang }, rated] = await Promise.all([getTrackingView(workOrderId), getI18n(), hasFeedback(workOrderId)]);
+  // V12: upcoming maintenance of THIS order's vehicle only (the session is bound to one work order).
+  const [view, { t, lang }, rated, upcoming] = await Promise.all([getTrackingView(workOrderId), getI18n(), hasFeedback(workOrderId), trackingForecasts(workOrderId).catch(() => [])]);
   if (!view) redirect("/suivi");
 
   const ready = view.status === "READY";
@@ -185,6 +188,9 @@ export default async function TrackerPage() {
           items={view.media.map((m) => ({ id: m.id, kind: m.kind, caption: m.caption, createdAt: m.createdAt.toISOString() }))}
         />
       </section>
+
+      {/* ── V12: upcoming maintenance (estimates) + booking ── */}
+      <ClientForecasts rows={upcoming} t={t} lang={lang} />
 
       {/* ── Contact ── */}
       <section className="rounded-[24px] border border-gp-line bg-gp-card p-5 text-gp-ink shadow-gp">

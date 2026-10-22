@@ -539,7 +539,7 @@ export const v7Fr = {
     message: "Message",
     status: "Statut",
     retry: "Réessayer",
-    kinds: { MAINTENANCE: "Entretien", APPOINTMENT: "Rendez-vous", DELIVERY: "Livraison prévue" },
+    kinds: { MAINTENANCE: "Entretien", APPOINTMENT: "Rendez-vous", DELIVERY: "Livraison prévue", AGENDA: "Agenda d’entretien" },
     statuses: { PENDING: "en attente", SENDING: "en cours", SENT: "envoyé", FAILED: "échec", SKIPPED: "non envoyé" },
   },
   reminderSettings: {

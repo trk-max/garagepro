@@ -170,6 +170,26 @@ describe.skipIf(!BASE)("garage hub ↔ online database", () => {
     await expect(cloud.query(`DELETE FROM "AuditLog" WHERE id='a1'`)).rejects.toThrow(/append-only/);
   });
 
+  it("V12 agenda tables travel too (catalogue, replacements, forecast versions, message link)", async () => {
+    await local.query(`INSERT INTO "MaintenanceItem"(id, code, "nameFr", keywords, "intervalKm", "updatedAt") VALUES ('mi_oil', 'OIL', 'Vidange', '["vidange"]', 10000, now())`);
+    await local.query(`INSERT INTO "MaintenanceEvent"(id, "dedupeKey", "vehicleId", "itemId", source, "doneAt", km, "updatedAt") VALUES ('me1', 'manual:x', 'v1', 'mi_oil', 'MANUAL', now(), 40000, now())`);
+    await local.query(`INSERT INTO "MaintenanceForecast"(id, "vehicleId", "itemId", version, method, "dueKm", signature, status, "updatedAt") VALUES ('fc1', 'v1', 'mi_oil', 1, 'REFERENCE', 50000, 's1', 'VALIDATED', now())`);
+    // Offline online: the website's copy marks it booked; the garage meanwhile writes version 2.
+    const r1 = await syncOnce(local, cloud);
+    expect(r1.errors).toEqual([]);
+    expect((await one(cloud, `SELECT "dueKm", status FROM "MaintenanceForecast" WHERE id='fc1'`))).toEqual({ dueKm: 50000, status: "VALIDATED" });
+    expect((await one(cloud, `SELECT km FROM "MaintenanceEvent" WHERE id='me1'`)).km).toBe(40000);
+    await local.query(`UPDATE "MaintenanceForecast" SET "isCurrent"=false WHERE id='fc1'`);
+    await local.query(`INSERT INTO "MaintenanceForecast"(id, "vehicleId", "itemId", version, "previousId", method, "dueKm", signature, "updatedAt") VALUES ('fc2', 'v1', 'mi_oil', 2, 'fc1', 'REFERENCE', 55000, 's2', now())`);
+    await cloud.query(`INSERT INTO "Notification"(id, kind, channel, "dedupeKey", body, "forecastId") VALUES ('n1', 'AGENDA', 'SMS', 'agenda:v1:mi_oil:me1', 'x', 'fc1')`);
+    const r2 = await syncOnce(local, cloud);
+    expect(r2.errors).toEqual([]);
+    for (const db of [local, cloud]) {
+      expect(Number((await one(db, `SELECT count(*) FROM "MaintenanceForecast" WHERE "isCurrent"`)).count)).toBe(1);
+      expect((await one(db, `SELECT "forecastId" FROM "Notification" WHERE id='n1'`)).forecastId).toBe("fc1");
+    }
+  });
+
   it("a database without a hub logs nothing", async () => {
     const plain = await freshDb(admin, "gp_hub_plain", allMigrations);
     try {
@@ -179,5 +199,6 @@ describe.skipIf(!BASE)("garage hub ↔ online database", () => {
       await plain.end();
       await admin.query("DROP DATABASE IF EXISTS gp_hub_plain WITH (FORCE)");
     }
-  });
+    // Builds a whole database from the 23 migrations: more than the default 5 s on a cold server.
+  }, 20_000);
 });

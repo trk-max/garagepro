@@ -78,6 +78,13 @@ export async function saveReading(actor: StaffUser, vehicleId: string, input: { 
       after: { vehicleId, source: r.simulated ? "SIMULATED" : "ADAPTER", dtcs: r.dtcs.map((d) => d.code), odometerKm: r.odometerKm, odometerStatus },
     });
     return { id: reading.id, odometerStatus };
+  }).then(async (r) => {
+    // V12: a real mileage reading → the driving rhythm and the forecasts of the vehicle change.
+    if (r.odometerStatus !== "SIMULATED" && r.odometerStatus !== "UNSUPPORTED") {
+      const { afterReading } = await import("@/server/agenda");
+      await afterReading(vehicleId).catch((e) => console.error("[agenda] after reading", e));
+    }
+    return r;
   });
 }
 

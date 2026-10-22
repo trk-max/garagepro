@@ -9,6 +9,8 @@ import { getCompanyViewer } from "@/server/company-session";
 import { clientIp } from "@/server/portal-session";
 import { getSettings } from "@/server/settings";
 import { resolveVehicleQr } from "@/server/vehicle-qr";
+import { ClientForecasts } from "@/components/agenda/client-forecasts";
+import { qrForecasts } from "@/server/agenda";
 
 export const dynamic = "force-dynamic";
 // The token is in the address: no indexing, never sent to other sites.
@@ -24,7 +26,8 @@ export default async function VehicleQrPage({ params }: PageProps) {
   if (scan.kind === "staff") redirect(`/garage/customers/${scan.customerId}#vehicule-${scan.vehicleId}`);
   if (scan.kind === "company") redirect(`/entreprise#vehicule-${scan.vehicleId}`);
 
-  const [{ t }, settings] = await Promise.all([getI18n(), getSettings()]);
+  // V12: upcoming maintenance on the public card, without amounts (same token rules: revoked = nothing).
+  const [{ t, lang }, settings, upcoming] = await Promise.all([getI18n(), getSettings(), scan.kind === "public" ? qrForecasts(token, { staff, company, ip }).catch(() => null) : null]);
   const q = t.v7.qr;
   if (scan.kind !== "public") {
     return (
@@ -71,6 +74,7 @@ export default async function VehicleQrPage({ params }: PageProps) {
           </a>
         )}
       </div>
+      {upcoming && <ClientForecasts rows={upcoming} t={t} lang={lang} className="border p-4" />}
       <p className="text-center text-xs text-muted-foreground">
         {q.staffHint}{" "}
         <Link href="/entreprise/connexion" className="underline-offset-4 hover:underline">

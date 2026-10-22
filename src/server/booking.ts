@@ -91,7 +91,7 @@ export async function createAppointment(input: BookingInput) {
 
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      return await prisma.$transaction(async (tx) => {
+      const appt = await prisma.$transaction(async (tx) => {
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(${BOOKING_LOCK_KEY}::bigint)`;
 
         const dayStart = zonedToUtc(input.date, "00:00", rules.timeZone);
@@ -133,6 +133,10 @@ export async function createAppointment(input: BookingInput) {
           include: { service: true },
         });
       });
+      // V12: a booking naming items of the agenda (reason pre-filled from the QR / tracking page) → forecasts "booked".
+      const { linkAppointment } = await import("@/server/agenda");
+      await linkAppointment(appt).catch((e) => console.error("[agenda] booking link", e));
+      return appt;
     } catch (error) {
       if (isUniqueViolation(error)) continue; // reference collision, try another one
       throw error;

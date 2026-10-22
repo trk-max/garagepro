@@ -24,6 +24,7 @@ export default async function VehiclesPage({ searchParams }: PageProps) {
     qr: can(staff, "manageVehicleQr"),
     obd: can(staff, "obdDiagnose"),
     maintenance: can(staff, "manageMaintenance"),
+    agenda: can(staff, "viewAgenda"),
   };
   const href = (cursor?: string) => {
     const params = new URLSearchParams();

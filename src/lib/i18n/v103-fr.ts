@@ -114,6 +114,7 @@ export const v103Fr = {
       weekCharts: "Graphiques de la semaine",
       recentInvoices: "Dernières factures",
       activity: "Activité récente",
+      agenda: "Agenda (30 jours)",
     } satisfies Record<BlockId, string>,
   },
 };

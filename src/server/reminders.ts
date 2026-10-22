@@ -1,4 +1,5 @@
 import "server-only";
+import type { Prisma } from "@prisma/client";
 import { displayPlate, formatDate, formatTime } from "@/lib/format";
 import { MAX_ATTEMPTS, maintenanceDedupeKey, nextDue, renderTemplate, retryDelayMs } from "@/lib/maintenance";
 import { prisma } from "@/lib/prisma";
@@ -45,7 +46,7 @@ export type Sender = {
   email: (msg: { to: string; subject: string; text: string; brand?: string }) => Promise<EmailResult>;
 };
 
-const realSender: Sender = {
+export const realSender: Sender = {
   channels: () => {
     const out: Channel[] = [];
     if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_FROM) out.push("SMS");
@@ -56,8 +57,9 @@ const realSender: Sender = {
   email: sendEmail,
 };
 
-type Item = {
-  kind: "MAINTENANCE" | "APPOINTMENT" | "DELIVERY";
+/** V12: "AGENDA" = message of the upcoming repairs agenda (sent only after the garage validated it). */
+export type Item = {
+  kind: "MAINTENANCE" | "APPOINTMENT" | "DELIVERY" | "AGENDA";
   dedupeKey: string;
   phone: string | null;
   email: string | null;
@@ -66,6 +68,7 @@ type Item = {
   workOrderId?: string | null;
   appointmentId?: string | null;
   maintenanceId?: string | null;
+  forecastId?: string | null;
   subject: string;
   body: string;
 };
@@ -153,6 +156,7 @@ export async function queueItems(items: Item[], sender: Sender = realSender) {
       workOrderId: it.workOrderId ?? null,
       appointmentId: it.appointmentId ?? null,
       maintenanceId: it.maintenanceId ?? null,
+      forecastId: it.forecastId ?? null,
       subject: it.subject,
       body: it.body,
     };
@@ -178,10 +182,11 @@ export async function queueItems(items: Item[], sender: Sender = realSender) {
  * Sends what is waiting (new, or failed and due for a retry). Each row is
  * claimed with a conditional update first, so two runners never send the same row.
  */
-export async function deliverPending(now = new Date(), sender: Sender = realSender, limit = 200) {
+export async function deliverPending(now = new Date(), sender: Sender = realSender, limit = 200, only?: Prisma.NotificationWhereInput) {
   const candidates = await prisma.notification.findMany({
     where: {
       OR: [{ status: "PENDING" }, { status: "FAILED", attempts: { lt: MAX_ATTEMPTS }, nextAttemptAt: { lte: now } }],
+      ...(only ?? {}),
     },
     orderBy: { createdAt: "asc" },
     take: limit,

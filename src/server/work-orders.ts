@@ -320,6 +320,16 @@ function intakeData(i: IntakeForm | undefined) {
 }
 
 export async function changeStatus(workOrderId: string, to: WorkOrderStatus, actor: StaffUser) {
+  await changeStatusTx(workOrderId, to, actor);
+  // V12: delivered → replacements detected in its lines → forecasts of the vehicle recomputed.
+  // After the commit and never blocking: a failure here does not undo the delivery.
+  if (to === "DELIVERED") {
+    const { afterOrderDelivered } = await import("@/server/agenda");
+    await afterOrderDelivered(workOrderId).catch((e) => console.error("[agenda] after delivery", e));
+  }
+}
+
+async function changeStatusTx(workOrderId: string, to: WorkOrderStatus, actor: StaffUser) {
   return prisma.$transaction(async (tx) => {
     const wo = await tx.workOrder.findUnique({
       where: { id: workOrderId },
@@ -538,7 +548,7 @@ export async function applyPackage(workOrderId: string, packageId: string, actor
       if (result.warning) warnings.push(result.warning);
     }
     await tx.servicePackage.update({ where: { id: pkg.id }, data: { usageCount: { increment: 1 } } });
-    await event(tx, workOrderId, actor.id, "PACKAGE_APPLIED", { name: pkg.name });
+    await event(tx, workOrderId, actor.id, "PACKAGE_APPLIED", { name: pkg.name, packageId: pkg.id });
     return warnings;
   });
 }

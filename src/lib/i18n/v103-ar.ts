@@ -113,6 +113,7 @@ export const v103Ar: typeof v103Fr = {
       weekCharts: "رسوم الأسبوع",
       recentInvoices: "آخر الفواتير",
       activity: "النشاط الأخير",
+      agenda: "الأجندة (30 يومًا)",
     },
   },
 };

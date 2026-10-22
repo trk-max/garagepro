@@ -3,6 +3,7 @@ import { v103Ar } from "@/lib/i18n/v103-ar";
 import { todoAr } from "@/lib/i18n/todo-ar";
 import { stockListAr } from "@/lib/i18n/stock-list-ar";
 import { legalAr } from "@/lib/i18n/legal-ar";
+import { v12Ar } from "@/lib/i18n/v12-ar";
 import { contractsAr } from "@/lib/i18n/contracts-ar";
 import { v7Ar } from "@/lib/i18n/v7-ar";
 import { showroomAr } from "@/lib/i18n/showroom-ar";
@@ -294,6 +295,10 @@ export const ar: Dictionary = {
     locked: "محاولات فاشلة كثيرة. أعد المحاولة بعد 15 دقيقة.",
   },
   errors: {
+    // V12 — agenda
+    agendaStale: "أُعيد حساب هذا التقدير في الأثناء: حدّث الصفحة.",
+    agendaReason: "اذكر السبب.",
+    agendaNoLink: "لا توجد باقة ولا قطعة مرتبطة بهذا العنصر: اربطها في الأجندة › الإعدادات أو أدخل السطر يدويًا.",
     // المعرض والمراسلة (V9)
     listingDuplicate: "لهذه السيارة إعلان جارٍ ({number}). عدّلوه بدل إنشاء إعلان ثانٍ.",
     listingIncomplete: "لا يمكن النشر: ينقص {missing}.",
@@ -954,4 +959,6 @@ export const ar: Dictionary = {
   stockList: stockListAr,
   /** V10.6 — kit juridique : prise en charge, conditions de l'ordre de réparation, mentions de la facture. */
   legal: legalAr,
+  /** V12 — agenda des prochaines réparations. */
+  v12: v12Ar,
 };

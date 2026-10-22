@@ -22,6 +22,7 @@ import { RelatedContracts } from "@/components/garage/contracts";
 import { IntakeCard } from "@/components/garage/intake-card";
 import { canContract } from "@/lib/contracts";
 import { ReservationsCard } from "@/components/garage/reservations-card";
+import { OrderSuggestions } from "@/components/agenda/order-suggestions";
 import { VehicleQrCard } from "@/components/garage/vehicle-qr-card";
 import { TrackingCard } from "@/components/garage/tracking-card";
 import { LiveRefresh } from "@/components/live-refresh";
@@ -277,6 +278,9 @@ export default async function WorkOrderPage({ params }: PageProps) {
             </div>
           )}
         </Card>
+
+        {/* ── V12: what else is due soon on this car (agenda estimates), one click into the quote ── */}
+        <OrderSuggestions workOrderId={wo.id} locked={linesLocked} staff={staff} t={t} lang={lang} />
 
         {/* ── Time per mechanic, quality control, missing parts, insurance (V7) ── */}
         <RepairPanels wo={wo} staff={staff} t={t} lang={lang} tz={settings.timezone} />

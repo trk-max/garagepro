@@ -23,6 +23,8 @@ export const DASHBOARD_BLOCKS = [
   "weekCharts",
   "recentInvoices",
   "activity",
+  // V12 — agenda of the upcoming repairs (due within 30 days, parts to order).
+  "agenda",
 ] as const;
 export type BlockId = (typeof DASHBOARD_BLOCKS)[number];
 export type LayoutEntry = { id: BlockId; visible: boolean };
@@ -48,6 +50,7 @@ const BLOCK_ACCESS: Record<BlockId, readonly Permission[]> = {
   weekCharts: ["viewWorkOrders"],
   recentInvoices: ["viewFinance"],
   activity: ["viewWorkOrders"],
+  agenda: ["viewAgenda"],
 };
 
 /** The blocks this user may see, in the default order. */
@@ -122,6 +125,7 @@ const SPANS: Record<BlockId, readonly [number, number]> = {
   weekCharts: [2, 12],
   recentInvoices: [1, 6],
   activity: [1, 6],
+  agenda: [2, 12],
 };
 
 /**

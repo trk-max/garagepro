@@ -7,12 +7,14 @@ import { getI18n } from "@/lib/i18n/server";
 import { canSeeMoney, companyOverview, companyWorkOrders } from "@/server/company-portal";
 import { getCompanyViewer } from "@/server/company-session";
 import { companyMaintenance } from "@/server/maintenance";
+import { CompanyPlan } from "@/components/agenda/company-plan";
+import { companyAgenda } from "@/server/agenda";
 
 /** Company portal home: this company's vehicles, repairs in progress, history. */
 export default async function CompanyHome() {
   const viewer = await getCompanyViewer();
   if (!viewer) redirect("/entreprise/connexion");
-  const [{ t, lang }, overview, history, upkeep] = await Promise.all([getI18n(), companyOverview(viewer), companyWorkOrders(viewer), companyMaintenance(viewer)]);
+  const [{ t, lang }, overview, history, upkeep, plan] = await Promise.all([getI18n(), companyOverview(viewer), companyWorkOrders(viewer), companyMaintenance(viewer), companyAgenda(viewer)]);
   const mt = t.v7.maintenance;
   const dueSoon = upkeep.filter((u) => u.due.status === "SOON" || u.due.status === "OVERDUE" || u.due.kmUnknown);
   const c = t.v7.company;
@@ -20,6 +22,9 @@ export default async function CompanyHome() {
   return (
     <div className="space-y-6">
       <h1 className="f-display text-2xl">{overview.companyName}</h1>
+
+      {/* V12: fleet maintenance plan (agenda estimates) by month, export. */}
+      <CompanyPlan plan={plan} t={t} lang={lang} />
 
       {dueSoon.length > 0 && (
         <Card>

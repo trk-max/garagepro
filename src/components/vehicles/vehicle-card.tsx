@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CarFront, ClipboardPlus, Gauge, QrCode, UserRound, Wrench } from "lucide-react";
+import { CalendarCheck2, CarFront, ClipboardPlus, Gauge, QrCode, UserRound, Wrench } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { PlateChip } from "@/components/garage/badges";
 import { Chip } from "@/components/ui/redesign/chip";
@@ -7,7 +7,7 @@ import type { Dictionary } from "@/lib/i18n/fr";
 import { fmt, formatDate, formatKm, woNumber, type Lang } from "@/lib/format";
 import type { VehicleCard as Card } from "@/server/vehicle-list";
 
-export type VehicleCardRights = { newOrder: boolean; qr: boolean; obd: boolean; maintenance: boolean };
+export type VehicleCardRights = { newOrder: boolean; qr: boolean; obd: boolean; maintenance: boolean; agenda?: boolean };
 
 /**
  * Vehicle card: plate, make / model / year, fuel and mileage, owner (link to the
@@ -23,6 +23,8 @@ export function VehicleCard({ v, t, lang, rights }: { v: Card; t: Dictionary; la
     { href: `/garage/vehicules/${v.id}/qr`, label: p.qr, icon: QrCode, show: rights.qr },
     { href: `/garage/vehicules/${v.id}/obd`, label: p.obd, icon: Gauge, show: rights.obd },
     { href: `/garage/vehicules/${v.id}/entretien`, label: p.maintenance, icon: Wrench, show: rights.maintenance },
+    // V12: upcoming repairs (agenda) of this vehicle.
+    { href: `/garage/vehicules/${v.id}/entretien#agenda`, label: t.v12.vehicle.button, icon: CalendarCheck2, show: !!rights.agenda },
   ].filter((a) => a.show);
   return (
     <li className="flex flex-col rounded-[24px] border border-gp-line bg-gp-card p-5 shadow-gp">

@@ -96,6 +96,7 @@ export function ActionButton({
             return;
           }
           if (result.data?.warning) toast.warning(result.data.warning);
+          else if (result.data?.message) toast.success(result.data.message);
           else if (successMessage) toast.success(successMessage);
           if (result.data?.redirectTo) router.push(result.data.redirectTo);
           else router.refresh();

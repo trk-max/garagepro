@@ -26,6 +26,8 @@ export const todoFr = {
     certificateFields: "Employés sans poste ou date d'embauche (attestation impossible)",
     lowStock: "Pièces au stock minimum ou en dessous",
     backup: "Sauvegarde à vérifier",
+    agendaDue: "Échéances d’entretien dans les 30 jours (à valider ou envoyer)",
+    agendaParts: "Pièces à commander pour l’agenda (30 jours)",
     leaves: "Demandes de congé à valider",
     purchaseOrders: "Bons de commande à approuver",
     qualityChecks: "Contrôles qualité à valider",

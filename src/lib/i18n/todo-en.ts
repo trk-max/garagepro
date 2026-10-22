@@ -27,6 +27,8 @@ export const todoEn: typeof todoFr = {
     certificateFields: "Employees without job title or hire date (no certificate possible)",
     lowStock: "Parts at or below minimum stock",
     backup: "Backup to check",
+    agendaDue: "Maintenance due within 30 days (to validate or send)",
+    agendaParts: "Parts to order for the agenda (30 days)",
     leaves: "Leave requests to approve",
     purchaseOrders: "Purchase orders to approve",
     qualityChecks: "Quality checks to approve",

@@ -1,5 +1,5 @@
 import {
-  BarChart3, BellRing, Boxes, Building2, CalendarClock, CalendarDays, CalendarRange, Car, CarFront, ClipboardList, Clock3,
+  BarChart3, BellRing, Boxes, Building2, CalendarCheck2, CalendarClock, CalendarDays, CalendarRange, Car, CarFront, ClipboardList, Clock3,
   DatabaseBackup, FileSignature, FileText, History, Landmark, LayoutGrid, Mail, MessageSquareWarning, PackageCheck, ReceiptText,
   CircleHelp, Settings, ShieldCheck, ShoppingCart, Smartphone, TrendingUp, TriangleAlert, Truck, UserRound, Users,
 } from "lucide-react";
@@ -13,7 +13,7 @@ import { can, type Permission, type PermSubject } from "@/lib/permissions";
  * unreachable and the filters stay the same everywhere.
  */
 export type NavKey =
-  | "dashboard" | "appointments" | "workshop" | "workOrders" | "delays" | "notifications" | "customers" | "vehicles" | "companies"
+  | "dashboard" | "appointments" | "workshop" | "workOrders" | "delays" | "agenda" | "notifications" | "customers" | "vehicles" | "companies"
   | "clientInvoices" | "claims" | "warranties" | "parts" | "suppliers" | "purchaseOrders" | "receipts" | "supplierInvoices"
   | "timeClock" | "calendar" | "team" | "showroom" | "messages" | "contracts" | "reports" | "profitability" | "expenses"
   | "cash" | "audit" | "backups" | "settings" | "help";
@@ -32,6 +32,8 @@ export const NAV_GROUPS: NavGroup[] = [
       { key: "workshop", href: "/garage/atelier", icon: Smartphone, permission: "useWorkshop" },
       { key: "workOrders", href: "/garage/work-orders", icon: ClipboardList, permission: "viewWorkOrders" },
       { key: "delays", href: "/garage/suivi", icon: TriangleAlert, permission: "manageRepairFollowUp" },
+      // V12: upcoming repairs agenda (follow-up menu; in the "More" panel).
+      { key: "agenda", href: "/garage/agenda", icon: CalendarCheck2, permission: "viewAgenda" },
       { key: "notifications", href: "/garage/notifications", icon: BellRing, permission: "viewNotifications" },
       { key: "customers", href: "/garage/customers", icon: UserRound, permission: "viewCustomers" },
       { key: "vehicles", href: "/garage/vehicules", icon: Car, permission: "viewCustomers" },
@@ -111,8 +113,9 @@ export function navLabel(t: Dictionary, key: NavKey): string {
   if (key === "showroom" || key === "messages") return t.showroom.nav[key];
   if (key === "vehicles") return t.v10.nav.vehicles;
   if (key === "help") return t.todo.help;
+  if (key === "agenda") return t.v12.nav;
   if ((V7 as readonly string[]).includes(key)) return t.v7.nav[key as (typeof V7)[number]];
-  return t.nav[key as Exclude<NavKey, (typeof V7)[number] | "contracts" | "showroom" | "messages" | "vehicles" | "help">];
+  return t.nav[key as Exclude<NavKey, (typeof V7)[number] | "contracts" | "showroom" | "messages" | "vehicles" | "help" | "agenda">];
 }
 
 /** Short label for the top pill bar. */

@@ -1,5 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
+import { runAgendaDaily } from "@/server/agenda";
 import { runReminders } from "@/server/reminders";
 
 /**
@@ -22,7 +23,13 @@ export async function GET(request: Request) {
   if (!authorized(request)) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   try {
     const result = await runReminders();
-    return NextResponse.json(result, { headers: { "Cache-Control": "no-store" } });
+    // V12: agenda of the upcoming repairs (detect, recompute, send what the garage validated). Its own
+    // failure never blocks the reminders above.
+    const agenda = await runAgendaDaily().catch((error) => {
+      console.error("[cron] agenda", error);
+      return { error: "failed" };
+    });
+    return NextResponse.json({ ...result, agenda }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     console.error("[cron] reminders", error);
     return NextResponse.json({ error: "failed" }, { status: 500 });

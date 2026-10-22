@@ -113,6 +113,7 @@ export const v103En: typeof v103Fr = {
       weekCharts: "This week's charts",
       recentInvoices: "Latest invoices",
       activity: "Recent activity",
+      agenda: "Agenda (30 days)",
     },
   },
 };

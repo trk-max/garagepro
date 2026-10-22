@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { Activity, CarFront, FileSignature, Plus, QrCode, ShieldCheck, Wrench } from "lucide-react";
+import { Activity, CalendarCheck2, CarFront, FileSignature, Plus, QrCode, ShieldCheck, Wrench } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { addVehicleAction } from "@/actions/catalog";
 import { ActionForm } from "@/components/action-form";
@@ -54,6 +54,7 @@ export function VehicleTiles({ customer, who, t, lang }: { customer: Customer; w
                 </Link>
                 {canContract(who, "REPAIR", "view") && <Act href={`/garage/contrats?vehicle=${v.id}`} icon={FileSignature}>{t.ctr.nav}</Act>}
                 {can(who, "manageMaintenance") && <Act href={`/garage/vehicules/${v.id}/entretien`} icon={Wrench}>{t.v7.maintenance.button}</Act>}
+                {can(who, "viewAgenda") && <Act href={`/garage/vehicules/${v.id}/entretien#agenda`} icon={CalendarCheck2}>{t.v12.vehicle.button}</Act>}
                 {can(who, "manageVehicleQr") && <Act href={`/garage/vehicules/${v.id}/qr`} icon={QrCode}>{t.v7.qr.button}</Act>}
                 {can(who, "manageWarranties") && <Act href={`/garage/garanties?f=all&vehicle=${v.id}`} icon={ShieldCheck}>{t.v7.warranty.button}</Act>}
                 {can(who, "obdDiagnose") && <Act href={`/garage/vehicules/${v.id}/obd`} icon={Activity}>{t.v7.obd.button}</Act>}

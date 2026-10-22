@@ -8,6 +8,7 @@ import type { StaffUser } from "@/lib/session";
 import { groupTodos, QUOTE_WAIT_DAYS, todoKeysFor, type TodoCounts, type TodoKey, type TodoList } from "@/lib/todo";
 import { missingVehicleInfo } from "@/lib/vehicle-info";
 import { backupProblem } from "@/server/backups";
+import { countDueSoon, partsToOrder } from "@/server/agenda";
 import { countOpenClaims } from "@/server/claims";
 import { countExpiringContracts } from "@/server/contracts";
 import { countLateRepairs } from "@/server/follow-up";
@@ -97,6 +98,8 @@ function counter(key: TodoKey, actor: TodoActor, now: Date): Promise<number> {
     // Column-to-column comparison done by the database (same rule as isLow: stock ≤ minimum).
     case "lowStock": return prisma.part.count({ where: { isActive: true, stockX100: { lte: prisma.part.fields.minStockX100 } } });
     case "backup": return backupProblem();
+    case "agendaDue": return countDueSoon(now);
+    case "agendaParts": return partsToOrder(now).then((p) => p.length);
     case "leaves": return prisma.leaveRequest.count({ where: { status: "PENDING" } });
     case "purchaseOrders": return prisma.purchaseOrder.count({ where: { status: "PENDING_APPROVAL" } });
     case "qualityChecks": return prisma.qualityCheck.count({ where: TODO_WHERE.qualityChecks });

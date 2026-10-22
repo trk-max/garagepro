@@ -3,6 +3,7 @@ import { v103Fr } from "@/lib/i18n/v103-fr";
 import { todoFr } from "@/lib/i18n/todo-fr";
 import { stockListFr } from "@/lib/i18n/stock-list-fr";
 import { legalFr } from "@/lib/i18n/legal-fr";
+import { v12Fr } from "@/lib/i18n/v12-fr";
 import { contractsFr } from "@/lib/i18n/contracts-fr";
 import { v7Fr } from "@/lib/i18n/v7-fr";
 import { showroomFr } from "@/lib/i18n/showroom-fr";
@@ -292,6 +293,10 @@ export const fr = {
     locked: "Trop de tentatives échouées. Réessayez dans 15 minutes.",
   },
   errors: {
+    // V12 — agenda
+    agendaStale: "Cette prévision a été recalculée entre-temps : actualisez la page.",
+    agendaReason: "Indiquez le motif.",
+    agendaNoLink: "Aucun forfait ni aucune pièce n'est lié à cet élément : ajoutez-le dans Agenda › Réglages, ou saisissez la ligne à la main.",
     // Showroom et messagerie (V9)
     listingDuplicate: "Ce véhicule a déjà une annonce en cours ({number}). Modifiez-la plutôt que d'en créer une seconde.",
     listingIncomplete: "Publication impossible : il manque {missing}.",
@@ -953,6 +958,8 @@ export const fr = {
   stockList: stockListFr,
   /** V10.6 — kit juridique : prise en charge, conditions de l'ordre de réparation, mentions de la facture. */
   legal: legalFr,
+  /** V12 — agenda des prochaines réparations. */
+  v12: v12Fr,
 };
 
 export type Dictionary = typeof fr;

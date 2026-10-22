@@ -12,7 +12,7 @@ export const TODO_KEYS = [
   // A. Incomplete
   "vehicleInfo", "quoteWaiting", "readyNotDelivered", "lateRepairs", "missingParts", "insuranceWaiting",
   "overdueInvoices", "openClaims", "unreadMessages", "warrantyOpen", "contractDrafts", "contractsExpiring",
-  "certificateFields", "lowStock", "backup",
+  "certificateFields", "lowStock", "backup", "agendaDue", "agendaParts",
   // B. To approve (manager / administrator / HR)
   "leaves", "purchaseOrders", "qualityChecks", "contractsToApprove", "contractsToSign", "warrantyDecisions",
 ] as const;
@@ -43,6 +43,9 @@ export const TODO_DEFS: Record<TodoKey, Def> = {
   certificateFields: { group: "incomplete", href: "/garage/equipe", visible: (r) => can(r, "issueCertificates") },
   lowStock: { group: "incomplete", href: "/garage/parts?low=1", visible: (r) => can(r, "requestPurchase") },
   backup: { group: "incomplete", href: "/garage/sauvegardes", visible: (r) => can(r, "manageSettings") },
+  // V12 — agenda: due within 30 days, still to validate / send; parts to order in advance.
+  agendaDue: { group: "incomplete", href: "/garage/agenda?to=30", visible: (r) => can(r, "manageAgenda") },
+  agendaParts: { group: "incomplete", href: "/garage/agenda?parts=1", visible: (r) => can(r, "manageAgenda") && can(r, "requestPurchase") },
   leaves: { group: "approval", href: "/garage/equipe", visible: (r) => can(r, "manageTeam") },
   purchaseOrders: { group: "approval", href: "/garage/purchase-orders?status=PENDING_APPROVAL", visible: (r) => can(r, "approvePurchase") },
   qualityChecks: { group: "approval", href: "/garage/work-orders?status=QUALITY_CONTROL", visible: (r) => can(r, "approveQualityCheck") },

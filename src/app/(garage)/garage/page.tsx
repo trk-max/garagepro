@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { BellRing, CalendarClock, CarFront, CheckCircle2, ClipboardCheck, ShoppingCart, Truck, UserCheck, Wallet } from "lucide-react";
 import { DashboardCustomizer } from "@/components/overview/dashboard-customizer";
+import { AgendaDashCard } from "@/components/agenda/agenda-ui";
 import { ActivityCard, InvoicesCard, StatusCard, WatchCard, type WatchTile } from "@/components/overview/more-cards";
 import { AlertsCard, AppointmentsCard, LowStockCard } from "@/components/overview/lists";
 import { GoalCard } from "@/components/overview/goal-card";
@@ -18,6 +19,7 @@ import { fmt, formatMoney } from "@/lib/format";
 import { getI18n } from "@/lib/i18n/server";
 import { can } from "@/lib/permissions";
 import { requireStaff } from "@/lib/session";
+import { countDueSoon, listAgenda, partsToOrder } from "@/server/agenda";
 import { listAlerts } from "@/server/alerts";
 import { getDashboard, presentNow, recentActivity, recentInvoices, todayAppointments, weekOverview } from "@/server/dashboard";
 import { getDashboardLayout } from "@/server/dashboard-layout";
@@ -57,7 +59,7 @@ export default async function OverviewPage() {
   const on = (id: BlockId) => visible.includes(id);
   const year = Number(new Intl.DateTimeFormat("en-CA", { timeZone: (await getSettings()).timezone, year: "numeric" }).format(now));
   // Every figure keeps the former rule: money only for viewFinance, purchases for requestPurchase, etc.
-  const [{ t, lang }, settings, d, kpi, today, months, goal, mechanics, orders, overdue, purchasing, appts, presence, alerts, week, invoices, activity] = await Promise.all([
+  const [{ t, lang }, settings, d, kpi, today, months, goal, mechanics, orders, overdue, purchasing, appts, presence, alerts, week, invoices, activity, agenda] = await Promise.all([
     getI18n(),
     getSettings(),
     getDashboard(),
@@ -75,6 +77,10 @@ export default async function OverviewPage() {
     on("weekCharts") ? weekOverview({ finance }) : null,
     on("recentInvoices") ? recentInvoices() : null,
     on("activity") ? recentActivity({ finance }) : null,
+    // V12: agenda block — due within 30 days; parts to order only for those who can request a purchase.
+    on("agenda")
+      ? Promise.all([countDueSoon(now), listAgenda({ to: new Date(now.getTime() + 30 * 86_400_000) }, 6), can(staff, "requestPurchase") || can(staff, "manageAgenda") ? partsToOrder(now) : null])
+      : null,
   ]);
   const o = t.v10.overview;
   const db = t.v7.dash;
@@ -156,6 +162,7 @@ export default async function OverviewPage() {
       ),
     recentInvoices: () => invoices && <InvoicesCard t={t} lang={lang} invoices={invoices} overdue={overdue?.count ?? 0} unpaid={d.unpaidTotal} />,
     activity: () => activity && <ActivityCard t={t} lang={lang} events={activity} />,
+    agenda: () => agenda && <AgendaDashCard t={t} lang={lang} count={agenda[0]} rows={agenda[1]} parts={agenda[2]} canOrder={can(staff, "requestPurchase")} />,
   };
 
   const blocks = visible.map((id) => ({ id, node: render[id]() })).filter((b): b is { id: BlockId; node: Exclude<ReactNode, false | null | undefined | 0 | ""> } => !!b.node);

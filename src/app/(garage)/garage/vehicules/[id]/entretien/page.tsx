@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { createPlanAction, markPlanDoneAction, setPlanActiveAction } from "@/actions/reminders";
 import { ActionButton, ActionForm } from "@/components/action-form";
 import { PlateChip } from "@/components/garage/badges";
@@ -8,18 +8,28 @@ import { Card, CardTitle, Field, NativeSelect, PageHeader } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { fmt, formatDate, formatKm } from "@/lib/format";
 import { getI18n } from "@/lib/i18n/server";
-import { requirePageAccess } from "@/lib/session";
+import { can } from "@/lib/permissions";
+import { getStaff } from "@/lib/session";
+import { VehicleAgenda } from "@/components/agenda/vehicle-agenda";
+import { vehicleAgenda } from "@/server/agenda";
 import { cn } from "@/lib/utils";
 import { vehiclePlans } from "@/server/maintenance";
 import { MAINTENANCE_KINDS } from "@/server/reminders";
 
 type PageProps = { params: Promise<{ id: string }> };
 
-/** Staff: maintenance plans of one vehicle (oil change, filters, service…) and their next due date. */
+/**
+ * Staff: the vehicle's maintenance. V12: "Prochaines réparations" (agenda estimates, known replacements,
+ * garage signals) for viewAgenda; the manual plans (oil change every N km / N days, V7.6) for manageMaintenance.
+ */
 export default async function VehicleMaintenancePage({ params }: PageProps) {
-  await requirePageAccess("manageMaintenance");
+  const staff = await getStaff();
+  if (!staff) redirect("/login");
+  const canPlans = can(staff, "manageMaintenance");
+  const canAgenda = can(staff, "viewAgenda");
+  if (!canPlans && !canAgenda) redirect("/garage");
   const { id } = await params;
-  const [data, { t, lang }] = await Promise.all([vehiclePlans(id), getI18n()]);
+  const [data, { t, lang }, agenda] = await Promise.all([vehiclePlans(id), getI18n(), canAgenda ? vehicleAgenda(id) : null]);
   if (!data) notFound();
   const { vehicle, plans } = data;
   const m = t.v7.maintenance;
@@ -44,7 +54,9 @@ export default async function VehicleMaintenancePage({ params }: PageProps) {
       </div>
       {vehicle.customer.reminderOptOut && <p className="border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm">{m.optedOut}</p>}
 
-      {plans.length === 0 ? (
+      {agenda && <VehicleAgenda data={agenda} t={t} lang={lang} canManage={can(staff, "manageAgenda")} seePrice={can(staff, "viewFinance") || can(staff, "printQuote")} />}
+
+      {canPlans && (plans.length === 0 ? (
         <p className="border border-dashed p-8 text-center text-sm text-muted-foreground">{m.none}</p>
       ) : (
         <div className="space-y-3">
@@ -85,9 +97,9 @@ export default async function VehicleMaintenancePage({ params }: PageProps) {
             </Card>
           ))}
         </div>
-      )}
+      ))}
 
-      <Card>
+      {canPlans && <Card>
         <CardTitle>{m.add}</CardTitle>
         <ActionForm action={createPlanAction.bind(null, vehicle.id)} className="grid gap-3 sm:grid-cols-3">
           <Field label={m.kind}>
@@ -121,7 +133,7 @@ export default async function VehicleMaintenancePage({ params }: PageProps) {
             <Button type="submit">{t.common.add}</Button>
           </div>
         </ActionForm>
-      </Card>
+      </Card>}
     </div>
   );
 }

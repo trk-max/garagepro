@@ -3,6 +3,7 @@ import { v103En } from "@/lib/i18n/v103-en";
 import { todoEn } from "@/lib/i18n/todo-en";
 import { stockListEn } from "@/lib/i18n/stock-list-en";
 import { legalEn } from "@/lib/i18n/legal-en";
+import { v12En } from "@/lib/i18n/v12-en";
 import { contractsEn } from "@/lib/i18n/contracts-en";
 import { v7En } from "@/lib/i18n/v7-en";
 import { showroomEn } from "@/lib/i18n/showroom-en";
@@ -294,6 +295,10 @@ export const en: Dictionary = {
     locked: "Too many failed attempts. Try again in 15 minutes.",
   },
   errors: {
+    // V12 — agenda
+    agendaStale: "This forecast was recomputed in the meantime: refresh the page.",
+    agendaReason: "Give the reason.",
+    agendaNoLink: "No package or part is linked to this item: link one in Agenda › Settings, or type the line by hand.",
     // Showroom and messaging (V9)
     listingDuplicate: "This vehicle already has an active listing ({number}). Edit it instead of creating a second one.",
     listingIncomplete: "Cannot publish: {missing} missing.",
@@ -954,4 +959,6 @@ export const en: Dictionary = {
   stockList: stockListEn,
   /** V10.6 — kit juridique : prise en charge, conditions de l'ordre de réparation, mentions de la facture. */
   legal: legalEn,
+  /** V12 — agenda des prochaines réparations. */
+  v12: v12En,
 };
