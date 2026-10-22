@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/field";
 import { displayPlate, fmt, formatDateTime, formatKm, formatMoney, formatQty, woNumber } from "@/lib/format";
 import type { Dictionary } from "@/lib/i18n/fr";
-import { getI18n } from "@/lib/i18n/server";
+import { getI18n, getLang } from "@/lib/i18n/server";
 import { ClaimForm } from "@/components/portal/claim-form";
 import { FeedbackForm } from "@/components/portal/feedback-form";
 import { hasFeedback } from "@/server/claims";
@@ -34,7 +34,7 @@ export default async function TrackerPage() {
   if (!workOrderId) redirect("/suivi");
 
   // V12: upcoming maintenance of THIS order's vehicle only (the session is bound to one work order).
-  const [view, { t, lang }, rated, upcoming] = await Promise.all([getTrackingView(workOrderId), getI18n(), hasFeedback(workOrderId), trackingForecasts(workOrderId).catch(() => [])]);
+  const [view, { t, lang }, rated, upcoming] = await Promise.all([getLang().then((l) => getTrackingView(workOrderId, l)), getI18n(), hasFeedback(workOrderId), trackingForecasts(workOrderId).catch(() => [])]);
   if (!view) redirect("/suivi");
 
   const ready = view.status === "READY";
@@ -74,7 +74,7 @@ export default async function TrackerPage() {
             <dt className="flex items-center gap-1.5 text-xs text-slate-300">
               <UserRound className="size-3.5" aria-hidden /> {t.portal.technician}
             </dt>
-            <dd className="mt-1 font-medium">{view.mechanicName ?? t.portal.notAssigned}</dd>
+            <dd className="mt-1 font-medium">{view.mechanicName ?? (view.mechanicAssigned ? t.v14.client.team : t.portal.notAssigned)}</dd>
           </div>
           <div className="rounded-[16px] bg-white/[0.07] p-3">
             <dt className="flex items-center gap-1.5 text-xs text-slate-300">
@@ -91,6 +91,8 @@ export default async function TrackerPage() {
             </div>
           )}
         </dl>
+        {/* V14: public label chosen by the garage only — never a name nor a level. */}
+        {view.skillLabels.length > 0 && <p className="mt-3 text-sm text-slate-200">{fmt(t.v14.client.certified, { labels: view.skillLabels.join(", ") })}</p>}
       </section>
 
       {/* ── Banners ── */}

@@ -83,6 +83,10 @@ export const v103En: typeof v103Fr = {
       readAllShowroomMessages: "Read all conversations",
       manageSettings: "Settings and backups",
       viewAuditLog: "Change log",
+      // V14 — carte des compétences.
+      viewSkills: "Skills: see the whole team’s",
+      manageSkills: "Skills: decide levels, certificates, goals",
+      overrideSkillBlock: "Skills: override a required habilitation (with a reason)",
     },
   },
   dash: {
@@ -114,6 +118,7 @@ export const v103En: typeof v103Fr = {
       recentInvoices: "Latest invoices",
       activity: "Recent activity",
       agenda: "Agenda (30 days)",
+      skillGaps: "Skill gaps",
     },
   },
 };

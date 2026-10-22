@@ -4,6 +4,7 @@ import { todoEn } from "@/lib/i18n/todo-en";
 import { stockListEn } from "@/lib/i18n/stock-list-en";
 import { legalEn } from "@/lib/i18n/legal-en";
 import { v12En } from "@/lib/i18n/v12-en";
+import { v14En } from "@/lib/i18n/v14-en";
 import { contractsEn } from "@/lib/i18n/contracts-en";
 import { v7En } from "@/lib/i18n/v7-en";
 import { showroomEn } from "@/lib/i18n/showroom-en";
@@ -295,6 +296,14 @@ export const en: Dictionary = {
     locked: "Too many failed attempts. Try again in 15 minutes.",
   },
   errors: {
+    // V14 — compétences
+    skillReasonRequired: "Give a reason (at least 3 characters).",
+    skillNotOwnLevel: "You cannot decide your own skills: another manager must do it.",
+    skillCodeTaken: "This skill code already exists.",
+    skillCertDates: "The expiry date must follow the issue date.",
+    skillHabilitationRequired: "Assignment refused: habilitation required ({skills}) and no valid certificate. A manager can override with a reason.",
+    skillOverrideForbidden: "Habilitation required ({skills}): only a manager can override (with a reason).",
+    skillSupervisorVerifies: "The “work verified” point is validated by this order’s supervisor.",
     // V12 — agenda
     agendaStale: "This forecast was recomputed in the meantime: refresh the page.",
     agendaReason: "Give the reason.",
@@ -961,4 +970,6 @@ export const en: Dictionary = {
   legal: legalEn,
   /** V12 — agenda des prochaines réparations. */
   v12: v12En,
+  /** V14 — carte des compétences. */
+  v14: v14En,
 };

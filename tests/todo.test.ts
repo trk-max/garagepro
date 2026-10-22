@@ -19,9 +19,10 @@ describe("V10.4 à traiter — visibility", () => {
   it("approvals only for the roles allowed to decide", () => {
     expect(approvals("MECHANIC")).toEqual([]);
     expect(approvals("RECEPTION")).toEqual(["contractsToSign"]);
-    expect(approvals("ADMIN")).toEqual(["leaves", "purchaseOrders", "qualityChecks", "contractsToApprove", "contractsToSign", "warrantyDecisions"]);
+    expect(approvals("ADMIN")).toEqual(["leaves", "purchaseOrders", "qualityChecks", "contractsToApprove", "contractsToSign", "warrantyDecisions", "skillReviews"]);
     // The manager approves leaves, quality checks, contracts and warranty answers; purchase orders stay with the administrator (approvePurchase).
-    expect(approvals("MANAGER")).toEqual(["leaves", "qualityChecks", "contractsToApprove", "contractsToSign", "warrantyDecisions"]);
+    // V14: the manager also decides re-evaluations of skills (manageSkills).
+    expect(approvals("MANAGER")).toEqual(["leaves", "qualityChecks", "contractsToApprove", "contractsToSign", "warrantyDecisions", "skillReviews"]);
     // HR: leaves and employment contracts only.
     expect(approvals("HR")).toEqual(["leaves", "contractsToApprove", "contractsToSign"]);
   });

@@ -83,6 +83,10 @@ export const v103Ar: typeof v103Fr = {
       readAllShowroomMessages: "قراءة كل المحادثات",
       manageSettings: "الإعدادات والنسخ الاحتياطية",
       viewAuditLog: "سجل التعديلات",
+      // V14 — carte des compétences.
+      viewSkills: "الكفاءات: عرض كفاءات كل الفريق",
+      manageSkills: "الكفاءات: تحديد المستويات والشهادات والأهداف",
+      overrideSkillBlock: "الكفاءات: استثناء من التأهيل المطلوب (مع سبب)",
     },
   },
   dash: {
@@ -114,6 +118,7 @@ export const v103Ar: typeof v103Fr = {
       recentInvoices: "آخر الفواتير",
       activity: "النشاط الأخير",
       agenda: "الأجندة (30 يومًا)",
+      skillGaps: "نقص الكفاءات",
     },
   },
 };

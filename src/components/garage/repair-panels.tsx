@@ -47,13 +47,15 @@ const day = (d: Date | null, tz: string) => (d ? utcToZoned(d, tz).date : "");
 
 /** Work order: time per mechanic, quality control, insurance, missing parts. */
 export async function RepairPanels({ wo, staff, t, lang, tz }: { wo: Wo; staff: StaffUser; t: Dictionary; lang: Lang; tz: string }) {
-  const [labor, qc, needs, parts, suppliers, users] = await Promise.all([
+  const [labor, qc, needs, parts, suppliers, users, supervision] = await Promise.all([
     laborSummary(wo.id),
     getQualityCheck(wo.id),
     listPartNeeds(wo.id),
     partOptions(),
     supplierOptions(),
     prisma.user.findMany({ where: { isActive: true }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    // V14: supervisor of the order (indicator on the quality check) and the « supervisor verifies » rule.
+    prisma.workOrder.findUnique({ where: { id: wo.id }, select: { supervisor: { select: { name: true } } } }).then(async (w) => (w?.supervisor ? { name: w.supervisor.name, verifies: (await prisma.setting.findUnique({ where: { id: "garage" }, select: { skillSupervisorVerifies: true } }))?.skillSupervisorVerifies ?? false } : null)),
   ]);
   const approver = qc?.approvedById ? await prisma.user.findUnique({ where: { id: qc.approvedById }, select: { name: true } }) : null;
   const v = t.v7;
@@ -210,6 +212,11 @@ export async function RepairPanels({ wo, staff, t, lang, tz }: { wo: Wo; staff: 
       {/* ── Quality control ── */}
       <Card className={cn(wo.status === "QUALITY_CONTROL" && "border-cyan-500")}>
         <CardTitle>{v.quality.title}</CardTitle>
+        {supervision && (
+          <p className="mb-3 border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm">
+            {fmt(t.v14.qc.supervised, { name: supervision.name })} {supervision.verifies ? t.v14.qc.supervisorVerifies : ""}
+          </p>
+        )}
         {qc?.approvedAt ? (
           <p className="mb-3 flex items-center gap-2 text-sm text-emerald-700 dark:text-emerald-400">
             <CheckCircle2 className="size-4" aria-hidden /> {fmt(v.quality.approvedBy, { name: approver?.name ?? "?", date: formatDateTime(qc.approvedAt, lang, tz) })}

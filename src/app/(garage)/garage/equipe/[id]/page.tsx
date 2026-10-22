@@ -71,6 +71,12 @@ export default async function EmployeePage({ params, searchParams }: PageProps) 
     <div className="mx-auto max-w-6xl space-y-6 p-4 sm:p-6">
       <PageHeader title={employee.name}>
         <span className="text-sm text-muted-foreground">{employee.jobTitle ?? t.roles[employee.role]}</span>
+        {/* V14: this employee's skills, certificates and goals. */}
+        {can(staff, "viewSkills") && (
+          <Link href={`/garage/competences/${employee.id}`} className="f-label ms-auto border px-3 py-2 text-[0.625rem] hover:border-foreground">
+            {t.v14.nav.skills}
+          </Link>
+        )}
       </PageHeader>
 
       {/* Period */}

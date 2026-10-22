@@ -84,6 +84,10 @@ export const v103Fr = {
       readAllShowroomMessages: "Lire toutes les conversations",
       manageSettings: "Paramètres et sauvegardes",
       viewAuditLog: "Journal des modifications",
+      // V14 — carte des compétences.
+      viewSkills: "Compétences : voir celles de toute l’équipe",
+      manageSkills: "Compétences : décider des niveaux, certificats, objectifs",
+      overrideSkillBlock: "Compétences : déroger à l’habilitation exigée (avec motif)",
     } satisfies Record<Permission, string>,
   },
   dash: {
@@ -115,6 +119,7 @@ export const v103Fr = {
       recentInvoices: "Dernières factures",
       activity: "Activité récente",
       agenda: "Agenda (30 jours)",
+      skillGaps: "Manques de compétences",
     } satisfies Record<BlockId, string>,
   },
 };

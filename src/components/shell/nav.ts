@@ -3,6 +3,7 @@ import {
   DatabaseBackup, FileSignature, FileText, History, Landmark, LayoutGrid, Mail, MessageSquareWarning, PackageCheck, ReceiptText,
   CircleHelp, Settings, ShieldCheck, ShoppingCart, Smartphone, TrendingUp, TriangleAlert, Truck, UserRound, Users,
 } from "lucide-react";
+import { Award, GraduationCap } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { Dictionary } from "@/lib/i18n/fr";
 import { can, type Permission, type PermSubject } from "@/lib/permissions";
@@ -16,7 +17,9 @@ export type NavKey =
   | "dashboard" | "appointments" | "workshop" | "workOrders" | "delays" | "agenda" | "notifications" | "customers" | "vehicles" | "companies"
   | "clientInvoices" | "claims" | "warranties" | "parts" | "suppliers" | "purchaseOrders" | "receipts" | "supplierInvoices"
   | "timeClock" | "calendar" | "team" | "showroom" | "messages" | "contracts" | "reports" | "profitability" | "expenses"
-  | "cash" | "audit" | "backups" | "settings" | "help";
+  | "cash" | "audit" | "backups" | "settings" | "help"
+  // V14 — carte des compétences.
+  | "skills" | "mySkills";
 
 export type NavBadges = Partial<Record<NavKey, number>>;
 export type NavItem = { key: NavKey; href: string; icon: LucideIcon; permission?: Permission };
@@ -59,6 +62,9 @@ export const NAV_GROUPS: NavGroup[] = [
       { key: "timeClock", href: "/garage/pointage", icon: Clock3, permission: "useTimeClock" },
       { key: "calendar", href: "/garage/calendrier", icon: CalendarRange, permission: "useTimeClock" },
       { key: "team", href: "/garage/equipe", icon: Users, permission: "manageTeam" },
+      // V14: team skills matrix (managers / HR) and each person's own skills (read-only), in the "More" panel.
+      { key: "skills", href: "/garage/competences", icon: GraduationCap, permission: "viewSkills" },
+      { key: "mySkills", href: "/garage/competences/moi", icon: Award, permission: "useTimeClock" },
     ],
   },
   {
@@ -114,8 +120,9 @@ export function navLabel(t: Dictionary, key: NavKey): string {
   if (key === "vehicles") return t.v10.nav.vehicles;
   if (key === "help") return t.todo.help;
   if (key === "agenda") return t.v12.nav;
+  if (key === "skills" || key === "mySkills") return t.v14.nav[key];
   if ((V7 as readonly string[]).includes(key)) return t.v7.nav[key as (typeof V7)[number]];
-  return t.nav[key as Exclude<NavKey, (typeof V7)[number] | "contracts" | "showroom" | "messages" | "vehicles" | "help" | "agenda">];
+  return t.nav[key as Exclude<NavKey, (typeof V7)[number] | "contracts" | "showroom" | "messages" | "vehicles" | "help" | "agenda" | "skills" | "mySkills">];
 }
 
 /** Short label for the top pill bar. */

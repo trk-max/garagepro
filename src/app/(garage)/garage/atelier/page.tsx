@@ -14,6 +14,8 @@ import { cn } from "@/lib/utils";
 import { runningLabor } from "@/server/labor";
 import { workshopOrders } from "@/server/work-orders";
 import { NEXT_STEP, TRANSITIONS } from "@/server/workflow";
+import { SkillAssignCard, SupervisedBadge } from "@/components/skills/assign-card";
+import { assignmentOptions, listSkills } from "@/server/skills";
 
 type PageProps = { searchParams: Promise<{ view?: string }> };
 
@@ -27,6 +29,9 @@ export default async function WorkshopPage({ searchParams }: PageProps) {
   const mineOnly = view ? view === "mine" : staff.role === "MECHANIC";
   const [{ t, lang }, orders, running] = await Promise.all([getI18n(), workshopOrders(mineOnly ? staff.id : undefined), runningLabor(staff.id)]);
   const canTime = can(staff, "logOwnLabor");
+  // V14: assisted assignment on each card (same server rule as the work order page).
+  const canAssign = can(staff, "viewWorkOrders");
+  const [assign, skills] = canAssign && orders.length ? await Promise.all([assignmentOptions(orders.map((o) => o.id)), listSkills()]) : [null, []];
 
   return (
     <div className="mx-auto max-w-3xl space-y-4 p-3 sm:p-6">
@@ -60,6 +65,7 @@ export default async function WorkshopPage({ searchParams }: PageProps) {
                   {wo.vehicle.make} {wo.vehicle.model}
                 </span>
                 <PriorityBadge priority={wo.priority} t={t} />
+                {wo.supervisor && <SupervisedBadge name={wo.supervisor.name} t={t} />}
                 <span className="ms-auto">
                   <StatusBadge status={wo.status} t={t} />
                 </span>
@@ -119,6 +125,14 @@ export default async function WorkshopPage({ searchParams }: PageProps) {
                 )}
                 <MediaUploader workOrderId={wo.id} compact />
               </div>
+              {assign?.get(wo.id) && (
+                <details className="mt-3 rounded-lg border px-3 py-2">
+                  <summary className="flex min-h-10 cursor-pointer items-center text-sm font-medium">{t.v14.assign.open}</summary>
+                  <div className="pt-2">
+                    <SkillAssignCard o={assign.get(wo.id)!} skills={skills} staff={staff} t={t} lang={lang} compact />
+                  </div>
+                </details>
+              )}
               {canTime &&
                 (running?.workOrder.id === wo.id ? (
                   <ActionButton variant="destructive" className="mt-2 h-11 w-full" action={stopLaborAction.bind(null, running.id, wo.id)}>

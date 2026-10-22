@@ -35,5 +35,9 @@ export const todoEn: typeof todoFr = {
     contractsToApprove: "Contracts to approve",
     contractsToSign: "Approved contracts not yet signed",
     warrantyDecisions: "Warranty claims: answer to record",
+    // V14 — compétences
+    skillCertificates: "Certificates / habilitations expired or to renew",
+    skillWarnings: "Assignments with a skill warning to review",
+    skillReviews: "Skills to re-evaluate (requests, goals reached)",
   },
 };

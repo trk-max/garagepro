@@ -67,8 +67,8 @@ export function customerVisibleEvents<E extends { type: string; data: unknown }>
 }
 
 /** Everything the customer page shows — and nothing internal (no notes, no costs, no staff e-mails). */
-export async function getTrackingView(workOrderId: string) {
-  const [wo, settings] = await Promise.all([
+export async function getTrackingView(workOrderId: string, lang = "fr") {
+  const [wo, settings, skillView] = await Promise.all([
     prisma.workOrder.findUnique({
       where: { id: workOrderId },
       select: {
@@ -99,6 +99,8 @@ export async function getTrackingView(workOrderId: string) {
       },
     }),
     getSettings(),
+    // V14: public skill labels only (setting), never a name nor a level; an apprentice's name is hidden.
+    import("@/server/skills").then((m) => m.customerSkillView(workOrderId, lang)).catch(() => ({ labels: [] as string[], hideMechanic: true })),
   ]);
   if (!wo) return null;
 
@@ -116,7 +118,11 @@ export async function getTrackingView(workOrderId: string) {
     ...wo,
     events,
     // Mechanic's first name only, for privacy.
-    mechanicName: wo.mechanic?.name.split(/\s+/)[0] ?? null,
+    mechanicName: skillView.hideMechanic ? null : (wo.mechanic?.name.split(/\s+/)[0] ?? null),
+    skillLabels: skillView.labels,
+    mechanicAssigned: !!wo.mechanic,
+    // Never the full name (privacy): only the first name above, or nothing for an apprentice.
+    mechanic: null,
     stepper: customerSteps(wo.status, everWaitedForParts),
     quote: quotePending
       ? { lines: wo.lines.map((l) => ({ ...l, totalHt: lineTotalHt(l) })), totals }

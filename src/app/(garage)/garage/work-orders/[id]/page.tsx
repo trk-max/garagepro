@@ -23,6 +23,8 @@ import { IntakeCard } from "@/components/garage/intake-card";
 import { canContract } from "@/lib/contracts";
 import { ReservationsCard } from "@/components/garage/reservations-card";
 import { OrderSuggestions } from "@/components/agenda/order-suggestions";
+import { SkillAssignSection } from "@/components/skills/assign-section";
+import { SupervisedBadge } from "@/components/skills/assign-card";
 import { VehicleQrCard } from "@/components/garage/vehicle-qr-card";
 import { TrackingCard } from "@/components/garage/tracking-card";
 import { LiveRefresh } from "@/components/live-refresh";
@@ -100,6 +102,7 @@ export default async function WorkOrderPage({ params }: PageProps) {
               <StatusDot color={STATUS_DOT[wo.status]}>{t.status[wo.status]}</StatusDot>
             </span>
             <PriorityBadge priority={wo.priority} t={t} />
+            {wo.supervisor && <SupervisedBadge name={wo.supervisor.name} t={t} />}
             <LiveRefresh url={`/api/staff/live?topic=wo:${wo.id}`} liveLabel={t.portal.live} reconnectingLabel={t.portal.reconnecting} className="ms-auto" />
           </div>
           <StatusStepper status={wo.status} t={t} className="rounded-[18px] bg-gp-panel px-2 py-4" />
@@ -278,6 +281,9 @@ export default async function WorkOrderPage({ params }: PageProps) {
             </div>
           )}
         </Card>
+
+        {/* ── V14: assisted assignment (required skills, mechanics sorted by level / presence / load, supervisor) ── */}
+        <SkillAssignSection workOrderId={wo.id} staff={staff} t={t} lang={lang} />
 
         {/* ── V12: what else is due soon on this car (agenda estimates), one click into the quote ── */}
         <OrderSuggestions workOrderId={wo.id} locked={linesLocked} staff={staff} t={t} lang={lang} />

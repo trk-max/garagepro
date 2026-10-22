@@ -31,10 +31,15 @@ export async function getQualityCheck(workOrderId: string) {
 export async function saveQualityCheck(actor: StaffUser, workOrderId: string, items: QualityItems) {
   if (!can(actor, "fillQualityCheck")) throw new AppError("forbidden", {}, 403);
   return prisma.$transaction(async (tx) => {
-    const wo = await tx.workOrder.findUnique({ where: { id: workOrderId }, select: { status: true } });
+    const wo = await tx.workOrder.findUnique({ where: { id: workOrderId }, select: { status: true, supervisorId: true } });
     if (!wo) throw new AppError("notFound", {}, 404);
     if (wo.status === "DELIVERED" || wo.status === "CANCELLED") throw new AppError("laborClosedOrder", {}, 409);
     const old = await tx.qualityCheck.findUnique({ where: { workOrderId } });
+    // V14: when the garage chose so, only the order's supervisor ticks « travaux vérifiés ».
+    if (wo.supervisorId && items.workVerified && !old?.workVerified && actor.id !== wo.supervisorId) {
+      const s = await tx.setting.findUnique({ where: { id: "garage" }, select: { skillSupervisorVerifies: true } });
+      if (s?.skillSupervisorVerifies) throw new AppError("skillSupervisorVerifies", {}, 403);
+    }
     const changed = !old || old.roadTest !== items.roadTest || QC_KEYS.some((k) => old[k] !== items[k]);
     const data = {
       roadTest: items.roadTest,

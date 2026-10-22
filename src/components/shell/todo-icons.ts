@@ -2,6 +2,7 @@ import {
   BadgeCheck, Boxes, CalendarCheck, CalendarClock, CarFront, ClipboardCheck, DatabaseBackup, FilePen, FileSignature, FileText, FileWarning, Hourglass,
   IdCard, Mail, MessageSquareWarning, PackagePlus, PackageSearch, ShieldAlert, ShieldCheck, ShoppingCart, TriangleAlert, Umbrella,
 } from "lucide-react";
+import { Award, GraduationCap, UserCog } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { TodoKey } from "@/lib/todo";
 
@@ -30,4 +31,8 @@ export const TODO_ICONS: Record<TodoKey, LucideIcon> = {
   warrantyDecisions: ShieldCheck,
   agendaDue: CalendarClock,
   agendaParts: PackagePlus,
+  // V14 — compétences
+  skillCertificates: Award,
+  skillWarnings: UserCog,
+  skillReviews: GraduationCap,
 };
