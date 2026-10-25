@@ -99,10 +99,13 @@ export function UserMenu({ user, badges }: { user: ShellUser; badges: NavBadges 
           <HubStatus />
         </div>
         <DropdownMenuSeparator />
-        <DropdownMenuItem asChild className="rounded-full px-3 py-2.5 text-gp-danger-ink">
-          <button type="submit" form={SIGN_OUT_FORM} className="w-full">
-            <LogOut className="rtl:rotate-180" aria-hidden /> {t.common.signOut}
-          </button>
+        {/* The menu closes (and unmounts this item) on select, before a submit button's click could reach
+            the form: the hidden sign-out form is submitted from onSelect instead (runs its onSubmit too). */}
+        <DropdownMenuItem
+          onSelect={() => (document.getElementById(SIGN_OUT_FORM) as HTMLFormElement | null)?.requestSubmit()}
+          className="rounded-full px-3 py-2.5 text-gp-danger-ink"
+        >
+          <LogOut className="rtl:rotate-180" aria-hidden /> {t.common.signOut}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
