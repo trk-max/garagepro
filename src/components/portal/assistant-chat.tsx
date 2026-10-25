@@ -40,9 +40,12 @@ export function AssistantChat({
   phone,
   whatsapp,
   embedded = false,
+  onClose,
 }: {
   /** Inside the floating window: fills it instead of taking 70 % of the screen. */
   embedded?: boolean;
+  /** Floating window: close button in the header (the only way out on a phone, where the window fills the screen). */
+  onClose?: () => void;
   aiEnabled: boolean;
   services: ChatService[];
   phone: string | null;
@@ -139,13 +142,20 @@ export function AssistantChat({
           <Sparkles className="size-5 text-brand-400" aria-hidden /> {a.bot}
           {aiEnabled && <span className="rounded-full bg-white/10 px-2 py-0.5 text-[0.6875rem] font-normal text-white/70">IA</span>}
         </p>
-        {items.length > 1 && !pending && (
-          <button type="button" onClick={restart} className="grid size-9 place-items-center rounded-full text-white/70 transition-colors hover:bg-white/10 hover:text-white" aria-label={a.restart} title={a.restart}>
-            <X className="size-4" aria-hidden />
-          </button>
-        )}
+        <div className="flex items-center gap-1">
+          {items.length > 1 && !pending && (
+            <button type="button" onClick={restart} className="grid size-9 place-items-center rounded-full text-white/70 transition-colors hover:bg-white/10 hover:text-white" aria-label={a.restart} title={a.restart}>
+              <RotateCcw className="size-4" aria-hidden />
+            </button>
+          )}
+          {onClose && (
+            <button type="button" onClick={onClose} className="grid size-10 place-items-center rounded-full text-white/80 transition-colors hover:bg-white/10 hover:text-white" aria-label={t.common.close} title={t.common.close}>
+              <X className="size-5" aria-hidden />
+            </button>
+          )}
+        </div>
       </div>
-      <div className="flex-1 space-y-4 overflow-y-auto p-4 sm:p-6" aria-live="polite" aria-busy={pending}>
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain p-4 sm:p-6" aria-live="polite" aria-busy={pending}>
         <Bubble mine={false} label={a.bot}>
           {aiEnabled ? a.guideIntro : a.guideIntroNoAi}
         </Bubble>
@@ -239,7 +249,7 @@ export function AssistantChat({
         <div ref={endRef} />
       </div>
 
-      <div className="border-t bg-muted p-3 sm:p-4">
+      <div className="border-t bg-muted p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:p-4">
         {aiEnabled && (
           <form
             onSubmit={(e) => {
@@ -266,7 +276,8 @@ export function AssistantChat({
                 rows={1}
                 maxLength={MAX_CHARS}
                 placeholder={a.placeholder}
-                className="max-h-40 min-h-12 w-full resize-none rounded-3xl border border-border bg-card py-3 ps-4 pe-14 text-base outline-none field-sizing-content focus-visible:border-brand-400 focus-visible:ring-[3px] focus-visible:ring-brand-400/40"
+                // 16 px exactly: below that, iPhones zoom the whole page in when the field gets the focus.
+                className="max-h-32 min-h-12 w-full resize-none rounded-3xl border border-border bg-card py-3 ps-4 pe-14 text-[16px] outline-none field-sizing-content focus-visible:border-brand-400 focus-visible:ring-[3px] focus-visible:ring-brand-400/40"
               />
               <button
                 type="submit"
@@ -311,13 +322,59 @@ function Bubble({ mine, label, ai, children }: { mine: boolean; label: string; a
       <span className={cn("grid size-8 shrink-0 place-items-center rounded-full text-white", mine ? "bg-foreground text-background" : ai ? "bg-brand-500 text-white" : "bg-[#303030] text-white")} aria-hidden>
         {mine ? <User className="size-4" /> : ai ? <Sparkles className="size-4" /> : <Bot className="size-4" />}
       </span>
-      <div className={cn("max-w-[85%] rounded-2xl px-4 py-3 text-[15px] leading-relaxed", mine ? "rounded-se-none bg-foreground text-background" : "rounded-ss-none bg-muted text-foreground")}>
+      <div className={cn("min-w-0 max-w-[85%] rounded-2xl px-4 py-3 text-[15px] leading-relaxed [overflow-wrap:anywhere]", mine ? "rounded-se-none bg-foreground text-background" : "rounded-ss-none bg-muted text-foreground")}>
         <span className="sr-only">{label} : </span>
-        {/* Plain text only: React escapes it, the model cannot inject HTML. */}
-        <p className="whitespace-pre-wrap break-words">{children}</p>
+        {/* Text only: React escapes it, the model cannot inject HTML. AI replies get bold and lists. */}
+        {ai && typeof children === "string" ? <RichText text={children} /> : <p className="whitespace-pre-wrap">{children}</p>}
       </div>
     </div>
   );
+}
+
+/** « **gras** » → <strong>; the rest stays text (React escapes it). */
+function inline(text: string): ReactNode[] {
+  return text.split(/(\*\*[^*]+\*\*)/g).map((part, i) => (/^\*\*[^*]+\*\*$/.test(part) ? <strong key={i}>{part.slice(2, -2)}</strong> : part));
+}
+
+/**
+ * The few Markdown marks the AI uses, shown properly instead of raw stars:
+ * **bold**, "- " / "* " bullet lists, "1. " numbered lists, blank line = new paragraph.
+ */
+function RichText({ text }: { text: string }) {
+  const blocks: ReactNode[] = [];
+  let list: { ordered: boolean; items: string[] } | null = null;
+  let para: string[] = [];
+  const flushPara = () => {
+    if (para.length) blocks.push(<p key={blocks.length} className="whitespace-pre-wrap">{inline(para.join("\n"))}</p>);
+    para = [];
+  };
+  const flushList = () => {
+    if (!list) return;
+    const items = list.items.map((it, i) => <li key={i}>{inline(it)}</li>);
+    blocks.push(list.ordered ? <ol key={blocks.length} className="list-decimal space-y-1 ps-5">{items}</ol> : <ul key={blocks.length} className="list-disc space-y-1 ps-5">{items}</ul>);
+    list = null;
+  };
+  for (const raw of text.split("\n")) {
+    const line = raw.trimEnd();
+    const bullet = line.match(/^\s*[-*•]\s+(.*)$/);
+    const numbered = line.match(/^\s*\d+[.)]\s+(.*)$/);
+    if (bullet || numbered) {
+      flushPara();
+      const ordered = !!numbered;
+      if (list && list.ordered !== ordered) flushList();
+      list ??= { ordered, items: [] };
+      list.items.push((bullet ?? numbered)![1]!);
+    } else if (!line.trim()) {
+      flushPara();
+      flushList();
+    } else {
+      flushList();
+      para.push(line.replace(/^#{1,6}\s+/, ""));
+    }
+  }
+  flushPara();
+  flushList();
+  return <div className="space-y-2">{blocks}</div>;
 }
 
 function UrgencyBadge({ urgency }: { urgency: Urgency }) {
