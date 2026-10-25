@@ -9,10 +9,12 @@ import { markAttemptsOk, reserveAttempt } from "@/server/rate-limit";
 
 declare module "next-auth" {
   interface Session {
-    user: { id: string; role: Role } & DefaultSession["user"];
+    /** sv = session version of the cookie (logout everywhere, see lib/session.ts getStaff). */
+    user: { id: string; role: Role; sv: number } & DefaultSession["user"];
   }
   interface User {
     role: Role;
+    sessionVersion?: number;
   }
 }
 
@@ -20,6 +22,8 @@ declare module "@auth/core/jwt" {
   interface JWT {
     id: string;
     role: Role;
+    /** User.sessionVersion when the cookie was issued (absent on older cookies = 0). */
+    sv?: number;
   }
 }
 
@@ -74,7 +78,7 @@ export async function authorizeStaff(raw: unknown, request: Request | undefined)
 
   await markAttemptsOk(attempt);
   await prisma.user.update({ where: { id: user.id }, data: { lastSeenAt: new Date() } });
-  return { id: user.id, email: user.email, name: user.name, role: user.role };
+  return { id: user.id, email: user.email, name: user.name, role: user.role, sessionVersion: user.sessionVersion };
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -91,12 +95,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (user?.id) {
         token.id = user.id;
         token.role = user.role;
+        token.sv = user.sessionVersion ?? 0;
       }
       return token;
     },
     session({ session, token }) {
       session.user.id = token.id;
       session.user.role = token.role;
+      session.user.sv = token.sv ?? 0;
       return session;
     },
   },

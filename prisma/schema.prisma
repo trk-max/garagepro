@@ -168,10 +168,13 @@ model User {
   hourlyCost      Int?
   /// V10.3 — tableau de bord personnalisé : [{ id, visible }] dans l’ordre. null = disposition par défaut.
   dashboardLayout Json?
+  /// Déconnexion partout : version des sessions. Le cookie de connexion garde la version du moment où il a été
+  /// donné ; « Déconnexion » ajoute 1, et tous les cookies plus anciens de ce compte sont refusés.
+  sessionVersion  Int       @default(0)
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
-  clockEvents             ClockEvent[]      @relation("ClockUser")
+  clockEvents            ClockEvent[]      @relation("ClockUser")
   employmentContracts     Contract[]        @relation("ContractEmployee")
   leaveRequests           LeaveRequest[]    @relation("LeaveUser")
   decidedLeaves           LeaveRequest[]    @relation("LeaveDecidedBy")
