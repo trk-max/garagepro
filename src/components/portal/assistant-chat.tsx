@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { QUESTIONS, RESULTS, ROOT, type Urgency, matchService, tr } from "@/lib/guided-diagnosis";
 import { useI18n } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
+import { useAppBase } from "@/lib/app-base";
 
 type Booking = { serviceId: string; serviceName: string; urgency: Urgency; summary: string };
 export type ChatService = { id: string; name: string; nameAr: string | null };
@@ -398,6 +399,7 @@ function ResultCard(props: {
   whatsapp: string | null;
 }) {
   const { t, lang } = useI18n();
+  const base = useAppBase();
   const a = t.assistant;
   const result = RESULTS[props.id];
   if (!result) return null;
@@ -433,7 +435,7 @@ function ResultCard(props: {
         <p className="text-sm text-emerald-700 dark:text-emerald-400">{a.noService}</p>
       ) : service ? (
         <Button asChild className={WRAP + " w-full bg-primary text-primary-foreground hover:bg-brand-500 hover:text-white"}>
-          <Link href={bookingHref(service.id, `${tr(result.title, lang)} — ${props.summary}`)}>
+          <Link href={bookingHref(service.id, `${tr(result.title, lang)} — ${props.summary}`, base)}>
             <CalendarCheck aria-hidden /> {a.bookingCta} : {serviceName}
           </Link>
         </Button>
@@ -452,11 +454,12 @@ function ResultCard(props: {
   );
 }
 
-const bookingHref = (serviceId: string, notes: string) =>
-  `/rdv?service=${encodeURIComponent(serviceId)}${notes ? `&notes=${encodeURIComponent(notes.slice(0, 300))}` : ""}`;
+const bookingHref = (serviceId: string, notes: string, base = "") =>
+  `${base}/rdv?service=${encodeURIComponent(serviceId)}${notes ? `&notes=${encodeURIComponent(notes.slice(0, 300))}` : ""}`;
 
 function BookingCard({ booking }: { booking: Booking }) {
   const { t } = useI18n();
+  const base = useAppBase();
   const a = t.assistant;
   return (
     <div className="ms-11 max-w-[85%] rounded-lg bg-card p-4 ring-1 ring-border">
@@ -469,7 +472,7 @@ function BookingCard({ booking }: { booking: Booking }) {
       </div>
       {booking.summary && <p className="mt-2 text-sm text-muted-foreground">{booking.summary}</p>}
       <Button asChild className={WRAP + " mt-3 w-full bg-primary text-primary-foreground hover:bg-brand-500 hover:text-white"}>
-        <Link href={bookingHref(booking.serviceId, booking.summary)}>{a.bookingCta}</Link>
+        <Link href={bookingHref(booking.serviceId, booking.summary, base)}>{a.bookingCta}</Link>
       </Button>
     </div>
   );

@@ -5,6 +5,7 @@ import { useSyncExternalStore } from "react";
 import { Heart } from "lucide-react";
 import { useI18n } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
+import { useAppBase } from "@/lib/app-base";
 
 /**
  * Favourites of a visitor, kept ONLY in this browser (localStorage, no account): a list of
@@ -77,18 +78,19 @@ export function FavoriteButton({ number, className }: { number: number; classNam
 /** "Mes favoris (3)" → /showroom?ids=… ; shows a hint when there are none. */
 export function FavoritesLink({ active }: { active: boolean }) {
   const { t } = useI18n();
+  const base = useAppBase();
   const favs = useFavs();
   const p = t.showroom.public;
   if (active) {
     return (
-      <Link href="/showroom" className="f-label inline-flex min-h-10 items-center border border-border px-3 hover:border-foreground">
+      <Link href={`${base}/showroom`} className="f-label inline-flex min-h-10 items-center border border-border px-3 hover:border-foreground">
         {p.allVehicles}
       </Link>
     );
   }
   return (
     <Link
-      href={favs.length ? `/showroom?ids=${favs.join(",")}` : "/showroom"}
+      href={favs.length ? `${base}/showroom?ids=${favs.join(",")}` : `${base}/showroom`}
       aria-disabled={!favs.length}
       title={favs.length ? p.favHint : p.favNone}
       className={cn("f-label inline-flex min-h-10 items-center gap-2 border border-border px-3 hover:border-foreground", !favs.length && "pointer-events-none opacity-60")}

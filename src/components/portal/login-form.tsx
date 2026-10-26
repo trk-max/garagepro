@@ -5,12 +5,15 @@ import { portalLoginAction } from "@/actions/portal";
 import { ActionForm } from "@/components/action-form";
 import { displayPlate } from "@/lib/format";
 import { useI18n } from "@/lib/i18n/client";
+import { useAppBase } from "@/lib/app-base";
 
 /** Plate + 4-digit code, in the app's dark rounded fields (label inside the box) and the orange pill. */
 export function PortalLoginForm({ defaultPlate }: { defaultPlate: string }) {
   const { t } = useI18n();
+  const base = useAppBase();
   return (
     <ActionForm action={portalLoginAction} reset={false} silent className="mt-6 space-y-3">
+      {base && <input type="hidden" name="from" value="app" />}
       <label className="phone-field">
         <span className="phone-kicker">{t.portal.plate}</span>
         <input

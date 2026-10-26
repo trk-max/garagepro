@@ -11,7 +11,7 @@ const monthYear = (d: Date, lang: Lang) => new Intl.DateTimeFormat(lang === "ar"
  * Customer side (tracking page, QR card): "Prochains entretiens" in plain words, always marked
  * "estimation", with "Prendre RDV" (existing online booking, reason pre-filled).
  */
-export function ClientForecasts({ rows, t, lang, className }: { rows: ClientForecast[]; t: Dictionary; lang: Lang; className?: string }) {
+export function ClientForecasts({ rows, t, lang, className, base = "" }: { rows: ClientForecast[]; t: Dictionary; lang: Lang; className?: string; /** PWA client app: "/app" keeps the booking link inside the app. */ base?: string }) {
   if (rows.length === 0) return null;
   const c = t.v12.client;
   const reason = fmt(c.reason, { items: rows.slice(0, 4).map((r) => nameOf(r.item, lang)).join(", ") });
@@ -35,7 +35,7 @@ export function ClientForecasts({ rows, t, lang, className }: { rows: ClientFore
           </li>
         ))}
       </ul>
-      <Link href={`/rdv?notes=${encodeURIComponent(reason)}`} className="mt-3 inline-flex h-11 items-center gap-2 rounded-full bg-gp-primary px-5 text-sm font-medium text-gp-primary-ink">
+      <Link href={`${base}/rdv?notes=${encodeURIComponent(reason)}`} className="mt-3 inline-flex h-11 items-center gap-2 rounded-full bg-gp-primary px-5 text-sm font-medium text-gp-primary-ink">
         <CalendarCheck className="size-4" aria-hidden /> {c.book}
       </Link>
     </section>

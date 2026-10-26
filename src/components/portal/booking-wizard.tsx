@@ -12,6 +12,7 @@ import { MIN_PHONE_DIGITS } from "@/lib/booking";
 import { displayPlate, fmt, formatDay, formatMoney } from "@/lib/format";
 import { useI18n } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
+import { useAppBase } from "@/lib/app-base";
 
 export type WizardService = {
   id: string;
@@ -61,6 +62,7 @@ export function BookingWizard({
   const { t, lang } = useI18n();
   const b = t.booking;
   const router = useRouter();
+  const base = useAppBase();
   const [step, setStep] = useState(initialServiceId && services.some((s) => s.id === initialServiceId) ? 1 : 0);
   const [serviceId, setServiceId] = useState(initialServiceId ?? "");
   const [days, setDays] = useState<Day[] | null>(null);
@@ -135,6 +137,7 @@ export function BookingWizard({
       form.set("time", time);
       for (const [k, v] of Object.entries(details)) form.set(k, v);
       form.set("website", "");
+      if (base) form.set("from", "app");
       const result = await createBookingAction(form);
       if (!result.ok) {
         toast.error(result.error);

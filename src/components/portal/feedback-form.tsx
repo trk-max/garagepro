@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { fmt } from "@/lib/format";
 import { useI18n } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
+import { useAppBase } from "@/lib/app-base";
 
 /**
  * 1-5 star rating + comment. From the repair tracker (`fromTracker`) it is tied
@@ -18,6 +19,7 @@ import { cn } from "@/lib/utils";
 export function FeedbackForm({ fromTracker = false }: { fromTracker?: boolean }) {
   const { t } = useI18n();
   const f = t.feedback;
+  const base = useAppBase();
   const [rating, setRating] = useState(0);
   const [hover, setHover] = useState(0);
   const shown = hover || rating;
@@ -25,6 +27,7 @@ export function FeedbackForm({ fromTracker = false }: { fromTracker?: boolean })
   return (
     <ActionForm action={submitFeedbackAction} silent className="space-y-4">
       {fromTracker && <input type="hidden" name="fromTracker" value="1" />}
+      {base && <input type="hidden" name="from" value="app" />}
       <input type="text" name="website" tabIndex={-1} autoComplete="off" className="hidden" aria-hidden />
       <fieldset>
         <legend className="f-label mb-2 text-muted-foreground">{f.rating}</legend>

@@ -18,6 +18,9 @@ type Result = ActionResult<{ redirectTo?: string; warning?: string; message?: st
 
 // ── Live repair tracker ──────────────────────────────────────────────────────
 
+/** PWA client app: forms sent from the app pages carry from=app, so the next page stays inside the app (/app/…). */
+const appBase = (form?: FormData | null) => (form?.get("from") === "app" ? "/app" : "");
+
 export async function portalLoginAction(form: FormData): Promise<Result> {
   const { t } = await getI18n();
   const parsed = portalLoginSchema.safeParse(formToObject(form));
@@ -26,12 +29,12 @@ export async function portalLoginAction(form: FormData): Promise<Result> {
   const outcome = await portalLogin(parsed.data.plate, parsed.data.pin);
   if (outcome === "locked") return { ok: false, error: t.portal.locked };
   if (outcome === "invalid") return { ok: false, error: t.portal.loginError };
-  return { ok: true, data: { redirectTo: "/suivi/vehicule" } };
+  return { ok: true, data: { redirectTo: `${appBase(form)}/suivi/vehicule` } };
 }
 
-export async function portalLogoutAction(): Promise<void> {
+export async function portalLogoutAction(form?: FormData): Promise<void> {
   await endPortalSession();
-  redirect("/");
+  redirect(appBase(form) ? "/app/suivi" : "/");
 }
 
 async function requirePortal(): Promise<string> {
@@ -104,7 +107,7 @@ export async function createBookingAction(form: FormData): Promise<Result> {
     const sent = await sendBookingConfirmation(appointment.id, { t, lang, baseUrl });
     const query = new URLSearchParams({ t: manageToken(appointment.reference), new: "1" });
     if (sent.length) query.set("sent", sent.join(","));
-    return { ok: true, data: { redirectTo: `/rdv/confirmation/${appointment.reference}?${query}` } };
+    return { ok: true, data: { redirectTo: `${appBase(form)}/rdv/confirmation/${appointment.reference}?${query}` } };
   } catch (error) {
     return toActionError(error);
   }
@@ -148,7 +151,7 @@ export async function submitFeedbackAction(form: FormData): Promise<Result> {
     void website; // honeypot, already checked empty by the schema
     await createFeedback(input, { ip: await clientIp(), workOrderId: await trackerWorkOrder(form) });
     const { t } = await getI18n();
-    return { ok: true, data: { message: t.feedback.thanks, redirectTo: form.get("fromTracker") === "1" ? "/suivi/vehicule" : undefined } };
+    return { ok: true, data: { message: t.feedback.thanks, redirectTo: form.get("fromTracker") === "1" ? `${appBase(form)}/suivi/vehicule` : undefined } };
   } catch (error) {
     return toActionError(error);
   }

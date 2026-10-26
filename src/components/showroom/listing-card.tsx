@@ -22,9 +22,9 @@ export type CardListing = {
 };
 
 /** One vehicle in the public grid: photo, title, price, key facts, reserved / sold ribbon, favourite. */
-export function ListingCard({ l, t, lang }: { l: CardListing; t: Dictionary; lang: Lang }) {
+export function ListingCard({ l, t, lang, base = "" }: { l: CardListing; t: Dictionary; lang: Lang; /** PWA client app: "/app". */ base?: string }) {
   const p = t.showroom.public;
-  const href = `/showroom/${listingSlug(l)}`;
+  const href = `${base}/showroom/${listingSlug(l)}`;
   const kmVerified = readFacts(l.facts).mileage?.source === "GARAGE";
   const facts = [
     l.year ? String(l.year) : null,
