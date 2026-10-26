@@ -55,6 +55,8 @@ describe("PWA — manifests", () => {
   it("the service worker version changed (phones reinstall it) and pages stay network-first", () => {
     const sw = readFileSync(path.join(ROOT, "public/sw.js"), "utf8");
     expect(sw).not.toContain(`"gp-v6-1"`);
+    expect(sw).toContain(`addEventListener("push"`);
+    expect(sw).toContain(`addEventListener("notificationclick"`);
     expect(sw).toContain(`if (req.method !== "GET") return;`);
     expect(sw).toContain(`if (url.pathname.startsWith("/api/")) return;`);
     expect(sw).toMatch(/req\.mode === "navigate"[\s\S]*fetch\(req\)/);

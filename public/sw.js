@@ -8,7 +8,7 @@
  *   garage hub (PC on the Wi-Fi) is what keeps writes working without internet.
  * The private page cache is cleared on sign-out (message "clear-private").
  */
-const VERSION = "gp-v7-app";
+const VERSION = "gp-v8-push";
 // V10.4: offline.html text changed ("le PC du garage redémarre peut-être") — this line changes the
 // worker, so phones install it again and re-cache /offline.html (same cache names, pages kept).
 const STATIC = `${VERSION}-static`;
@@ -74,4 +74,43 @@ self.addEventListener("fetch", (event) => {
         .catch(async () => (await caches.match(req)) || (req.mode === "navigate" ? caches.match("/offline.html") : Response.error())),
     );
   }
+});
+
+// Web Push (team app): « Nouveau véhicule pour vous » even when the app is closed. The payload comes from
+// src/server/push.ts: { title, body, url, tag }. One notification per order (tag), replaced if sent again.
+self.addEventListener("push", (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch {
+    data = { body: event.data ? event.data.text() : "" };
+  }
+  const url = typeof data.url === "string" && data.url.startsWith("/garage/") ? data.url : "/garage/app";
+  event.waitUntil(
+    self.registration.showNotification(data.title || "GaragePro", {
+      body: data.body || "",
+      icon: "/icons/team-192.png",
+      badge: "/icons/team-192.png",
+      tag: data.tag || undefined,
+      renotify: !!data.tag,
+      vibrate: [200, 100, 200],
+      data: { url },
+    }),
+  );
+});
+
+// Tap on the notification: focus an open team-app window on the car, or open it.
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = (event.notification.data && event.notification.data.url) || "/garage/app";
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
+      for (const c of list) {
+        if (new URL(c.url).origin === self.location.origin && "focus" in c) {
+          return c.navigate(url).then((w) => (w || c).focus()).catch(() => c.focus());
+        }
+      }
+      return self.clients.openWindow(url);
+    }),
+  );
 });
