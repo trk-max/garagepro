@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { Suspense } from "react";
+import { PhoneHomeRedirect } from "@/components/shell/phone-home-redirect";
 import type { ReactNode } from "react";
 import { BellRing, CalendarClock, CarFront, CheckCircle2, ClipboardCheck, ShoppingCart, Truck, UserCheck, Wallet } from "lucide-react";
 import { DashboardCustomizer } from "@/components/overview/dashboard-customizer";
@@ -180,6 +182,10 @@ export default async function OverviewPage() {
 
   return (
     <div className="mx-auto max-w-[1440px] px-3 pt-4 pb-6 sm:px-5 xl:ps-2 xl:pe-5">
+      {/* Phones / tablets: the team space is the home (the full dashboard: /garage?full=1). */}
+      <Suspense>
+        <PhoneHomeRedirect />
+      </Suspense>
       <PageHeader title={fmt(o.greeting[dayPart(now, settings.timezone)], { name: firstName })} subtitle={o.subtitle}>
         <LiveRefresh url="/api/staff/live?topic=dashboard" liveLabel={t.portal.live} reconnectingLabel={t.portal.reconnecting} />
         <DashboardCustomizer layout={layout} defaults={allowed} />

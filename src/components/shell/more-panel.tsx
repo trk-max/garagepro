@@ -20,7 +20,21 @@ import { cn } from "@/lib/utils";
  * account menu only; the theme button shows here on phones only. Native
  * <dialog>: focus stays inside, Escape and a click outside close it.
  */
-export function MorePanel({ who, badges, triggerClassName }: { who: PermSubject; badges: NavBadges; triggerClassName: string }) {
+export function MorePanel({
+  who,
+  badges,
+  triggerClassName,
+  all = false,
+  triggerLabel,
+}: {
+  who: PermSubject;
+  badges: NavBadges;
+  triggerClassName: string;
+  /** Phone tab bar « Plus »: every page the person may open (not only the ones missing from the bars). */
+  all?: boolean;
+  /** Visible label under the icon (phone tab bar). */
+  triggerLabel?: string;
+}) {
   const { t } = useI18n();
   const pathname = usePathname();
   const ref = useRef<HTMLDialogElement>(null);
@@ -29,7 +43,8 @@ export function MorePanel({ who, badges, triggerClassName }: { who: PermSubject;
   const [open, setOpen] = useState(false);
   const close = () => ref.current?.close();
   // Dot on the button only for badges of pages listed inside the panel.
-  const extra = Object.entries(badges).reduce<number>((s, [k, n]) => s + (inMore(k as keyof NavBadges) ? (n ?? 0) : 0), 0);
+  const listed = (key: keyof NavBadges) => all || inMore(key);
+  const extra = Object.entries(badges).reduce<number>((s, [k, n]) => s + (listed(k as keyof NavBadges) ? (n ?? 0) : 0), 0);
   return (
     <>
       <button
@@ -44,7 +59,7 @@ export function MorePanel({ who, badges, triggerClassName }: { who: PermSubject;
       >
         <Ellipsis className="size-[18px]" aria-hidden />
         {extra > 0 && <span className="absolute end-1.5 top-1.5 size-2 rounded-full bg-gp-accent" aria-hidden />}
-        <Tip label={t.v10.nav.more} />
+        {triggerLabel ? <span className="text-[11px] leading-none font-medium">{triggerLabel}</span> : <Tip label={t.v10.nav.more} />}
       </button>
       <dialog
         ref={ref}
@@ -63,7 +78,7 @@ export function MorePanel({ who, badges, triggerClassName }: { who: PermSubject;
         </div>
         <div className="grid gap-3 px-5 sm:grid-cols-2 lg:grid-cols-3">
           {NAV_GROUPS.map((g, gi) => {
-            const items = g.items.filter((i) => inMore(i.key) && allowed(who, i));
+            const items = g.items.filter((i) => listed(i.key) && allowed(who, i));
             if (items.length === 0) return null;
             return (
               <section key={gi} className="rounded-[24px] bg-gp-card p-3">
@@ -110,7 +125,7 @@ export function MorePanel({ who, badges, triggerClassName }: { who: PermSubject;
           <button
             type="button"
             onClick={signOutNow}
-            className="inline-flex min-h-11 items-center gap-2 rounded-full bg-gp-card px-4 text-sm font-medium text-gp-danger-ink hover:bg-gp-hover xl:hidden"
+            className={cn("inline-flex min-h-11 items-center gap-2 rounded-full bg-gp-card px-4 text-sm font-medium text-gp-danger-ink hover:bg-gp-hover", !all && "xl:hidden")}
             data-testid="more-sign-out"
           >
             <LogOut className="size-4 rtl:rotate-180" aria-hidden /> {t.common.signOut}

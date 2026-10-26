@@ -82,6 +82,11 @@ export default async function TeamAppHome() {
           <h1 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">{fmt(a.hello, { name: firstName })}</h1>
         </div>
         <LiveRefresh url="/api/staff/live?topic=workshop" liveLabel={t.portal.live} reconnectingLabel={t.portal.reconnecting} />
+        {staff.role !== "MECHANIC" && (
+          <Link href="/garage?full=1" className="w-full text-sm text-gp-muted underline-offset-4 hover:text-gp-ink hover:underline sm:w-auto">
+            {t.staffMobile.fullDashboard}
+          </Link>
+        )}
       </header>
 
       {running && (

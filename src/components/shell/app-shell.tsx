@@ -5,6 +5,7 @@ import { NavProgress } from "@/components/shell/nav-progress";
 import { SideRail } from "@/components/shell/side-rail";
 import { SignOutForm } from "@/components/shell/sign-out-form";
 import { TopNav } from "@/components/shell/top-nav";
+import { PhoneTabBar } from "@/components/shell/phone-tab-bar";
 import type { ShellUser } from "@/components/shell/user-menu";
 import type { NavBadges } from "@/components/shell/nav";
 import type { TodoList } from "@/lib/todo";
@@ -43,9 +44,10 @@ export function AppShell({
         <TopNav logo={<LogoPill garage={garage} />} user={user} badges={badges} todo={todo} />
         <div className="xl:grid xl:grid-cols-[5rem_minmax(0,1fr)] xl:ps-4 print:block print:ps-0">
           <SideRail who={user} badges={badges} />
-          <main id="gp-main" tabIndex={-1} className="min-w-0 pb-28 outline-none xl:pb-8 print:pb-0">
+          <main id="gp-main" tabIndex={-1} className="min-w-0 pb-[calc(6rem+env(safe-area-inset-bottom))] outline-none lg:pb-28 xl:pb-8 print:pb-0">
             {children}
           </main>
+          <PhoneTabBar who={user} badges={badges} todoCount={todo.total} />
         </div>
       </div>
     </div>
@@ -70,7 +72,7 @@ function LogoPill({ garage }: { garage: { name: string; logo: string | null } })
           <GpMonogram className="h-6 w-auto" aria-hidden />
         </span>
       )}
-      <span className="hidden max-w-40 min-w-0 truncate text-[15px] font-semibold sm:block xl:max-w-36 2xl:max-w-48">{garage.name}</span>
+      <span className="max-w-32 min-w-0 truncate text-[15px] font-semibold sm:max-w-40 xl:max-w-36 2xl:max-w-48">{garage.name}</span>
     </Link>
   );
 }

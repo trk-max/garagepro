@@ -36,8 +36,8 @@ export function SideRail({ who, badges }: { who: PermSubject; badges: NavBadges 
           <MorePanel who={who} badges={badges} triggerClassName={btn} />
         </div>
       </nav>
-      {/* Tablets and phones: same icons as a floating bottom bar. */}
-      <nav aria-label={t.v10.nav.quick} className="fixed inset-x-0 bottom-3 z-40 flex justify-center px-3 xl:hidden print:hidden">
+      {/* 1024–1279 px: same icons as a floating bottom bar. Phones and tablets (< 1024 px): PhoneTabBar instead. */}
+      <nav aria-label={t.v10.nav.quick} className="fixed inset-x-0 bottom-3 z-40 hidden justify-center px-3 lg:flex xl:hidden print:hidden">
         <div className={cn(group, "max-w-full shadow-lg")}>
           {/* Phones: the page icons scroll sideways, "More" stays pinned at the end. */}
           <div className="gp-scroll-x flex min-w-0 items-center gap-1 max-md:-m-1 max-md:overflow-x-auto max-md:p-1">{links}</div>

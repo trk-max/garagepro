@@ -9,6 +9,7 @@ import { v14Fr } from "@/lib/i18n/v14-fr";
 import { v15Fr } from "@/lib/i18n/v15-fr";
 import { v16Fr } from "@/lib/i18n/v16-fr";
 import { appFr } from "@/lib/i18n/app-fr";
+import { staffMobileFr } from "@/lib/i18n/staff-mobile-fr";
 import { staffUxFr } from "@/lib/i18n/staff-ux-fr";
 import { contractsFr } from "@/lib/i18n/contracts-fr";
 import { v7Fr } from "@/lib/i18n/v7-fr";
@@ -1043,6 +1044,8 @@ export const fr = {
   v16: v16Fr,
   /** Application installable (PWA) : app client et Espace équipe. */
   app: appFr,
+  /** Interface équipe sur téléphone (onglets, atelier simplifié, alerte nouveau véhicule). */
+  staffMobile: staffMobileFr,
   /** feat/staff-ux — prise en charge d’abord, QR du véhicule, ticket manuel. */
   staffUx: staffUxFr,
 };

@@ -36,7 +36,8 @@ export function TopNav({ logo, user, badges, todo }: { logo: ReactNode; user: Sh
           <UserMenu user={user} badges={badges} />
         </div>
       </div>
-      <PageNav items={items} className="mt-2 xl:hidden" label={t.v10.nav.main} badges={badges} />
+      {/* Phones and tablets: these pages are in the tab bar's « Plus »; the header stays one simple row. */}
+      <PageNav items={items} className="mt-2 hidden lg:block xl:hidden" label={t.v10.nav.main} badges={badges} />
     </header>
   );
 }

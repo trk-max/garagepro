@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/shell/app-shell";
@@ -15,6 +15,8 @@ export const dynamic = "force-dynamic";
 
 // PWA app: the staff pages install the TEAM app (« GaragePro Équipe », opens /equipe).
 export const metadata: Metadata = TEAM_APP_METADATA;
+// Phones: the bottom tab bar sits above the iPhone home indicator (env(safe-area-inset-bottom)).
+export const viewport: Viewport = { viewportFit: "cover" };
 
 export default async function GarageLayout({ children }: { children: ReactNode }) {
   const staff = await getStaff();
