@@ -30,6 +30,10 @@ Le client ouvre le **site internet du garage** (adresse en `https://…`), page 
 2. Toucher le bouton **« Installer »** de la carte « Installer l'application » (en bas de la page),
    ou le menu ⋮ → **« Installer l'application »** / « Ajouter à l'écran d'accueil ».
 
+Toutes les pages de l'app restent **dans l'app** (`/app/suivi`, `/app/rdv`, `/app/showroom`, `/app/assistant`) :
+même fond sombre, même en-tête (flèche retour, nom du garage, langue) et la **barre d'onglets toujours visible**,
+aussi dans le navigateur avant l'installation. Le site internet garde ses pages habituelles (`/suivi`, `/rdv`…).
+
 Une fois installée, l'application s'ouvre sur l'accueil avec trois grands boutons
 (**Suivre ma réparation**, **Prendre rendez-vous**, **Showroom**) et une barre d'onglets en bas
 (Accueil · Suivre · Rendez-vous · Showroom). Le suivi garde tout ce qui existait : code à 4 chiffres,
