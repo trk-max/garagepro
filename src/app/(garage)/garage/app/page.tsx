@@ -9,6 +9,7 @@ import { ActionButton } from "@/components/action-form";
 import { PlateChip, StatusBadge } from "@/components/garage/badges";
 import { LiveRefresh } from "@/components/live-refresh";
 import { InstallCard } from "@/components/pwa/install-card";
+import { PushToggle } from "@/components/pwa/push-toggle";
 import { todoLabel } from "@/components/shell/todo-label";
 import { utcToZoned } from "@/lib/booking";
 import { displayPlate, fmt, formatDate, formatDateTime, formatTime } from "@/lib/format";
@@ -107,6 +108,9 @@ export default async function TeamAppHome() {
           <ChevronRight className="size-5 rtl:rotate-180" aria-hidden />
         </Link>
       )}
+
+      {/* Web Push: « Nouveau véhicule pour vous » even when the app is closed (asks only on tap). */}
+      {sec.myOrders && <PushToggle className="w-full justify-center sm:w-auto" />}
 
       {/* ── Main tiles (role focus) ── */}
       {main.length > 0 && (

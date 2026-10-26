@@ -6,6 +6,7 @@ import { useId, useRef, useState } from "react";
 import { Ellipsis, LogOut, X } from "lucide-react";
 import type { PermSubject } from "@/lib/permissions";
 import { InstallAppButton } from "@/components/pwa/install-app-button";
+import { PushToggle } from "@/components/pwa/push-toggle";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { allowed, groupLabel, inMore, isActive, NAV_GROUPS, navLabel, type NavBadges } from "@/components/shell/nav";
 import { Tip } from "@/components/shell/tip";
@@ -121,6 +122,7 @@ export function MorePanel({
           <div className="ms-auto empty:hidden">
             <InstallAppButton className="rounded-full border-gp-line bg-gp-card px-4" />
           </div>
+          <PushToggle />
           {/* Phones / tablets: sign-out also here, next to the pages (same hidden form as the account menu). */}
           <button
             type="button"
