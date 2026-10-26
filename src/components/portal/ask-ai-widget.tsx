@@ -5,6 +5,7 @@ import { type CSSProperties, useEffect, useState } from "react";
 import { Sparkles, X } from "lucide-react";
 import { AssistantChat, type ChatService } from "@/components/portal/assistant-chat";
 import { useI18n } from "@/lib/i18n/client";
+import { cn } from "@/lib/utils";
 
 /**
  * Floating "Ask AI" button on every page of the customer site: opens the same
@@ -34,7 +35,8 @@ export function AskAiWidget(props: { aiEnabled: boolean; services: ChatService[]
     };
   }, [open]);
 
-  if (pathname?.startsWith("/assistant")) return null;
+  if (pathname?.startsWith("/assistant") || pathname?.startsWith("/app/assistant")) return null;
+  const inApp = pathname === "/app" || !!pathname?.startsWith("/app/");
   return (
     <>
       {open && (
@@ -49,7 +51,14 @@ export function AskAiWidget(props: { aiEnabled: boolean; services: ChatService[]
           <AssistantChat {...props} embedded onClose={() => setOpen(false)} />
         </div>
       )}
-      <div className={open ? "fixed end-4 bottom-4 z-50 hidden print:hidden sm:block standalone:bottom-[calc(5.5rem+env(safe-area-inset-bottom))]" : "fixed end-4 bottom-4 z-50 print:hidden standalone:bottom-[calc(5.5rem+env(safe-area-inset-bottom))]"}>
+      {/* PWA client app: above the bottom tab bar (always on the /app pages, on the site once installed). */}
+      <div
+        className={cn(
+          "fixed end-4 bottom-4 z-50 print:hidden standalone:bottom-[calc(5.5rem+env(safe-area-inset-bottom))]",
+          inApp && "bottom-[calc(5.5rem+env(safe-area-inset-bottom))]",
+          open && "hidden sm:block",
+        )}
+      >
         <button
           type="button"
           onClick={() => setOpen((o) => !o)}

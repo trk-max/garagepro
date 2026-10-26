@@ -9,14 +9,15 @@ export type AppTabLabels = { home: string; track: string; book: string; showroom
 
 const TABS = [
   { href: "/app", key: "home", icon: House },
-  { href: "/suivi", key: "track", icon: Gauge },
-  { href: "/rdv", key: "book", icon: CalendarCheck },
-  { href: "/showroom", key: "showroom", icon: CarFront },
+  { href: "/app/suivi", key: "track", icon: Gauge },
+  { href: "/app/rdv", key: "book", icon: CalendarCheck },
+  { href: "/app/showroom", key: "showroom", icon: CarFront },
 ] as const;
 
 /**
- * Bottom tab bar of the CLIENT app (Accueil / Suivre / RDV / Showroom): always on « /app »; on the
- * customer site only when it is opened from the home-screen icon (`standalone:`), see PortalShell.
+ * Bottom tab bar of the CLIENT app (Accueil / Suivre / RDV / Showroom), always shown on the app pages (/app/…);
+ * on the customer site only when it is opened from the home-screen icon (`standalone:`, see PortalShell) — its
+ * tabs then lead into the app pages.
  */
 export function AppTabBar({ labels, className }: { labels: AppTabLabels; className?: string }) {
   const pathname = usePathname() || "/";
@@ -31,7 +32,8 @@ export function AppTabBar({ labels, className }: { labels: AppTabLabels; classNa
     >
       <ul className="mx-auto grid max-w-md grid-cols-4">
         {TABS.map(({ href, key, icon: Icon }) => {
-          const active = pathname === href || pathname.startsWith(`${href}/`);
+          // « Accueil » only on /app itself; the others also on their sub-pages (vehicle, confirmation, listing).
+          const active = href === "/app" ? pathname === "/app" : pathname === href || pathname.startsWith(`${href}/`);
           return (
             <li key={href}>
               <Link

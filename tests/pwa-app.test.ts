@@ -29,7 +29,7 @@ describe("PWA — manifests", () => {
     const sizes = m.icons!.map((i) => `${i.sizes}:${i.purpose}`);
     expect(sizes).toEqual(["192x192:any", "512x512:any", "512x512:maskable"]);
     for (const i of m.icons!) expect(existsSync(path.join(ROOT, "public", i.src))).toBe(true);
-    expect(m.shortcuts!.map((s) => s.url)).toEqual(["/suivi", "/rdv", "/showroom"]);
+    expect(m.shortcuts!.map((s) => s.url)).toEqual(["/app/suivi", "/app/rdv", "/app/showroom"]);
   });
 
   it("team app keeps the id of the staff app already installed, starts on /equipe", () => {
@@ -129,5 +129,23 @@ describe("PWA — workshop / board tiles", () => {
     const r = teamTiles({ role: "RECEPTION" });
     expect([...r.main, ...r.more]).toContain("board");
     expect([...r.main, ...r.more]).not.toContain("workshop");
+  });
+});
+
+describe("PWA — app pages (v2)", () => {
+  it("back arrow: none on the home, the showroom list from a vehicle, the app home otherwise", async () => {
+    const { appBackHref } = await import("@/lib/app-base");
+    expect(appBackHref("/app")).toBeNull();
+    expect(appBackHref("/app/showroom/peugeot-208-12")).toBe("/app/showroom");
+    expect(appBackHref("/app/suivi/vehicule")).toBe("/app");
+    expect(appBackHref("/app/rdv/confirmation/RDV-1")).toBe("/app");
+  });
+
+  it("every tab bar link and home entry stays inside the app", () => {
+    const bar = readFileSync(path.join(ROOT, "src/components/pwa/app-tab-bar.tsx"), "utf8");
+    const home = readFileSync(path.join(ROOT, "src/app/app/page.tsx"), "utf8");
+    for (const src of [bar, home]) expect(src).not.toMatch(/href[:=] ?["`{]*"?\/(suivi|rdv|showroom|assistant)\b/);
+    for (const p of ["suivi/page.tsx", "suivi/vehicule/page.tsx", "rdv/page.tsx", "rdv/confirmation/[reference]/page.tsx", "showroom/page.tsx", "showroom/[slug]/page.tsx", "assistant/page.tsx"])
+      expect(existsSync(path.join(ROOT, "src/app/app", p)), p).toBe(true);
   });
 });

@@ -2,7 +2,6 @@ import Link from "next/link";
 import { ArrowRight, Bot, CalendarCheck, CarFront, ChevronRight, Gauge, MessageCircle, Phone, UsersRound } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { GpMonogram } from "@/components/brand/garagepro-logo";
-import { LangSwitch } from "@/components/garage/lang-switch";
 import { InstallCard } from "@/components/pwa/install-card";
 import { fmt, formatMoney } from "@/lib/format";
 import { getI18n } from "@/lib/i18n/server";
@@ -24,19 +23,13 @@ export default async function ClientAppHome() {
   const booking = settings.bookingEnabled && services.length > 0;
 
   const entries: { href: string; title: string; hint: string; icon: LucideIcon; primary?: boolean }[] = [
-    { href: "/suivi", title: c.track, hint: c.trackHint, icon: Gauge, primary: true },
-    ...(booking ? [{ href: "/rdv", title: c.book, hint: c.bookHint, icon: CalendarCheck }] : []),
-    { href: "/showroom", title: c.showroom, hint: c.showroomHint, icon: CarFront },
+    { href: "/app/suivi", title: c.track, hint: c.trackHint, icon: Gauge, primary: true },
+    ...(booking ? [{ href: "/app/rdv", title: c.book, hint: c.bookHint, icon: CalendarCheck }] : []),
+    { href: "/app/showroom", title: c.showroom, hint: c.showroomHint, icon: CarFront },
   ];
 
   return (
-    <main className="mx-auto w-full max-w-md space-y-6 px-4 pt-5 pb-8">
-      <header className="flex items-center gap-3">
-        <span className="phone-dot" aria-hidden />
-        <span className="phone-kicker min-w-0 flex-1 truncate !text-white">{settings.garageName}</span>
-        <LangSwitch className="border-white/10" />
-      </header>
-
+    <main className="mx-auto w-full max-w-md space-y-6 px-4 pt-2 pb-8">
       <section className="flex items-center gap-4">
         <GpMonogram className="h-14 w-auto shrink-0 text-white" aria-hidden />
         <div className="min-w-0">
@@ -51,7 +44,7 @@ export default async function ClientAppHome() {
             key={href}
             href={href}
             className="phone-card group flex min-h-24 items-center gap-4 p-5 transition-colors hover:border-white/20 active:scale-[0.99]"
-            data-testid={`app-entry-${href.slice(1)}`}
+            data-testid={`app-entry-${href.split("/").pop()}`}
           >
             <span
               className="grid size-14 shrink-0 place-items-center rounded-2xl text-white"
@@ -70,7 +63,7 @@ export default async function ClientAppHome() {
       </nav>
 
       <section className="grid grid-cols-3 gap-3">
-        <Link href="/assistant" className="phone-card flex min-h-24 flex-col items-center justify-center gap-2 p-3 text-center text-sm font-medium hover:border-white/20">
+        <Link href="/app/assistant" className="phone-card flex min-h-24 flex-col items-center justify-center gap-2 p-3 text-center text-sm font-medium hover:border-white/20">
           <Bot className="size-6 text-[#f58a4f]" aria-hidden /> {c.assistant}
         </Link>
         {phone ? (
@@ -100,7 +93,7 @@ export default async function ClientAppHome() {
           <ul className="grid gap-3">
             {services.slice(0, 6).map((s) => (
               <li key={s.id}>
-                <Link href={`/rdv?service=${s.id}`} className="phone-card flex items-start justify-between gap-4 p-5 hover:border-white/20">
+                <Link href={`/app/rdv?service=${s.id}`} className="phone-card flex items-start justify-between gap-4 p-5 hover:border-white/20">
                   <span className="min-w-0">
                     <span className="block font-semibold">{lang === "ar" && s.nameAr ? s.nameAr : s.name}</span>
                     <span className="mt-0.5 block text-xs text-[var(--phone-muted)]">{fmt(c.minutes, { n: s.durationMin })}</span>
@@ -115,7 +108,7 @@ export default async function ClientAppHome() {
               </li>
             ))}
           </ul>
-          <Link href="/rdv" className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-white px-6 text-sm font-semibold tracking-wide text-black uppercase hover:bg-white/90">
+          <Link href="/app/rdv" className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-white px-6 text-sm font-semibold tracking-wide text-black uppercase hover:bg-white/90">
             {c.bookCta} <ArrowRight className="size-4 rtl:rotate-180" aria-hidden />
           </Link>
         </section>

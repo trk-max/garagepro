@@ -45,7 +45,7 @@ export function clientManifest(garageName: string, lang: string, dir: "ltr" | "r
     dir,
     categories: ["auto", "lifestyle"],
     icons: icons("app"),
-    shortcuts: [shortcut("app", l.track, "/suivi"), shortcut("app", l.book, "/rdv"), shortcut("app", l.showroom, "/showroom")],
+    shortcuts: [shortcut("app", l.track, "/app/suivi"), shortcut("app", l.book, "/app/rdv"), shortcut("app", l.showroom, "/app/showroom")],
   };
 }
 
