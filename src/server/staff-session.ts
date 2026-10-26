@@ -17,8 +17,8 @@ import { audit } from "@/server/audit";
 export type SessionStaff = { id: string; name: string; email: string; role: Role; perms?: PermOverrides };
 
 /** A cookie stays valid while its version is not older than the user's current one (older cookies have no sv = 0). */
-export function sessionVersionValid(tokenVersion: number | null | undefined, userVersion: number): boolean {
-  return (tokenVersion ?? 0) >= userVersion;
+export function sessionVersionValid(tokenVersion: number | null | undefined, userVersion: number | null | undefined): boolean {
+  return (tokenVersion ?? 0) >= (userVersion ?? 0);
 }
 
 /** The team member behind a decoded session, or null (unknown, deactivated, or signed out everywhere since). */
