@@ -24,6 +24,7 @@ import { runningLabor } from "@/server/labor";
 import { getSettings } from "@/server/settings";
 import { getTodo } from "@/server/todo";
 import { countByStatus, workshopOrders } from "@/server/work-orders";
+import { newAssignmentIds } from "@/server/assignment-alerts";
 
 export const dynamic = "force-dynamic";
 
@@ -47,7 +48,7 @@ export default async function TeamAppHome() {
   const sec = teamSections(staff);
   const today = utcToZoned(new Date(), settings.timezone).date;
   const needStatusCounts = [...main, ...more].some((k) => k === "quotes" || k === "ready");
-  const [{ t, lang }, todo, mine, running, appts, queue, byStatus] = await Promise.all([
+  const [{ t, lang }, todo, mineAll, running, appts, queue, byStatus, fresh] = await Promise.all([
     getI18n(),
     getTodo(staff),
     sec.myOrders ? workshopOrders(staff.id) : Promise.resolve([]),
@@ -55,7 +56,11 @@ export default async function TeamAppHome() {
     sec.appointments ? appointmentsForDay(today).catch(() => null) : Promise.resolve(null),
     sec.queue ? receptionSummary().catch(() => null) : Promise.resolve(null),
     needStatusCounts ? countByStatus().catch(() => null) : Promise.resolve(null),
+    sec.myOrders ? newAssignmentIds(staff.id).catch(() => [] as string[]) : Promise.resolve([] as string[]),
   ]);
+  // « Nouveau véhicule pour vous »: the cars just assigned come first, with a « Nouveau » badge until opened.
+  const isNew = new Set(fresh);
+  const mine = [...mineAll].sort((a, b) => Number(isNew.has(b.id)) - Number(isNew.has(a.id)));
   const a = t.app.team;
   const firstName = staff.name.split(/\s+/)[0] ?? staff.name;
   const showMine = staff.role === "MECHANIC" || mine.length > 0;
@@ -125,9 +130,19 @@ export default async function TeamAppHome() {
               {mine.map((wo) => {
                 const { next } = workshopMoves(wo, staff, settings);
                 return (
-                  <li key={wo.id} className="rounded-[22px] border border-gp-line bg-gp-card p-4 shadow-gp" data-testid="team-order">
+                  <li
+                    key={wo.id}
+                    className={cn("rounded-[22px] border bg-gp-card p-4 shadow-gp", isNew.has(wo.id) ? "border-gp-accent ring-2 ring-gp-accent/30" : "border-gp-line")}
+                    data-testid="team-order"
+                    data-new={isNew.has(wo.id) || undefined}
+                  >
                     <Link href={`/garage/app/ordre/${wo.id}`} className="block">
                       <div className="flex flex-wrap items-center gap-2">
+                        {isNew.has(wo.id) && (
+                          <span className="rounded-full bg-gp-accent px-2 py-0.5 text-xs font-bold text-white" data-testid="team-order-new">
+                            {t.staffMobile.assigned.badge}
+                          </span>
+                        )}
                         <PlateChip plate={wo.vehicle.plate} />
                         <span className="font-semibold">
                           {wo.vehicle.make} {wo.vehicle.model}

@@ -73,6 +73,7 @@ import { handoverMissing } from "@/server/workflow";
 import { ComebackCard, InspectionCard } from "@/components/garage/lot5-cards";
 import { comebackView } from "@/server/comebacks";
 import { inspectionsFor, listTemplates } from "@/server/inspections";
+import { markAssignmentSeen } from "@/server/assignment-alerts";
 
 type PageProps = { params: Promise<{ id: string }> };
 
@@ -98,6 +99,8 @@ export default async function WorkOrderPage({ params }: PageProps) {
     getBaseUrl().catch(() => null),
   ]);
   if (!wo) notFound();
+  // « Nouveau véhicule pour vous »: the mechanic opened his car (also from the full order page).
+  if (wo.mechanicId === staff.id) await markAssignmentSeen(wo.id, staff.id).catch(() => {});
   // V16 Lot 2: versions and decisions; may the work start (decision recorded on the latest quote)?
   // V16 Lot 3: date changes (promise and parts), refused SAFETY lines still waiting for the signed waiver.
   const db = prisma as unknown as Prisma.TransactionClient;

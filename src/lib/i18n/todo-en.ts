@@ -48,6 +48,7 @@ export const todoEn: typeof todoFr = {
     partialPayments: "Partly paid invoices or promised payment (balance to collect)",
     openClaims: "Open customer complaints",
     lowRatings: "Customer ratings (≤ 3) to follow up",
+    newAssignments: "New vehicles for you",
     unreadMessages: "Unread buyer messages",
     warrantyOpen: "Warranty claims not yet sent",
     contractDrafts: "Draft contracts to complete",

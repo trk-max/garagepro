@@ -66,6 +66,15 @@ const woSelect = { id: true, number: true, updatedAt: true, vehicle: { select: {
 
 async function rowsFor(key: TodoKey, who: PermSubject, now: Date, take: number): Promise<TodoRow[] | null> {
   switch (key) {
+    case "newAssignments": {
+      // The cars newly given to this mechanic, opened on the phone order screen (which clears the alert).
+      const me = typeof who === "string" ? null : (who as { id?: string }).id;
+      if (!me) return null;
+      const { newAssignmentIds } = await import("@/server/assignment-alerts");
+      const ids = (await newAssignmentIds(me)).slice(0, take);
+      const rows = await prisma.workOrder.findMany({ where: { id: { in: ids } }, select: woSelect });
+      return rows.map((w) => ({ ...woRow(w, w.updatedAt), href: `/garage/app/ordre/${w.id}` }));
+    }
     case "vehicleInfo": {
       const rows = await prisma.workOrder.findMany({
         where: TODO_WHERE.activeOrders,

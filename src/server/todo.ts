@@ -16,6 +16,7 @@ import { countLateRepairs } from "@/server/follow-up";
 import { countPaymentFollowUp } from "@/server/payment-promises";
 import { unreadForStaff } from "@/server/messaging";
 import { ACTIVE_STATUSES } from "@/server/workflow";
+import { countNewAssignments } from "@/server/assignment-alerts";
 
 /**
  * V10.4 — counts of the "À traiter" list (bell + /garage/a-traiter). Only the keys the
@@ -94,6 +95,7 @@ function counter(key: TodoKey, actor: TodoActor, now: Date): Promise<number> {
     return prisma.contract.count({ where: TODO_WHERE.contracts(actor, access, [...status]) });
   };
   switch (key) {
+    case "newAssignments": return countNewAssignments(actor.id);
     case "vehicleInfo": return countVehicleInfo();
     case "quoteWaiting": return prisma.workOrder.count({ where: TODO_WHERE.quoteWaiting(now) });
     case "readyNotDelivered": return prisma.workOrder.count({ where: TODO_WHERE.readyNotDelivered });

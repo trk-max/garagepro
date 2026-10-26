@@ -47,6 +47,7 @@ export const todoFr = {
     partialPayments: "Factures partiellement payées ou paiement promis (reste à encaisser)",
     openClaims: "Réclamations clients ouvertes",
     lowRatings: "Avis clients (note ≤ 3) à traiter",
+    newAssignments: "Nouveaux véhicules pour vous",
     unreadMessages: "Messages d'acheteurs non lus",
     warrantyOpen: "Réclamations garantie pas encore envoyées",
     contractDrafts: "Contrats en brouillon à compléter",

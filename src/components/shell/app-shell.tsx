@@ -6,6 +6,8 @@ import { SideRail } from "@/components/shell/side-rail";
 import { SignOutForm } from "@/components/shell/sign-out-form";
 import { TopNav } from "@/components/shell/top-nav";
 import { PhoneTabBar } from "@/components/shell/phone-tab-bar";
+import { AssignmentAlert } from "@/components/shell/assignment-alert";
+import { can } from "@/lib/permissions";
 import type { ShellUser } from "@/components/shell/user-menu";
 import type { NavBadges } from "@/components/shell/nav";
 import type { TodoList } from "@/lib/todo";
@@ -48,6 +50,7 @@ export function AppShell({
             {children}
           </main>
           <PhoneTabBar who={user} badges={badges} todoCount={todo.total} />
+          {can(user, "useWorkshop") && <AssignmentAlert />}
         </div>
       </div>
     </div>

@@ -24,6 +24,7 @@ import { prisma } from "@/lib/prisma";
 import type { StaffUser } from "@/lib/session";
 import { getSettings } from "@/server/settings";
 import { generatePin } from "@/server/portal-session";
+import { recordAssignment } from "@/server/assignment-alerts";
 import {
   ACTIVE_STATUSES,
   TRANSITIONS,
@@ -343,6 +344,8 @@ export async function createWorkOrder(input: CreateWorkOrderInput, actor: StaffU
       select: { id: true },
     });
     await event(tx, wo.id, actor.id, "CREATED");
+    // « Nouveau véhicule pour vous »: the mechanic chosen at check-in gets the alert.
+    if (input.mechanicId) await recordAssignment(tx, wo.id, null, input.mechanicId);
     if (input.diagnosticFee) await addDiagnosticFeeLine(tx, wo.id, actor);
     return wo;
   });

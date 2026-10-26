@@ -33,6 +33,7 @@ import { stateAfter } from "@/lib/timeclock";
 import { audit } from "@/server/audit";
 import { putObject, readObject } from "@/server/storage";
 import { ACTIVE_STATUSES, DELIVERED_STATUSES, isFinal } from "@/server/workflow";
+import { recordAssignment } from "@/server/assignment-alerts";
 
 /**
  * V14 — carte des compétences (serveur). Every read of a person's skills checks the access here
@@ -530,6 +531,8 @@ export async function assignWithSkills(
         skillOverrideAt: override ? now : null,
       },
     });
+    // « Nouveau véhicule pour vous »: alert for the new mechanic, removed for the previous one.
+    await recordAssignment(tx, workOrderId, wo.mechanicId, mechanicId);
     await tx.workOrderEvent.create({
       data: { workOrderId, actorId: actor.id, type: "ASSIGNED", data: { to: mechanic?.name ?? null, ...(supervisor ? { supervisor: supervisor.name } : {}) } },
     });

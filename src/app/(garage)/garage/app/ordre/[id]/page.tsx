@@ -24,6 +24,7 @@ import { laborSummary, runningLabor } from "@/server/labor";
 import { partOptions } from "@/server/parts";
 import { getSettings } from "@/server/settings";
 import { getWorkOrder } from "@/server/work-orders";
+import { markAssignmentSeen } from "@/server/assignment-alerts";
 import { isFinal } from "@/server/workflow";
 
 export const dynamic = "force-dynamic";
@@ -40,6 +41,8 @@ export default async function TeamOrderScreen({ params }: PageProps) {
   const { id } = await params;
   const [staff, wo, { t, lang }, settings] = await Promise.all([requirePageAccess("useWorkshop"), getWorkOrder(id), getI18n(), getSettings()]);
   if (!wo) notFound();
+  // His own car opened: the « Nouveau véhicule pour vous » alert is done.
+  if (wo.mechanicId === staff.id) await markAssignmentSeen(wo.id, staff.id).catch(() => {});
   const final = isFinal(wo.status);
   const linesLocked = final || Boolean(wo.invoice);
   const canTime = can(staff, "logOwnLabor");

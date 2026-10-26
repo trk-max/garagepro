@@ -48,6 +48,7 @@ export const todoAr: typeof todoFr = {
     partialPayments: "فواتير مدفوعة جزئيًا أو دفعة موعودة (الباقي للتحصيل)",
     openClaims: "شكاوى حرفاء مفتوحة",
     lowRatings: "تقييمات حرفاء (≤ 3) للمتابعة",
+    newAssignments: "سيارات جديدة لك",
     unreadMessages: "رسائل مشترين غير مقروءة",
     warrantyOpen: "مطالبات ضمان لم تُرسل بعد",
     contractDrafts: "عقود في المسودة يجب إكمالها",

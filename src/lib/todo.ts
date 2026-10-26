@@ -10,6 +10,8 @@ export type TodoGroup = "incomplete" | "approval";
 
 export const TODO_KEYS = [
   // A. Incomplete
+  // Équipe sur téléphone — véhicule attribué au mécanicien, pas encore ouvert.
+  "newAssignments",
   "vehicleInfo", "quoteWaiting", "waitingCustomer", "readyNotDelivered", "deliveredUnpaid", "lateRepairs", "missingParts", "insuranceWaiting",
   // Paiements partiels — promesse dépassée (en rouge), en retard sans promesse, partiellement payées / paiement promis.
   "paymentPromisesDue", "overdueInvoices", "partialPayments", "openClaims", "lowRatings", "unreadMessages", "warrantyOpen", "contractDrafts", "contractsExpiring",
@@ -43,6 +45,7 @@ const contracts = (access: "view" | "manage" | "approve") => (r: PermSubject) =>
 export const QUOTE_WAIT_DAYS = 3;
 
 export const TODO_DEFS: Record<TodoKey, Def> = {
+  newAssignments: { group: "incomplete", href: "/garage/app", visible: (r) => can(r, "useWorkshop") },
   vehicleInfo: { group: "incomplete", href: "/garage/work-orders", visible: (r) => can(r, "viewWorkOrders") },
   quoteWaiting: { group: "incomplete", href: "/garage/work-orders?status=QUOTE_SENT", visible: followUp },
   readyNotDelivered: { group: "incomplete", href: "/garage/work-orders?status=READY", visible: followUp },

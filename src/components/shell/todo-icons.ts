@@ -25,6 +25,7 @@ export const TODO_ICONS: Record<TodoKey, LucideIcon> = {
   openClaims: MessageSquareWarning,
   // V16 Lot 5
   lowRatings: MessageSquareWarning,
+  newAssignments: CarFront,
   unreadMessages: Mail,
   warrantyOpen: ShieldAlert,
   contractDrafts: FilePen,
