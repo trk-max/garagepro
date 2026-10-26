@@ -41,7 +41,7 @@ export default async function WorkOrdersPage({ searchParams }: PageProps) {
   };
 
   return (
-    <div className="mx-auto max-w-7xl p-6">
+    <div className="mx-auto max-w-7xl px-3 pt-4 pb-6 lg:p-6">
       <PageHeader title={t.workOrders.title}>
         <SearchForm placeholder={t.workOrders.searchPlaceholder} defaultValue={params.q} hidden={{ status: params.status }} />
         <PlateSearch className="w-48" placeholder={t.plateLookup.quick} label={t.plateLookup.title} />
@@ -50,14 +50,15 @@ export default async function WorkOrdersPage({ searchParams }: PageProps) {
         </Button>
       </PageHeader>
 
-      <nav className="mb-4 flex flex-wrap gap-1.5" aria-label={t.workOrders.status}>
+      {/* Phones: the status chips scroll sideways on one row. */}
+      <nav className="gp-scroll-x mb-4 flex gap-1.5 overflow-x-auto pb-1 lg:flex-wrap lg:overflow-visible" aria-label={t.workOrders.status}>
         {chips.map((chip) => (
           <Link
             key={chip.value}
             href={href(chip.value)}
             aria-current={filter === chip.value ? "page" : undefined}
             className={cn(
-              "chip-tap rounded-full border px-3 py-1 text-xs transition-colors",
+              "chip-tap shrink-0 rounded-full border px-3 py-1 text-xs whitespace-nowrap transition-colors",
               filter === chip.value ? "border-primary bg-primary text-primary-foreground" : "hover:bg-accent",
             )}
           >
@@ -69,6 +70,34 @@ export default async function WorkOrdersPage({ searchParams }: PageProps) {
       {orders.length === 0 ? (
         <p className="rounded-lg border border-dashed p-10 text-center text-sm text-muted-foreground">{t.workOrders.empty}</p>
       ) : (
+        <>
+        {/* Phones and tablets: one card per order (big touch target), same data as the table. */}
+        <ul className="space-y-3 lg:hidden" data-testid="work-order-cards">
+          {orders.map((wo) => (
+            <li key={wo.id}>
+              <Link href={`/garage/work-orders/${wo.id}`} className="block rounded-[22px] border border-gp-line bg-gp-card p-4 shadow-gp hover:bg-gp-hover">
+                <div className="flex flex-wrap items-center gap-2">
+                  <PlateChip plate={wo.vehicle.plate} />
+                  <span className="font-semibold">
+                    {wo.vehicle.make} {wo.vehicle.model}
+                  </span>
+                  <span className="ms-auto">
+                    <StatusBadge status={wo.status} t={t} />
+                  </span>
+                </div>
+                <p className="mt-2 line-clamp-2 text-sm text-gp-muted">{wo.complaint}</p>
+                <p className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-gp-muted">
+                  <span className="font-mono">{woNumber(wo.number)}</span>
+                  <span>{wo.customer.name}</span>
+                  <span>{wo.mechanic?.name ?? t.workOrders.unassigned}</span>
+                  {wo.promisedAt && <span>{formatDate(wo.promisedAt, lang)}</span>}
+                  <PriorityBadge priority={wo.priority} t={t} />
+                </p>
+              </Link>
+            </li>
+          ))}
+        </ul>
+        <div className="hidden lg:block">
         <Table>
           <thead>
             <tr>
@@ -114,6 +143,8 @@ export default async function WorkOrdersPage({ searchParams }: PageProps) {
             ))}
           </tbody>
         </Table>
+        </div>
+        </>
       )}
     </div>
   );

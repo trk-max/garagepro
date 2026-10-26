@@ -17,6 +17,7 @@ import { runningLabor } from "@/server/labor";
 import { getSettings } from "@/server/settings";
 import { workshopOrders } from "@/server/work-orders";
 import { workshopMoves } from "@/lib/workshop-moves";
+import { FoldOnPhone } from "@/components/shell/fold-on-phone";
 import { SkillAssignCard, SupervisedBadge } from "@/components/skills/assign-card";
 import { assignmentOptions, listSkills } from "@/server/skills";
 
@@ -121,12 +122,20 @@ export default async function WorkshopPage({ searchParams }: PageProps) {
                 </ul>
               )}
 
+              {/* Phones: ONE big button (next step); photo, chrono, assisted assignment and the other steps fold under
+                  « Plus d'actions » (always shown from 1024 px). The card opens the phone order screen. */}
+              {next && (
+                <ActionButton action={workshopStatusAction.bind(null, wo.id, next, null)} className="mt-3 h-14 w-full text-base">
+                  {fmt(t.workshop.moveTo, { status: t.status[next] })}
+                </ActionButton>
+              )}
+              {running?.workOrder.id === wo.id && (
+                <p className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-gp-accent-ink">
+                  <Timer className="size-4" aria-hidden /> {fmt(t.v7.labor.running, { time: formatTime(running.startedAt, lang) })}
+                </p>
+              )}
+              <FoldOnPhone label={t.staffMobile.moreActions}>
               <div className="mt-3 flex flex-wrap gap-2">
-                {next && (
-                  <ActionButton action={workshopStatusAction.bind(null, wo.id, next, null)} className="h-12 flex-[2] text-base">
-                    {fmt(t.workshop.moveTo, { status: t.status[next] })}
-                  </ActionButton>
-                )}
                 <MediaUploader workOrderId={wo.id} compact />
               </div>
               {assign?.get(wo.id) && (
@@ -165,10 +174,14 @@ export default async function WorkshopPage({ searchParams }: PageProps) {
                       </ActionButton>
                     ),
                   )}
-                  <Link href={`/garage/work-orders/${wo.id}`} className="ms-auto inline-flex items-center gap-1 self-center text-sm text-muted-foreground hover:text-foreground">
+                  <Link href={`/garage/work-orders/${wo.id}`} className="ms-auto hidden items-center gap-1 self-center text-sm text-muted-foreground hover:text-foreground lg:inline-flex">
                     {t.workshop.details} <ChevronRight className="size-4 rtl:rotate-180" aria-hidden />
                   </Link>
               </div>
+              </FoldOnPhone>
+              <Link href={`/garage/app/ordre/${wo.id}`} className="mt-2 flex min-h-12 items-center justify-center gap-1 rounded-full border border-gp-line text-sm font-medium hover:bg-gp-hover lg:hidden" data-testid="atelier-open">
+                {t.app.team.open} <ChevronRight className="size-4 rtl:rotate-180" aria-hidden />
+              </Link>
             </li>
           );
         })}
