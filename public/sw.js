@@ -8,12 +8,16 @@
  *   garage hub (PC on the Wi-Fi) is what keeps writes working without internet.
  * The private page cache is cleared on sign-out (message "clear-private").
  */
-const VERSION = "gp-v6-1";
+const VERSION = "gp-v7-app";
 // V10.4: offline.html text changed ("le PC du garage redémarre peut-être") — this line changes the
 // worker, so phones install it again and re-cache /offline.html (same cache names, pages kept).
 const STATIC = `${VERSION}-static`;
 const PAGES = `${VERSION}-pages`;
-const PRECACHE = ["/offline.html", "/icons/icon-192.png", "/icons/icon-512.png", "/manifest.webmanifest"];
+// PWA app (client « /app » + team « /equipe »): new icons and manifests. The version change above makes
+// phones install this worker again and drop the old caches (static files and page copies).
+// Stale code: /_next/static files have a content hash in their name (a new build = new names), pages
+// are network-first, and Next.js reloads the page by itself when it sees a new build on navigation.
+const PRECACHE = ["/offline.html", "/icons/app-192.png", "/icons/team-192.png", "/icons/icon-192.png", "/icons/icon-512.png"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(STATIC).then((c) => c.addAll(PRECACHE)).then(() => self.skipWaiting()));

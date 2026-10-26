@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { AuthError, CredentialsSignin } from "next-auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
@@ -10,25 +11,33 @@ import { Input } from "@/components/ui/input";
 import { signIn } from "@/lib/auth";
 import { getI18n } from "@/lib/i18n/server";
 import { siteMedia, slotMedia } from "@/lib/site-media";
+import { safeStaffNext, TEAM_APP_METADATA } from "@/lib/pwa-manifests";
 
-type PageProps = { searchParams: Promise<{ error?: string }> };
+type PageProps = { searchParams: Promise<{ error?: string; next?: string }> };
+
+// PWA app: installing from here gives the TEAM app (« GaragePro Équipe »).
+export const metadata: Metadata = TEAM_APP_METADATA;
 
 export default async function LoginPage({ searchParams }: PageProps) {
-  const { error } = await searchParams;
+  const { error, next: nextRaw } = await searchParams;
+  // PWA team app: /equipe sends here with ?next=/garage/app (only a staff page of this site is accepted).
+  const next = safeStaffNext(nextRaw);
   const { t } = await getI18n();
   const { video, photo } = slotMedia(siteMedia(), "login", "hero");
 
   async function login(formData: FormData) {
     "use server";
+    const to = safeStaffNext(formData.get("next"));
+    const keep = to === "/garage" ? "" : `&next=${encodeURIComponent(to)}`;
     try {
       await signIn("credentials", {
         email: formData.get("email"),
         password: formData.get("password"),
-        redirectTo: "/garage",
+        redirectTo: to,
       });
     } catch (err) {
-      if (err instanceof CredentialsSignin && err.code === "locked") redirect("/login?error=locked");
-      if (err instanceof AuthError) redirect("/login?error=1");
+      if (err instanceof CredentialsSignin && err.code === "locked") redirect(`/login?error=locked${keep}`);
+      if (err instanceof AuthError) redirect(`/login?error=1${keep}`);
       throw err; // NEXT_REDIRECT on success
     }
   }
@@ -55,6 +64,7 @@ export default async function LoginPage({ searchParams }: PageProps) {
               <p className="mt-2 text-[0.8125rem] text-white/60">{t.login.subtitle}</p>
             </div>
           </div>
+          <input type="hidden" name="next" value={next} />
           <label className="block space-y-1.5">
             <span className="f-label text-white/60">{t.login.email}</span>
             <Input name="email" type="email" autoComplete="email" dir="ltr" required className="h-12" />

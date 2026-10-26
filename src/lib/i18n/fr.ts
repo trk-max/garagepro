@@ -8,6 +8,7 @@ import { v12Fr } from "@/lib/i18n/v12-fr";
 import { v14Fr } from "@/lib/i18n/v14-fr";
 import { v15Fr } from "@/lib/i18n/v15-fr";
 import { v16Fr } from "@/lib/i18n/v16-fr";
+import { appFr } from "@/lib/i18n/app-fr";
 import { contractsFr } from "@/lib/i18n/contracts-fr";
 import { v7Fr } from "@/lib/i18n/v7-fr";
 import { showroomFr } from "@/lib/i18n/showroom-fr";
@@ -1039,6 +1040,8 @@ export const fr = {
   v15: v15Fr,
   /** V16 — parcours atelier traçable. */
   v16: v16Fr,
+  /** Application installable (PWA) : app client et Espace équipe. */
+  app: appFr,
 };
 
 export type Dictionary = typeof fr;

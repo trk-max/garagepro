@@ -6,6 +6,7 @@ import { NetworkStatus } from "@/components/pwa/network-status";
 import { PwaRegister } from "@/components/pwa/pwa-register";
 import { cookies } from "next/headers";
 import { getI18n } from "@/lib/i18n/server";
+import { CLIENT_MANIFEST_URL } from "@/lib/pwa-manifests";
 import { parseTheme, THEME_COOKIE } from "@/lib/theme";
 import "@fontsource-variable/inter";
 import "./globals.css";
@@ -23,10 +24,12 @@ export const metadata: Metadata = {
   // The app is already in French, Arabic and English: stop the browser from
   // auto-translating it (its rewrites of the page break the language switch).
   other: { google: "notranslate" },
-  // Installable app (PC + phone): see app/manifest.ts and public/sw.js.
+  // Installable apps (phone + PC): the CLIENT app by default (/app); the staff pages and /login point to
+  // the TEAM app (/equipe). See src/lib/pwa-manifests.ts and public/sw.js.
   applicationName: "GaragePro",
+  manifest: CLIENT_MANIFEST_URL,
   appleWebApp: { capable: true, title: "GaragePro", statusBarStyle: "black-translucent" },
-  icons: { apple: "/icons/apple-180.png" },
+  icons: { apple: "/icons/app-apple-180.png" },
 };
 
 export default async function RootLayout({ children }: { children: ReactNode }) {

@@ -1,8 +1,10 @@
+import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/shell/app-shell";
 import type { NavBadges } from "@/components/shell/nav";
 import { getI18n } from "@/lib/i18n/server";
+import { TEAM_APP_METADATA } from "@/lib/pwa-manifests";
 import { can } from "@/lib/permissions";
 import { getStaff } from "@/lib/session";
 import { countUpcomingToday } from "@/server/booking";
@@ -10,6 +12,9 @@ import { getSettings } from "@/server/settings";
 import { getTodo } from "@/server/todo";
 
 export const dynamic = "force-dynamic";
+
+// PWA app: the staff pages install the TEAM app (« GaragePro Équipe », opens /equipe).
+export const metadata: Metadata = TEAM_APP_METADATA;
 
 export default async function GarageLayout({ children }: { children: ReactNode }) {
   const staff = await getStaff();

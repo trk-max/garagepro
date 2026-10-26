@@ -8,6 +8,7 @@ import { v12En } from "@/lib/i18n/v12-en";
 import { v14En } from "@/lib/i18n/v14-en";
 import { v15En } from "@/lib/i18n/v15-en";
 import { v16En } from "@/lib/i18n/v16-en";
+import { appEn } from "@/lib/i18n/app-en";
 import { contractsEn } from "@/lib/i18n/contracts-en";
 import { v7En } from "@/lib/i18n/v7-en";
 import { showroomEn } from "@/lib/i18n/showroom-en";
@@ -1040,4 +1041,6 @@ export const en: Dictionary = {
   v15: v15En,
   /** V16 — parcours atelier traçable. */
   v16: v16En,
+  /** Application installable (PWA) : app client et Espace équipe. */
+  app: appEn,
 };
