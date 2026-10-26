@@ -25,8 +25,12 @@ export type DocumentData = {
   creditNote?: { invoiceNumber: string; invoiceDate: Date; reason: string; sha256: string };
 };
 
-/** A4 printable quote / invoice. Print with the browser (Ctrl+P → PDF). */
-export function DocumentView({ doc, t, lang, logo }: { doc: DocumentData; t: Dictionary; lang: Lang; logo?: string | null }) {
+/**
+ * A4 printable quote / invoice. Print with the browser (Ctrl+P → PDF).
+ * `vehicleQr` (staff-ux): the vehicle's QR (« Carnet du véhicule »), made from the vehicle at display time —
+ * deliberately NOT part of `doc` (the frozen copy of an invoice never changes).
+ */
+export function DocumentView({ doc, t, lang, logo, vehicleQr }: { doc: DocumentData; t: Dictionary; lang: Lang; logo?: string | null; vehicleQr?: { svg: string; label: string } | null }) {
   const title = doc.creditNote ? t.v16.lot4.invoice.creditDocTitle : doc.kind === "invoice" ? t.invoices.invoice : t.invoices.quote;
   const money = (m: number) => formatMoney(m, lang);
 
@@ -85,15 +89,23 @@ export function DocumentView({ doc, t, lang, logo }: { doc: DocumentData; t: Dic
             </p>
           )}
         </div>
-        <div className="rounded-md border p-3">
-          <p className="mb-1 text-xs font-semibold uppercase text-zinc-500">{t.invoices.vehicle}</p>
-          <p className="font-medium">
-            {doc.vehicle.make} {doc.vehicle.model}
-          </p>
-          <p dir="ltr">{displayPlate(doc.vehicle.plate)}</p>
-          <p>
-            {t.invoices.mileage}: <span dir="ltr">{formatKm(doc.vehicle.mileage, lang)}</span>
-          </p>
+        <div className="flex items-start gap-3 rounded-md border p-3" data-testid="doc-vehicle">
+          <div className="min-w-0 flex-1">
+            <p className="mb-1 text-xs font-semibold uppercase text-zinc-500">{t.invoices.vehicle}</p>
+            <p className="font-medium">
+              {doc.vehicle.make} {doc.vehicle.model}
+            </p>
+            <p dir="ltr">{displayPlate(doc.vehicle.plate)}</p>
+            <p>
+              {t.invoices.mileage}: <span dir="ltr">{formatKm(doc.vehicle.mileage, lang)}</span>
+            </p>
+          </div>
+          {vehicleQr && (
+            <figure className="w-[22mm] shrink-0 text-center" data-testid="doc-vehicle-qr">
+              <div className="bg-white [&_svg]:h-auto [&_svg]:w-full" dangerouslySetInnerHTML={{ __html: vehicleQr.svg }} />
+              <figcaption className="mt-0.5 text-[9px] leading-tight text-zinc-500">{vehicleQr.label}</figcaption>
+            </figure>
+          )}
         </div>
       </section>
 

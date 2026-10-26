@@ -5,6 +5,7 @@ import type { LucideIcon } from "lucide-react";
 import { addVehicleAction } from "@/actions/catalog";
 import { ActionForm } from "@/components/action-form";
 import { PlateChip } from "@/components/garage/badges";
+import { VehicleQrMini } from "@/components/garage/vehicle-qr-mini";
 import { VehicleFields } from "@/components/garage/vehicle-fields";
 import { Button } from "@/components/ui/button";
 import { EmptyState, Surface, SurfaceHeader } from "@/components/ui/redesign/surface";
@@ -59,6 +60,8 @@ export function VehicleTiles({ customer, who, t, lang }: { customer: Customer; w
                 {can(who, "manageWarranties") && <Act href={`/garage/garanties?f=all&vehicle=${v.id}`} icon={ShieldCheck}>{t.v7.warranty.button}</Act>}
                 {can(who, "obdDiagnose") && <Act href={`/garage/vehicules/${v.id}/obd`} icon={Activity}>{t.v7.obd.button}</Act>}
               </div>
+              {/* staff-ux: the vehicle's QR (carnet) on its tile; print / renew on the label page. */}
+              <VehicleQrMini vehicle={{ id: v.id, qrToken: v.qrToken ?? null }} canManage={can(who, "manageVehicleQr")} t={t} />
             </li>
           ))}
         </ul>

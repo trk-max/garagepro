@@ -27,6 +27,8 @@ import { snapshotHash } from "@/lib/quote";
 import { utcToZoned, zonedToUtc } from "@/lib/booking";
 import { PaymentPromiseCard } from "@/components/garage/payment-promise-card";
 import { invoicePromises } from "@/server/payment-promises";
+import { vehicleQrForDocument } from "@/components/garage/vehicle-qr-mini";
+import { prisma } from "@/lib/prisma";
 
 type PageProps = { params: Promise<{ id: string }> };
 
@@ -54,6 +56,10 @@ export default async function InvoicePage({ params }: PageProps) {
     lines: invoice.workOrder.lines,
     stampDuty: invoice.stampDuty,
   });
+  // staff-ux: the vehicle's QR (carnet), made from the vehicle NOW — the frozen invoice copy is not touched.
+  // Read from the LIVE vehicle row (by the order), never from the snapshot.
+  const liveVehicle = await prisma.workOrder.findUnique({ where: { id: invoice.workOrder.id }, select: { vehicle: { select: { qrToken: true } } } });
+  const vehicleQr = await vehicleQrForDocument(liveVehicle?.vehicle.qrToken, t);
   const late = isOverdue(invoice);
   const dueDate = invoice.dueDate ?? invoice.issuedAt;
   const reminderText = fmt(t.reminders.message, {
@@ -82,6 +88,7 @@ export default async function InvoicePage({ params }: PageProps) {
           t={t}
           lang={lang}
           logo={settings.logoDataUrl}
+          vehicleQr={vehicleQr}
           doc={{
             kind: "invoice",
             number: invoice.number,
