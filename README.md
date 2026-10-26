@@ -55,6 +55,8 @@ Il n'y a **qu'une seule base de données** (Supabase en ligne + sa copie sur le 
   toujours filtrées par les droits de chacun.
 - L'installation complète demande le site **https** ; sur le Wi-Fi du garage (`http://192.168.x.x:3000/equipe`)
   on ajoute un raccourci. Icônes : `node scripts/pwa-icons.mjs`. Captures : `docs/media/app/`.
+- **Notifications sur le téléphone** (même app fermée) : « Nouveau véhicule pour vous » au mécanicien à chaque attribution.
+  À activer avec `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` dans `.env` (voir [docs/APP.md](docs/APP.md)) ; migration 32.
 
 ## Nouveautés — déconnexion partout, prise en charge d'abord, QR du véhicule, ticket manuel
 

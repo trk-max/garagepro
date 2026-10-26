@@ -92,3 +92,21 @@ boutons et les mêmes vérifications que les pages habituelles.
 - **Nom et icône** : le nom de l'app client est celui du garage (Réglages). Les icônes sont dans
   `public/icons/app-*.png` et `public/icons/team-*.png` (refaites avec `node scripts/pwa-icons.mjs`).
 - **Désinstaller** : appui long sur l'icône → Supprimer / Désinstaller (comme une autre application).
+
+## Notifications sur le téléphone (même app fermée)
+
+Quand un véhicule est attribué à un mécanicien, son téléphone affiche « Nouveau véhicule pour vous » (plaque + voiture),
+même si l'app est fermée ; un toucher ouvre la voiture. Pour l'activer, le mécanicien touche **« Activer les
+notifications »** sur l'Espace équipe (ou dans « Plus ») et accepte. Android / ordinateur : depuis Chrome ou Edge.
+iPhone : seulement dans l'**app équipe installée** sur l'écran d'accueil (iOS 16.4 ou plus récent), depuis le site https.
+
+À régler une fois (administrateur) — trois lignes dans `.env` du site en ligne **et** du PC du garage :
+```
+VAPID_PUBLIC_KEY=…
+VAPID_PRIVATE_KEY=…
+VAPID_SUBJECT=mailto:contact@mon-garage.tn
+```
+Les deux clés se créent avec `npx web-push generate-vapid-keys` (gratuit, à garder secrètes ; les mêmes clés partout).
+Sans ces lignes, les notifications sont simplement désactivées (le bouton n'apparaît pas) ; l'alerte dans l'app,
+la cloche et « À traiter » marchent toujours. Le PC du garage sans internet n'envoie rien : l'alerte dans l'app reste.
+
