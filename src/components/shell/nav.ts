@@ -5,6 +5,7 @@ import {
   Ticket,
 } from "lucide-react";
 import { Award, GraduationCap } from "lucide-react";
+import { TabletSmartphone } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { Dictionary } from "@/lib/i18n/fr";
 import { can, type Permission, type PermSubject } from "@/lib/permissions";
@@ -22,7 +23,9 @@ export type NavKey =
   // V14 — carte des compétences.
   | "skills" | "mySkills"
   // V15 — accueil (file d'attente)
-  | "reception";
+  | "reception"
+  // PWA — Espace équipe (application installable)
+  | "teamApp";
 
 export type NavBadges = Partial<Record<NavKey, number>>;
 export type NavItem = { key: NavKey; href: string; icon: LucideIcon; permission?: Permission };
@@ -30,7 +33,13 @@ type GroupTitle = "clientSpace" | "supplierSpace" | "teamSpace" | "showroomSpace
 export type NavGroup = { title?: GroupTitle; items: NavItem[] };
 
 export const NAV_GROUPS: NavGroup[] = [
-  { items: [{ key: "dashboard", href: "/garage", icon: LayoutGrid }] },
+  {
+    items: [
+      { key: "dashboard", href: "/garage", icon: LayoutGrid },
+      // PWA: the role-focused team space (installable « GaragePro Équipe »), in the "More" panel.
+      { key: "teamApp", href: "/garage/app", icon: TabletSmartphone },
+    ],
+  },
   {
     title: "clientSpace",
     items: [
@@ -127,8 +136,9 @@ export function navLabel(t: Dictionary, key: NavKey): string {
   if (key === "agenda") return t.v12.nav;
   if (key === "skills" || key === "mySkills") return t.v14.nav[key];
   if (key === "reception") return t.v15.nav;
+  if (key === "teamApp") return t.app.team.nav;
   if ((V7 as readonly string[]).includes(key)) return t.v7.nav[key as (typeof V7)[number]];
-  return t.nav[key as Exclude<NavKey, (typeof V7)[number] | "contracts" | "showroom" | "messages" | "vehicles" | "help" | "agenda" | "skills" | "mySkills" | "reception">];
+  return t.nav[key as Exclude<NavKey, (typeof V7)[number] | "contracts" | "showroom" | "messages" | "vehicles" | "help" | "agenda" | "skills" | "mySkills" | "reception" | "teamApp">];
 }
 
 /** Short label for the top pill bar. */

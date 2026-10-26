@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
 import { runningLabor } from "@/server/labor";
 import { getSettings } from "@/server/settings";
 import { workshopOrders } from "@/server/work-orders";
-import { NEXT_STEP, availableTransitions } from "@/server/workflow";
+import { workshopMoves } from "@/lib/workshop-moves";
 import { SkillAssignCard, SupervisedBadge } from "@/components/skills/assign-card";
 import { assignmentOptions, listSkills } from "@/server/skills";
 
@@ -59,16 +59,8 @@ export default async function WorkshopPage({ searchParams }: PageProps) {
       <ul className="space-y-3">
         {orders.map((wo) => {
           // V16: only the moves this person may make (a mechanic: the technical steps); delivery and cancelling
-          // are done from the order page. A move that needs a reason opens the reason dialog.
-          const options = availableTransitions(wo.status, staff, {
-            workflowV16: wo.workflowV16,
-            quoteApproved: !!wo.quoteApprovedAt,
-            allowWorkWithoutQuote: settings.allowWorkWithoutQuote,
-            invoiced: false,
-          }).filter((o) => o.to !== "CANCELLED" && o.to !== "DELIVERED" && !o.needsApproval);
-          const nextOption = options.find((o) => o.to === NEXT_STEP[wo.status]);
-          const next = nextOption && !nextOption.reason ? nextOption.to : undefined;
-          const alternatives = options.filter((o) => o.to !== next);
+          // are done from the order page. A move that needs a reason opens the reason dialog (shared with the team app).
+          const { next, alternatives } = workshopMoves(wo, staff, settings);
           return (
             <li key={wo.id} className="rounded-xl border bg-card p-4 shadow-xs">
               <div className="flex flex-wrap items-center gap-2">
