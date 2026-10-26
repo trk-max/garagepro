@@ -234,6 +234,8 @@ export type NewTicketInput = {
   device?: QueueDeviceRef | null;
   actor?: StaffUser | null;
   phone?: string | null;
+  /** Desk ticket (staff-ux): e-mail for the ticket's messages, kept only with consent. */
+  email?: string | null;
   consent?: boolean;
 };
 
@@ -259,6 +261,8 @@ export async function createTicket(input: NewTicketInput, now = new Date()) {
   const side = numberSide();
   const lang = input.lang === "ar" || input.lang === "en" ? input.lang : "fr";
   const phone = input.consent && input.phone ? input.phone : null;
+  const email = input.consent && input.email ? input.email.trim().toLowerCase().slice(0, 200) : null;
+  const contact = !!(phone || email);
 
   // A number already used (e.g. the hub was switched on during the day: the odd/even counter starts again)
   // is refused by the unique index (day, prefix, number): the counter moves on and the ticket is retried.
@@ -282,15 +286,16 @@ export async function createTicket(input: NewTicketInput, now = new Date()) {
         userId: input.actor?.id ?? null,
         lang,
         phone,
-        notifyConsent: !!phone,
-        consentAt: phone ? now : null,
+        email,
+        notifyConsent: contact,
+        consentAt: contact ? now : null,
         trackToken: newTrackToken(),
         takenAt: now,
       },
     });
     const who: AuditActor = input.actor ?? (input.device ? { id: `device:${input.device.id}`, name: input.device.name } : null);
     await audit(tx, who, "queue.ticketCreate", "QueueTicket", t.id, {
-      after: { ticket: ticketLabel(t.prefix, t.number), reason: reason.code, source: t.source, withPlate: !!plate, appointment: !!appt, consent: !!phone },
+      after: { ticket: ticketLabel(t.prefix, t.number), reason: reason.code, source: t.source, withPlate: !!plate, appointment: !!appt, consent: contact, withPhone: !!phone, withEmail: !!email },
     });
     return t;
   });
@@ -694,7 +699,7 @@ export async function notifyAfterCall(calledIds: string[], opts: NotifyOptions =
     const ctx = await todayContext(now);
     const counters = await counterNames();
     const items: Item[] = [];
-    const called = await prisma.queueTicket.findMany({ where: { id: { in: calledIds }, notifyConsent: true, phone: { not: null } } });
+    const called = await prisma.queueTicket.findMany({ where: { id: { in: calledIds }, notifyConsent: true, OR: [{ phone: { not: null } }, { email: { not: null } }] } });
     for (const t of called) {
       const c = t.counterId ? counters.get(t.counterId) : undefined;
       const counter = t.lang === "ar" ? c?.nameAr || c?.name : c?.name;
@@ -702,7 +707,7 @@ export async function notifyAfterCall(calledIds: string[], opts: NotifyOptions =
         kind: "QUEUE",
         dedupeKey: `queue:${t.id}:call:${t.callCount}:${t.counterId ?? ""}`,
         phone: t.phone,
-        email: null,
+        email: t.email,
         customerId: t.customerId,
         vehicleId: t.vehicleId,
         subject: `${ctx.garage.garageName} : ${labelOf(t)}`,
@@ -712,14 +717,14 @@ export async function notifyAfterCall(calledIds: string[], opts: NotifyOptions =
     if (ctx.qs.aheadThreshold > 0) {
       const ordered = await waitingOrdered(now, ctx);
       for (const [i, t] of ordered.entries()) {
-        if (i === 0 || i > ctx.qs.aheadThreshold || !t.notifyConsent || !t.phone || t.aheadNotified) continue;
+        if (i === 0 || i > ctx.qs.aheadThreshold || !t.notifyConsent || (!t.phone && !t.email) || t.aheadNotified) continue;
         const { count } = await prisma.queueTicket.updateMany({ where: { id: t.id, aheadNotified: false }, data: { aheadNotified: true } });
         if (!count) continue;
         items.push({
           kind: "QUEUE",
           dedupeKey: `queue:${t.id}:ahead`,
           phone: t.phone,
-          email: null,
+          email: t.email,
           customerId: t.customerId,
           vehicleId: t.vehicleId,
           subject: `${ctx.garage.garageName} : ${labelOf(t)}`,
@@ -739,6 +744,65 @@ export async function notifyAfterCall(calledIds: string[], opts: NotifyOptions =
     console.error("[accueil] notification", error);
     return { queued: 0 };
   }
+}
+
+/** What happened to the « ticket taken » message: a Notification status, or NONE (no consent / no contact). */
+export type TakenStatus = "SENT" | "PENDING" | "FAILED" | "SKIPPED" | "NONE";
+
+const takenKey = (ticketId: string) => `queue:${ticketId}:taken`;
+
+/**
+ * staff-ux — manual ticket typed at the desk: sends the ticket number and the public tracking link to the
+ * customer's phone / e-mail. ONLY with the consent recorded on the ticket; queued in Notification (deduplicated,
+ * retried; with a hub, only the hub sends). No channel configured = a SKIPPED row, never a fake « sent ».
+ */
+export async function notifyTicketTaken(ticketId: string, opts: NotifyOptions = {}): Promise<TakenStatus> {
+  const now = opts.now ?? new Date();
+  const sender = opts.sender ?? realSender;
+  const t = await prisma.queueTicket.findUnique({ where: { id: ticketId } });
+  if (!t || !t.notifyConsent || (!t.phone && !t.email)) return "NONE";
+  const settings = await getSettings();
+  await queueItems(
+    [
+      {
+        kind: "QUEUE",
+        dedupeKey: takenKey(t.id),
+        phone: t.phone,
+        email: t.email,
+        customerId: t.customerId,
+        vehicleId: t.vehicleId,
+        subject: `${settings.garageName} : ${labelOf(t)}`,
+        body: queueMessage(t.lang, "taken", { garage: settings.garageName, ticket: labelOf(t), url: await trackLink(t.trackToken) }),
+      },
+    ],
+    sender,
+  );
+  if (!isCloudWithHub()) {
+    const send = deliverPending(now, sender, 10, { kind: "QUEUE", dedupeKey: takenKey(t.id) });
+    await Promise.race([send.catch(() => undefined), new Promise((r) => setTimeout(r, 4000))]);
+  }
+  return takenStatus(t.id);
+}
+
+/** Best status of the ticket's « taken » message (one row per channel). */
+export async function takenStatus(ticketId: string): Promise<TakenStatus> {
+  const rows = await prisma.notification.findMany({ where: { dedupeKey: takenKey(ticketId) }, select: { status: true } });
+  if (rows.length === 0) return "NONE";
+  for (const s of ["SENT", "PENDING", "FAILED", "SKIPPED"] as const) if (rows.some((r) => r.status === s)) return s;
+  return "PENDING";
+}
+
+/** Desk page of a manual ticket: today's ticket by its tracking token (staff with useReception only). */
+export async function deskTicketView(actor: StaffUser, trackToken: string) {
+  forbid(actor, "useReception");
+  const t = await prisma.queueTicket.findUnique({ where: { trackToken } });
+  if (!t) return null;
+  const [reason, link, status] = await Promise.all([
+    prisma.queueReason.findUnique({ where: { id: t.reasonId }, select: { nameFr: true, nameAr: true, nameEn: true } }),
+    trackLink(t.trackToken),
+    takenStatus(t.id),
+  ]);
+  return { id: t.id, label: labelOf(t), status: t.status, reason, link, message: status, withPhone: !!t.phone, withEmail: !!t.email, takenAt: t.takenAt, lang: t.lang };
 }
 
 // ── Printer (optional, ESC/POS over the network) ──────────────────────────────

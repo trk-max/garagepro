@@ -5,6 +5,7 @@ import {
   Ticket,
 } from "lucide-react";
 import { Award, GraduationCap } from "lucide-react";
+import { TicketPlus } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { Dictionary } from "@/lib/i18n/fr";
 import { can, type Permission, type PermSubject } from "@/lib/permissions";
@@ -22,7 +23,9 @@ export type NavKey =
   // V14 — carte des compétences.
   | "skills" | "mySkills"
   // V15 — accueil (file d'attente)
-  | "reception";
+  | "reception"
+  // staff-ux — ticket manuel de l'accueil (page à part)
+  | "receptionTicket";
 
 export type NavBadges = Partial<Record<NavKey, number>>;
 export type NavItem = { key: NavKey; href: string; icon: LucideIcon; permission?: Permission };
@@ -37,6 +40,8 @@ export const NAV_GROUPS: NavGroup[] = [
       { key: "appointments", href: "/garage/appointments", icon: CalendarDays, permission: "viewAppointments" },
       // V15: reception desk (queue) — in the "More" panel.
       { key: "reception", href: "/garage/accueil", icon: Ticket, permission: "useReception" },
+      // staff-ux: manual queue ticket (own page, can be sent to the customer's phone) — in the "More" panel.
+      { key: "receptionTicket", href: "/garage/accueil/ticket", icon: TicketPlus, permission: "useReception" },
       { key: "workshop", href: "/garage/atelier", icon: Smartphone, permission: "useWorkshop" },
       { key: "workOrders", href: "/garage/work-orders", icon: ClipboardList, permission: "viewWorkOrders" },
       { key: "delays", href: "/garage/suivi", icon: TriangleAlert, permission: "manageRepairFollowUp" },
@@ -127,8 +132,9 @@ export function navLabel(t: Dictionary, key: NavKey): string {
   if (key === "agenda") return t.v12.nav;
   if (key === "skills" || key === "mySkills") return t.v14.nav[key];
   if (key === "reception") return t.v15.nav;
+  if (key === "receptionTicket") return t.staffUx.ticket.nav;
   if ((V7 as readonly string[]).includes(key)) return t.v7.nav[key as (typeof V7)[number]];
-  return t.nav[key as Exclude<NavKey, (typeof V7)[number] | "contracts" | "showroom" | "messages" | "vehicles" | "help" | "agenda" | "skills" | "mySkills" | "reception">];
+  return t.nav[key as Exclude<NavKey, (typeof V7)[number] | "contracts" | "showroom" | "messages" | "vehicles" | "help" | "agenda" | "skills" | "mySkills" | "reception" | "receptionTicket">];
 }
 
 /** Short label for the top pill bar. */

@@ -2030,6 +2030,8 @@ model QueueTicket {
   lang          String    @default("fr")
   /// Téléphone pour le SMS « c'est votre tour » : seulement avec le consentement du client.
   phone         String?
+  /// Ticket manuel (staff-ux) : e-mail pour les messages du ticket, seulement avec le consentement du client.
+  email         String?
   notifyConsent Boolean   @default(false)
   consentAt     DateTime?
   aheadNotified Boolean   @default(false)
