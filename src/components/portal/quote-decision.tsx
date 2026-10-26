@@ -60,7 +60,7 @@ export function PortalQuoteDecision({
       <button
         type="submit"
         disabled={pending}
-        className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-[#1f7a44] text-base font-semibold text-white hover:bg-[#19663a] disabled:opacity-60"
+        className="phone-pill h-12 text-base"
       >
         <CheckCircle2 className="size-5" aria-hidden /> {p.submit}
       </button>

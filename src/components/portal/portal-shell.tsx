@@ -6,6 +6,7 @@ import type { Dictionary } from "@/lib/i18n/fr";
 import { LangSwitch } from "@/components/garage/lang-switch";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { GpMonogram, GpWordmark } from "@/components/brand/garagepro-logo";
+import { AppTabBar, type AppTabLabels } from "@/components/pwa/app-tab-bar";
 
 type Labels = { tagline: string; about: string; assistant: string; track: string; book: string; staff: string; claims: string; showroom: string };
 
@@ -24,6 +25,7 @@ export function PortalShell({
   phone,
   labels,
   footer,
+  appTabs,
   children,
 }: {
   garageName: string;
@@ -31,6 +33,8 @@ export function PortalShell({
   phone: string | null;
   labels: Labels;
   footer: Dictionary["footer"];
+  /** PWA client app: bottom tab bar shown only when the site is opened from the home-screen icon. */
+  appTabs?: AppTabLabels;
   children: ReactNode;
 }) {
   const links = [
@@ -87,10 +91,12 @@ export function PortalShell({
         </nav>
       </header>
 
-      <main className="flex-1">{children}</main>
+      <main className={appTabs ? "flex-1 standalone:pb-[calc(5rem+env(safe-area-inset-bottom))]" : "flex-1"}>{children}</main>
+      {/* PWA client app (installed): the tab bar replaces the big footer. */}
+      {appTabs && <AppTabBar labels={appTabs} className="hidden standalone:block" />}
 
       <CinematicFooter
-        className="dark"
+        className={appTabs ? "dark standalone:hidden" : "dark"}
         giantText="GARAGEPRO"
         marquee={footer.marquee}
         heading={footer.heading}

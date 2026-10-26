@@ -28,7 +28,7 @@ export function MediaGallery({ items, emptyLabel }: { items: GalleryItem[]; empt
             <button
               type="button"
               onClick={() => setOpen(item)}
-              className="group relative block aspect-square w-full overflow-hidden rounded-md bg-muted focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:outline-none"
+              className="group relative block aspect-[4/3] w-full overflow-hidden rounded-[18px] bg-muted focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:outline-none"
             >
               {item.kind === "PHOTO" ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -40,7 +40,8 @@ export function MediaGallery({ items, emptyLabel }: { items: GalleryItem[]; empt
                 </>
               )}
               {item.caption && (
-                <span className="absolute inset-x-0 bottom-0 truncate bg-gradient-to-t from-black/70 to-transparent px-2 pt-6 pb-1.5 text-start text-xs text-white">
+                // Label chip of the owner's mock-up (RÉCEPTION, DIAGNOSTIC…): the caption in small capitals.
+                <span className="absolute start-2 bottom-2 max-w-[calc(100%-1rem)] truncate rounded-full bg-black/65 px-2.5 py-1 text-[10px] font-semibold tracking-wider text-white uppercase backdrop-blur-sm">
                   {item.caption}
                 </span>
               )}

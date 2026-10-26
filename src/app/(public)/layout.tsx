@@ -30,6 +30,7 @@ export default async function PublicLayout({ children }: { children: ReactNode }
         showroom: t.showroom.nav.publicLink,
       }}
       footer={t.footer}
+      appTabs={{ home: t.app.client.home, track: t.app.client.tabTrack, book: t.app.client.tabBook, showroom: t.app.client.showroom, nav: t.app.client.tabs }}
     >
       {children}
       <AskAiWidget

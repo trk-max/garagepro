@@ -1,19 +1,19 @@
 "use client";
 
+import type React from "react";
 import { portalLoginAction } from "@/actions/portal";
 import { ActionForm } from "@/components/action-form";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { displayPlate } from "@/lib/format";
 import { useI18n } from "@/lib/i18n/client";
 
+/** Plate + 4-digit code, in the app's dark rounded fields (label inside the box) and the orange pill. */
 export function PortalLoginForm({ defaultPlate }: { defaultPlate: string }) {
   const { t } = useI18n();
   return (
-    <ActionForm action={portalLoginAction} reset={false} silent className="mt-6 space-y-4">
-      <label className="block space-y-1.5 text-sm">
-        <span className="f-label text-muted-foreground">{t.portal.plate}</span>
-        <Input
+    <ActionForm action={portalLoginAction} reset={false} silent className="mt-6 space-y-3">
+      <label className="phone-field">
+        <span className="phone-kicker">{t.portal.plate}</span>
+        <input
           name="plate"
           required
           defaultValue={defaultPlate ? displayPlate(defaultPlate) : ""}
@@ -21,12 +21,12 @@ export function PortalLoginForm({ defaultPlate }: { defaultPlate: string }) {
           autoComplete="off"
           autoCapitalize="characters"
           dir="ltr"
-          className="h-12 text-center font-mono text-lg uppercase tracking-wider"
+          className="uppercase"
         />
       </label>
-      <label className="block space-y-1.5 text-sm">
-        <span className="f-label text-muted-foreground">{t.portal.pin}</span>
-        <Input
+      <label className="phone-field">
+        <span className="phone-kicker">{t.portal.pin}</span>
+        <input
           name="pin"
           required
           inputMode="numeric"
@@ -35,12 +35,14 @@ export function PortalLoginForm({ defaultPlate }: { defaultPlate: string }) {
           autoComplete="one-time-code"
           placeholder="••••"
           dir="ltr"
-          className="h-12 text-center font-mono text-2xl tracking-[0.6em]"
+          // Dots like the mock-up, without the password manager offering to save a "password".
+          style={{ WebkitTextSecurity: "disc" } as React.CSSProperties}
+          className="tracking-[0.4em]"
         />
       </label>
-      <Button type="submit" className="mt-2 h-12 w-full bg-primary text-primary-foreground hover:bg-brand-500 hover:text-white">
+      <button type="submit" className="phone-pill mt-3 w-full text-base" data-testid="portal-login-submit">
         {t.portal.loginSubmit}
-      </Button>
+      </button>
     </ActionForm>
   );
 }

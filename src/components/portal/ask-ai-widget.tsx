@@ -49,7 +49,7 @@ export function AskAiWidget(props: { aiEnabled: boolean; services: ChatService[]
           <AssistantChat {...props} embedded onClose={() => setOpen(false)} />
         </div>
       )}
-      <div className={open ? "fixed end-4 bottom-4 z-50 hidden print:hidden sm:block" : "fixed end-4 bottom-4 z-50 print:hidden"}>
+      <div className={open ? "fixed end-4 bottom-4 z-50 hidden print:hidden sm:block standalone:bottom-[calc(5.5rem+env(safe-area-inset-bottom))]" : "fixed end-4 bottom-4 z-50 print:hidden standalone:bottom-[calc(5.5rem+env(safe-area-inset-bottom))]"}>
         <button
           type="button"
           onClick={() => setOpen((o) => !o)}

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { CalendarClock, CheckCircle2, FileText, Gauge, LogOut, MessageCircle, Phone, PartyPopper, UserRound } from "lucide-react";
-import { approveQuoteAction, customerMessageAction, decideQuoteAction, portalLogoutAction } from "@/actions/portal";
+import { approveQuoteAction, customerMessageAction, decideQuoteAction } from "@/actions/portal";
+import { PortalLogoutForm } from "@/components/portal/portal-logout-form";
 import { PortalQuoteDecision } from "@/components/portal/quote-decision";
 import { ActionButton, ActionForm } from "@/components/action-form";
 import { PlateChip } from "@/components/garage/badges";
@@ -57,7 +58,13 @@ export default async function TrackerPage() {
 
   return (
     // V10: the tracking content uses the staff app's cards and chips (.gp-scope), the site header / footer stay as they are.
+    // PWA app: always dark, in the look of the owner's phone mock-ups (.gp-phone: graphite cards, orange pill).
+    <div className="dark gp-phone">
     <div className="gp-scope gp-stagger mx-auto max-w-3xl space-y-4 px-4 py-6">
+      <p className="flex items-center gap-2.5 px-1">
+        <span className="phone-dot" aria-hidden />
+        <span className="phone-kicker !text-white">{view.garage.name}</span>
+      </p>
       {/* ── Vehicle header ── */}
       <section className="rounded-[28px] bg-[#0b0b0c] p-5 text-white ring-1 ring-white/10 sm:p-6">
         <div className="flex items-start gap-3">
@@ -73,11 +80,11 @@ export default async function TrackerPage() {
           </div>
           <div className="flex flex-col items-end gap-2">
             <LiveRefresh url="/api/portal/live" liveLabel={t.portal.live} reconnectingLabel={t.portal.reconnecting} onGone="/suivi" tone="dark" />
-            <form action={portalLogoutAction}>
+            <PortalLogoutForm>
               <button type="submit" className="inline-flex min-h-11 items-center gap-1.5 rounded-md px-2 text-sm text-slate-200 hover:bg-white/10 hover:text-white">
                 <LogOut className="size-4 rtl:rotate-180" aria-hidden /> {t.portal.logout}
               </button>
-            </form>
+            </PortalLogoutForm>
           </div>
         </div>
 
@@ -134,7 +141,7 @@ export default async function TrackerPage() {
         </p>
       )}
 
-      <RepairStepper steps={view.stepper.steps} progress={view.stepper.progress} ready={ready || delivered} t={t} />
+      <RepairStepper steps={view.stepper.steps} progress={view.stepper.progress} ready={ready || delivered} t={t} plate={view.vehicle.plate} />
 
       {/* ── Quote to approve ── */}
       {view.quote && (
@@ -173,7 +180,7 @@ export default async function TrackerPage() {
               action={approveQuoteAction}
               confirm={fmt(t.portal.approveConfirm, { amount: formatMoney(view.quote.totals.totalTtc, lang) })}
               successMessage={t.portal.quoteApproved}
-              className="h-11 flex-1 rounded-full bg-[#1f7a44] text-base text-white hover:bg-[#19663a]"
+              className="phone-pill h-12 flex-1 text-base"
             >
               <CheckCircle2 className="size-5" aria-hidden /> {t.portal.approveQuote}
             </ActionButton>
@@ -283,7 +290,7 @@ export default async function TrackerPage() {
 
       {/* ── Photos & videos ── */}
       <section className="rounded-[24px] border border-gp-line bg-gp-card p-5 text-gp-ink shadow-gp">
-        <h2 className="mb-3 font-semibold">{t.portal.gallery}</h2>
+        <h2 className="phone-kicker mb-3">{t.app.track.photos}</h2>
         <MediaGallery
           emptyLabel={t.portal.galleryEmpty}
           items={view.media.map((m) => ({ id: m.id, kind: m.kind, caption: m.caption, createdAt: m.createdAt.toISOString() }))}
@@ -351,6 +358,7 @@ export default async function TrackerPage() {
           ))}
         </ol>
       </section>
+    </div>
     </div>
   );
 }

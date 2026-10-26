@@ -8,6 +8,8 @@
  * One accent, used with intent: Guard Red (#E10600) for primary actions and alerts.
  */
 @custom-variant dark (&:where(.dark, .dark *):not(:where(.theme-light, .theme-light *, .paper, .paper *)));
+/* PWA app: `standalone:` = opened from the home-screen icon (full screen, no browser bar). */
+@custom-variant standalone (@media (display-mode: standalone));
 
 :root {
   /* 6 px cards, 4 px controls, 2 px chips: precise, engineered corners. */
@@ -859,3 +861,98 @@ body:has(.gp-app) {
   mask-image: linear-gradient(to left, #000 85%, transparent);
 }
 
+/*
+ * PWA app (client « /app » and its tracking screens, team « /garage/app »): the owner's phone
+ * mock-ups — near-black canvas, rounded graphite cards, labels in small tracked capitals, white bold
+ * titles and ONE orange gradient for the main action (pill). Scoped to .gp-phone so nothing else changes.
+ */
+.gp-phone {
+  --phone-bg: #0b0b0c;
+  --phone-card: #161618;
+  --phone-field: #1c1c1f;
+  --phone-line: rgb(255 255 255 / 0.08);
+  --phone-muted: #9a9aa1;
+  --phone-orange-from: #f58a4f;
+  --phone-orange-to: #e2603a;
+  --phone-red: #e8412c;
+  --phone-green: #2e9e5b;
+  background: var(--phone-bg);
+  color: #fff;
+  color-scheme: dark;
+}
+.gp-phone .phone-card {
+  border-radius: 24px;
+  border: 1px solid var(--phone-line);
+  background: var(--phone-card);
+}
+.gp-phone .phone-kicker {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--phone-muted);
+}
+[dir="rtl"] .gp-phone .phone-kicker {
+  letter-spacing: 0;
+}
+.gp-phone .phone-pill {
+  display: inline-flex;
+  min-height: 3.25rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 9999px;
+  padding: 0 1.5rem;
+  font-weight: 600;
+  color: #fff;
+  background: linear-gradient(180deg, var(--phone-orange-from), var(--phone-orange-to));
+  box-shadow: 0 10px 30px -10px rgb(226 96 58 / 0.7);
+  transition: filter 0.15s, transform 0.15s;
+}
+.gp-phone .phone-pill:hover {
+  filter: brightness(1.06);
+}
+.gp-phone .phone-pill:active {
+  transform: scale(0.98);
+}
+.gp-phone .phone-pill:disabled {
+  opacity: 0.6;
+}
+.gp-phone .phone-pill:focus-visible,
+.gp-phone .phone-field:focus-within {
+  outline: 2px solid var(--phone-orange-from);
+  outline-offset: 2px;
+}
+/* A field with its label inside the box (IMMATRICULATION / CODE DE SUIVI). */
+.gp-phone .phone-field {
+  display: block;
+  border-radius: 18px;
+  border: 1px solid var(--phone-line);
+  background: var(--phone-field);
+  padding: 0.75rem 1.125rem 0.625rem;
+}
+.gp-phone .phone-field input {
+  margin-top: 0.25rem;
+  width: 100%;
+  background: transparent;
+  font-size: 1.5rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: #fff;
+  caret-color: var(--phone-orange-from);
+  outline: none;
+}
+.gp-phone .phone-field input::placeholder {
+  color: rgb(255 255 255 / 0.25);
+}
+.gp-phone .phone-dot {
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+  background: var(--phone-red);
+}
+/* Customer site opened as an installed app: room for the bottom tab bar (iPhone home bar included). */
+.app-tabbar-space {
+  padding-bottom: calc(5rem + env(safe-area-inset-bottom));
+}
