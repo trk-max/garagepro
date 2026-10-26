@@ -43,7 +43,8 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
           {children}
         </I18nProvider>
         <PwaRegister />
-        <Toaster position={dir === "rtl" ? "bottom-left" : "bottom-right"} richColors theme={theme} dir={dir} />
+        {/* Phones: above the bottom tab bars (staff and client app). */}
+        <Toaster position={dir === "rtl" ? "bottom-left" : "bottom-right"} mobileOffset={{ bottom: "calc(5.5rem + env(safe-area-inset-bottom))" }} richColors theme={theme} dir={dir} />
       </body>
     </html>
   );

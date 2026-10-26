@@ -3,7 +3,7 @@ export const staffMobileFr = {
   tabs: {
     nav: "Navigation principale",
     home: "Accueil",
-    myCars: "Mes véhicules",
+    myCars: "Véhicules",
     board: "Atelier",
     timeClock: "Pointage",
     todo: "À traiter",

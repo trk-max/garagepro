@@ -5,7 +5,7 @@ export const staffMobileEn: typeof staffMobileFr = {
   tabs: {
     nav: "Main navigation",
     home: "Home",
-    myCars: "My vehicles",
+    myCars: "Vehicles",
     board: "Workshop",
     timeClock: "Time clock",
     todo: "To do",

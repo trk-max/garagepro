@@ -16,7 +16,7 @@ const ICONS: Record<PhoneTabKey, LucideIcon> = {
   customers: UserRound, invoices: FileText, stock: Boxes, receipts: PackageCheck, showroom: CarFront,
 };
 
-const tab = "relative flex min-h-16 flex-1 flex-col items-center justify-center gap-1 px-1 text-[11px] leading-none font-medium";
+const tab = "relative flex min-h-16 flex-1 flex-col items-center justify-center gap-1 px-0.5 text-center text-[11px] leading-none font-medium whitespace-nowrap";
 
 /**
  * Phones and tablets (< 1024 px): labelled bottom tab bar chosen by role (4 tabs + « Plus » = every page the
