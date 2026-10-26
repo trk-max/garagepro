@@ -41,6 +41,21 @@ Il n'y a **qu'une seule base de données** (Supabase en ligne + sa copie sur le 
 - Réservez l'adresse du PC du garage dans la box (bail DHCP fixe) ; si elle change, refaites `npm run shortcut`.
 - Pour que le site en ligne s'ouvre sans compte Vercel : Vercel → projet → *Settings* → *Deployment Protection* → *Vercel Authentication* → ne protéger que les *Preview Deployments* (sinon chaque PC doit se connecter à Vercel).
 
+## Nouveautés — l'application sur téléphone (sans store)
+
+- **Deux applications installables** sur l'écran d'accueil (iPhone : Partager → « Sur l'écran d'accueil » ;
+  Android : « Installer ») : l'**app client** `/app` (nom du garage) et l'**app équipe** « GaragePro Équipe »
+  (`/equipe`). Mode d'emploi simple : [docs/APP.md](docs/APP.md).
+- **App client** : accueil en gros boutons (Suivre ma réparation, Prendre rendez-vous, Showroom, Assistant,
+  Appeler / WhatsApp, Prestations « à partir de »), barre d'onglets en bas une fois installée ; écrans de suivi
+  au style des maquettes (code à 4 chiffres, avancement %, étapes, photos, devis ligne par ligne inchangé).
+- **Espace équipe** `/garage/app` : actions principales selon le métier (mécanicien : mes véhicules, statut,
+  temps passé, travaux et pièces, inspection, photos ; accueil : file, rendez-vous du jour, nouvel ordre, devis,
+  prêts à livrer ; responsable : À traiter, tableau atelier ; magasinier : pièces manquantes, réceptions, stock bas),
+  toujours filtrées par les droits de chacun.
+- L'installation complète demande le site **https** ; sur le Wi-Fi du garage (`http://192.168.x.x:3000/equipe`)
+  on ajoute un raccourci. Icônes : `node scripts/pwa-icons.mjs`. Captures : `docs/media/app/`.
+
 ## Nouveautés — « À traiter » montre la voiture, paiements partiels et date du prochain paiement
 
 - **Chaque ligne d'« À traiter » mène aux fiches exactes** (cloche et page) : `/garage/a-traiter/<élément>` liste
