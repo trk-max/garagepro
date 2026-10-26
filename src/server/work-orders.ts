@@ -25,6 +25,7 @@ import type { StaffUser } from "@/lib/session";
 import { getSettings } from "@/server/settings";
 import { generatePin } from "@/server/portal-session";
 import { recordAssignment } from "@/server/assignment-alerts";
+import { schedulePushAssignment } from "@/server/push";
 import {
   ACTIVE_STATUSES,
   TRANSITIONS,
@@ -274,7 +275,7 @@ function assertVehicleComplete(v: { vin?: string | null; year?: number | null; f
 
 /** Vehicle check-in: resolves/creates customer + vehicle, opens the order. */
 export async function createWorkOrder(input: CreateWorkOrderInput, actor: StaffUser) {
-  return prisma.$transaction(async (tx) => {
+  const created = await prisma.$transaction(async (tx) => {
     let customerId = input.customerId;
     if (!customerId) {
       if (!input.newCustomer) throw new AppError("invalid");
@@ -349,6 +350,9 @@ export async function createWorkOrder(input: CreateWorkOrderInput, actor: StaffU
     if (input.diagnosticFee) await addDiagnosticFeeLine(tx, wo.id, actor);
     return wo;
   });
+  // Web Push « Nouveau véhicule pour vous » to the mechanic chosen at check-in (after the order is saved).
+  if (input.mechanicId) schedulePushAssignment(created.id, input.mechanicId, actor.id);
+  return created;
 }
 
 /** V16 Lot 3 — « Frais de diagnostic » line (announced fee, accepted at reception). Nothing when no fee is set. */

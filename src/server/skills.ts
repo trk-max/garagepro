@@ -34,6 +34,7 @@ import { audit } from "@/server/audit";
 import { putObject, readObject } from "@/server/storage";
 import { ACTIVE_STATUSES, DELIVERED_STATUSES, isFinal } from "@/server/workflow";
 import { recordAssignment } from "@/server/assignment-alerts";
+import { schedulePushAssignment } from "@/server/push";
 
 /**
  * V14 — carte des compétences (serveur). Every read of a person's skills checks the access here
@@ -497,7 +498,9 @@ export async function assignWithSkills(
   input: { mechanicId: string | null; supervisorId?: string | null; overrideReason?: string | null },
   now = new Date(),
 ): Promise<{ warnings: SkillWarning[]; changed: boolean }> {
-  return prisma.$transaction(async (tx) => {
+  // Web Push « Nouveau véhicule pour vous », sent once the assignment is saved (never blocks nor breaks it).
+  let pushTo: string | null = null;
+  const result = await prisma.$transaction(async (tx) => {
     const wo = await tx.workOrder.findUnique({ where: { id: workOrderId }, select: { ...ORDER_SKILL_SELECT, status: true, mechanicId: true, supervisorId: true } });
     if (!wo) throw new AppError("notFound", {}, 404);
     if (isFinal(wo.status)) throw new AppError("final", {}, 409);
@@ -533,6 +536,7 @@ export async function assignWithSkills(
     });
     // « Nouveau véhicule pour vous »: alert for the new mechanic, removed for the previous one.
     await recordAssignment(tx, workOrderId, wo.mechanicId, mechanicId);
+    if (mechanicId && mechanicId !== wo.mechanicId) pushTo = mechanicId;
     await tx.workOrderEvent.create({
       data: { workOrderId, actorId: actor.id, type: "ASSIGNED", data: { to: mechanic?.name ?? null, ...(supervisor ? { supervisor: supervisor.name } : {}) } },
     });
@@ -543,6 +547,8 @@ export async function assignWithSkills(
     if (override) await audit(tx, actor, "skills.override", "WorkOrder", workOrderId, { after: { mechanicId, skills: override.skills, reason: override.reason } });
     return { warnings, changed: true };
   });
+  if (pushTo) schedulePushAssignment(workOrderId, pushTo, actor.id);
+  return result;
 }
 
 /** Required skills chosen by hand (null = back to the deduced ones). */

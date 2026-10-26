@@ -2709,3 +2709,19 @@ model SkillReviewRequest {
   @@index([status])
   @@index([userId])
 }
+
+/// Notifications Web Push (téléphone, même app fermée) : un abonnement par téléphone / navigateur qui a accepté.
+/// Supprimé quand le service de notification répond 404 / 410 (abonnement mort). Migration 32.
+model PushSubscription {
+  id            String    @id @default(cuid())
+  userId        String
+  endpoint      String    @unique
+  p256dh        String
+  auth          String
+  userAgent     String?
+  createdAt     DateTime  @default(now())
+  lastSuccessAt DateTime?
+  failedAt      DateTime?
+
+  @@index([userId])
+}
