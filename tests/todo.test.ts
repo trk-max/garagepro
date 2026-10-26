@@ -29,7 +29,7 @@ describe("V10.4 à traiter — visibility", () => {
 
   it("each role sees only its own work", () => {
     for (const role of ROLES) expect(todoKeysFor(role).length, role).toBeGreaterThan(0);
-    expect(todoKeysFor("MECHANIC")).toEqual(["vehicleInfo", "warrantyOpen"]);
+    expect(todoKeysFor("MECHANIC")).toEqual(["newAssignments", "vehicleInfo", "warrantyOpen"]) // « Nouveau véhicule pour vous » (équipe sur téléphone);
     expect(todoKeysFor("SELLER")).toEqual(["unreadMessages"]);
     expect(todoKeysFor("STOREKEEPER")).toEqual(["missingParts", "lowStock"]);
     // Paiements partiels: whoever sees the customer invoices sees the missed promises and the partly paid invoices too.
@@ -39,7 +39,7 @@ describe("V10.4 à traiter — visibility", () => {
 
   it("per-user access (V10.3) applies: a granted permission adds the item, a denied one removes it", () => {
     const mechanic = { role: "MECHANIC" as Role, perms: { grant: ["approvePurchase", "manageTeam"] as const, deny: ["viewWorkOrders"] as const } };
-    expect(todoKeysFor(mechanic)).toEqual(["warrantyOpen", "leaves", "purchaseOrders"]);
+    expect(todoKeysFor(mechanic)).toEqual(["newAssignments", "warrantyOpen", "leaves", "purchaseOrders"]);
     const admin = { role: "ADMIN" as Role, perms: { grant: [] as const, deny: ["manageSettings", "approvePurchase"] as const } };
     expect(todoKeysFor(admin)).not.toContain("backup");
     expect(groupTodos(all, admin).approval.map((i) => i.key)).not.toContain("purchaseOrders");
