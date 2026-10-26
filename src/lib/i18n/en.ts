@@ -9,6 +9,7 @@ import { v14En } from "@/lib/i18n/v14-en";
 import { v15En } from "@/lib/i18n/v15-en";
 import { v16En } from "@/lib/i18n/v16-en";
 import { appEn } from "@/lib/i18n/app-en";
+import { staffUxEn } from "@/lib/i18n/staff-ux-en";
 import { contractsEn } from "@/lib/i18n/contracts-en";
 import { v7En } from "@/lib/i18n/v7-en";
 import { showroomEn } from "@/lib/i18n/showroom-en";
@@ -1043,4 +1044,6 @@ export const en: Dictionary = {
   v16: v16En,
   /** Application installable (PWA) : app client et Espace équipe. */
   app: appEn,
+  /** feat/staff-ux — prise en charge d’abord, QR du véhicule, ticket manuel. */
+  staffUx: staffUxEn,
 };

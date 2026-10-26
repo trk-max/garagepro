@@ -10,6 +10,7 @@ import { prisma } from "@/lib/prisma";
 import { requirePageAccess } from "@/lib/session";
 import { getSettings } from "@/server/settings";
 import { getWorkOrder } from "@/server/work-orders";
+import { vehicleQrForDocument } from "@/components/garage/vehicle-qr-mini";
 
 type PageProps = { params: Promise<{ id: string }>; searchParams: Promise<{ v?: string }> };
 
@@ -31,6 +32,8 @@ export default async function QuotePage({ params, searchParams }: PageProps) {
   const liveLines = wo.lines.filter((l) => !l.voidedAt && l.approvalStatus !== "REFUSED");
 
   const totals = computeTotals(liveLines, settings.stampDuty);
+  // staff-ux: the vehicle's QR (carnet) printed in the vehicle block, from the vehicle's current token.
+  const vehicleQr = await vehicleQrForDocument(wo.vehicle.qrToken, t);
 
   return (
     <div className="space-y-4 bg-muted/30 p-6 print:bg-white print:p-0">
@@ -45,6 +48,7 @@ export default async function QuotePage({ params, searchParams }: PageProps) {
         t={t}
         lang={lang}
         logo={settings.logoDataUrl}
+        vehicleQr={vehicleQr}
         doc={{
           kind: "quote",
           number: quote ? quote.number : `D-${woNumber(wo.number).slice(3)}`,

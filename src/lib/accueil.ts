@@ -228,21 +228,24 @@ export const QUEUE_MESSAGES = {
   fr: {
     called: "{garage} : c'est votre tour ! Ticket {ticket}, {counter}.",
     ahead: "{garage} : encore {n} personne(s) avant vous (ticket {ticket}).{link}",
+    taken: "{garage} : votre ticket est le {ticket}. Nous vous préviendrons quand ce sera votre tour.{link}",
     link: " Suivi : {url}",
   },
   ar: {
     called: "{garage} : حان دوركم! التذكرة {ticket}، {counter}.",
     ahead: "{garage} : أمامكم {n} شخص (التذكرة {ticket}).{link}",
+    taken: "{garage} : رقم تذكرتكم {ticket}. سنعلمكم عندما يحين دوركم.{link}",
     link: " المتابعة: {url}",
   },
   en: {
     called: "{garage}: it is your turn! Ticket {ticket}, {counter}.",
     ahead: "{garage}: {n} person(s) before you (ticket {ticket}).{link}",
+    taken: "{garage}: your ticket is {ticket}. We will let you know when it is your turn.{link}",
     link: " Follow: {url}",
   },
 } as const;
 
-export function queueMessage(lang: string, kind: "called" | "ahead", vars: { garage: string; ticket: string; counter?: string; n?: number; url?: string | null }): string {
+export function queueMessage(lang: string, kind: "called" | "ahead" | "taken", vars: { garage: string; ticket: string; counter?: string; n?: number; url?: string | null }): string {
   const m = QUEUE_MESSAGES[lang === "ar" || lang === "en" ? lang : "fr"];
   const link = vars.url ? m.link.replace("{url}", vars.url) : "";
   return m[kind]

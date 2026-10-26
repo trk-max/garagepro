@@ -145,7 +145,9 @@ describe("V10 — repair orders and mechanics", () => {
       await prisma.workOrder.update({ where: { id: wo.id }, data: { mechanicId: m.id } });
     }
     await prisma.clockEvent.create({ data: { userId: m.id, kind: "IN", at: new Date(Date.now() - 3_600_000), method: "CORRECTION" } });
-    const off = await makeUser("MECHANIC");
+    // The list is capped at 50 and the shared test database now holds more mechanics than that (other files):
+    // an idle one sorts by name among the idle ones, so this one is named to come first.
+    const off = await makeUser("MECHANIC", { name: "A idle mechanic" });
     // The shared test database holds every mechanic created by the other files: take them all (an idle one sorts last).
     const list = await mechanicsNow(new Date(), 10_000);
     expect(list.find((x) => x.id === m.id)).toMatchObject({ activeOrders: 2, presence: "ACTIVE" });

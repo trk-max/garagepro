@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { CheckCircle2, ClipboardCheck, RotateCcw } from "lucide-react";
 import {
   attachResultPhotoAction,
@@ -104,6 +105,7 @@ export function InspectionCard({
   canInspect,
   canQuote,
   final,
+  embedded = false,
   t,
   lang,
 }: {
@@ -114,16 +116,25 @@ export function InspectionCard({
   canInspect: boolean;
   canQuote: boolean;
   final: boolean;
+  /** Inside the « Contrôle qualité » card (staff-ux): a section with a sub-title instead of its own card. */
+  embedded?: boolean;
   t: Dictionary;
   lang: Lang;
 }) {
   const v = t.v16.lot5.inspection;
   const colors = ["GREEN", "ORANGE", "RED"] as const;
+  const Wrap = embedded ? EmbeddedSection : Card;
   return (
-    <Card data-testid="inspection-card">
-      <CardTitle className="flex items-center gap-2">
-        <ClipboardCheck className="size-4" aria-hidden /> {v.title}
-      </CardTitle>
+    <Wrap data-testid="inspection-card">
+      {embedded ? (
+        <h3 className="mb-1 flex items-center gap-2 text-base font-semibold">
+          <ClipboardCheck className="size-4" aria-hidden /> {v.title}
+        </h3>
+      ) : (
+        <CardTitle className="flex items-center gap-2">
+          <ClipboardCheck className="size-4" aria-hidden /> {v.title}
+        </CardTitle>
+      )}
       <p className="mb-3 text-xs text-muted-foreground">{v.intro}</p>
       {canInspect && !final && (
         templates.length ? (
@@ -245,7 +256,15 @@ export function InspectionCard({
           );
         })}
       </div>
-    </Card>
+    </Wrap>
+  );
+}
+
+function EmbeddedSection({ children, ...rest }: { children: ReactNode; "data-testid"?: string }) {
+  return (
+    <section className="mt-5 border-t border-gp-line pt-4" {...rest}>
+      {children}
+    </section>
   );
 }
 

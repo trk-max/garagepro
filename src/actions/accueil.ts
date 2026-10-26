@@ -16,6 +16,7 @@ import {
   createDevice,
   createTicket,
   moveTicket,
+  notifyTicketTaken,
   recallTicket,
   renameDevice,
   revokeDevice,
@@ -141,7 +142,14 @@ export async function deskConnectFormAction(form: FormData): Promise<Msg> {
   return deskConnectAction(String(form.get("counterId") ?? "") || null);
 }
 
-/** Ticket typed at the desk (customer who did not use the kiosk). */
+const email = z.string().trim().toLowerCase().email().max(200);
+
+/**
+ * Ticket typed at the desk (customer who did not use the kiosk) — page « Ticket manuel » (staff-ux).
+ * Optional phone and / or e-mail, ONLY with the customer's consent: the ticket number and the public tracking
+ * link are then sent (and the « encore N personnes » / « c'est votre tour » messages follow). Opens the ticket
+ * page (big number + QR of the tracking link).
+ */
 export async function deskManualTicketAction(form: FormData): Promise<Msg> {
   try {
     const actor = await requirePermission("useReception");
@@ -149,11 +157,15 @@ export async function deskManualTicketAction(form: FormData): Promise<Msg> {
     const consent = checkbox(raw.consent);
     const phone = raw.phone?.trim() ? validKioskPhone(raw.phone) : null;
     if (raw.phone?.trim() && !phone) throw new AppError("queuePhone", {}, 422);
-    if (phone && !consent) throw new AppError("queueConsent", {}, 422);
-    const r = await createTicket({ reasonId: id.parse(raw.reasonId), plate: raw.plate?.trim() || null, source: "DESK", actor, phone, consent, lang: raw.lang === "ar" ? "ar" : "fr" });
+    const address = raw.email?.trim() ? email.parse(raw.email) : null; // invalid → the usual « données invalides »
+    if ((phone || address) && !consent) throw new AppError("queueConsent", {}, 422);
+    const lang = raw.lang === "ar" || raw.lang === "en" ? raw.lang : "fr";
+    const r = await createTicket({ reasonId: id.parse(raw.reasonId), plate: raw.plate?.trim() || null, source: "DESK", actor, phone, email: address, consent, lang });
+    if (phone || address) await notifyTicketTaken(r.ticket.id);
     const { t } = await getI18n();
     refresh();
-    return { ok: true, data: { message: fmt(t.v15.desk.created, { ticket: r.label }) } };
+    revalidatePath("/garage/accueil/ticket");
+    return { ok: true, data: { message: fmt(t.v15.desk.created, { ticket: r.label }), redirectTo: `/garage/accueil/ticket?t=${encodeURIComponent(r.ticket.trackToken)}` } };
   } catch (error) {
     return toActionError(error);
   }

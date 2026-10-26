@@ -56,6 +56,24 @@ Il n'y a **qu'une seule base de données** (Supabase en ligne + sa copie sur le 
 - L'installation complète demande le site **https** ; sur le Wi-Fi du garage (`http://192.168.x.x:3000/equipe`)
   on ajoute un raccourci. Icônes : `node scripts/pwa-icons.mjs`. Captures : `docs/media/app/`.
 
+## Nouveautés — déconnexion partout, prise en charge d'abord, QR du véhicule, ticket manuel
+
+- **Déconnexion qui marche toujours** : le bouton envoie un vrai formulaire vers une adresse fixe
+  (`POST /api/staff/logout`), même sur une page ouverte avant une mise à jour du hub (avant : rien ne se passait).
+  La déconnexion ferme **toutes** les sessions du compte : les autres onglets partent sur la page de connexion tout de
+  suite, le téléphone à la page suivante ou dans la minute. Les autres comptes ne sont pas touchés. Bouton aussi
+  dans le panneau « Plus » sur téléphone. Migration `31_session_version` (additive) ; après la fusion :
+  `npm run db:cloud`.
+- **Ordre de réparation** : sur un nouvel ordre, la prise en charge et sa signature s'affichent en premier ; une fois
+  signée, elles se rangent derrière le bouton « Prise en charge signée — voir ».
+- **Inspection rouge / orange / vert** : maintenant dans la carte « Contrôle qualité ».
+- **QR du véhicule** (« Carnet du véhicule ») : dans la carte « Véhicule » de l'ordre, sur la fiche du véhicule
+  (fiche client) et imprimé sur le devis et la facture (fait à l'affichage, la copie figée de la facture ne change
+  pas). Il faut l'adresse du site (APP_URL ou *Paramètres*).
+- **Ticket manuel** : page à part *Accueil › Ticket manuel* (`/garage/accueil/ticket`). Avec l'accord du client,
+  le numéro et le lien de suivi partent sur son téléphone / e-mail, puis « encore N personnes » et « c'est votre
+  tour ». Grand numéro + QR du lien de suivi à scanner. Sans canal d'envoi configuré, rien n'est prétendu envoyé.
+
 ## Nouveautés — « À traiter » montre la voiture, paiements partiels et date du prochain paiement
 
 - **Chaque ligne d'« À traiter » mène aux fiches exactes** (cloche et page) : `/garage/a-traiter/<élément>` liste

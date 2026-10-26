@@ -11,10 +11,10 @@ import { useI18n } from "@/lib/i18n/client";
 import { can } from "@/lib/permissions";
 import { initials } from "@/components/shell/initials";
 import { MENU_KEYS, navLabel, pick, type NavBadges } from "@/components/shell/nav";
+import { signOutNow } from "@/components/shell/sign-out-form";
 
 export type ShellUser = { id: string; name: string; email: string; role: Role; perms?: PermOverrides };
 
-export const SIGN_OUT_FORM = "gp-sign-out";
 const LANG_NAMES: Record<Lang, string> = { fr: "Français", ar: "العربية", en: "English" };
 
 
@@ -99,10 +99,10 @@ export function UserMenu({ user, badges }: { user: ShellUser; badges: NavBadges 
           <HubStatus />
         </div>
         <DropdownMenuSeparator />
-        {/* The menu closes (and unmounts this item) on select, before a submit button's click could reach
-            the form: the hidden sign-out form is submitted from onSelect instead (runs its onSubmit too). */}
+        {/* The menu closes (and unmounts this item) on select: the shell's hidden NATIVE form is submitted
+            (POST /api/staff/logout, a fixed address that survives app updates), see sign-out-form.tsx. */}
         <DropdownMenuItem
-          onSelect={() => (document.getElementById(SIGN_OUT_FORM) as HTMLFormElement | null)?.requestSubmit()}
+          onSelect={signOutNow}
           className="rounded-full px-3 py-2.5 text-gp-danger-ink"
         >
           <LogOut className="rtl:rotate-180" aria-hidden /> {t.common.signOut}

@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { CheckCircle2, Timer } from "lucide-react";
 import type { WorkOrderStatus } from "@prisma/client";
 import {
@@ -52,8 +53,11 @@ type Wo = {
 const hours = (m: number) => `${minutesToHours(m).toLocaleString("fr-FR")} h`;
 const day = (d: Date | null, tz: string) => (d ? utcToZoned(d, tz).date : "");
 
-/** Work order: time per mechanic, quality control, insurance, missing parts. */
-export async function RepairPanels({ wo, staff, t, lang, tz }: { wo: Wo; staff: StaffUser; t: Dictionary; lang: Lang; tz: string }) {
+/**
+ * Work order: time per mechanic, quality control, insurance, missing parts.
+ * `inspection` (staff-ux): the red / orange / green inspection, shown inside the « Contrôle qualité » card.
+ */
+export async function RepairPanels({ wo, staff, t, lang, tz, inspection }: { wo: Wo; staff: StaffUser; t: Dictionary; lang: Lang; tz: string; inspection?: ReactNode }) {
   // V16 Lot 5: points set in the settings and the rework counter (from the status events, append-only).
   const [points, statusEvents] = await Promise.all([qualityPoints(), prisma.workOrderEvent.findMany({ where: { workOrderId: wo.id, type: "STATUS_CHANGED" }, select: { type: true, data: true } })]);
   const reworks = reworkCount(statusEvents);
@@ -262,7 +266,7 @@ export async function RepairPanels({ wo, staff, t, lang, tz }: { wo: Wo; staff: 
       </Card>
 
       {/* ── Quality control ── */}
-      <Card className={cn(wo.status === "QUALITY_CONTROL" && "border-cyan-500")}>
+      <Card className={cn(wo.status === "QUALITY_CONTROL" && "border-cyan-500")} data-testid="quality-card">
         <CardTitle>{v.quality.title}</CardTitle>
         {supervision && (
           <p className="mb-3 border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm">
@@ -331,6 +335,7 @@ export async function RepairPanels({ wo, staff, t, lang, tz }: { wo: Wo; staff: 
             <p className="mt-2 text-xs text-muted-foreground">{v.quality.changedResets}</p>
           </>
         )}
+        {inspection}
       </Card>
 
       {/* ── Missing parts ── */}

@@ -4,8 +4,8 @@ import { cache } from "react";
 import type { Role } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { AppError } from "@/lib/http";
-import { can, overridesFrom, type Permission, type PermOverrides } from "@/lib/permissions";
-import { prisma } from "@/lib/prisma";
+import { can, type Permission, type PermOverrides } from "@/lib/permissions";
+import { staffFromSession } from "@/server/staff-session";
 
 /**
  * `perms` = the user's own overrides (V10.3, table UserPermission). Pass the whole StaffUser to
@@ -20,14 +20,9 @@ export type StaffUser = { id: string; name: string; email: string; role: Role; p
  */
 export const getStaff = cache(async (): Promise<StaffUser | null> => {
   const session = await auth();
-  const id = session?.user?.id;
-  if (!id) return null;
-  const user = await prisma.user.findUnique({
-    where: { id },
-    select: { id: true, name: true, email: true, role: true, isActive: true, permissionOverrides: { select: { permission: true, effect: true } } },
-  });
-  if (!user || !user.isActive) return null;
-  return { id: user.id, name: user.name, email: user.email, role: user.role, perms: overridesFrom(user.permissionOverrides) };
+  // Same single lookup as before, plus the session version: a cookie older than the last « Déconnexion »
+  // of this account (another tab, the phone…) is treated as signed out (server/staff-session.ts).
+  return staffFromSession(session?.user);
 });
 
 /** Any signed-in team member. */

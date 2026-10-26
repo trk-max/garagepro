@@ -1,7 +1,7 @@
 import { isReworkMove } from "@/lib/lot5";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Activity, Ban, CheckCircle2, Eye, EyeOff, FileText, MessageCircle, Printer, Send, Trash2 } from "lucide-react";
+import { Activity, Ban, CheckCircle2, ChevronDown, ClipboardCheck, Eye, EyeOff, FileText, MessageCircle, Printer, Send, Trash2 } from "lucide-react";
 import { Priority } from "@prisma/client";
 import {
   addLineAction,
@@ -29,7 +29,7 @@ import { ReservationsCard } from "@/components/garage/reservations-card";
 import { OrderSuggestions } from "@/components/agenda/order-suggestions";
 import { SkillAssignSection } from "@/components/skills/assign-section";
 import { SupervisedBadge } from "@/components/skills/assign-card";
-import { VehicleQrCard } from "@/components/garage/vehicle-qr-card";
+import { VehicleQrMini } from "@/components/garage/vehicle-qr-mini";
 import { TrackingCard } from "@/components/garage/tracking-card";
 import { LiveRefresh } from "@/components/live-refresh";
 import { getBaseUrl } from "@/lib/base-url";
@@ -121,6 +121,32 @@ export default async function WorkOrderPage({ params }: PageProps) {
   const promises = wo.invoice && promiseBalance > 0 && can(staff, "viewClientInvoices") ? await invoicePromises(wo.invoice.id) : null;
   const promiseToday = utcToZoned(new Date(), settings.timezone).date;
   const intakeLocked = !!intakeSig;
+  // staff-ux: a NEW order (V16) whose intake is not signed yet shows the repair order + signature first; once
+  // signed (= complete: the signature freezes and locks the intake), both fold away behind a button.
+  const intakeFirst = wo.workflowV16 && !intakeLocked && !isFinal(wo.status);
+  const intakeBlocks = (
+    <>
+      {/* ── V10.6: repair order (prise en charge) — fuel, body, parts origin, estimate, deposit, CIN ── */}
+      <IntakeCard
+        workOrderId={wo.id}
+        locked={isFinal(wo.status) || intakeLocked}
+        lockedNote={intakeSig ? fmt(t.v16.lot4.intake.locked, { name: intakeSig.signerName, date: formatDateTime(intakeSig.signedAt, lang) }) : undefined}
+        t={t}
+        defaults={{ ...wo, customerNationalId: wo.customer.nationalId }}
+      />
+      {/* ── V16 Lot 4: the customer signs the intake on the tablet (frozen document + SHA-256, locks the intake) ── */}
+      <IntakeSignatureCard
+        workOrderId={wo.id}
+        signature={intakeSig}
+        intact={intakeIntact}
+        signerDefault={wo.customer.name}
+        canSign={can(staff, "signIntake")}
+        final={isFinal(wo.status)}
+        t={t}
+        lang={lang}
+      />
+    </>
+  );
   const manualNotices = wo.events.filter((e) => (e.data as { readyNotified?: boolean } | null)?.readyNotified).map((e) => e.createdAt);
   const notices = [...readyNotices.map((n) => n.sentAt ?? n.createdAt), ...manualNotices].filter((d) => !wo.readyAt || d >= new Date(wo.readyAt.getTime() - 60_000));
   const needHandover = isFinal(wo.status) ? false : handoverMissing({ requireSignedHandover: settings.requireSignedHandover, workflowLot4: wo.workflowLot4, handoverDone });
@@ -324,6 +350,29 @@ export default async function WorkOrderPage({ params }: PageProps) {
           </div>
         </header>
 
+        {intakeFirst ? (
+          <section className="space-y-4 rounded-[24px] border-2 border-gp-accent bg-gp-accent-tint/40 p-3 sm:p-4" data-testid="intake-first" aria-labelledby="intake-first-title">
+            <div className="px-1">
+              <h2 id="intake-first-title" className="flex items-center gap-2 text-lg font-semibold">
+                <ClipboardCheck className="size-5 text-gp-accent-ink" aria-hidden /> {t.staffUx.intake.firstTitle}
+              </h2>
+              <p className="mt-1 text-sm text-gp-muted">{t.staffUx.intake.firstHint}</p>
+            </div>
+            {intakeBlocks}
+          </section>
+        ) : intakeLocked ? (
+          // Signed: folded behind a button (native <details>, works without JavaScript), opened on demand.
+          <details className="group rounded-[24px] border border-gp-line bg-gp-card shadow-gp" data-testid="intake-folded">
+            <summary className="flex min-h-12 cursor-pointer list-none items-center gap-2 rounded-[24px] px-4 py-3 text-sm font-medium hover:bg-gp-hover [&::-webkit-details-marker]:hidden">
+              <CheckCircle2 className="size-4 text-gp-success-ink" aria-hidden />
+              <span className="flex-1 group-open:hidden">{t.staffUx.intake.show}</span>
+              <span className="hidden flex-1 group-open:inline">{t.staffUx.intake.hide}</span>
+              <ChevronDown className="size-4 transition-transform group-open:rotate-180" aria-hidden />
+            </summary>
+            <div className="space-y-5 p-3 pt-0 sm:p-4 sm:pt-0">{intakeBlocks}</div>
+          </details>
+        ) : null}
+
         {/* ── Lines ── */}
         <Card>
           <CardTitle>{t.workOrders.lines}</CardTitle>
@@ -475,21 +524,6 @@ export default async function WorkOrderPage({ params }: PageProps) {
         {/* ── V16 Lot 5: comeback (retour atelier) — suggested when the same vehicle was delivered < 30 days ago ── */}
         {comeback && <ComebackCard workOrderId={wo.id} view={comeback} canManage={can(staff, "manageComebacks")} final={final} t={t} lang={lang} />}
 
-        {/* ── V16 Lot 5: red / orange / green inspection (a red / orange point → quote line) ── */}
-        {(inspections.length > 0 || (!final && can(staff, "performInspection"))) && (
-          <InspectionCard
-            workOrderId={wo.id}
-            inspections={inspections}
-            templates={templates.map((tp) => ({ id: tp.id, name: tp.name }))}
-            parts={parts}
-            canInspect={can(staff, "performInspection")}
-            canQuote={can(staff, "manageQuotes") && !linesLocked}
-            final={final}
-            t={t}
-            lang={lang}
-          />
-        )}
-
         {/* ── V16 Lot 2: quote versions and the customer's decisions (who, when, channel, amount, lines) ── */}
         <QuotePanel
           workOrderId={wo.id}
@@ -514,7 +548,31 @@ export default async function WorkOrderPage({ params }: PageProps) {
         <OrderSuggestions workOrderId={wo.id} locked={linesLocked} staff={staff} t={t} lang={lang} />
 
         {/* ── Time per mechanic, quality control, missing parts, insurance (V7) ── */}
-        <RepairPanels wo={wo} staff={staff} t={t} lang={lang} tz={settings.timezone} />
+        {/* staff-ux: the red / orange / green inspection (V16 Lot 5: a red / orange point → quote line) now lives
+            inside the « Contrôle qualité » card. */}
+        <RepairPanels
+          wo={wo}
+          staff={staff}
+          t={t}
+          lang={lang}
+          tz={settings.timezone}
+          inspection={
+            (inspections.length > 0 || (!final && can(staff, "performInspection"))) && (
+              <InspectionCard
+                embedded
+                workOrderId={wo.id}
+                inspections={inspections}
+                templates={templates.map((tp) => ({ id: tp.id, name: tp.name }))}
+                parts={parts}
+                canInspect={can(staff, "performInspection")}
+                canQuote={can(staff, "manageQuotes") && !linesLocked}
+                final={final}
+                t={t}
+                lang={lang}
+              />
+            )
+          }
+        />
 
         {/* ── V16 Lot 4: storage fee due before invoicing (READY), then the signed handover (bon de restitution) ── */}
         {storage && (
@@ -540,9 +598,6 @@ export default async function WorkOrderPage({ params }: PageProps) {
             lang={lang}
           />
         )}
-
-        {/* ── Vehicle QR Code (created at check-in) ── */}
-        {can(staff, "manageVehicleQr") && <VehicleQrCard vehicle={{ id: wo.vehicle.id, qrToken: wo.vehicle.qrToken ?? null }} t={t} />}
 
         {/* ── OBD-II diagnostic (Prompt 3/5) ── */}
         {can(staff, "obdDiagnose") && (
@@ -629,26 +684,8 @@ export default async function WorkOrderPage({ params }: PageProps) {
           )}
         </Card>
 
-        {/* ── V10.6: repair order (prise en charge) — fuel, body, parts origin, estimate, deposit, CIN ── */}
-        <IntakeCard
-          workOrderId={wo.id}
-          locked={final || intakeLocked}
-          lockedNote={intakeSig ? fmt(t.v16.lot4.intake.locked, { name: intakeSig.signerName, date: formatDateTime(intakeSig.signedAt, lang) }) : undefined}
-          t={t}
-          defaults={{ ...wo, customerNationalId: wo.customer.nationalId }}
-        />
-
-        {/* ── V16 Lot 4: the customer signs the intake on the tablet (frozen document + SHA-256, locks the intake) ── */}
-        <IntakeSignatureCard
-          workOrderId={wo.id}
-          signature={intakeSig}
-          intact={intakeIntact}
-          signerDefault={wo.customer.name}
-          canSign={can(staff, "signIntake")}
-          final={final}
-          t={t}
-          lang={lang}
-        />
+        {/* Orders opened before V16 (or closed) without a signed intake: the repair order and its signature stay here. */}
+        {!intakeFirst && !intakeLocked && intakeBlocks}
 
         {/* ── Diagnosis & planning ── */}
         <Card>
@@ -821,6 +858,8 @@ export default async function WorkOrderPage({ params }: PageProps) {
               </>
             )}
           </dl>
+          {/* staff-ux: the vehicle's QR Code (created at check-in) lives in the « Véhicule » card. */}
+          <VehicleQrMini vehicle={{ id: wo.vehicle.id, qrToken: wo.vehicle.qrToken ?? null }} canManage={can(staff, "manageVehicleQr")} t={t} />
         </Card>
 
         {wo.invoice && canSeeInvoice && (

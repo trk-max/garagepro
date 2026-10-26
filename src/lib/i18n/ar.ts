@@ -9,6 +9,7 @@ import { v14Ar } from "@/lib/i18n/v14-ar";
 import { v15Ar } from "@/lib/i18n/v15-ar";
 import { v16Ar } from "@/lib/i18n/v16-ar";
 import { appAr } from "@/lib/i18n/app-ar";
+import { staffUxAr } from "@/lib/i18n/staff-ux-ar";
 import { contractsAr } from "@/lib/i18n/contracts-ar";
 import { v7Ar } from "@/lib/i18n/v7-ar";
 import { showroomAr } from "@/lib/i18n/showroom-ar";
@@ -1043,4 +1044,6 @@ export const ar: Dictionary = {
   v16: v16Ar,
   /** Application installable (PWA) : app client et Espace équipe. */
   app: appAr,
+  /** feat/staff-ux — prise en charge d’abord, QR du véhicule, ticket manuel. */
+  staffUx: staffUxAr,
 };

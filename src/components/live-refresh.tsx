@@ -53,6 +53,8 @@ export function LiveRefresh({
         if (res.status === 410 || res.status === 401) {
           stopped = true;
           if (onGone) window.location.href = onGone;
+          // Staff page whose session ended (« Déconnexion » in another tab or on the phone): back to the login page.
+          else if (res.status === 401 && url.startsWith("/api/staff/")) window.location.replace("/login");
           return;
         }
         if (!res.ok) throw new Error(String(res.status));

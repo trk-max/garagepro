@@ -1,12 +1,11 @@
 import Link from "next/link";
-import { BarChart3, Monitor, PhoneCall, Settings, SkipForward, Tablet } from "lucide-react";
+import { BarChart3, Monitor, PhoneCall, Settings, SkipForward, Tablet, Ticket } from "lucide-react";
 import {
   deskCallAction,
   deskCancelAction,
   deskCheckInAction,
   deskConnectAction,
   deskConnectFormAction,
-  deskManualTicketAction,
   deskMoveAction,
   deskNextAction,
   deskPriorityAction,
@@ -59,6 +58,10 @@ export default async function ReceptionDeskPage() {
     <div className="mx-auto max-w-7xl p-4 sm:p-6">
       <PageHeader title={v.desk.title} subtitle={v.desk.subtitle}>
         <LiveRefresh url="/api/staff/live?topic=reception" liveLabel={t.portal.live} reconnectingLabel={t.portal.reconnecting} />
+        {/* staff-ux: the manual ticket has its own page (send to the customer's phone, big number + QR). */}
+        <Link href="/garage/accueil/ticket" className="inline-flex h-10 items-center gap-2 rounded-full bg-gp-primary px-4 text-sm font-medium text-gp-primary-ink hover:opacity-90" data-testid="desk-manual-ticket">
+          <Ticket className="size-4" aria-hidden /> {t.staffUx.ticket.open}
+        </Link>
         {can(staff, "viewReceptionReports") && (
           <Link href="/garage/accueil/rapports" className="inline-flex h-10 items-center gap-2 rounded-full border px-4 text-sm hover:bg-muted">
             <BarChart3 className="size-4" aria-hidden /> {v.desk.links.reports}
@@ -223,34 +226,6 @@ export default async function ReceptionDeskPage() {
                 </li>
               ))}
             </ul>
-          </Card>
-
-          <Card>
-            <CardTitle>{v.desk.manual}</CardTitle>
-            <p className="-mt-2 mb-3 text-xs text-muted-foreground">{v.desk.manualHint}</p>
-            <ActionForm action={deskManualTicketAction} className="grid gap-3">
-              <Field label={v.desk.reason}>
-                <NativeSelect name="reasonId" required>
-                  {desk.reasons
-                    .filter((r) => r.isActive)
-                    .map((r) => (
-                      <option key={r.id} value={r.id}>
-                        {r.prefix} · {reasonName(r, lang)}
-                      </option>
-                    ))}
-                </NativeSelect>
-              </Field>
-              <Field label={v.desk.plate}>
-                <Input name="plate" maxLength={20} dir="ltr" autoCapitalize="characters" className="h-9 font-mono uppercase" />
-              </Field>
-              <Field label={v.desk.phone}>
-                <Input name="phone" inputMode="tel" maxLength={20} dir="ltr" className="h-9" />
-              </Field>
-              <label className="flex items-start gap-2 text-xs">
-                <input type="checkbox" name="consent" className="mt-0.5 size-4" /> {v.desk.consent}
-              </label>
-              <Button type="submit">{v.desk.create}</Button>
-            </ActionForm>
           </Card>
 
           <StatsCard t={t} lang={lang} desk={desk} />

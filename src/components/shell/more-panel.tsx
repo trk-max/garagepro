@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useId, useRef, useState } from "react";
-import { Ellipsis, X } from "lucide-react";
+import { Ellipsis, LogOut, X } from "lucide-react";
 import type { PermSubject } from "@/lib/permissions";
 import { InstallAppButton } from "@/components/pwa/install-app-button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { allowed, groupLabel, inMore, isActive, NAV_GROUPS, navLabel, type NavBadges } from "@/components/shell/nav";
 import { Tip } from "@/components/shell/tip";
+import { signOutNow } from "@/components/shell/sign-out-form";
 import { useI18n } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
 
@@ -105,6 +106,15 @@ export function MorePanel({ who, badges, triggerClassName }: { who: PermSubject;
           <div className="ms-auto empty:hidden">
             <InstallAppButton className="rounded-full border-gp-line bg-gp-card px-4" />
           </div>
+          {/* Phones / tablets: sign-out also here, next to the pages (same hidden form as the account menu). */}
+          <button
+            type="button"
+            onClick={signOutNow}
+            className="inline-flex min-h-11 items-center gap-2 rounded-full bg-gp-card px-4 text-sm font-medium text-gp-danger-ink hover:bg-gp-hover xl:hidden"
+            data-testid="more-sign-out"
+          >
+            <LogOut className="size-4 rtl:rotate-180" aria-hidden /> {t.common.signOut}
+          </button>
         </div>
         </>
         )}
