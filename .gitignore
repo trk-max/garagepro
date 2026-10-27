@@ -45,3 +45,6 @@ Thumbs.db
 /design-ref/
 /.swarm/
 /.claude-flow/
+
+# graphify knowledge graph — rebuilt locally (`graphify update .`)
+graphify-out/

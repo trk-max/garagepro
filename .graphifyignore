@@ -1,0 +1,6 @@
+# graphify: build the knowledge graph from the app code in src/ only.
+# Everything else (docs, screenshots, tests, tooling) is left out to keep
+# the graph code-only, so rebuilds are AST-only and cost no AI tokens.
+/*
+!/src/
+src/graphify-out/
