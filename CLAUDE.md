@@ -7,5 +7,5 @@ Rules:
 - Skip the graph when the task already names the exact file or symbol: open it directly.
 - If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
 - Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
-- After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
+- The graph refreshes itself at the end of every turn (Stop hook in .claude/settings.json); do not run `graphify update` yourself.
 - The graph covers src/ only (see .graphifyignore). graphify-out/ is git-ignored: if it is missing, build it with `graphify update .`.

@@ -21,6 +21,17 @@
           }
         ]
       }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "graphify update . >/dev/null 2>&1 || true",
+            "timeout": 300
+          }
+        ]
+      }
     ]
   }
 }
