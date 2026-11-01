@@ -51,3 +51,7 @@ Ideas beyond the 81 prompts, to discuss after the pilot. ★ = strong fit for Tu
   (legal and logistics to check; needs many subscribed garages).
 - **GaragePro Connect (OBD dongle with SIM)**: researched — see `research/reports/OBD dongle with SIM for GaragePro.md`;
   pilot prompt **P1** in `prompts/PROMPTS-3.md` (file 82 in `send/`). Fleets and garages pay, devices rented.
+- **GaragePro Certifié (trust label)**: earned automatically each month from real data — final invoice close to the
+  approved quote, proof photos, part origin shown, written warranty, reviews only from paying clients, complaints
+  closed in time, few comebacks. Badge on the garage site, Google and quotes, public "Trust" page, QR to verify.
+  Fair public rules with review/appeal, never sold; check consumer-law use of "certifié". Needs many garages.
