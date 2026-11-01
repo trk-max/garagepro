@@ -1,0 +1,21 @@
+Project rules for this task (GaragePro, Next.js 15 + Prisma 6 + PostgreSQL, French codebase):
+- Follow CLAUDE.md (graphify: use `graphify explain` / `graphify path` before broad searches).
+- First explore and give me a short plan (files to change, migration, permissions, risks). Wait for my OK, then implement.
+- Database changes: a new ADDITIVE migration `prisma/migrations/<next number>_<name>/migration.sql`
+  (IF NOT EXISTS, nothing renamed or dropped, same habits as migration 32) + prisma/schema.prisma.
+  New tables must be synchronised by the offline hub (scripts/hub); check it. Remind me to run `npm run db:cloud` after merge.
+- Permissions only through the MATRIX in src/lib/permissions.ts, checked in the Server Action AND in the page.
+- Money in millimes (integers), quantities ×100, as everywhere else. Money/stock changes go to the audit log (src/server/audit.ts).
+- Every visible text in French, Arabic (full RTL) and English, in src/lib/i18n/*-fr.ts / *-ar.ts / *-en.ts.
+- Must keep working on the garage hub without internet. An external service with no key configured = feature hidden or
+  disabled with a clear message; never pretend something was sent or paid.
+- Mobile first (390 px) and desktop; no horizontal overflow.
+- Tests: unit tests in tests/, database tests as *.db.test.ts (npm run test:db). Run `npm run check` and show the result.
+- Add a "Nouveautés" section at the top of README.md and a short guide in docs/ in simple French.
+- Commit in small steps with clear French messages. Do not open a pull request unless I ask.
+
+EV profile, built on the skills matrix (competences): high-voltage qualification levels per technician (configurable,
+e.g. IMI 1–4 or DGUV S/1S/2S/2E/3S) with certificate and expiry; only qualified technicians can be assigned or start a
+timer on an HV job; HV isolation checklist (de-energise, lock-out, verify zero voltage, signed by the qualified person)
+required before work; quarantine log for damaged EVs/batteries (location, checks, fire-risk notes); battery state-of-
+health report attached to the vehicle and shown on the client portal; EV-specific maintenance items in the agenda.

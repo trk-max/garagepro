@@ -1,5 +1,7 @@
 # Order to send — doing it yourself with the AI
 
+> **Shortcut:** the folder `send/` already contains each message ready to paste (preamble + prompt), numbered 01 → 74 in this exact order. Open `send/00-READ-ME-FIRST.md`.
+
 **One line = one new Claude Code session.** In each session send, in this order:
 1. the text of `prompts/00-PREAMBLE.md` (the block between the ``` lines),
 2. the prompt named in the line (copy only its block between the ``` lines),

@@ -1,0 +1,28 @@
+Project rules for this task (GaragePro, Next.js 15 + Prisma 6 + PostgreSQL, French codebase):
+- Follow CLAUDE.md (graphify: use `graphify explain` / `graphify path` before broad searches).
+- First explore and give me a short plan (files to change, migration, permissions, risks). Wait for my OK, then implement.
+- Database changes: a new ADDITIVE migration `prisma/migrations/<next number>_<name>/migration.sql`
+  (IF NOT EXISTS, nothing renamed or dropped, same habits as migration 32) + prisma/schema.prisma.
+  New tables must be synchronised by the offline hub (scripts/hub); check it. Remind me to run `npm run db:cloud` after merge.
+- Permissions only through the MATRIX in src/lib/permissions.ts, checked in the Server Action AND in the page.
+- Money in millimes (integers), quantities ×100, as everywhere else. Money/stock changes go to the audit log (src/server/audit.ts).
+- Every visible text in French, Arabic (full RTL) and English, in src/lib/i18n/*-fr.ts / *-ar.ts / *-en.ts.
+- Must keep working on the garage hub without internet. An external service with no key configured = feature hidden or
+  disabled with a clear message; never pretend something was sent or paid.
+- Mobile first (390 px) and desktop; no horizontal overflow.
+- Tests: unit tests in tests/, database tests as *.db.test.ts (npm run test:db). Run `npm run check` and show the result.
+- Add a "Nouveautés" section at the top of README.md and a short guide in docs/ in simple French.
+- Commit in small steps with clear French messages. Do not open a pull request unless I ask.
+
+Today Vehicle assumes a car: plate globally unique, km only, fixed FuelType enum. Generalise without breaking anything:
+1. Asset class: car, light utility, motorcycle/scooter, truck, bus, trailer, agricultural machine, construction machine,
+   boat/other — configurable list with icon and default fields.
+2. Identifiers: plate (+ country, + plate type: normal, temporary, foreign, none), VIN, serial number, fleet/unit number.
+   Plate unique per country (and later per organisation), not globally. Find vehicles by any identifier.
+3. Meters: several per asset (km, miles, engine hours, PTO hours), each reading dated and kept in history; work orders,
+   maintenance plans, reminders and reports accept any meter. Display in km or miles per garage setting.
+4. Energy: replace FuelType enum by a table (petrol, diesel, LPG, CNG, mild hybrid, full hybrid, plug-in hybrid, battery
+   electric, hydrogen) + battery capacity for EV/PHEV.
+5. Parent/child links (tractor + trailer, truck + body/crane).
+6. Safe migration: existing data mapped (car, km reading from current fields), all pages, documents, portal, OBD, agenda
+   and tests still work. List every place that reads km or plate and show me before changing.

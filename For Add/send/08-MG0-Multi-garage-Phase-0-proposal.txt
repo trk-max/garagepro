@@ -1,0 +1,101 @@
+Project rules for this task (GaragePro, Next.js 15 + Prisma 6 + PostgreSQL, French codebase):
+- Follow CLAUDE.md (graphify: use `graphify explain` / `graphify path` before broad searches).
+- First explore and give me a short plan (files to change, migration, permissions, risks). Wait for my OK, then implement.
+- Database changes: a new ADDITIVE migration `prisma/migrations/<next number>_<name>/migration.sql`
+  (IF NOT EXISTS, nothing renamed or dropped, same habits as migration 32) + prisma/schema.prisma.
+  New tables must be synchronised by the offline hub (scripts/hub); check it. Remind me to run `npm run db:cloud` after merge.
+- Permissions only through the MATRIX in src/lib/permissions.ts, checked in the Server Action AND in the page.
+- Money in millimes (integers), quantities ×100, as everywhere else. Money/stock changes go to the audit log (src/server/audit.ts).
+- Every visible text in French, Arabic (full RTL) and English, in src/lib/i18n/*-fr.ts / *-ar.ts / *-en.ts.
+- Must keep working on the garage hub without internet. An external service with no key configured = feature hidden or
+  disabled with a clear message; never pretend something was sent or paid.
+- Mobile first (390 px) and desktop; no horizontal overflow.
+- Tests: unit tests in tests/, database tests as *.db.test.ts (npm run test:db). Run `npm run check` and show the result.
+- Add a "Nouveautés" section at the top of README.md and a short guide in docs/ in simple French.
+- Commit in small steps with clear French messages. Do not open a pull request unless I ask.
+
+Goal: turn GaragePro (today: one garage, one database, no garageId anywhere) into a multi-garage SaaS that I can sell,
+while my current garage keeps working without any data loss.
+
+DECISIONS ALREADY MADE (do not re-ask; tell me only if one is impossible or dangerous):
+1. Customers: BOTH independent garages (fully isolated from each other) AND owners with several branches.
+   Data model: Organisation (the owner / customer account) → one or more Branches (garages).
+   Independent garage = an organisation with one branch.
+2. Shared between branches of the SAME organisation (never between organisations):
+   - Clients and vehicles, with the full repair history from all branches (each order shows its branch).
+   - Settings and prices: services, hourly rate, VAT, templates, inspection models, message templates, labour catalogue
+     are set at organisation level and can be overridden per branch.
+   - Stock: each branch has its own stock; add stock TRANSFERS between branches (request → send → receive, with stock
+     movements on both sides, in-transit state, printable transfer note, audit log).
+   NOT shared: staff. Each employee belongs to one branch (time clock, leave, contracts, skills per branch).
+   The organisation owner/admin can see and manage all branches.
+3. Access: each organisation has its own subdomain (e.g. garage-ali.garagepro.tn) with its own name, logo and colours on
+   the public client site, tracking, booking, showroom and printed documents. Custom domains optional later (plan for it).
+   Branch chosen on the client site when the organisation has several (booking, tracking, contact).
+4. Sign-up and paid subscriptions FROM THE START: online sign-up, free trial, plans with limits (branches, users,
+   storage, SMS/AI usage), monthly/yearly payment through Konnect and/or Flouci (Tunisia), invoices for the subscription,
+   reminders before expiry, grace period, then read-only mode (never delete data; export always possible).
+   A SUPER-ADMIN space (me only) to see organisations, plans, payments, usage, extend trials, suspend, impersonate with
+   audit log.
+   PLANS ARE THE OFFERS of For Add/plans/PLAN-LAVAGE-ATELIER.md and For Add/plans/PLAN-SAAS.md: Atelier Lite, Lavage, Lavage + Atelier,
+   Complet. A plan = a preset of the module switches of prompt W0 (For Add/prompts/PROMPTS-WASH.md) + limits; options
+   (subscriptions/loyalty, mobile washing, plate camera, e-invoicing, extra WhatsApp/SMS/AI credits, extra branch, extra
+   users) are sold as add-ons. Modules are switched per BRANCH (one branch can be Lavage, another Atelier) and the plan
+   price is per branch. The plan catalogue (prices in TND, monthly/yearly, limits, add-ons) is edited by the super-admin,
+   never hard-coded. Changing plan switches modules immediately; downgrading hides modules but keeps their data.
+5. Offline hub: OPTIONAL. New organisations work online only. A branch that asks for it can get a hub; a hub holds only
+   its branch's data plus the shared clients/vehicles/settings of its organisation, and syncs only that.
+6. Numbering: per branch, with a branch prefix (e.g. TUN-F2026-0001, SFX-F2026-0001) for invoices, credit notes,
+   quotes, orders, purchase orders, receipts, tickets. Each branch has its own legal identity (company name, tax ID,
+   address, stamp duty settings) on its documents.
+7. Existing data: my current garage becomes organisation #1 / branch #1, same accounts, same numbering continued,
+   same tracking codes and QR links still working, hub still working.
+
+PHASE 0 — PROPOSAL ONLY (no code). Write docs/MULTI-GARAGE.md, in simple French, and wait for my approval. It must cover:
+- Tenant model: compare (a) one database with organisationId/branchId on every business table + PostgreSQL Row Level
+  Security as a second safety net, vs (b) one database/schema per organisation. Recommend one, with reasons
+  (combined reports, shared clients, hub, cost on Supabase/Vercel, migrations, backups).
+- The full list of Prisma models with what each becomes: organisation-level, branch-level, global, or per user.
+- How EVERY query is scoped (a single tenant context from the request host + session, Prisma extension or helper,
+  lint rule or test that fails if a query is not scoped). How Server Actions, API routes, cron jobs
+  (/api/cron/reminders), file storage paths, push notifications, e-mails/SMS senders, AI quotas and the public portal
+  (tracking codes, QR tokens, booking, showroom slugs, company portal) are scoped.
+- Permissions: organisation roles (owner, org admin, accountant across branches) + existing branch roles
+  (src/lib/permissions.ts); branch switcher in the team space; combined views for the owner.
+- Combined reports for the owner: every existing report (Rapports, Rentabilité, Trésorerie, Satisfaction, stock value,
+  aged balance) per branch and all branches together, with a branch filter; totals must match the per-branch reports.
+- Subscriptions: plans, limits enforcement, payment flow with signed webhooks, trial, grace, read-only mode, tax on the
+  subscription invoice, what happens on downgrade.
+- Subdomains on Vercel (wildcard domain, middleware resolving the organisation), branding, future custom domains,
+  cookies/sessions per subdomain, Auth.js changes.
+- Offline hub per branch: what the sync filters, how numbering stays unique (today's odd/even sequences), stock
+  transfers when a hub is offline.
+- Migration of my current data into organisation #1 / branch #1: steps, additive migrations first, backfill, then
+  NOT NULL constraints, rollback plan, how to test on a copy of the real database (backup:restore) before production.
+- Security tests to prove isolation: a user, a client portal session, a company-portal account, an API call and a hub of
+  organisation A can never read or write data of organisation B (and a branch user cannot see another branch's
+  staff data).
+- Costs (Supabase, Vercel, storage, SMS, AI) per garage and suggested plan prices; risks; what stays out of scope.
+- A phase plan, each phase small enough to merge and test on its own, for example:
+  1 tenant tables + backfill of organisation #1 (no behaviour change)
+  2 scoping of all queries + isolation tests
+  3 branches, branch switcher, per-branch numbering and legal identity
+  4 shared clients/vehicles/settings with branch overrides
+  5 stock transfers
+  6 combined reports
+  7 subdomains + branding
+  8 sign-up, plans, subscriptions, super-admin
+  9 optional hub per branch
+  For each phase: files touched, migration, tests, how to check it in the browser, and how to roll back.
+
+PHASES 1..N — only after I approve the proposal, one phase per branch/session:
+- Start each phase by restating its scope, then implement, test (npm run check, npm run test:db, npm run test:hub when
+  the sync is touched, plus the new isolation tests), and update docs/MULTI-GARAGE.md with what was done.
+- My current garage must keep working identically after every phase (same URLs, accounts, numbers, hub).
+- Never weaken an existing security rule; any doubt about isolation = stop and ask me.
+
+QUESTIONS: if something important is not decided above (for example plan prices, legal points of the subscription
+invoice, or where the super-admin lives), list your questions at the end of the proposal with your recommended answer
+for each.
+
+Do only PHASE 0 (the proposal) now, then stop and wait for my approval.

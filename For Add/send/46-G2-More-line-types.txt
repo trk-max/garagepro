@@ -1,0 +1,22 @@
+Project rules for this task (GaragePro, Next.js 15 + Prisma 6 + PostgreSQL, French codebase):
+- Follow CLAUDE.md (graphify: use `graphify explain` / `graphify path` before broad searches).
+- First explore and give me a short plan (files to change, migration, permissions, risks). Wait for my OK, then implement.
+- Database changes: a new ADDITIVE migration `prisma/migrations/<next number>_<name>/migration.sql`
+  (IF NOT EXISTS, nothing renamed or dropped, same habits as migration 32) + prisma/schema.prisma.
+  New tables must be synchronised by the offline hub (scripts/hub); check it. Remind me to run `npm run db:cloud` after merge.
+- Permissions only through the MATRIX in src/lib/permissions.ts, checked in the Server Action AND in the page.
+- Money in millimes (integers), quantities ×100, as everywhere else. Money/stock changes go to the audit log (src/server/audit.ts).
+- Every visible text in French, Arabic (full RTL) and English, in src/lib/i18n/*-fr.ts / *-ar.ts / *-en.ts.
+- Must keep working on the garage hub without internet. An external service with no key configured = feature hidden or
+  disabled with a clear message; never pretend something was sent or paid.
+- Mobile first (390 px) and desktop; no horizontal overflow.
+- Tests: unit tests in tests/, database tests as *.db.test.ts (npm run test:db). Run `npm run check` and show the result.
+- Add a "Nouveautés" section at the top of README.md and a short guide in docs/ in simple French.
+- Commit in small steps with clear French messages. Do not open a pull request unless I ask.
+
+LineType is only LABOR / PART. Add: FEE (diagnostic, environmental, shop supplies — % or fixed), SUBLET (outsourced work
+with supplier, cost and margin, e.g. machining, glass, upholstery), PAINT_MATERIAL (quantity/units × rate), STORAGE,
+TRAVEL (mobile service: distance or zone), PACKAGE (a priced bundle of labour + parts, editable lines, fixed or computed
+price), DEPOSIT/ADVANCE, DISCOUNT (line or %, with permission and reason). Each type: VAT rate, stock effect (only PART),
+profitability rules (Rentabilité), printing, quote approval, credit notes, accounting export, e-invoice XML mapping.
+Migrate safely; old lines unchanged. Tests for totals, VAT, stock, profit per type.
