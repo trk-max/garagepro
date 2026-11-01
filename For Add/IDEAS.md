@@ -57,5 +57,15 @@ Ideas beyond the 81 prompts, to discuss after the pilot. ★ = strong fit for Tu
   Builds on: reports, "À traiter", unpaid invoices, payment promises, delays, stock alerts, reviews, efficiency (Lot 5),
   AI providers; T6, X1, Saisons. Premium "Patron" add-on or included in higher plans.
 
+## Car sales (saved)
+- **Reprise & Revente (help clients sell or change their car)**: "Je veux vendre ma voiture" button; paid sale
+  inspection (checklist + OBD scan, red/orange/green with photos); proven history with the owner's consent (repairs,
+  km readings, running warranty); one-click listing in the existing showroom with a "History verified by GaragePro"
+  badge and buyer messaging; optional trade-in offer; commission (dépôt-vente) or fixed fee; free 1-month check for the
+  buyer, who becomes a client. Check first: owner consent (INPDP), inspection = state on that day (not a guarantee),
+  Tunisian rules for consignment / buying-reselling (registration transfer, dealer VAT), "first km reading on…".
+  Builds on: showroom + messaging (V9), vehicle QR and history, inspections, OBD, warranties, client app; C3, C1,
+  vehicle passport and pre-purchase inspection ideas. Partners: banks/leasing, insurers.
+
 Ideas kept "maybe later" (Pro Drivers, MRE Service, Centrale d'achat, GaragePro Connect, Sinistre Zéro Souci,
 GaragePro Talents, Réseau GaragePro): see [IDEAS-MAYBE-LATER.md](IDEAS-MAYBE-LATER.md).
