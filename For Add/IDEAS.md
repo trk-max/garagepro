@@ -47,5 +47,15 @@ Ideas beyond the 81 prompts, to discuss after the pilot. ★ = strong fit for Tu
   closed in time, few comebacks. Badge on the garage site, Google and quotes, public "Trust" page, QR to verify.
   Fair public rules with review/appeal, never sold; check consumer-law use of "certifié". Needs many garages.
 
+## Owner assistant (saved)
+- **Le Patron (morning briefing + business coach on WhatsApp)**: each morning a short WhatsApp message or voice note
+  to the owner: yesterday (cars, invoiced, collected), money to collect with reminder buttons, today (appointments,
+  promised cars, cars waiting for parts), alerts (low stock, bad review), one concrete advice with a button (e.g.
+  launch a campaign), team efficiency and comebacks. The owner can ask questions in Darija/French ("who hasn't
+  paid?", "which car is late?") and confirm actions. Owner/managers only; AI reads and explains, actions need a tap;
+  numbers must match the Reports page; push/e-mail fallback; text first, Darija voice later.
+  Builds on: reports, "À traiter", unpaid invoices, payment promises, delays, stock alerts, reviews, efficiency (Lot 5),
+  AI providers; T6, X1, Saisons. Premium "Patron" add-on or included in higher plans.
+
 Ideas kept "maybe later" (Pro Drivers, MRE Service, Centrale d'achat, GaragePro Connect, Sinistre Zéro Souci,
 GaragePro Talents, Réseau GaragePro): see [IDEAS-MAYBE-LATER.md](IDEAS-MAYBE-LATER.md).
