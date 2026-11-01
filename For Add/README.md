@@ -19,6 +19,7 @@ How to use: new Claude Code session → paste `prompts/00-PREAMBLE.md` → paste
 
 ## Other
 - [IDEAS.md](IDEAS.md) — more ideas to discuss after the pilot
+- [IDEAS-MAYBE-LATER.md](IDEAS-MAYBE-LATER.md) — ideas you kept "maybe later", with details
 - Backup of the code before any prompt: branch `backup/avant-prompts-2026-11-01` on GitHub
 
 ## plans/ — product and business plans
