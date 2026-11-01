@@ -97,3 +97,20 @@ transfers already happen informally by phone.
 **Revenue:** more bookings (nights, weekends), trust (links with "Certifié"), price data for the "find a garage" app.
 **Check first:** honest "diagnosis needed" for non-standard jobs; start with the 30–50 most common models in Tunisia.
 **Builds on:** booking, "from" prices, quote approval, stock, client app; B4, T5, C1, T6, V8.
+
+## 9. Saisons — automatic campaigns at the right moment
+**Why:** garage work follows clear seasons (summer AC/cooling/tyres, MRE return, Eid trips, back to school, first
+rains, winter battery, Ramadan hours); most garages never contact clients between visits.
+- Ready-made Tunisian campaign calendar: "Clim avant l'été" (May), "Check avant voyage" (before each Eid and July),
+  "Rentrée", "Premières pluies" (October), "Batterie hiver" (December), "Horaires de Ramadan"
+- Smart targeting from car data: AC not serviced for 2+ years, battery 4+ years, worn tyres at last inspection,
+  quote lines refused 3 months ago
+- WhatsApp/SMS in the client's language with price (Prix Clair) and a Book button with free slots
+- Garage approves once: "143 clients, estimated cost 12 TND, expected ~15 bookings"
+- Limits: max 1 marketing message per client per month, quiet hours, consent only, one-tap unsubscribe
+- Results per campaign: sent, bookings, revenue vs message cost; optional "fill the empty agenda" offers
+**Revenue:** measurable in dinars for the garage (strong retention), "Saisons" add-on, sponsored brand campaigns.
+**Check first:** consent and anti-spam; WhatsApp marketing messages are paid (show cost first); Eid/Ramadan dates move
+each year (updated holiday calendar).
+**Builds on:** reminders, maintenance agenda, inspections, refused-lines follow-up (Lot 5), consent, booking; T6, C2,
+Prix Clair.
