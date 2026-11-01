@@ -1,6 +1,6 @@
 # Order to send — doing it yourself with the AI
 
-**The order is the numbering of the files in [`send/`](send)** (01 → 81). The list with checkboxes is
+**The order is the numbering of the files in [`send/`](send)** (01 → 82). The list with checkboxes is
 [`send/00-READ-ME-FIRST.md`](send/00-READ-ME-FIRST.md).
 
 Each file is one complete message (preamble + prompt, plus the car-wash line or the multi-garage phase sentence when
@@ -30,6 +30,7 @@ Groups (file numbers):
 | 66–70 | W11–W13, W15, W16 other wash types |
 | 71–78 | B8, C5, D2, D3, D4, D6, D7, multi-garage phase 9 |
 | 79–81 | X1–X3 growth |
+| 82 | P1 connected-car pilot (optional) |
 
 Not sent: PROMPTS.md D1 (replaced by T1) and D5 (replaced by PROMPT-MULTI-GARAGE.md).
 After the pilot you may change the order according to customer feedback. More ideas: `IDEAS.md`.

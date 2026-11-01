@@ -30,6 +30,7 @@ How to use: new Claude Code session → paste `prompts/00-PREAMBLE.md` → paste
 ## research/ — research behind the recommendations
 | File | Content |
 |---|---|
+| [OBD dongle with SIM for GaragePro.md](<research/reports/OBD dongle with SIM for GaragePro.md>) | Decision report: SIM OBD dongles (device, architecture, pricing, Tunisian rules, 10-car pilot) |
 | [GaragePro global expansion features.md](<research/GaragePro global expansion features.md>) | Prioritised report: making GaragePro fit all garage types, in Tunisia and globally |
 | [notes/](research/notes) | Source notes: competitors, garage types, compliance, integrations, EV/ADAS, regional markets |
 
@@ -66,6 +67,7 @@ Order of work. The agent prompt (00-AGENT.md) takes the first line that is not �
 11. Other wash types and smart: [ ] W11 [ ] W12 [ ] W13 [ ] W15 [ ] W16
 12. Management: [ ] B8 [ ] C5 [ ] D2 [ ] D3 [ ] D4 [ ] D6 [ ] D7 [ ] multi-garage phase 9 (hub per branch)
 13. Growth: [ ] X1 [ ] X2 [ ] X3
+14. Optional: [ ] P1 connected-car pilot (OBD dongle with SIM)
 
 Note: PROMPTS.md D1 (e-invoicing) and D5 (multi-garage) are replaced by T1 and PROMPT-MULTI-GARAGE.md.
 The order after step 5 can change according to pilot feedback.

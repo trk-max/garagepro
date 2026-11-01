@@ -89,5 +89,8 @@ One file = one new conversation. Never two files in the same conversation. Never
 | [ ] | 79 | **X1** AI receptionist (WhatsApp and phone) | `79-X1-AI-receptionist-WhatsApp-and-phone.txt` |
 | [ ] | 80 | **X2** International e-invoicing adapter | `80-X2-International-e-invoicing-adapter.txt` |
 | [ ] | 81 | **X3** Regional payment providers | `81-X3-Regional-payment-providers.txt` |
+| [ ] | 82 | **P1** Connected-car pilot: OBD dongle with SIM (10 cars) | `82-P1-Connected-car-pilot-OBD-dongle-with-SIM-10-ca.txt` |
+
+File 82 (P1) is optional: only if you decide to test connected cars (see research/reports).
 
 After the pilot (file 29) you may change the order according to customer feedback.

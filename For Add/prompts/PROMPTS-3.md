@@ -88,3 +88,43 @@ credentials); secrets in the repository and in logs; dependencies (npm audit, wi
 rate limits. Reproduce each finding with a test before fixing; fix the critical and high ones; list the rest with a
 plan in docs/AUDIT-SECURITE.md. Do not test against production or third-party systems.
 ```
+
+---
+
+## Optional — connected cars (do only after the pilot, when you decide to test it)
+
+### P1 — Connected-car pilot: OBD dongle with SIM (10 cars)
+```
+Read "For Add/research/reports/OBD dongle with SIM for GaragePro.md" first: it is the decision report for this task.
+Goal: a 10-car pilot (5 client cars of one partner garage, 5 cars of one taxi/louage/rental fleet) with Teltonika FMC003
+(EU/MEA X4 variant) 4G OBD dongles with a local M2M SIM, behind a module switch "connectedCars" (off by default; W0).
+Mode: alert + propose a slot (never book or charge automatically).
+1. Ingestion: devices → flespi (free tier, 10 devices) → flespi stream sends ONLY events to a new Vercel route
+   /api/telematics/webhook, authenticated by a shared secret / signature, IMEI allowlist, idempotent, rate-limited.
+   Keep the ingestion behind an adapter interface so self-hosted Traccar can replace flespi later. Vercel never talks
+   to devices directly.
+2. Data: Device (IMEI, model, SIM number, vehicle, organisation/branch, install date, installer, status), current
+   vehicle state (last position, ignition, battery voltage, odometer + its source "OEM" or "GPS-estimated", last DTCs,
+   last seen), events (DTC new/cleared, MIL on, low battery, unplug/tow, geofence exit, no data for 48 h), and a
+   time-partitioned telemetry table with a short retention (e.g. 30 days, setting). Synchronised by the hub only for
+   state and events, not raw telemetry.
+3. Rules: new DTC → plain-language text (generic codes from the open OBDex dataset; manufacturer codes → "bring the
+   car in for a full scan"), severity, message to the client (WhatsApp/push/SMS per consent, client language) with 3
+   proposed slots from the booking capacity, and a line in the garage's daily call list. Mileage → update the
+   maintenance agenda only when the source is OEM; GPS-estimated mileage is shown as estimated and never overwrites
+   the odometer reading of a work order. Low battery and unplug/tow → alerts with cooldowns (no spam).
+4. Client side: tracking app shows the car's health card (fault codes, battery, mileage, last seen); GPS position
+   visible only to the owner/fleet manager, never to garage staff unless the owner allows it.
+5. Consent and privacy (Tunisian law 2004-63 / INPDP; build to the stricter new bill too): signed consent at install
+   (what is collected, who sees it, retention, how to stop), one-click unlink and deletion, fleet-driver information
+   notice, data export. List in docs/CONNECTED-CARS.md what must be declared to INPDP and the authorisation needed for
+   storage abroad (flespi EU, Supabase) — do not claim it is done.
+6. Pilot dashboard (admin): per device — odometer source, DTCs vs the garage's own OBD scan, sleep/battery voltage
+   while parked, data used, false alarms, alerts sent, bookings made from alerts, support time noted by staff. Export
+   Excel. Go/no-go thresholds from the report shown on the page.
+7. Install guide docs/CONNECTED-CARS.md (fr/ar): hidden install with an OBD extension cable, sleep settings check,
+   Teltonika configuration (Codec 8 Extended, DTC and odometer IDs, report intervals), test checklist.
+Tests: webhook signature/idempotency/allowlist, DTC → alert → slots, GPS-estimated odometer never stored as real,
+consent required before any data is shown, unlink deletes data, module off = nothing visible or accepted.
+Do not buy or configure real devices yourself; tell me what to order and what to set.
+```
