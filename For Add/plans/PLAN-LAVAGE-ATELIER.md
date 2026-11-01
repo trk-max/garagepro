@@ -3,7 +3,7 @@
 Version of GaragePro for **car wash centres** and **small workshops**, sold separately or together, **as each client
 chooses**. One product, one codebase: modules are switched on per client (later per branch with the multi-garage SaaS).
 
-Prompts to build it: `docs/PROMPTS-WASH.md`.
+Prompts to build it: `For Add/prompts/PROMPTS-WASH.md`.
 
 ---
 
@@ -110,8 +110,8 @@ Suggested prices for Tunisia (to validate with real customers; the only local an
 | **3. Other wash types** | Tunnel/rollover, detailing/ceramic, mobile washing | W11–W13 |
 | **4. Together and smart** | Dashboard, wash + workshop cross-selling, plate camera | W15, W16 |
 
-Before phase 1, do the reliability prompts A1–A7 of `docs/PROMPTS.md` (especially A1: sync of payment totals, used by
-the cash drawer). G2/G3 of `docs/PROMPTS-2.md` (line types, workshop profiles) help but are not required: W0 adds the
+Before phase 1, do the reliability prompts A1–A7 of `For Add/prompts/PROMPTS.md` (especially A1: sync of payment totals, used by
+the cash drawer). G2/G3 of `For Add/prompts/PROMPTS-2.md` (line types, workshop profiles) help but are not required: W0 adds the
 module switches itself.
 
 ---

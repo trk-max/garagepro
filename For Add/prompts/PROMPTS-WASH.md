@@ -1,12 +1,12 @@
 # GaragePro Lavage & Atelier — ready-to-use prompts
 
-Product plan: `docs/PLAN-LAVAGE-ATELIER.md`. How to use: new Claude Code session → paste the **common preamble** from the
-top of `docs/PROMPTS.md` → paste **one** prompt below. One prompt per session/branch; merge before the next.
+Product plan: `For Add/plans/PLAN-LAVAGE-ATELIER.md`. How to use: new Claude Code session → paste the **common preamble** from the
+top of `For Add/prompts/PROMPTS.md` → paste **one** prompt below. One prompt per session/branch; merge before the next.
 Order: W0 → W1 → W2 → W3 → W4 → W14 (MVP), then W5–W10 (extras), W11–W13 (other wash types), W15–W16.
 
 Add this line after the preamble for every W prompt:
 ```
-Read docs/PLAN-LAVAGE-ATELIER.md first: it is the product plan this task belongs to. Every new feature must respect the
+Read For Add/plans/PLAN-LAVAGE-ATELIER.md first: it is the product plan this task belongs to. Every new feature must respect the
 module switches of W0 (hidden and inactive when its module is off, data kept).
 ```
 
@@ -68,7 +68,7 @@ discount with permission and reason, tip (W7 setting), payment methods (cash, ca
 company contract → "à facturer"), change calculation. Receipt on an 80 mm thermal printer (browser print with a receipt
 CSS first; ESC/POS through a small local helper on the hub later — tell me the options) with QR to the receipt and
 loyalty balance. Cash drawer with opening float, cash in/out, end-of-day close (counted vs expected, reason for
-difference, Z report) — if T2 of docs/PROMPTS-2.md is already done, reuse its cash drawer; otherwise build it so T2 can
+difference, Z report) — if T2 of For Add/prompts/PROMPTS-2.md is already done, reuse its cash drawer; otherwise build it so T2 can
 reuse it. Receipts become proper invoices on request (client tax ID), with TTN e-invoicing when that module is on.
 ```
 
@@ -115,7 +115,7 @@ Option loyalty: stamp card (e.g. 10th wash free) or points per dinar, rewards (f
 shown at check-in, on the receipt and on the client tracking link; redemption as a discount line (logged).
 Option subscriptions: plans (N washes per month or unlimited, allowed packages and vehicle sizes, 1 or several plates),
 price per month/year, start, renewal, pause, cancel; payment in cash at the counter or by online payment link (C1 of
-docs/PROMPTS.md if done); member recognised by plate at check-in (and by camera with W16); usage limits enforced (one
+For Add/prompts/PROMPTS.md if done); member recognised by plate at check-in (and by camera with W16); usage limits enforced (one
 wash per day by default), expired plan → normal price. Reports: members, churn, revenue per member, usage.
 ```
 

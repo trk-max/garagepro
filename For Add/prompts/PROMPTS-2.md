@@ -1,13 +1,13 @@
 # GaragePro — prompts, part 2 (Tunisia must-haves, general core, garage types, growth)
 
-These complete `docs/PROMPTS.md` (A1–D7) and `docs/PROMPT-MULTI-GARAGE.md`.
-They come from the research report `reports/GaragePro global expansion features.md`.
+These complete `For Add/prompts/PROMPTS.md` (A1–D7) and `For Add/prompts/PROMPT-MULTI-GARAGE.md`.
+They come from the research report `For Add/research/GaragePro global expansion features.md`.
 
-How to use: start a new Claude Code session, paste the **common preamble** from the top of `docs/PROMPTS.md`, then **one**
+How to use: start a new Claude Code session, paste the **common preamble** from the top of `For Add/prompts/PROMPTS.md`, then **one**
 prompt from this file. One prompt per session/branch; merge before the next.
 
 Suggested order:
-1. `docs/PROMPTS.md` A1–A7 (reliability)
+1. `For Add/prompts/PROMPTS.md` A1–A7 (reliability)
 2. This file **T1–T6** (Tunisia now), with `PROMPTS.md` D1 replaced by **T1** below
 3. `PROMPTS.md` B1–B5, C1–C4, C6 (daily use)
 4. This file **G1–G4** (general core) — required before V1–V8

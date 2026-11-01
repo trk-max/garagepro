@@ -1,8 +1,8 @@
 # GaragePro as a subscription service (SaaS) — business plan
 
 How to sell GaragePro by subscription to many garages and car washes, each with one or several branches.
-Technical build: `docs/PROMPT-MULTI-GARAGE.md` (multi-garage + subscriptions) and `docs/PROMPTS-WASH.md` W0 (modules).
-Offers and screens: `docs/PLAN-LAVAGE-ATELIER.md`.
+Technical build: `For Add/prompts/PROMPT-MULTI-GARAGE.md` (multi-garage + subscriptions) and `For Add/prompts/PROMPTS-WASH.md` W0 (modules).
+Offers and screens: `For Add/plans/PLAN-LAVAGE-ATELIER.md`.
 
 All prices and costs below are **suggestions to validate** with 5–10 pilot customers. The only local price found in the
 research is a competitor at 15,000 TND setup + 550 TND/month.
@@ -104,13 +104,13 @@ These go in the super-admin dashboard (part of the multi-garage prompt).
 
 ## 8. Order of work
 
-1. `docs/PROMPTS.md` A1–A7 — reliability (a paid service must not lose payment or stock totals).
-2. `docs/PROMPT-MULTI-GARAGE.md` — **Phase 0 proposal**, then phases 1–7 (tenants, isolation, branches, shared data,
+1. `For Add/prompts/PROMPTS.md` A1–A7 — reliability (a paid service must not lose payment or stock totals).
+2. `For Add/prompts/PROMPT-MULTI-GARAGE.md` — **Phase 0 proposal**, then phases 1–7 (tenants, isolation, branches, shared data,
    transfers, combined reports, subdomains).
-3. `docs/PROMPTS-WASH.md` W0 — module switches (they become the plans).
-4. `docs/PROMPT-MULTI-GARAGE.md` phase 8 — sign-up, plans, subscriptions, super-admin.
-5. `docs/PROMPTS-WASH.md` W1–W4, W14 — the Lavage and Lite MVP → **start the pilot here**.
-6. `docs/PROMPTS-2.md` T1, T2, T6 — e-invoicing, cash/instalments, WhatsApp.
+3. `For Add/prompts/PROMPTS-WASH.md` W0 — module switches (they become the plans).
+4. `For Add/prompts/PROMPT-MULTI-GARAGE.md` phase 8 — sign-up, plans, subscriptions, super-admin.
+5. `For Add/prompts/PROMPTS-WASH.md` W1–W4, W14 — the Lavage and Lite MVP → **start the pilot here**.
+6. `For Add/prompts/PROMPTS-2.md` T1, T2, T6 — e-invoicing, cash/instalments, WhatsApp.
 7. Everything else according to pilot feedback.
 
 ---

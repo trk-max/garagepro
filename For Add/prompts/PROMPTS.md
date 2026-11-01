@@ -284,7 +284,7 @@ verbatim comments (filterable). Charts in the existing redesign components; fr/a
 
 ### D5 — Several garages / branches
 
-> Full version with your decisions (SaaS + branches, subdomains, subscriptions, optional hub): **docs/PROMPT-MULTI-GARAGE.md**. Use that one.
+> Full version with your decisions (SaaS + branches, subdomains, subscriptions, optional hub): **For Add/prompts/PROMPT-MULTI-GARAGE.md**. Use that one.
 
 ```
 I want to sell GaragePro to other garages and support chains with several branches. First write an architecture

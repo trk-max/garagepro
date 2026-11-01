@@ -1,6 +1,6 @@
 # Prompt — GaragePro multi-garage / multi-branch (SaaS)
 
-Paste the **common preamble** from `docs/PROMPTS.md`, then the prompt below, into a new Claude Code session.
+Paste the **common preamble** from `For Add/prompts/PROMPTS.md`, then the prompt below, into a new Claude Code session.
 
 ```
 Goal: turn GaragePro (today: one garage, one database, no garageId anywhere) into a multi-garage SaaS that I can sell,
@@ -26,8 +26,8 @@ DECISIONS ALREADY MADE (do not re-ask; tell me only if one is impossible or dang
    reminders before expiry, grace period, then read-only mode (never delete data; export always possible).
    A SUPER-ADMIN space (me only) to see organisations, plans, payments, usage, extend trials, suspend, impersonate with
    audit log.
-   PLANS ARE THE OFFERS of docs/PLAN-LAVAGE-ATELIER.md and docs/PLAN-SAAS.md: Atelier Lite, Lavage, Lavage + Atelier,
-   Complet. A plan = a preset of the module switches of prompt W0 (docs/PROMPTS-WASH.md) + limits; options
+   PLANS ARE THE OFFERS of For Add/plans/PLAN-LAVAGE-ATELIER.md and For Add/plans/PLAN-SAAS.md: Atelier Lite, Lavage, Lavage + Atelier,
+   Complet. A plan = a preset of the module switches of prompt W0 (For Add/prompts/PROMPTS-WASH.md) + limits; options
    (subscriptions/loyalty, mobile washing, plate camera, e-invoicing, extra WhatsApp/SMS/AI credits, extra branch, extra
    users) are sold as add-ons. Modules are switched per BRANCH (one branch can be Lavage, another Atelier) and the plan
    price is per branch. The plan catalogue (prices in TND, monthly/yearly, limits, add-ons) is edited by the super-admin,
