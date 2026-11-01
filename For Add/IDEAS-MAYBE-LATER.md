@@ -84,3 +84,16 @@ transfers already happen informally by phone.
 **Revenue:** fee per transfer or "Réseau" add-on, network effect, feeds the directory and the "Certifié" label.
 **Check first:** client consent, liability and warranty in a partner agreement, anti-poaching rules; start in one city.
 **Builds on:** work orders, photos, quotes, supplier invoices, tracking; G2, multi-garage, T6.
+
+## 8. Prix Clair — a firm price online before the car arrives
+**Why:** the client's first question is "how much?", fear that the price rises in the garage, most jobs are standard.
+- Plate or make/model/engine → job (oil change, pads, battery, timing belt, AC, tyres, wash) → parts level
+  (original / quality aftermarket / economy, with warranty, T5) → firm price valid 7 days, or "from… to…" when a check
+  is needed → book a slot, optional deposit (C1)
+- Promise: anything extra is asked first (quote approval), the advertised price does not move
+- Garage price grid per job and car category, labour from the catalogue (B4), parts from stock/suppliers with margin
+  rule, automatic update and alert when a price is no longer profitable, price expiry dates
+- Stats: quotes requested, converted to bookings, top jobs and models
+**Revenue:** more bookings (nights, weekends), trust (links with "Certifié"), price data for the "find a garage" app.
+**Check first:** honest "diagnosis needed" for non-standard jobs; start with the 30–50 most common models in Tunisia.
+**Builds on:** booking, "from" prices, quote approval, stock, client app; B4, T5, C1, T6, V8.
