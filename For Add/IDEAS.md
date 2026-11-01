@@ -40,3 +40,14 @@ Ideas beyond the 81 prompts, to discuss after the pilot. ★ = strong fit for Tu
 - **Accountant portal**: one accountant follows several garages, downloads exports and e-invoices.
 - **White-label for networks** (franchise garages, importers' after-sales networks) with their own brand.
 - **Open API + webhooks** for partners and big customers (fleets, insurers).
+
+## Ideas discussed and saved for later (Nov 2026)
+- **Pro Drivers plan (taxis, louages, delivery, ride-hailing)**: priority lane, maintenance by km sent on WhatsApp,
+  early/late slots, weekly payments, cost per km, downtime counter with loaner car, station contracts, wash included.
+- **MRE Service (Tunisians abroad)**: book and pay in EUR from abroad, car ready on ferry arrival, year-round car
+  keeping (engine started monthly, photo on WhatsApp), "ready for your return" pack, check before driving back.
+- **Centrale d'achat (group buying)**: weekly grouped orders of oil, filters, parts and wash products for all
+  GaragePro garages, negotiated prices, approved genuine suppliers, savings report, supplier commission
+  (legal and logistics to check; needs many subscribed garages).
+- **GaragePro Connect (OBD dongle with SIM)**: researched — see `research/reports/OBD dongle with SIM for GaragePro.md`;
+  pilot prompt **P1** in `prompts/PROMPTS-3.md` (file 82 in `send/`). Fleets and garages pay, devices rented.
