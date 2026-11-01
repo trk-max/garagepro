@@ -1,0 +1,27 @@
+Project rules for this task (GaragePro, Next.js 15 + Prisma 6 + PostgreSQL, French codebase):
+- Follow CLAUDE.md (graphify: use `graphify explain` / `graphify path` before broad searches).
+- First explore and give me a short plan (files to change, migration, permissions, risks). Wait for my OK, then implement.
+- Database changes: a new ADDITIVE migration `prisma/migrations/<next number>_<name>/migration.sql`
+  (IF NOT EXISTS, nothing renamed or dropped, same habits as migration 32) + prisma/schema.prisma.
+  New tables must be synchronised by the offline hub (scripts/hub); check it. Remind me to run `npm run db:cloud` after merge.
+- Permissions only through the MATRIX in src/lib/permissions.ts, checked in the Server Action AND in the page.
+- Money in millimes (integers), quantities ×100, as everywhere else. Money/stock changes go to the audit log (src/server/audit.ts).
+- Every visible text in French, Arabic (full RTL) and English, in src/lib/i18n/*-fr.ts / *-ar.ts / *-en.ts.
+- Must keep working on the garage hub without internet. An external service with no key configured = feature hidden or
+  disabled with a clear message; never pretend something was sent or paid.
+- Mobile first (390 px) and desktop; no horizontal overflow.
+- Tests: unit tests in tests/, database tests as *.db.test.ts (npm run test:db). Run `npm run check` and show the result.
+- Add a "Nouveautés" section at the top of README.md and a short guide in docs/ in simple French.
+- Commit in small steps with clear French messages. Do not open a pull request unless I ask.
+
+New customers (multi-garage sign-up) must be able to start alone in 15 minutes. Build:
+1. A first-login setup wizard per offer (Atelier Lite, Lavage, Lavage + Atelier, Complet — module presets of W0):
+   garage identity and legal info (country pack), logo and colours, opening hours, services/packages with prices
+   (pre-filled Tunisian templates), team members and roles/PINs, payment methods, WhatsApp/e-mail, receipt printer test,
+   optional import of clients/vehicles/stock from Excel (with preview and error list). Progress saved; can be resumed;
+   a checklist card "Finir la configuration" on the dashboard until done.
+2. Contextual help: a "?" on each main screen linking to the existing help pages (help-fr/ar/en); empty states that
+   explain what to do; a guided first tour (5 steps max, skippable, never shown again once closed).
+3. A demo mode: a fresh organisation can load sample data and remove it in one click.
+4. Write the scripts (fr + Darija in Latin and Arabic letters) for 10 short tutorial videos (60–90 s each) in
+   docs/TUTORIELS.md, and link each video slot from the matching screen (URL configurable by the super-admin).

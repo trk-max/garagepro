@@ -29,58 +29,65 @@ One file = one new conversation. Never two files in the same conversation. Never
 | [ ] | 20 | **W3** Lanes board and "car ready" | `20-W3-Lanes-board-and-car-ready.txt` |
 | [ ] | 21 | **W4** Quick receipt and cash drawer | `21-W4-Quick-receipt-and-cash-drawer.txt` |
 | [ ] | 22 | **W14** Small workshop quick order (simple mode) | `22-W14-Small-workshop-quick-order-simple-mode.txt` |
+| [ ] | 23 | **S1** Setup wizard, help centre and training | `23-S1-Setup-wizard-help-centre-and-training.txt` |
+| [ ] | 24 | **S2** Accessibility and field usability | `24-S2-Accessibility-and-field-usability.txt` |
+| [ ] | 25 | **S3** Usage statistics (privacy-friendly) | `25-S3-Usage-statistics-privacy-friendly.txt` |
+| [ ] | 26 | **S4** Backup and restore per garage | `26-S4-Backup-and-restore-per-garage.txt` |
+| [ ] | 27 | **S5** Load and cost test | `27-S5-Load-and-cost-test.txt` |
+| [ ] | 28 | **S6** Status page, incidents and service commitments | `28-S6-Status-page-incidents-and-service-commitments.txt` |
+| [ ] | 29 | **S7** Security audit before selling | `29-S7-Security-audit-before-selling.txt` |
 | | | ➡ **Start the pilot with 5–10 real garages / car washes** | |
-| [ ] | 23 | **T1** TTN El Fatoora e-invoicing (replaces PROMPTS.md D1) | `23-T1-TTN-El-Fatoora-e-invoicing-replaces-PROMPTS-m.txt` |
-| [ ] | 24 | **T2** Cash, instalments and bills of exchange (after the cheque reform) | `24-T2-Cash-instalments-and-bills-of-exchange-after-.txt` |
-| [ ] | 25 | **T6** WhatsApp-first communication (Tunisia) | `25-T6-WhatsApp-first-communication-Tunisia.txt` |
-| [ ] | 26 | **T3** Insurance claims with FTUSA e-Constat | `26-T3-Insurance-claims-with-FTUSA-e-Constat.txt` |
-| [ ] | 27 | **T4** Technical inspection ("visite technique" ATTT) | `27-T4-Technical-inspection-visite-technique-ATTT.txt` |
-| [ ] | 28 | **T5** Part origin and condition on every line | `28-T5-Part-origin-and-condition-on-every-line.txt` |
-| [ ] | 29 | **B1** Global search bar (Ctrl+K) | `29-B1-Global-search-bar-Ctrl-K.txt` |
-| [ ] | 30 | **B2** Shorter desktop menus by role | `30-B2-Shorter-desktop-menus-by-role.txt` |
-| [ ] | 31 | **B3** Work-order page in tabs | `31-B3-Work-order-page-in-tabs.txt` |
-| [ ] | 32 | **B4** Labour-time catalogue | `32-B4-Labour-time-catalogue.txt` |
-| [ ] | 33 | **B5** Plate and VIN reading from a photo, VIN decoding | `33-B5-Plate-and-VIN-reading-from-a-photo-VIN-decodi.txt` |
-| [ ] | 34 | **C1** Online payment | `34-C1-Online-payment.txt` |
-| [ ] | 35 | **C2** Client language and WhatsApp templates | `35-C2-Client-language-and-WhatsApp-templates.txt` |
-| [ ] | 36 | **C3** Client account | `36-C3-Client-account.txt` |
-| [ ] | 37 | **C4** Google review requests | `37-C4-Google-review-requests.txt` |
-| [ ] | 38 | **C6** Video and photo explanation on the quote | `38-C6-Video-and-photo-explanation-on-the-quote.txt` |
-| [ ] | 39 | **W5** Damage photos on arrival | `39-W5-Damage-photos-on-arrival.txt` |
-| [ ] | 40 | **W6** Washer commission | `40-W6-Washer-commission.txt` |
-| [ ] | 41 | **W7** Tips | `41-W7-Tips.txt` |
-| [ ] | 42 | **W8** Loyalty and subscriptions | `42-W8-Loyalty-and-subscriptions.txt` |
-| [ ] | 43 | **W9** Company contracts | `43-W9-Company-contracts.txt` |
-| [ ] | 44 | **W10** Product consumption and cost per wash | `44-W10-Product-consumption-and-cost-per-wash.txt` |
-| [ ] | 45 | **G1** Vehicle becomes a general "asset" | `45-G1-Vehicle-becomes-a-general-asset.txt` |
-| [ ] | 46 | **G2** More line types | `46-G2-More-line-types.txt` |
-| [ ] | 47 | **G3** Workshop profiles (statuses per type of business) | `47-G3-Workshop-profiles-statuses-per-type-of-busine.txt` |
-| [ ] | 48 | **G4** Country packs | `48-G4-Country-packs.txt` |
-| [ ] | 49 | **V1** Body and paint | `49-V1-Body-and-paint.txt` |
-| [ ] | 50 | **V2** Quick service lane | `50-V2-Quick-service-lane.txt` |
-| [ ] | 51 | **V3** Fleet and in-house workshop mode | `51-V3-Fleet-and-in-house-workshop-mode.txt` |
-| [ ] | 52 | **V4** Mobile mechanics and towing | `52-V4-Mobile-mechanics-and-towing.txt` |
-| [ ] | 53 | **V5** Tyre centre data | `53-V5-Tyre-centre-data.txt` |
-| [ ] | 54 | **V6** EV and high-voltage safety | `54-V6-EV-and-high-voltage-safety.txt` |
-| [ ] | 55 | **V7** Detailing and car wash | `55-V7-Detailing-and-car-wash.txt` |
-| [ ] | 56 | **V8** Repair data and parts sourcing integrations | `56-V8-Repair-data-and-parts-sourcing-integrations.txt` |
-| [ ] | 57 | **B6** Tyre storage ("hôtel de pneus") | `57-B6-Tyre-storage-h-tel-de-pneus.txt` |
-| [ ] | 58 | **B7** Loaner cars | `58-B7-Loaner-cars.txt` |
-| [ ] | 59 | **W11** Automatic tunnel / rollover | `59-W11-Automatic-tunnel-rollover.txt` |
-| [ ] | 60 | **W12** Detailing and ceramic | `60-W12-Detailing-and-ceramic.txt` |
-| [ ] | 61 | **W13** Mobile washing | `61-W13-Mobile-washing.txt` |
-| [ ] | 62 | **W15** Dashboard and reports for car wash | `62-W15-Dashboard-and-reports-for-car-wash.txt` |
-| [ ] | 63 | **W16** Wash + workshop together, and plate camera | `63-W16-Wash-workshop-together-and-plate-camera.txt` |
-| [ ] | 64 | **B8** Accounting export | `64-B8-Accounting-export.txt` |
-| [ ] | 65 | **C5** Loyalty and prepaid maintenance plans | `65-C5-Loyalty-and-prepaid-maintenance-plans.txt` |
-| [ ] | 66 | **D2** Insurance claim file | `66-D2-Insurance-claim-file.txt` |
-| [ ] | 67 | **D3** Parts catalogue and supplier prices | `67-D3-Parts-catalogue-and-supplier-prices.txt` |
-| [ ] | 68 | **D4** Satisfaction dashboard | `68-D4-Satisfaction-dashboard.txt` |
-| [ ] | 69 | **D6** Instant updates instead of 4-second polling | `69-D6-Instant-updates-instead-of-4-second-polling.txt` |
-| [ ] | 70 | **D7** Install on macOS/Linux and a single login | `70-D7-Install-on-macOS-Linux-and-a-single-login.txt` |
-| [ ] | 71 | **MG9** Multi-garage hub per branch | `71-MG9-Multi-garage-hub-per-branch.txt` |
-| [ ] | 72 | **X1** AI receptionist (WhatsApp and phone) | `72-X1-AI-receptionist-WhatsApp-and-phone.txt` |
-| [ ] | 73 | **X2** International e-invoicing adapter | `73-X2-International-e-invoicing-adapter.txt` |
-| [ ] | 74 | **X3** Regional payment providers | `74-X3-Regional-payment-providers.txt` |
+| [ ] | 30 | **T1** TTN El Fatoora e-invoicing (replaces PROMPTS.md D1) | `30-T1-TTN-El-Fatoora-e-invoicing-replaces-PROMPTS-m.txt` |
+| [ ] | 31 | **T2** Cash, instalments and bills of exchange (after the cheque reform) | `31-T2-Cash-instalments-and-bills-of-exchange-after-.txt` |
+| [ ] | 32 | **T6** WhatsApp-first communication (Tunisia) | `32-T6-WhatsApp-first-communication-Tunisia.txt` |
+| [ ] | 33 | **T3** Insurance claims with FTUSA e-Constat | `33-T3-Insurance-claims-with-FTUSA-e-Constat.txt` |
+| [ ] | 34 | **T4** Technical inspection ("visite technique" ATTT) | `34-T4-Technical-inspection-visite-technique-ATTT.txt` |
+| [ ] | 35 | **T5** Part origin and condition on every line | `35-T5-Part-origin-and-condition-on-every-line.txt` |
+| [ ] | 36 | **B1** Global search bar (Ctrl+K) | `36-B1-Global-search-bar-Ctrl-K.txt` |
+| [ ] | 37 | **B2** Shorter desktop menus by role | `37-B2-Shorter-desktop-menus-by-role.txt` |
+| [ ] | 38 | **B3** Work-order page in tabs | `38-B3-Work-order-page-in-tabs.txt` |
+| [ ] | 39 | **B4** Labour-time catalogue | `39-B4-Labour-time-catalogue.txt` |
+| [ ] | 40 | **B5** Plate and VIN reading from a photo, VIN decoding | `40-B5-Plate-and-VIN-reading-from-a-photo-VIN-decodi.txt` |
+| [ ] | 41 | **C1** Online payment | `41-C1-Online-payment.txt` |
+| [ ] | 42 | **C2** Client language and WhatsApp templates | `42-C2-Client-language-and-WhatsApp-templates.txt` |
+| [ ] | 43 | **C3** Client account | `43-C3-Client-account.txt` |
+| [ ] | 44 | **C4** Google review requests | `44-C4-Google-review-requests.txt` |
+| [ ] | 45 | **C6** Video and photo explanation on the quote | `45-C6-Video-and-photo-explanation-on-the-quote.txt` |
+| [ ] | 46 | **W5** Damage photos on arrival | `46-W5-Damage-photos-on-arrival.txt` |
+| [ ] | 47 | **W6** Washer commission | `47-W6-Washer-commission.txt` |
+| [ ] | 48 | **W7** Tips | `48-W7-Tips.txt` |
+| [ ] | 49 | **W8** Loyalty and subscriptions | `49-W8-Loyalty-and-subscriptions.txt` |
+| [ ] | 50 | **W9** Company contracts | `50-W9-Company-contracts.txt` |
+| [ ] | 51 | **W10** Product consumption and cost per wash | `51-W10-Product-consumption-and-cost-per-wash.txt` |
+| [ ] | 52 | **G1** Vehicle becomes a general "asset" | `52-G1-Vehicle-becomes-a-general-asset.txt` |
+| [ ] | 53 | **G2** More line types | `53-G2-More-line-types.txt` |
+| [ ] | 54 | **G3** Workshop profiles (statuses per type of business) | `54-G3-Workshop-profiles-statuses-per-type-of-busine.txt` |
+| [ ] | 55 | **G4** Country packs | `55-G4-Country-packs.txt` |
+| [ ] | 56 | **V1** Body and paint | `56-V1-Body-and-paint.txt` |
+| [ ] | 57 | **V2** Quick service lane | `57-V2-Quick-service-lane.txt` |
+| [ ] | 58 | **V3** Fleet and in-house workshop mode | `58-V3-Fleet-and-in-house-workshop-mode.txt` |
+| [ ] | 59 | **V4** Mobile mechanics and towing | `59-V4-Mobile-mechanics-and-towing.txt` |
+| [ ] | 60 | **V5** Tyre centre data | `60-V5-Tyre-centre-data.txt` |
+| [ ] | 61 | **V6** EV and high-voltage safety | `61-V6-EV-and-high-voltage-safety.txt` |
+| [ ] | 62 | **V7** Detailing and car wash | `62-V7-Detailing-and-car-wash.txt` |
+| [ ] | 63 | **V8** Repair data and parts sourcing integrations | `63-V8-Repair-data-and-parts-sourcing-integrations.txt` |
+| [ ] | 64 | **B6** Tyre storage ("hôtel de pneus") | `64-B6-Tyre-storage-h-tel-de-pneus.txt` |
+| [ ] | 65 | **B7** Loaner cars | `65-B7-Loaner-cars.txt` |
+| [ ] | 66 | **W11** Automatic tunnel / rollover | `66-W11-Automatic-tunnel-rollover.txt` |
+| [ ] | 67 | **W12** Detailing and ceramic | `67-W12-Detailing-and-ceramic.txt` |
+| [ ] | 68 | **W13** Mobile washing | `68-W13-Mobile-washing.txt` |
+| [ ] | 69 | **W15** Dashboard and reports for car wash | `69-W15-Dashboard-and-reports-for-car-wash.txt` |
+| [ ] | 70 | **W16** Wash + workshop together, and plate camera | `70-W16-Wash-workshop-together-and-plate-camera.txt` |
+| [ ] | 71 | **B8** Accounting export | `71-B8-Accounting-export.txt` |
+| [ ] | 72 | **C5** Loyalty and prepaid maintenance plans | `72-C5-Loyalty-and-prepaid-maintenance-plans.txt` |
+| [ ] | 73 | **D2** Insurance claim file | `73-D2-Insurance-claim-file.txt` |
+| [ ] | 74 | **D3** Parts catalogue and supplier prices | `74-D3-Parts-catalogue-and-supplier-prices.txt` |
+| [ ] | 75 | **D4** Satisfaction dashboard | `75-D4-Satisfaction-dashboard.txt` |
+| [ ] | 76 | **D6** Instant updates instead of 4-second polling | `76-D6-Instant-updates-instead-of-4-second-polling.txt` |
+| [ ] | 77 | **D7** Install on macOS/Linux and a single login | `77-D7-Install-on-macOS-Linux-and-a-single-login.txt` |
+| [ ] | 78 | **MG9** Multi-garage hub per branch | `78-MG9-Multi-garage-hub-per-branch.txt` |
+| [ ] | 79 | **X1** AI receptionist (WhatsApp and phone) | `79-X1-AI-receptionist-WhatsApp-and-phone.txt` |
+| [ ] | 80 | **X2** International e-invoicing adapter | `80-X2-International-e-invoicing-adapter.txt` |
+| [ ] | 81 | **X3** Regional payment providers | `81-X3-Regional-payment-providers.txt` |
 
-After the pilot (file 22) you may change the order according to customer feedback.
+After the pilot (file 29) you may change the order according to customer feedback.

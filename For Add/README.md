@@ -12,9 +12,14 @@ Everything prepared to evolve GaragePro, in one folder.
 | [PROMPTS.md](prompts/PROMPTS.md) | **Common preamble** (paste first, always) + A1–A7 reliability, B1–B8 staff, C1–C6 clients, D1–D7 management |
 | [PROMPTS-2.md](prompts/PROMPTS-2.md) | T1–T6 Tunisia must-haves, G1–G4 general core, V1–V8 garage types, X1–X3 growth |
 | [PROMPTS-WASH.md](prompts/PROMPTS-WASH.md) | W0–W16 car wash and small workshop |
+| [PROMPTS-3.md](prompts/PROMPTS-3.md) | S1–S7 ready to sell: setup wizard, accessibility, usage stats, backup per garage, load/cost test, status page, security audit |
 | [PROMPT-MULTI-GARAGE.md](prompts/PROMPT-MULTI-GARAGE.md) | Multi-garage SaaS with subscriptions (proposal first, then phases) |
 
 How to use: new Claude Code session → paste `prompts/00-PREAMBLE.md` → paste **one** prompt. One prompt per session; merge before the next.
+
+## Other
+- [IDEAS.md](IDEAS.md) — more ideas to discuss after the pilot
+- Backup of the code before any prompt: branch `backup/avant-prompts-2026-11-01` on GitHub
 
 ## plans/ — product and business plans
 | File | Content |
@@ -51,7 +56,8 @@ Order of work. The agent prompt (00-AGENT.md) takes the first line that is not �
 2. Multi-garage: [ ] phase 0 proposal (approved by me)
 3. Modules: [ ] W0
 4. Multi-garage: [ ] phase 1 [ ] phase 2 [ ] phase 3 [ ] phase 4 [ ] phase 5 [ ] phase 6 [ ] phase 7 [ ] phase 8 (subscriptions)
-5. Car wash + small workshop MVP: [ ] W1 [ ] W2 [ ] W3 [ ] W4 [ ] W14 → **pilot with real customers**
+5. Car wash + small workshop MVP: [ ] W1 [ ] W2 [ ] W3 [ ] W4 [ ] W14
+5b. Ready to sell: [ ] S1 [ ] S2 [ ] S3 [ ] S4 [ ] S5 [ ] S6 [ ] S7 → **pilot with real customers**
 6. Tunisia: [ ] T1 [ ] T2 [ ] T6 [ ] T3 [ ] T4 [ ] T5
 7. Daily use: [ ] B1 [ ] B2 [ ] B3 [ ] B4 [ ] B5 [ ] C1 [ ] C2 [ ] C3 [ ] C4 [ ] C6
 8. Car wash extras: [ ] W5 [ ] W6 [ ] W7 [ ] W8 [ ] W9 [ ] W10

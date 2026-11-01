@@ -1,6 +1,6 @@
 # How to run all the prompts — yourself or with an AI agent
 
-There are about **60 prompts** in `prompts/`. Together they are several months of work. They are written so that an AI
+There are **81 prompts** in `prompts/`. Together they are several months of work. They are written so that an AI
 coding agent (Claude Code) does the coding, while **you** decide, test and approve. Do them **one at a time**.
 
 ---
