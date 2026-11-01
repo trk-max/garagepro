@@ -2,7 +2,7 @@
 
 Everything prepared to evolve GaragePro, in one folder.
 
-**Start with [GUIDE.md](GUIDE.md)**: what you need (tools, accounts, keys, people) and how to run each prompt.
+**Doing it yourself? Follow [ORDER.md](ORDER.md)** (what to send, session by session). **Start with [GUIDE.md](GUIDE.md)**: what you need (tools, accounts, keys, people) and how to run each prompt.
 
 ## prompts/ — ready-to-paste prompts for Claude Code
 | File | Content |
