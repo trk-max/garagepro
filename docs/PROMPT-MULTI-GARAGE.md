@@ -26,6 +26,12 @@ DECISIONS ALREADY MADE (do not re-ask; tell me only if one is impossible or dang
    reminders before expiry, grace period, then read-only mode (never delete data; export always possible).
    A SUPER-ADMIN space (me only) to see organisations, plans, payments, usage, extend trials, suspend, impersonate with
    audit log.
+   PLANS ARE THE OFFERS of docs/PLAN-LAVAGE-ATELIER.md and docs/PLAN-SAAS.md: Atelier Lite, Lavage, Lavage + Atelier,
+   Complet. A plan = a preset of the module switches of prompt W0 (docs/PROMPTS-WASH.md) + limits; options
+   (subscriptions/loyalty, mobile washing, plate camera, e-invoicing, extra WhatsApp/SMS/AI credits, extra branch, extra
+   users) are sold as add-ons. Modules are switched per BRANCH (one branch can be Lavage, another Atelier) and the plan
+   price is per branch. The plan catalogue (prices in TND, monthly/yearly, limits, add-ons) is edited by the super-admin,
+   never hard-coded. Changing plan switches modules immediately; downgrading hides modules but keeps their data.
 5. Offline hub: OPTIONAL. New organisations work online only. A branch that asks for it can get a hub; a hub holds only
    its branch's data plus the shared clients/vehicles/settings of its organisation, and syncs only that.
 6. Numbering: per branch, with a branch prefix (e.g. TUN-F2026-0001, SFX-F2026-0001) for invoices, credit notes,
