@@ -67,5 +67,16 @@ Ideas beyond the 81 prompts, to discuss after the pilot. ★ = strong fit for Tu
   Builds on: showroom + messaging (V9), vehicle QR and history, inspections, OBD, warranties, client app; C3, C1,
   vehicle passport and pre-purchase inspection ideas. Partners: banks/leasing, insurers.
 
+## Remote diagnosis (saved)
+- **Diagnostic à distance (show the problem before coming)**: "Montrer le problème" button (app, website, WhatsApp)
+  by type (noise, warning light, smoke, leak, vibration); guided 30–60 s recording; optional AI first sort (warning
+  light from photo, urgency, likely job) always confirmed by a mechanic; mechanic answer queue (urgency, cause, price
+  range, parts to order); optional booked 5-minute video call; slot matched to job duration, parts ordered before the
+  car arrives; video kept in the work order. Free or small paid "remote opinion".
+  Check first: "first opinion, to be confirmed" (never final, esp. brakes/steering); safety message "stop the car" for
+  smoke/burning/brakes/red light; private videos with consent and auto-deletion; compress and limit length; answer
+  hours and daily limit for mechanics.
+  Builds on: photo/video upload, client app and messaging, AI guided diagnosis, booking, missing parts; T6, C6, X1.
+
 Ideas kept "maybe later" (Pro Drivers, MRE Service, Centrale d'achat, GaragePro Connect, Sinistre Zéro Souci,
 GaragePro Talents, Réseau GaragePro): see [IDEAS-MAYBE-LATER.md](IDEAS-MAYBE-LATER.md).
