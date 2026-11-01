@@ -1,0 +1,23 @@
+Project rules for this task (GaragePro, Next.js 15 + Prisma 6 + PostgreSQL, French codebase):
+- Follow CLAUDE.md (graphify: use `graphify explain` / `graphify path` before broad searches).
+- First explore and give me a short plan (files to change, migration, permissions, risks). Wait for my OK, then implement.
+- Database changes: a new ADDITIVE migration `prisma/migrations/<next number>_<name>/migration.sql`
+  (IF NOT EXISTS, nothing renamed or dropped, same habits as migration 32) + prisma/schema.prisma.
+  New tables must be synchronised by the offline hub (scripts/hub); check it. Remind me to run `npm run db:cloud` after merge.
+- Permissions only through the MATRIX in src/lib/permissions.ts, checked in the Server Action AND in the page.
+- Money in millimes (integers), quantities ×100, as everywhere else. Money/stock changes go to the audit log (src/server/audit.ts).
+- Every visible text in French, Arabic (full RTL) and English, in src/lib/i18n/*-fr.ts / *-ar.ts / *-en.ts.
+- Must keep working on the garage hub without internet. An external service with no key configured = feature hidden or
+  disabled with a clear message; never pretend something was sent or paid.
+- Mobile first (390 px) and desktop; no horizontal overflow.
+- Tests: unit tests in tests/, database tests as *.db.test.ts (npm run test:db). Run `npm run check` and show the result.
+- Add a "Nouveautés" section at the top of README.md and a short guide in docs/ in simple French.
+- Commit in small steps with clear French messages. Do not open a pull request unless I ask.
+
+Before fixing prices we must know the cost per garage. Build a reproducible load test (k6 or a Node script) against a
+staging deployment with synthetic data for 50, 100 and 300 branches (realistic volumes: orders, wash tickets, photos,
+open tracking pages and TV screens, WhatsApp webhooks, hub syncs). Measure: response times (p50/p95) of the main
+pages and actions, database CPU/connections, storage growth per month, Vercel function usage, Supabase egress.
+Fix the top bottlenecks found (indexes, N+1 queries, caching, image sizes). Write docs/COUTS-ET-CHARGE.md with the
+results, the estimated monthly cost per branch per plan, and the limits per plan to set (storage, users, media).
+Never run the load test against production.

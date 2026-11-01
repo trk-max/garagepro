@@ -1,0 +1,24 @@
+Project rules for this task (GaragePro, Next.js 15 + Prisma 6 + PostgreSQL, French codebase):
+- Follow CLAUDE.md (graphify: use `graphify explain` / `graphify path` before broad searches).
+- First explore and give me a short plan (files to change, migration, permissions, risks). Wait for my OK, then implement.
+- Database changes: a new ADDITIVE migration `prisma/migrations/<next number>_<name>/migration.sql`
+  (IF NOT EXISTS, nothing renamed or dropped, same habits as migration 32) + prisma/schema.prisma.
+  New tables must be synchronised by the offline hub (scripts/hub); check it. Remind me to run `npm run db:cloud` after merge.
+- Permissions only through the MATRIX in src/lib/permissions.ts, checked in the Server Action AND in the page.
+- Money in millimes (integers), quantities ×100, as everywhere else. Money/stock changes go to the audit log (src/server/audit.ts).
+- Every visible text in French, Arabic (full RTL) and English, in src/lib/i18n/*-fr.ts / *-ar.ts / *-en.ts.
+- Must keep working on the garage hub without internet. An external service with no key configured = feature hidden or
+  disabled with a clear message; never pretend something was sent or paid.
+- Mobile first (390 px) and desktop; no horizontal overflow.
+- Tests: unit tests in tests/, database tests as *.db.test.ts (npm run test:db). Run `npm run check` and show the result.
+- Add a "Nouveautés" section at the top of README.md and a short guide in docs/ in simple French.
+- Commit in small steps with clear French messages. Do not open a pull request unless I ask.
+
+Run a full security audit of GaragePro as a multi-tenant SaaS (use the security-audit skill if available), as a
+defensive review of our own code. Cover: tenant isolation in every query, Server Action, API route and cron job;
+authentication and sessions per subdomain; super-admin impersonation and its audit log; the public client portal
+(tracking codes, QR tokens, booking, payment links) against enumeration and brute force; payment and WhatsApp webhooks
+(signatures, replay, idempotency); file uploads and media access; the offline hub (LAN exposure, X-Forwarded-For, sync
+credentials); secrets in the repository and in logs; dependencies (npm audit, without --force); security headers (A2);
+rate limits. Reproduce each finding with a test before fixing; fix the critical and high ones; list the rest with a
+plan in docs/AUDIT-SECURITE.md. Do not test against production or third-party systems.

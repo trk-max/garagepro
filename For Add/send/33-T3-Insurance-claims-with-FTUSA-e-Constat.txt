@@ -1,0 +1,29 @@
+Project rules for this task (GaragePro, Next.js 15 + Prisma 6 + PostgreSQL, French codebase):
+- Follow CLAUDE.md (graphify: use `graphify explain` / `graphify path` before broad searches).
+- First explore and give me a short plan (files to change, migration, permissions, risks). Wait for my OK, then implement.
+- Database changes: a new ADDITIVE migration `prisma/migrations/<next number>_<name>/migration.sql`
+  (IF NOT EXISTS, nothing renamed or dropped, same habits as migration 32) + prisma/schema.prisma.
+  New tables must be synchronised by the offline hub (scripts/hub); check it. Remind me to run `npm run db:cloud` after merge.
+- Permissions only through the MATRIX in src/lib/permissions.ts, checked in the Server Action AND in the page.
+- Money in millimes (integers), quantities ×100, as everywhere else. Money/stock changes go to the audit log (src/server/audit.ts).
+- Every visible text in French, Arabic (full RTL) and English, in src/lib/i18n/*-fr.ts / *-ar.ts / *-en.ts.
+- Must keep working on the garage hub without internet. An external service with no key configured = feature hidden or
+  disabled with a clear message; never pretend something was sent or paid.
+- Mobile first (390 px) and desktop; no horizontal overflow.
+- Tests: unit tests in tests/, database tests as *.db.test.ts (npm run test:db). Run `npm run check` and show the result.
+- Add a "Nouveautés" section at the top of README.md and a short guide in docs/ in simple French.
+- Commit in small steps with clear French messages. Do not open a pull request unless I ask.
+
+Context: since 1 Nov 2025 the FTUSA "e-Constat" app lets drivers declare an accident with photos and location and get a
+PDF report with a QR code; the insurer then sends an expert. GaragePro already has the "Attente assurance" status.
+Do (extend PROMPTS.md D2 with this):
+1. Insurance file on the order: insurer (configurable list of Tunisian insurers), policy and claim numbers, e-Constat PDF
+   upload (read the QR/reference if possible), accident date, our client at fault or not, expert name/phone, expert visit
+   date, required photo checklist (before/during/after), estimate sent to the insurer, approved amount, excess
+   ("franchise") paid by the client, depreciation ("vétusté") if any.
+2. Split invoice: client part (excess, non-covered lines) and insurer part, each with its own payments and aged balance.
+3. Secure, time-limited link for the expert/insurer to see photos and the estimate and record approve/reject/supplement.
+4. Delays in "Suivi & retards" (waiting for expert, waiting for approval, waiting for insurer payment) and in Rapports
+   (average days to approval and to payment per insurer).
+5. I do not know the exact expert process of each Tunisian insurer: make the steps configurable and ask me at the end
+   which ones to keep.

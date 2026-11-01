@@ -1,0 +1,26 @@
+Project rules for this task (GaragePro, Next.js 15 + Prisma 6 + PostgreSQL, French codebase):
+- Follow CLAUDE.md (graphify: use `graphify explain` / `graphify path` before broad searches).
+- First explore and give me a short plan (files to change, migration, permissions, risks). Wait for my OK, then implement.
+- Database changes: a new ADDITIVE migration `prisma/migrations/<next number>_<name>/migration.sql`
+  (IF NOT EXISTS, nothing renamed or dropped, same habits as migration 32) + prisma/schema.prisma.
+  New tables must be synchronised by the offline hub (scripts/hub); check it. Remind me to run `npm run db:cloud` after merge.
+- Permissions only through the MATRIX in src/lib/permissions.ts, checked in the Server Action AND in the page.
+- Money in millimes (integers), quantities ×100, as everywhere else. Money/stock changes go to the audit log (src/server/audit.ts).
+- Every visible text in French, Arabic (full RTL) and English, in src/lib/i18n/*-fr.ts / *-ar.ts / *-en.ts.
+- Must keep working on the garage hub without internet. An external service with no key configured = feature hidden or
+  disabled with a clear message; never pretend something was sent or paid.
+- Mobile first (390 px) and desktop; no horizontal overflow.
+- Tests: unit tests in tests/, database tests as *.db.test.ts (npm run test:db). Run `npm run check` and show the result.
+- Add a "Nouveautés" section at the top of README.md and a short guide in docs/ in simple French.
+- Commit in small steps with clear French messages. Do not open a pull request unless I ask.
+
+Read For Add/plans/PLAN-LAVAGE-ATELIER.md first: it is the product plan this task belongs to. Every new feature must respect the
+module switches of W0 (hidden and inactive when its module is off, data kept).
+
+Fast checkout for wash tickets (and small-workshop orders in simple mode): one screen, total, add-ons added at the end,
+discount with permission and reason, tip (W7 setting), payment methods (cash, card, D17/Flouci/wallet, subscription,
+company contract → "à facturer"), change calculation. Receipt on an 80 mm thermal printer (browser print with a receipt
+CSS first; ESC/POS through a small local helper on the hub later — tell me the options) with QR to the receipt and
+loyalty balance. Cash drawer with opening float, cash in/out, end-of-day close (counted vs expected, reason for
+difference, Z report) — if T2 of For Add/prompts/PROMPTS-2.md is already done, reuse its cash drawer; otherwise build it so T2 can
+reuse it. Receipts become proper invoices on request (client tax ID), with TTN e-invoicing when that module is on.

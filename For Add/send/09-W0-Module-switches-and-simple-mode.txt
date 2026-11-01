@@ -1,0 +1,31 @@
+Project rules for this task (GaragePro, Next.js 15 + Prisma 6 + PostgreSQL, French codebase):
+- Follow CLAUDE.md (graphify: use `graphify explain` / `graphify path` before broad searches).
+- First explore and give me a short plan (files to change, migration, permissions, risks). Wait for my OK, then implement.
+- Database changes: a new ADDITIVE migration `prisma/migrations/<next number>_<name>/migration.sql`
+  (IF NOT EXISTS, nothing renamed or dropped, same habits as migration 32) + prisma/schema.prisma.
+  New tables must be synchronised by the offline hub (scripts/hub); check it. Remind me to run `npm run db:cloud` after merge.
+- Permissions only through the MATRIX in src/lib/permissions.ts, checked in the Server Action AND in the page.
+- Money in millimes (integers), quantities ×100, as everywhere else. Money/stock changes go to the audit log (src/server/audit.ts).
+- Every visible text in French, Arabic (full RTL) and English, in src/lib/i18n/*-fr.ts / *-ar.ts / *-en.ts.
+- Must keep working on the garage hub without internet. An external service with no key configured = feature hidden or
+  disabled with a clear message; never pretend something was sent or paid.
+- Mobile first (390 px) and desktop; no horizontal overflow.
+- Tests: unit tests in tests/, database tests as *.db.test.ts (npm run test:db). Run `npm run check` and show the result.
+- Add a "Nouveautés" section at the top of README.md and a short guide in docs/ in simple French.
+- Commit in small steps with clear French messages. Do not open a pull request unless I ask.
+
+Read For Add/plans/PLAN-LAVAGE-ATELIER.md first: it is the product plan this task belongs to. Every new feature must respect the
+module switches of W0 (hidden and inactive when its module is off, data kept).
+
+Add per-client module switches in Paramètres › Modules (admin only), stored in the settings table and synchronised by
+the hub: ATELIER (repair workshop), LAVAGE (car wash), and options: loyalty, subscriptions, washerCommission, tips,
+companyContracts, damagePhotos, productConsumption, tunnel, detailing, mobileWash, onlineBooking, whatsapp, eInvoicing,
+plateCamera. Also "Mode simple" for small workshops.
+- Offers as presets: Atelier Lite, Lavage, Lavage + Atelier, Complet (today's behaviour = Complet, the default for the
+  existing garage: nothing changes for it).
+- One helper isModuleOn(name) used by: menu (src/components/shell/nav.ts), pages (404/redirect when off), Server Actions
+  (refuse when off), dashboard cards, reports, documents, public site/portal.
+- Simple mode: menu reduced to Aujourd'hui, Véhicules, Ordres/Devis/Factures, Clients, Stock, Caisse, Paramètres; hides
+  contracts, skills, showroom, purchasing circuit (PO approval), HR beyond time clock; optional workshop steps
+  (quality control, signatures, inspection) become switches; one user may hold several roles.
+- Tests: each preset shows/hides the right menu entries and blocks the right actions; "Complet" is identical to today.
