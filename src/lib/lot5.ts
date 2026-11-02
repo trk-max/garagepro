@@ -1,4 +1,4 @@
-import type { ComebackCategory, InspectionColor, LaborKind, LinePriority, WorkOrderStatus } from "@prisma/client";
+import type { ComebackCategory, InspectionColor, LaborKind, LinePriority, QualityCategory, WorkOrderStatus } from "@prisma/client";
 
 /**
  * V16 Lot 5 — qualité, suivi et pilotage: pure rules (unit-tested in tests/lot5-v16.test.ts), used by
@@ -10,9 +10,9 @@ const DAY = 86_400_000;
 // ── Quality check ─────────────────────────────────────────────────────────────
 
 /** A point added in Paramètres › Parcours atelier, on top of the 6 fixed points (columns of QualityCheck). */
-export type QualityPoint = { key: string; label: string };
+export type QualityPoint = { key: string; label: string; categories?: QualityCategory[] };
 /** Results of those points, with the label copied at the time of the check. */
-export type ExtraResults = Record<string, { label: string; ok: boolean }>;
+export type ExtraResults = Record<string, { label: string; ok: boolean; categories?: QualityCategory[] }>;
 
 export const MAX_QUALITY_POINTS = 40;
 
@@ -27,7 +27,10 @@ export function parseQualityPoints(raw: unknown): QualityPoint[] {
     const label = String((p as { label?: unknown }).label ?? "").trim().slice(0, 120);
     if (!/^[a-z0-9-]{1,40}$/.test(key) || !label || seen.has(key)) continue;
     seen.add(key);
-    out.push({ key, label });
+    const categories = Array.isArray((p as { categories?: unknown }).categories)
+      ? [...new Set((p as { categories: unknown[] }).categories.filter((category): category is QualityCategory => typeof category === "string" && ["BRAKES", "ENGINE", "TIMING", "CLUTCH_GEARBOX", "ELECTRICAL_DIAGNOSTICS", "AIR_CONDITIONING", "SUSPENSION_STEERING", "TIRES_GEOMETRY", "BODYWORK", "OTHER"].includes(category)))]
+      : [];
+    out.push({ key, label, ...(categories.length ? { categories } : {}) });
     if (out.length >= MAX_QUALITY_POINTS) break;
   }
   return out;
@@ -35,14 +38,17 @@ export function parseQualityPoints(raw: unknown): QualityPoint[] {
 
 /** Settings form: one label per line → points with stable keys (same label = same key, so results survive). */
 export function pointsFromLines(text: string): QualityPoint[] {
-  const labels = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  const rows = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
   const used = new Set<string>();
   const points: QualityPoint[] = [];
-  for (const label of labels) {
+  for (const row of rows) {
+    const [rawLabel, rawCategories] = row.split("|", 2);
+    const label = rawLabel!.trim();
     let key = slug(label) || "point";
     for (let i = 2; used.has(key); i++) key = `${slug(label) || "point"}-${i}`;
     used.add(key);
-    points.push({ key, label: label.slice(0, 120) });
+    const categories = [...new Set((rawCategories ?? "").split(",").map((category) => category.trim()).filter((category): category is QualityCategory => typeof category === "string" && ["BRAKES", "ENGINE", "TIMING", "CLUTCH_GEARBOX", "ELECTRICAL_DIAGNOSTICS", "AIR_CONDITIONING", "SUSPENSION_STEERING", "TIRES_GEOMETRY", "BODYWORK", "OTHER"].includes(category)))];
+    points.push({ key, label: label.slice(0, 120), ...(categories.length ? { categories } : {}) });
     if (points.length >= MAX_QUALITY_POINTS) break;
   }
   return points;
@@ -62,7 +68,12 @@ export function parseExtraResults(raw: unknown): ExtraResults {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
   const out: ExtraResults = {};
   for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
-    if (v && typeof v === "object") out[k] = { label: String((v as { label?: unknown }).label ?? k), ok: (v as { ok?: unknown }).ok === true };
+    if (v && typeof v === "object") {
+      const categories = Array.isArray((v as { categories?: unknown }).categories)
+        ? [...new Set((v as { categories: unknown[] }).categories.filter((category): category is QualityCategory => typeof category === "string" && ["BRAKES", "ENGINE", "TIMING", "CLUTCH_GEARBOX", "ELECTRICAL_DIAGNOSTICS", "AIR_CONDITIONING", "SUSPENSION_STEERING", "TIRES_GEOMETRY", "BODYWORK", "OTHER"].includes(category)))]
+        : [];
+      out[k] = { label: String((v as { label?: unknown }).label ?? k), ok: (v as { ok?: unknown }).ok === true, ...(categories.length ? { categories } : {}) };
+    }
   }
   return out;
 }

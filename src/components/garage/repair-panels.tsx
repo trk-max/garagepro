@@ -1,13 +1,11 @@
 import type { ReactNode } from "react";
-import { CheckCircle2, Timer } from "lucide-react";
+import { Timer } from "lucide-react";
 import type { WorkOrderStatus } from "@prisma/client";
 import {
   addLaborEntryAction,
   addPartNeedAction,
   addSuggestedLaborLineAction,
   partsWaitDecisionAction,
-  approveQualityCheckAction,
-  saveQualityCheckAction,
   startLaborAction,
   stopLaborAction,
   updateInsuranceAction,
@@ -17,7 +15,7 @@ import {
 import { ActionButton, ActionForm } from "@/components/action-form";
 import { ReasonButton } from "@/components/team/prompt-action";
 import { Button } from "@/components/ui/button";
-import { Card, CardTitle, Field, NativeSelect, Textarea } from "@/components/ui/field";
+import { Card, CardTitle, Field, NativeSelect } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { minutesToHours } from "@/lib/attendance";
 import { utcToZoned } from "@/lib/booking";
@@ -31,8 +29,7 @@ import { listPartNeeds } from "@/server/follow-up";
 import { laborSummary } from "@/server/labor";
 import { partOptions } from "@/server/parts";
 import { supplierOptions } from "@/server/purchasing";
-import { QC_KEYS, getQualityCheck, qualityPoints } from "@/server/quality";
-import { LABOR_KINDS, parseExtraResults, reworkCount } from "@/lib/lot5";
+import { LABOR_KINDS } from "@/lib/lot5";
 import { isFinal } from "@/server/workflow";
 import { PROMISE_REASONS } from "@/lib/delays";
 import { lastPartsWaitDecision } from "@/server/delays";
@@ -42,6 +39,7 @@ type Wo = {
   status: WorkOrderStatus;
   /** V16 Lot 5 */
   workflowLot5?: boolean;
+  supervisorId?: string | null;
   comebackOfWorkOrderId?: string | null;
   insurerName: string | null;
   insuranceClaimRef: string | null;
@@ -58,19 +56,13 @@ const day = (d: Date | null, tz: string) => (d ? utcToZoned(d, tz).date : "");
  * `inspection` (staff-ux): the red / orange / green inspection, shown inside the « Contrôle qualité » card.
  */
 export async function RepairPanels({ wo, staff, t, lang, tz, inspection }: { wo: Wo; staff: StaffUser; t: Dictionary; lang: Lang; tz: string; inspection?: ReactNode }) {
-  // V16 Lot 5: points set in the settings and the rework counter (from the status events, append-only).
-  const [points, statusEvents] = await Promise.all([qualityPoints(), prisma.workOrderEvent.findMany({ where: { workOrderId: wo.id, type: "STATUS_CHANGED" }, select: { type: true, data: true } })]);
-  const reworks = reworkCount(statusEvents);
   const l5 = t.v16.lot5;
-  const [labor, qc, needs, parts, suppliers, users, supervision, orderLines, waitDecision] = await Promise.all([
+  const [labor, needs, parts, suppliers, users, orderLines, waitDecision] = await Promise.all([
     laborSummary(wo.id),
-    getQualityCheck(wo.id),
     listPartNeeds(wo.id),
     partOptions(),
     supplierOptions(),
     prisma.user.findMany({ where: { isActive: true }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
-    // V14: supervisor of the order (indicator on the quality check) and the « supervisor verifies » rule.
-    prisma.workOrder.findUnique({ where: { id: wo.id }, select: { supervisor: { select: { name: true } } } }).then(async (w) => (w?.supervisor ? { name: w.supervisor.name, verifies: (await prisma.setting.findUnique({ where: { id: "garage" }, select: { skillSupervisorVerifies: true } }))?.skillSupervisorVerifies ?? false } : null)),
     // V16 Lot 3: the order lines a missing part can be tied to, and the « keep / hand back » decision.
     prisma.workOrderLine.findMany({ where: { workOrderId: wo.id, voidedAt: null, approvalStatus: { not: "REFUSED" } }, orderBy: [{ position: "asc" }, { createdAt: "asc" }], select: { id: true, description: true } }),
     lastPartsWaitDecision(wo.id),
@@ -79,20 +71,12 @@ export async function RepairPanels({ wo, staff, t, lang, tz, inspection }: { wo:
   const canUpdateNeeds = can(staff, "manageRepairFollowUp") || can(staff, "managePartNeeds");
   const openNeeds = needs.some((n) => n.status === "NEEDED" || n.status === "ORDERED");
   const lineName = (id: string | null) => (id ? (orderLines.find((l) => l.id === id)?.description ?? null) : null);
-  const approver = qc?.approvedById ? await prisma.user.findUnique({ where: { id: qc.approvedById }, select: { name: true } }) : null;
   const v = t.v7;
   const final = isFinal(wo.status);
   const mine = labor.running.find((e) => e.userId === staff.id);
   const missingElapsed = labor.suggestedElapsedX100 - labor.billedX100;
   const missingPerson = labor.suggestedPersonX100 - labor.billedX100;
   const twoBases = labor.mechanics >= 2 && labor.suggestedPersonX100 !== labor.suggestedElapsedX100;
-  const extra = parseExtraResults(qc?.extraPoints);
-  const lot5 = !!wo.workflowLot5;
-  const qcDone =
-    !!qc &&
-    qc.roadTest !== null &&
-    QC_KEYS.every((k) => qc[k]) &&
-    (!lot5 || ((qc.roadTest !== "DONE" || (qc.roadTestKm ?? 0) > 0) && points.every((p) => extra[p.key]?.ok)));
   const kindSelect = (
     <NativeSelect name="kind" defaultValue={wo.comebackOfWorkOrderId ? "REWORK" : ""} aria-label={l5.labor.kind}>
       <option value="">{l5.labor.kindAny}</option>
@@ -265,78 +249,7 @@ export async function RepairPanels({ wo, staff, t, lang, tz, inspection }: { wo:
         )}
       </Card>
 
-      {/* ── Quality control ── */}
-      <Card className={cn(wo.status === "QUALITY_CONTROL" && "border-cyan-500")} data-testid="quality-card">
-        <CardTitle>{v.quality.title}</CardTitle>
-        {supervision && (
-          <p className="mb-3 border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm">
-            {fmt(t.v14.qc.supervised, { name: supervision.name })} {supervision.verifies ? t.v14.qc.supervisorVerifies : ""}
-          </p>
-        )}
-        {qc?.approvedAt ? (
-          <p className="mb-3 flex items-center gap-2 text-sm text-emerald-700 dark:text-emerald-400">
-            <CheckCircle2 className="size-4" aria-hidden /> {fmt(v.quality.approvedBy, { name: approver?.name ?? "?", date: formatDateTime(qc.approvedAt, lang, tz) })}
-          </p>
-        ) : (
-          <p className="mb-3 text-sm text-amber-700 dark:text-amber-400">{v.quality.notApproved}</p>
-        )}
-        <p className="mb-3 text-xs text-muted-foreground" data-testid="rework-count">{reworks ? fmt(l5.quality.reworks, { n: reworks }) : l5.quality.noReworks}</p>
-        {final ? null : (
-          <>
-            <ActionForm action={saveQualityCheckAction.bind(null, wo.id)} reset={false} className="space-y-3">
-              <fieldset className="flex flex-wrap items-center gap-4 text-sm" disabled={!can(staff, "fillQualityCheck")}>
-                <legend className="mb-1 font-medium">{v.quality.roadTest}</legend>
-                <label className="flex items-center gap-2">
-                  <input type="radio" name="roadTest" value="DONE" defaultChecked={qc?.roadTest === "DONE"} className="size-4 accent-brand-500" /> {v.quality.roadTestDone}
-                </label>
-                <label className="flex items-center gap-2">
-                  <input type="radio" name="roadTest" value="NOT_NEEDED" defaultChecked={qc?.roadTest === "NOT_NEEDED"} className="size-4 accent-brand-500" /> {v.quality.roadTestNotNeeded}
-                </label>
-                {/* V16 Lot 5 — distance of the road test (mandatory when done, new orders). */}
-                <label className="flex items-center gap-2">
-                  {l5.quality.roadTestKm}
-                  <Input type="number" name="roadTestKm" min={0} max={500} inputMode="numeric" defaultValue={qc?.roadTestKm ?? ""} className="h-9 w-24" dir="ltr" />
-                  <span className="text-xs text-muted-foreground">{lot5 ? l5.quality.roadTestKmHint : ""}</span>
-                </label>
-              </fieldset>
-              <div className="grid gap-2 text-sm sm:grid-cols-2">
-                {QC_KEYS.map((k) => (
-                  <label key={k} className="flex min-h-10 items-center gap-3 border px-3 py-2">
-                    <input type="checkbox" name={k} defaultChecked={qc?.[k] ?? false} className="size-5 accent-brand-500" />
-                    {v.quality[k]}
-                  </label>
-                ))}
-              </div>
-              {points.length > 0 && (
-                <fieldset className="text-sm" disabled={!can(staff, "fillQualityCheck")} data-testid="qc-extra">
-                  <legend className="mb-1 font-medium">{l5.quality.extraTitle}</legend>
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    {points.map((p) => (
-                      <label key={p.key} className="flex min-h-10 items-center gap-3 border px-3 py-2">
-                        <input type="checkbox" name={`qp:${p.key}`} defaultChecked={extra[p.key]?.ok ?? false} className="size-5 accent-brand-500" />
-                        {p.label}
-                      </label>
-                    ))}
-                  </div>
-                </fieldset>
-              )}
-              <Field label={v.quality.notes}>
-                <Textarea name="notes" rows={2} maxLength={1000} defaultValue={qc?.notes ?? ""} />
-              </Field>
-              <div className="flex flex-wrap items-center gap-2">
-                {can(staff, "fillQualityCheck") && <Button type="submit" variant="outline">{v.quality.save}</Button>}
-              </div>
-            </ActionForm>
-            {can(staff, "approveQualityCheck") && !qc?.approvedAt && (
-              <ActionButton className="mt-3" action={approveQualityCheckAction.bind(null, wo.id)} disabled={!qcDone}>
-                <CheckCircle2 className="size-4" aria-hidden /> {v.quality.approve}
-              </ActionButton>
-            )}
-            <p className="mt-2 text-xs text-muted-foreground">{v.quality.changedResets}</p>
-          </>
-        )}
-        {inspection}
-      </Card>
+      {inspection}
 
       {/* ── Missing parts ── */}
       <Card>

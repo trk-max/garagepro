@@ -1,7 +1,7 @@
 import { createPartAction } from "@/actions/catalog";
 import { ActionForm } from "@/components/action-form";
 import { Button } from "@/components/ui/button";
-import { Field } from "@/components/ui/field";
+import { Field, NativeSelect } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import type { Dictionary } from "@/lib/i18n/fr";
 
@@ -32,6 +32,12 @@ export function CreatePartForm({ t }: { t: Dictionary }) {
       </Field>
       <Field label={t.parts.unit}>
         <Input name="unit" placeholder="pce, L, kit" />
+      </Field>
+      <Field label={t.v16.lot5.quality.targeted.category}>
+        <NativeSelect name="qualityCategory" defaultValue="OTHER">
+          {Object.entries(t.v16.lot5.quality.targeted.categories).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+          <option value="OTHER">{t.v16.lot5.quality.targeted.other}</option>
+        </NativeSelect>
       </Field>
       <div className="col-span-2">
         <Button type="submit" className="w-full">

@@ -27,10 +27,11 @@ export async function stockList(
   };
   const parts = await prisma.part.findMany({
     where,
-    select: { id: true, sku: true, name: true, brand: true, unit: true, stockX100: true, minStockX100: true, reservedX100: true, costPrice: true, salePrice: true, defaultSupplier: { select: { name: true } } },
+    select: { id: true, sku: true, name: true, brand: true, qualityCategory: true, unit: true, stockX100: true, minStockX100: true, reservedX100: true, costPrice: true, salePrice: true, defaultSupplier: { select: { name: true } } },
   });
   let rows: StockRow[] = parts.map(({ defaultSupplier, costPrice, salePrice, ...p }) => ({
     ...p,
+    qualityCategory: p.qualityCategory ?? "OTHER",
     supplier: defaultSupplier?.name ?? null,
     costPrice: withPrices ? costPrice : 0,
     salePrice: withPrices ? salePrice : 0,

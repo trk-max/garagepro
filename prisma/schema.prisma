@@ -64,6 +64,19 @@ enum LineType {
   PART
 }
 
+enum QualityCategory {
+  BRAKES
+  ENGINE
+  TIMING
+  CLUTCH_GEARBOX
+  ELECTRICAL_DIAGNOSTICS
+  AIR_CONDITIONING
+  SUSPENSION_STEERING
+  TIRES_GEOMETRY
+  BODYWORK
+  OTHER
+}
+
 enum FuelType {
   ESSENCE
   DIESEL
@@ -376,6 +389,8 @@ model WorkOrder {
   /// V16 Lot 5 — règles du Lot 5 (km de l'essai, points réglés du contrôle, cause de reprise, enquête de
   /// satisfaction) : false pour les OR ouverts avant la migration 29, true ensuite.
   workflowLot5          Boolean         @default(true)
+  /// Contrôle qualité limité aux lignes de travaux. Faux pour les ordres présents avant la migration dédiée.
+  workflowLineQuality   Boolean         @default(true)
   createdAt            DateTime        @default(now())
   updatedAt            DateTime        @updatedAt
 
@@ -461,6 +476,8 @@ model WorkOrderLine {
   isStorageFee   Boolean            @default(false)
   /// V16 Lot 5 — main-d'œuvre de reprise d'un retour atelier (0 DT par défaut, facturée seulement si cochée).
   isRework       Boolean            @default(false)
+  /// Catégorie figée à la création de la ligne, utilisée par le contrôle qualité ciblé.
+  qualityCategory QualityCategory   @default(OTHER)
   createdAt    DateTime @default(now())
 
   workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
@@ -725,6 +742,8 @@ model Part {
   sku          String   @unique
   name         String
   brand        String?
+  /// Catégorie de contrôle qualité utilisée pour les nouvelles lignes de cette pièce.
+  qualityCategory QualityCategory?
   /// Stock en quantité × 100.
   stockX100    Int      @default(0)
   minStockX100 Int      @default(0)
@@ -1593,6 +1612,8 @@ model QualityCheck {
   roadTestKm      Int?
   /// V16 Lot 5 — points ajoutés dans les réglages : { "<clé>": { "label": "…", "ok": true } } (libellé copié).
   extraPoints     Json      @default("{}")
+  /// Contrôles par ligne : { "<lineId>": { "label": "…", "type": "LABOR", "category": "BRAKES", "ok": true, "at": "…", "by": "…" } }.
+  lineChecks      Json      @default("{}")
   notes           String?
   checkedById     String?
   checkedAt       DateTime?

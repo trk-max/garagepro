@@ -24,7 +24,12 @@ export function SettingsLot5({ t, settings, templates, canTemplates }: { t: Dict
         <CardTitle>{t.v7.quality.title}</CardTitle>
         <ActionForm action={saveLot5SettingsAction} reset={false} className="grid gap-3">
           <Field label={s.qualityPoints} hint={s.qualityPointsHint}>
-            <Textarea name="qualityPoints" rows={4} maxLength={3000} defaultValue={points.map((p) => p.label).join("\n")} />
+            <Textarea
+              name="qualityPoints"
+              rows={4}
+              maxLength={3000}
+              defaultValue={points.map((p) => `${p.label}${p.categories?.length ? ` | ${p.categories.join(",")}` : ""}`).join("\n")}
+            />
           </Field>
           <label className="flex items-start gap-3 text-sm">
             <input type="checkbox" name="autoSatisfactionSurvey" defaultChecked={settings.autoSatisfactionSurvey} className="mt-0.5 size-4" />

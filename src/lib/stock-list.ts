@@ -15,6 +15,7 @@ export type StockRow = {
   sku: string;
   name: string;
   brand: string | null;
+  qualityCategory: string;
   supplier: string | null;
   unit: string;
   stockX100: number;

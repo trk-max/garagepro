@@ -55,17 +55,11 @@ export const TODO_WHERE = {
   missingParts: { status: { in: ["NEEDED", "ORDERED"] }, workOrder: { status: { in: ACTIVE_STATUSES } } } satisfies Prisma.WorkOrderPartNeedWhereInput,
   insuranceWaiting: { status: "WAITING_INSURANCE", insuranceDecision: null } satisfies Prisma.WorkOrderWhereInput,
   certificateFields: { isActive: true, OR: [{ jobTitle: null }, { jobTitle: "" }, { hireDate: null }] } satisfies Prisma.UserWhereInput,
-  // Same rule as the quality check page: every point answered, waiting for the final approval.
+  // Any saved checklist still awaiting a manager's approval, including targeted checklists on new orders.
   qualityChecks: {
     approvedAt: null,
     checkedAt: { not: null },
-    roadTest: { not: null },
-    fluidsOk: true,
-    warningsOk: true,
-    toolsRemoved: true,
-    workVerified: true,
-    billingVerified: true,
-    workOrder: { status: "QUALITY_CONTROL" },
+    workOrder: { status: { in: ["QUALITY_CONTROL", "WASHING"] } },
   } satisfies Prisma.QualityCheckWhereInput,
   contracts: (who: PermSubject, access: "manage" | "approve", status: string[]): Prisma.ContractWhereInput => ({
     category: { in: contractCategoriesFor(who, access) },

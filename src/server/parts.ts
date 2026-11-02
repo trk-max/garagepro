@@ -58,7 +58,7 @@ export async function recentMovements(limit = 30) {
 }
 
 export async function createPart(
-  input: { sku: string; name: string; brand?: string; unit: string; costPrice?: number; salePrice: number; stock?: number; minStock?: number },
+  input: { sku: string; name: string; brand?: string; unit: string; costPrice?: number; salePrice: number; stock?: number; minStock?: number; qualityCategory?: import("@prisma/client").QualityCategory },
   actor: StaffUser,
 ) {
   return prisma.$transaction(async (tx) => {
@@ -70,6 +70,7 @@ export async function createPart(
         unit: input.unit,
         costPrice: input.costPrice ?? 0,
         salePrice: input.salePrice,
+        qualityCategory: input.qualityCategory ?? "OTHER",
         stockX100: input.stock ?? 0,
         minStockX100: input.minStock ?? 0,
       },
@@ -83,7 +84,7 @@ export async function createPart(
   });
 }
 
-const PART_AUDIT = { sku: true, name: true, brand: true, unit: true, costPrice: true, salePrice: true, minStockX100: true } as const;
+const PART_AUDIT = { sku: true, name: true, brand: true, unit: true, costPrice: true, salePrice: true, minStockX100: true, qualityCategory: true } as const;
 
 export async function updatePart(id: string, data: Prisma.PartUpdateInput, actor: StaffUser) {
   await prisma.$transaction(async (tx) => {

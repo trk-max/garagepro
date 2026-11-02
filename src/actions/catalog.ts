@@ -120,6 +120,7 @@ export async function updatePartAction(partId: string, form: FormData): Promise<
         unit: data.unit,
         costPrice: data.costPrice ?? 0,
         salePrice: data.salePrice,
+        qualityCategory: data.qualityCategory,
         ...(data.minStock !== undefined ? { minStockX100: data.minStock } : {}),
       },
       actor,
