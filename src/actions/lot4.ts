@@ -34,6 +34,7 @@ async function who() {
 const refresh = (workOrderId: string) => {
   revalidatePath("/garage", "layout");
   revalidatePath(`/garage/work-orders/${workOrderId}`);
+  revalidatePath(`/garage/app/ordre/${workOrderId}`);
 };
 
 export async function signIntakeAction(workOrderId: string, form: FormData): Promise<Result> {

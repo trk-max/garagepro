@@ -28,12 +28,57 @@ import { fr } from "@/lib/i18n/fr";
 import { ar } from "@/lib/i18n/ar";
 import { en } from "@/lib/i18n/en";
 import { customerEventData } from "@/server/portal";
+import { activeQualityLines, legacyQualityComplete, parseQualityLineChecks, qualityCardCapabilities, qualityCardVisible, qualityCategoryForSkillCode, qualityLineChecksComplete, qualityMode, qualityPointsForLines, roadTestRequired, shouldShowIntakePriority, targetedQualityComplete } from "@/lib/quality";
 
 const DAY = 86_400_000;
 const NOW = new Date(Date.UTC(2026, 9, 20, 10));
 const ago = (days: number) => new Date(NOW.getTime() - days * DAY);
 
 describe("contrôle qualité : points réglés, km de l'essai", () => {
+  it("scopes settings points to work categories and keeps uncategorized points universal", () => {
+    const points = pointsFromLines("Pression\nFreins | BRAKES\nMoteur | ENGINE\nContrôle universel ciblé | OTHER");
+    const lines = [
+      { id: "brake", description: "Freins avant", type: "LABOR" as const, qualityCategory: "BRAKES" as const, voidedAt: null, approvalStatus: "APPROVED" },
+      { id: "refused", description: "Moteur", type: "PART" as const, qualityCategory: "ENGINE" as const, voidedAt: null, approvalStatus: "REFUSED" },
+      { id: "void", description: "Moteur", type: "PART" as const, qualityCategory: "ENGINE" as const, voidedAt: new Date(), approvalStatus: "APPROVED" },
+    ];
+    expect(qualityPointsForLines(points, lines).map((point) => point.label)).toEqual(["Pression", "Freins"]);
+    expect(qualityPointsForLines(points, [{ ...lines[0]!, qualityCategory: "OTHER" }]).map((point) => point.label)).toEqual(["Pression", "Contrôle universel ciblé"]);
+    expect([...activeQualityLines(lines).map((line) => line.id)]).toEqual(["brake"]);
+    expect(roadTestRequired(lines)).toBe(true);
+    expect(roadTestRequired([{ ...lines[0]!, qualityCategory: "OTHER" }])).toBe(false);
+    expect(qualityCategoryForSkillCode("SUSPENSION")).toBe("SUSPENSION_STEERING");
+    expect(qualityCategoryForSkillCode("OIL")).toBe("ENGINE");
+  });
+
+  it("requires the current saved snapshot for every work line and checks the conditional road test", () => {
+    const lines = [{ id: "line1", description: "Freins avant", type: "LABOR" as const, qualityCategory: "BRAKES" as const, voidedAt: null, approvalStatus: "APPROVED" }];
+    const checks = parseQualityLineChecks({ line1: { label: "Freins avant", type: "LABOR", category: "BRAKES", ok: true, at: "2026-01-01", by: "manager" } });
+    expect(qualityLineChecksComplete(lines, checks)).toBe(true);
+    expect(qualityLineChecksComplete([{ ...lines[0]!, description: "Freins avant (plaquettes)" }], checks)).toBe(false);
+    expect(qualityLineChecksComplete([], checks)).toBe(false);
+    expect(targetedQualityComplete({ lines, lineChecks: checks, toolsRemoved: true, roadTestRequired: true, roadTest: "DONE", roadTestKm: 8, extraPoints: {} })).toBe(true);
+    expect(targetedQualityComplete({ lines, lineChecks: checks, toolsRemoved: false, roadTestRequired: true, roadTest: "DONE", roadTestKm: 8, extraPoints: {} })).toBe(false);
+    expect(targetedQualityComplete({ lines: [], lineChecks: {}, toolsRemoved: true, roadTestRequired: false, roadTest: "NOT_NEEDED", roadTestKm: null, extraPoints: {} })).toBe(true);
+  });
+
+  it("limits the intake banner and quality card to the intended states; legacy orders retain their checklist mode", () => {
+    expect(shouldShowIntakePriority("RECEIVED", false)).toBe(true);
+    expect(shouldShowIntakePriority("RECEIVED", true)).toBe(false);
+    expect(shouldShowIntakePriority("IN_PROGRESS", false)).toBe(false);
+    expect(qualityCardVisible("QUALITY_CONTROL")).toBe(true);
+    expect(qualityCardVisible("WASHING")).toBe(true);
+    expect(qualityCardVisible("READY")).toBe(true);
+    expect(qualityCardVisible("IN_PROGRESS")).toBe(false);
+    expect(qualityMode(false)).toBe("LEGACY");
+    expect(qualityMode(true)).toBe("TARGETED");
+    expect(qualityCardCapabilities({ canFill: true, canApprove: false, approved: false, final: false })).toEqual({ canEdit: true, canApprove: false, waitingForApproval: true });
+    expect(qualityCardCapabilities({ canFill: true, canApprove: true, approved: false, final: false }).canApprove).toBe(true);
+    expect(qualityCardCapabilities({ canFill: true, canApprove: true, approved: false, final: true }).canEdit).toBe(false);
+    expect(legacyQualityComplete({ roadTest: "NOT_NEEDED", fluidsOk: true, warningsOk: true, toolsRemoved: true, workVerified: true, billingVerified: true })).toBe(true);
+    expect(legacyQualityComplete({ roadTest: null, fluidsOk: true, warningsOk: true, toolsRemoved: true, workVerified: true, billingVerified: true })).toBe(false);
+  });
+
   it("settings: one point per line, stable keys, duplicates numbered, bad rows dropped", () => {
     const pts = pointsFromLines("Pression des pneus\n\n  Niveau lave-glace \nPression des pneus");
     expect(pts).toEqual([

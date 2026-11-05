@@ -48,6 +48,7 @@ import { computeTotals, displayPlate, fmt, formatDate, formatDateTime, formatKm,
 import { getI18n } from "@/lib/i18n/server";
 import { utcToZoned, zonedToUtc } from "@/lib/booking";
 import { PaymentPromiseCard } from "@/components/garage/payment-promise-card";
+import { QualityCheckCard } from "@/components/garage/quality-check-card";
 import { invoicePromises } from "@/server/payment-promises";
 import { can } from "@/lib/permissions";
 import { requirePageAccess } from "@/lib/session";
@@ -74,6 +75,8 @@ import { ComebackCard, InspectionCard } from "@/components/garage/lot5-cards";
 import { comebackView } from "@/server/comebacks";
 import { inspectionsFor, listTemplates } from "@/server/inspections";
 import { markAssignmentSeen } from "@/server/assignment-alerts";
+import { qualityChecklistData } from "@/server/quality";
+import { shouldShowIntakePriority } from "@/lib/quality";
 
 type PageProps = { params: Promise<{ id: string }> };
 
@@ -107,7 +110,7 @@ export default async function WorkOrderPage({ params }: PageProps) {
   // V16 Lot 4: intake signature (frozen document), handovers, storage fee due before invoicing.
   // V16 Lot 5: comeback (suggestion / link, rework counter), inspections and their templates.
   const [comeback, inspections, templates] = await Promise.all([comebackView(wo.id), inspectionsFor(wo.id), listTemplates(true)]);
-  const [quotes, quoteState, revisions, waiverMissing, intakeSig, handovers, handoverDone, storage, readyNotices] = await Promise.all([
+  const [quotes, quoteState, revisions, waiverMissing, intakeSig, handovers, handoverDone, storage, readyNotices, quality] = await Promise.all([
     quoteHistory(wo.id),
     orderQuoteState(wo.id),
     revisionHistory(wo.id),
@@ -117,6 +120,7 @@ export default async function WorkOrderPage({ params }: PageProps) {
     handoverSinceReady(prisma, wo.id, wo.readyAt),
     wo.workflowLot4 && wo.status === "READY" && !wo.invoice ? orderStorageFee(db, wo.id) : Promise.resolve(null),
     prisma.notification.findMany({ where: { workOrderId: wo.id, kind: "READY", status: "SENT" }, orderBy: { sentAt: "desc" }, select: { sentAt: true, createdAt: true } }),
+    qualityChecklistData(wo.id),
   ]);
   const intakeIntact = intakeSig ? await documentIntact(intakeSig.id) : null;
   // Paiements partiels: next payment promised by the customer while the invoice has money due.
@@ -126,7 +130,7 @@ export default async function WorkOrderPage({ params }: PageProps) {
   const intakeLocked = !!intakeSig;
   // staff-ux: a NEW order (V16) whose intake is not signed yet shows the repair order + signature first; once
   // signed (= complete: the signature freezes and locks the intake), both fold away behind a button.
-  const intakeFirst = wo.workflowV16 && !intakeLocked && !isFinal(wo.status);
+  const intakeFirst = shouldShowIntakePriority(wo.status, intakeLocked);
   const intakeBlocks = (
     <>
       {/* ── V10.6: repair order (prise en charge) — fuel, body, parts origin, estimate, deposit, CIN ── */}
@@ -147,6 +151,7 @@ export default async function WorkOrderPage({ params }: PageProps) {
         final={isFinal(wo.status)}
         t={t}
         lang={lang}
+        openByDefault={intakeFirst}
       />
     </>
   );
@@ -200,6 +205,9 @@ export default async function WorkOrderPage({ params }: PageProps) {
     // V16 Lot 5: back to the workshop after the quality check → cause (list), new orders.
     rework: wo.workflowLot5 && isReworkMove(wo.status, o.to),
   }));
+  const readyAvailable = choices.some((choice) => choice.to === "READY");
+  const readyBlocked = readyAvailable && !quality.approved;
+  const visibleChoices = choices.filter((choice) => choice.to !== "READY" || quality.approved);
   const nextChoice = next ? choices.find((c) => c.to === next) : undefined;
   const canOverride = can(staff, "deliverWithBalance");
   const balanceText = formatMoney(balanceDue(wo.invoice, deposit) ?? 0, lang);
@@ -288,32 +296,6 @@ export default async function WorkOrderPage({ params }: PageProps) {
           </p>
 
           <div className="flex flex-wrap items-center gap-2">
-            {nextChoice &&
-              (nextChoice.reason || nextChoice.block || nextChoice.reassembly || nextChoice.waiver || nextChoice.rework ? (
-                <StatusDialog
-                  action={changeStatusFormAction.bind(null, wo.id)}
-                  choices={choices}
-                  defaultTo={nextChoice.to}
-                  canOverride={canOverride}
-                  balanceText={balanceText}
-                  variant="default"
-                  trigger={<>{t.workOrders.nextStep}: {t.status[nextChoice.to as keyof typeof t.status]}</>}
-                />
-              ) : (
-                <ActionButton action={changeStatusAction.bind(null, wo.id, nextChoice.to, {})}>
-                  {t.workOrders.nextStep}: {t.status[nextChoice.to as keyof typeof t.status]}
-                </ActionButton>
-              ))}
-            {choices.length > 0 && (
-              <StatusDialog
-                key={`status-${wo.status}`}
-                action={changeStatusFormAction.bind(null, wo.id)}
-                choices={choices}
-                canOverride={canOverride}
-                balanceText={balanceText}
-                trigger={t.v16.status.open}
-              />
-            )}
             <ActionSelect
               key={`mech-${wo.mechanicId ?? ""}`}
               ariaLabel={t.workOrders.mechanic}
@@ -688,7 +670,20 @@ export default async function WorkOrderPage({ params }: PageProps) {
         </Card>
 
         {/* Orders opened before V16 (or closed) without a signed intake: the repair order and its signature stay here. */}
-        {!intakeFirst && !intakeLocked && intakeBlocks}
+        {!intakeFirst && !intakeLocked && !final && (
+          <IntakeSignatureCard
+            workOrderId={wo.id}
+            signature={null}
+            intact={null}
+            signerDefault={wo.customer.name}
+            canSign={can(staff, "signIntake")}
+            final={false}
+            t={t}
+            lang={lang}
+            compact
+          />
+        )}
+        {!intakeFirst && !intakeLocked && final && intakeBlocks}
 
         {/* ── Diagnosis & planning ── */}
         <Card>
@@ -783,6 +778,48 @@ export default async function WorkOrderPage({ params }: PageProps) {
             </Button>
           </ActionForm>
           <Timeline events={wo.events} t={t} lang={lang} />
+        </Card>
+
+        <QualityCheckCard wo={wo} staff={staff} t={t} lang={lang} tz={settings.timezone} />
+
+        <Card>
+          <CardTitle>{t.workOrders.status}</CardTitle>
+          <div className="flex flex-wrap items-center gap-2">
+            {nextChoice?.to === "READY" && readyBlocked ? (
+              <Button disabled>{t.workOrders.nextStep}: {t.status.READY}</Button>
+            ) : nextChoice &&
+              (nextChoice.reason || nextChoice.block || nextChoice.reassembly || nextChoice.waiver || nextChoice.rework ? (
+                <StatusDialog
+                  action={changeStatusFormAction.bind(null, wo.id)}
+                  choices={visibleChoices}
+                  defaultTo={nextChoice.to}
+                  canOverride={canOverride}
+                  balanceText={balanceText}
+                  variant="default"
+                  trigger={<>{t.workOrders.nextStep}: {t.status[nextChoice.to as keyof typeof t.status]}</>}
+                />
+              ) : (
+                <ActionButton action={changeStatusAction.bind(null, wo.id, nextChoice.to, {})}>
+                  {t.workOrders.nextStep}: {t.status[nextChoice.to as keyof typeof t.status]}
+                </ActionButton>
+              ))}
+            {visibleChoices.length > 0 && (
+              <StatusDialog
+                key={`status-${wo.status}`}
+                action={changeStatusFormAction.bind(null, wo.id)}
+                choices={visibleChoices}
+                canOverride={canOverride}
+                balanceText={balanceText}
+                trigger={t.v16.status.open}
+              />
+            )}
+          </div>
+          {readyBlocked && (
+            <p className="mt-2 text-sm text-gp-muted">
+              {t.v16.lot5.quality.targeted.blockedReady}{" "}
+              <a href="#quality-card" className="font-medium underline underline-offset-2">{t.v16.lot5.quality.targeted.title}</a>
+            </p>
+          )}
         </Card>
       </section>
 

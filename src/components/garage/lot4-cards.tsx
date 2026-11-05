@@ -77,6 +77,8 @@ export function IntakeSignatureCard({
   final,
   t,
   lang,
+  openByDefault = false,
+  compact = false,
 }: {
   workOrderId: string;
   signature: Sig | null;
@@ -86,71 +88,102 @@ export function IntakeSignatureCard({
   final: boolean;
   t: Dictionary;
   lang: Lang;
+  openByDefault?: boolean;
+  compact?: boolean;
 }) {
   const s = t.v16.lot4.signature;
   return (
-    <Card>
-      <CardTitle className="flex items-center gap-2">
-        <FileSignature className="size-4" aria-hidden /> {s.intakeTitle}
-      </CardTitle>
+    <Card id="signature" className={compact ? "p-3" : undefined}>
+      {!compact && <CardTitle className="flex items-center gap-2"><FileSignature className="size-4" aria-hidden /> {s.intakeTitle}</CardTitle>}
       {signature ? (
-        <div className="space-y-2 text-sm" data-testid="intake-signed">
-          <p className="flex items-center gap-2 rounded-[14px] bg-gp-success-bg px-3 py-2 text-gp-success-ink">
-            <CheckCircle2 className="size-4" aria-hidden />{" "}
-            {fmt(s.intakeSigned, {
-              name: signature.signerName,
-              date: formatDateTime(signature.signedAt, lang),
-            })}
-          </p>
-          <div className="flex flex-wrap items-center gap-3">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={`/api/signatures/${signature.id}/image`}
-              alt={s.image}
-              className="h-16 rounded-md border border-gp-line bg-white"
-            />
+        compact ? (
+          <div className="space-y-2 text-sm" data-testid="intake-signed">
+            <details className="group space-y-2" data-testid="intake-folded">
+              <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-[14px] bg-gp-success-bg px-3 py-2 text-gp-success-ink [&::-webkit-details-marker]:hidden">
+                <CheckCircle2 className="size-4" aria-hidden />{" "}
+                {fmt(s.intakeSigned, { name: signature.signerName, date: formatDateTime(signature.signedAt, lang) })}
+              </summary>
+              <div className="flex flex-wrap items-center gap-3">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={`/api/signatures/${signature.id}/image`} alt={s.image} className="h-16 rounded-md border border-gp-line bg-white" />
+                <Fingerprint sig={signature} intact={intact} t={t} />
+              </div>
+            </details>
             {signature.documentKey && (
               <Button asChild variant="outline" size="sm">
-                <a
-                  href={`/api/signatures/${signature.id}/document`}
-                  target="_blank"
-                  rel="noopener"
-                >
+                <a href={`/api/signatures/${signature.id}/document`} target="_blank" rel="noopener">
                   <ShieldCheck className="size-4" aria-hidden /> {s.document}
                 </a>
               </Button>
             )}
           </div>
-          <Fingerprint sig={signature} intact={intact} t={t} />
-        </div>
+        ) : (
+          <div className="space-y-2 text-sm" data-testid="intake-signed">
+            <p className="flex items-center gap-2 rounded-[14px] bg-gp-success-bg px-3 py-2 text-gp-success-ink">
+              <CheckCircle2 className="size-4" aria-hidden />{" "}
+              {fmt(s.intakeSigned, {
+                name: signature.signerName,
+                date: formatDateTime(signature.signedAt, lang),
+              })}
+            </p>
+            <div className="flex flex-wrap items-center gap-3">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={`/api/signatures/${signature.id}/image`}
+                alt={s.image}
+                className="h-16 rounded-md border border-gp-line bg-white"
+              />
+              {signature.documentKey && (
+                <Button asChild variant="outline" size="sm">
+                  <a
+                    href={`/api/signatures/${signature.id}/document`}
+                    target="_blank"
+                    rel="noopener"
+                  >
+                    <ShieldCheck className="size-4" aria-hidden /> {s.document}
+                  </a>
+                </Button>
+              )}
+            </div>
+            <Fingerprint sig={signature} intact={intact} t={t} />
+          </div>
+        )
       ) : (
-        <div className="space-y-3" data-testid="intake-sign">
-          <p className="text-xs text-muted-foreground">{s.intakeHint}</p>
-          {final ? (
-            <p className="text-sm text-muted-foreground">{s.notSigned}</p>
-          ) : canSign ? (
-            <ActionForm
-              action={signIntakeAction.bind(null, workOrderId)}
-              reset={false}
-              className="grid gap-3"
-            >
-              <Field label={s.signerName}>
-                <Input
-                  name="signerName"
-                  required
-                  minLength={2}
-                  maxLength={120}
-                  defaultValue={signerDefault}
-                />
-              </Field>
-              <SignaturePad required />
-              <div>
-                <Button type="submit">{s.submit}</Button>
-              </div>
-            </ActionForm>
-          ) : (
-            <p className="text-sm text-muted-foreground">{s.noPermission}</p>
-          )}
+        <div className="space-y-2">
+          {compact && <p className="text-sm text-gp-muted">{s.intakeUnsigned}</p>}
+          <details open={openByDefault} className="group space-y-3" data-testid="intake-sign">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center rounded-[14px] border border-gp-line px-3 py-2 text-sm font-medium [&::-webkit-details-marker]:hidden">
+            {s.signButton}
+          </summary>
+          <div className="space-y-3">
+            <p className="text-xs text-muted-foreground">{s.intakeHint}</p>
+            {final ? (
+              <p className="text-sm text-muted-foreground">{s.notSigned}</p>
+            ) : canSign ? (
+              <ActionForm
+                action={signIntakeAction.bind(null, workOrderId)}
+                reset={false}
+                className="grid gap-3"
+              >
+                <Field label={s.signerName}>
+                  <Input
+                    name="signerName"
+                    required
+                    minLength={2}
+                    maxLength={120}
+                    defaultValue={signerDefault}
+                  />
+                </Field>
+                <SignaturePad required />
+                <div>
+                  <Button type="submit">{s.submit}</Button>
+                </div>
+              </ActionForm>
+            ) : (
+              <p className="text-sm text-muted-foreground">{s.noPermission}</p>
+            )}
+          </div>
+          </details>
         </div>
       )}
     </Card>

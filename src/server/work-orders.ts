@@ -14,6 +14,8 @@ import { assertQualityApproved, resetQualityApproval } from "@/server/quality";
 import { createAutoRepairWarranty } from "@/server/warranties";
 import { missingVehicleInfo } from "@/lib/vehicle-info";
 import { isReworkCause, isReworkMove, reworkCount, reworkLine, type ReworkCause } from "@/lib/lot5";
+import { qualityCategoryForSkillCode } from "@/lib/quality";
+import { deduceRequiredSkills, type SkillDef } from "@/lib/skills";
 import type { IntakeForm } from "@/lib/repair-order-forms";
 import type { FuelType, LinePriority, LineType, PartCondition, Prisma, Priority, PromiseReason, WorkOrderStatus } from "@prisma/client";
 import { formatMoney, normalizePlate } from "@/lib/format";
@@ -775,6 +777,8 @@ type NewLine = {
    * (0 DT); true = bill it anyway (permission manageComebacks, journalised).
    */
   billRework?: boolean;
+  /** Service-package source, used to inherit its related skill category. */
+  servicePackageId?: string;
 };
 type EditableOrder = { id: string; status: WorkOrderStatus; workflowV16: boolean; quoteApprovedAt: Date | null; comebackOfWorkOrderId?: string | null };
 
@@ -805,6 +809,7 @@ async function insertLine(tx: Tx, wo: EditableOrder, line: NewLine, actor: Staff
   let unitPrice = line.unitPrice;
   // Purchase cost at the moment of use: later price changes never rewrite a repair's real cost.
   let unitCost: number | null = null;
+  let qualityCategory: import("@prisma/client").QualityCategory = "OTHER";
   let warning: { name: string; stockX100: number } | null = null;
 
   if (line.type === "PART") {
@@ -813,6 +818,7 @@ async function insertLine(tx: Tx, wo: EditableOrder, line: NewLine, actor: Staff
     } else {
       const part = await tx.part.findUnique({ where: { id: line.partId } });
       if (!part) throw new AppError("notFound", {}, 404);
+      qualityCategory = part.qualityCategory ?? "OTHER";
       description ??= part.brand ? `${part.name} (${part.brand})` : part.name;
       unitPrice ??= part.salePrice;
       unitCost = part.costPrice > 0 ? part.costPrice : null;
@@ -830,6 +836,18 @@ async function insertLine(tx: Tx, wo: EditableOrder, line: NewLine, actor: Staff
   } else {
     if (!description) throw new AppError("invalid");
     unitPrice ??= laborRate;
+    const skills = await tx.skill.findMany({
+      where: { isActive: true },
+      select: { id: true, keywords: true, packageIds: true, supervisionRequired: true, habilitationRequired: true, isActive: true, code: true },
+    });
+    const matching = deduceRequiredSkills(skills as SkillDef[], {
+      lines: [{ description }],
+      packageIds: line.servicePackageId ? [line.servicePackageId] : [],
+    });
+    const categorySkill = matching
+      .map((match) => skills.find((skill) => skill.id === match.skillId))
+      .find((skill) => skill && qualityCategoryForSkillCode(skill.code) !== "OTHER");
+    if (categorySkill) qualityCategory = qualityCategoryForSkillCode(categorySkill.code);
   }
   // V16 Lot 5: rework labour of a comeback is free unless someone allowed to ticks « bill it ».
   if (line.billRework && !can(actor, "manageComebacks")) throw new AppError("forbidden", {}, 403);
@@ -855,6 +873,7 @@ async function insertLine(tx: Tx, wo: EditableOrder, line: NewLine, actor: Staff
       stockDeferred: deferred,
       isAnnouncedFee: fee,
       isRework: rework.isRework,
+      qualityCategory,
     },
   });
   if (deferred) {
@@ -862,7 +881,7 @@ async function insertLine(tx: Tx, wo: EditableOrder, line: NewLine, actor: Staff
     const short = await reserveForLine(tx, actor, { workOrderId, partId: line.partId!, lineId: created.id, quantityX100: line.quantityX100 });
     if (short > 0) warning = { name: partName ?? description!, stockX100: -short };
   }
-  return { id: created.id, description: description!, unitPrice: unitPrice!, warning, isRework: rework.isRework };
+  return { id: created.id, description: description!, unitPrice: unitPrice!, qualityCategory, warning, isRework: rework.isRework };
 }
 
 export async function addLine(workOrderId: string, line: NewLine, actor: StaffUser) {
@@ -887,6 +906,7 @@ export async function addLineTx(tx: Tx, workOrderId: string, line: NewLine, acto
         approvalStatus: newLineApproval(wo, !!line.announcedFee),
         priority: line.priority ?? null,
         partCondition: line.partCondition ?? null,
+        qualityCategory: result.qualityCategory,
         ...(line.announcedFee ? { isAnnouncedFee: true } : {}),
         ...(result.isRework ? { isRework: true, billed: !!line.billRework } : {}),
       },
@@ -989,6 +1009,7 @@ export async function applyPackage(workOrderId: string, packageId: string, actor
           description: l.description,
           quantityX100: l.quantityX100,
           unitPrice: l.unitPrice ?? undefined,
+          servicePackageId: pkg.id,
         },
         actor,
         settings.laborRate,

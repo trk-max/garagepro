@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { pageOf, parseSort, rowValue, sortRows, stockState, stockTotals, type StockRow } from "@/lib/stock-list";
 
 const row = (id: string, name: string, stock: number, min: number, cost = 1_000): StockRow => ({
-  id, sku: `SKU-${id}`, name, brand: null, supplier: null, unit: "pce", stockX100: stock, minStockX100: min, reservedX100: 0, costPrice: cost, salePrice: 2 * cost,
+  id, sku: `SKU-${id}`, name, brand: null, qualityCategory: "OTHER", supplier: null, unit: "pce", stockX100: stock, minStockX100: min, reservedX100: 0, costPrice: cost, salePrice: 2 * cost,
 });
 
 describe("stock list", () => {

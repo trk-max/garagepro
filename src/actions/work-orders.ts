@@ -102,7 +102,7 @@ export async function createWorkOrderAction(form: FormData): Promise<ActionResul
       actor,
     );
     refresh();
-    return { ok: true, data: { redirectTo: `/garage/work-orders/${wo.id}` } };
+    return { ok: true, data: { redirectTo: `/garage/app/ordre/${wo.id}?sign=1#signature` } };
   } catch (error) {
     return toActionError(error);
   }

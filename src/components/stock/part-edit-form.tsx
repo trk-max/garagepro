@@ -3,13 +3,13 @@ import { updatePartAction } from "@/actions/catalog";
 import { ActionForm } from "@/components/action-form";
 import { StockMoveForm } from "@/components/stock/stock-move-form";
 import { Button } from "@/components/ui/button";
-import { Field } from "@/components/ui/field";
+import { Field, NativeSelect } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { DialogButton } from "@/components/ui/redesign/dialog";
 import type { Dictionary } from "@/lib/i18n/fr";
 import { fmt } from "@/lib/format";
 
-export type EditablePart = { id: string; sku: string; name: string; brand: string | null; unit: string; costPrice: number; salePrice: number; minStockX100: number };
+export type EditablePart = { id: string; sku: string; name: string; brand: string | null; unit: string; costPrice: number; salePrice: number; minStockX100: number; qualityCategory: string };
 
 const dt = (millimes: number) => (millimes / 1000).toFixed(3);
 const qty = (x100: number) => String(x100 / 100);
@@ -42,6 +42,12 @@ export function PartEditForm({ t, part }: { t: Dictionary; part: EditablePart })
       </Field>
       <Field label={t.parts.unit}>
         <Input name="unit" defaultValue={part.unit} placeholder="pce, L, kit" />
+      </Field>
+      <Field label={t.v16.lot5.quality.targeted.category}>
+        <NativeSelect name="qualityCategory" defaultValue={part.qualityCategory}>
+          {Object.entries(t.v16.lot5.quality.targeted.categories).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+          <option value="OTHER">{t.v16.lot5.quality.targeted.other}</option>
+        </NativeSelect>
       </Field>
       <div className="col-span-2">
         <Button type="submit" className="w-full">

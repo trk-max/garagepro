@@ -83,6 +83,7 @@ export type PartCard = {
   unit: string;
   /** For the « Modifier » form (rendered only for manageStock). */
   brand: string | null;
+  qualityCategory: string;
   costPrice: number;
   salePrice: number;
 };
@@ -100,7 +101,7 @@ export async function partCards(opts: { q?: string; take?: number; cursor?: stri
     orderBy: [{ name: "asc" }, { id: "asc" }],
     take: take + 1,
     ...(opts.cursor ? { cursor: { id: opts.cursor }, skip: 1 } : {}),
-    select: { id: true, name: true, sku: true, brand: true, costPrice: true, salePrice: true, stockX100: true, minStockX100: true, unit: true, defaultSupplier: { select: { name: true } } },
+    select: { id: true, name: true, sku: true, brand: true, qualityCategory: true, costPrice: true, salePrice: true, stockX100: true, minStockX100: true, unit: true, defaultSupplier: { select: { name: true } } },
   });
   const items = rows.slice(0, take).map((p) => ({
     id: p.id,
@@ -113,6 +114,7 @@ export async function partCards(opts: { q?: string; take?: number; cursor?: stri
     isLow: isLow(p),
     unit: p.unit,
     brand: p.brand,
+    qualityCategory: p.qualityCategory ?? "OTHER",
     costPrice: p.costPrice,
     salePrice: p.salePrice,
   }));

@@ -24,7 +24,7 @@ export function TopNav({ logo, user, badges, todo }: { logo: ReactNode; user: Sh
   const { t } = useI18n();
   const items = pick(user, TOP_KEYS);
   return (
-    <header className="sticky top-0 z-40 rounded-t-[32px] bg-gp-canvas/85 px-3 pt-3 pb-2 backdrop-blur-md sm:px-5 sm:pt-4 print:hidden">
+    <header className="gp-top-nav sticky top-0 z-40 rounded-t-[32px] bg-gp-canvas/85 px-3 pt-3 pb-2 backdrop-blur-md sm:px-5 sm:pt-4 print:hidden">
       <div className="flex items-center gap-2 sm:gap-3">
         <div className={cn(pill, "flex h-14 min-w-0 shrink items-center")}>{logo}</div>
         <PageNav items={items} className="hidden flex-1 justify-center xl:flex" label={t.v10.nav.main} badges={badges} />
@@ -123,4 +123,3 @@ function SearchButton() {
     </div>
   );
 }
-

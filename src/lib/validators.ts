@@ -162,6 +162,7 @@ export const partSchema = z.object({
   salePrice: money,
   stock: z.preprocess(emptyToUndefined, qtyBase.optional()),
   minStock: z.preprocess(emptyToUndefined, qtyBase.optional()),
+  qualityCategory: z.enum(["BRAKES", "ENGINE", "TIMING", "CLUTCH_GEARBOX", "ELECTRICAL_DIAGNOSTICS", "AIR_CONDITIONING", "SUSPENSION_STEERING", "TIRES_GEOMETRY", "BODYWORK", "OTHER"]).default("OTHER"),
 });
 
 export const stockMovementSchema = z.object({
@@ -477,6 +478,14 @@ export const qualityCheckSchema = z.object({
 export function qualityExtraFromForm(form: FormData): Record<string, boolean> {
   const out: Record<string, boolean> = {};
   for (const [k, v] of form.entries()) if (k.startsWith("qp:") && (v === "on" || v === "true")) out[k.slice(3)] = true;
+  return out;
+}
+
+export function qualityLineChecksFromForm(form: FormData): Record<string, boolean> {
+  const out: Record<string, boolean> = {};
+  for (const [key, value] of form.entries()) {
+    if (key.startsWith("line:") && (value === "on" || value === "true")) out[id.parse(key.slice(5))] = true;
+  }
   return out;
 }
 

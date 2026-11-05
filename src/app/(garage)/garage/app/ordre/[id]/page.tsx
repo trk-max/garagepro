@@ -10,6 +10,9 @@ import { InspectionCard } from "@/components/garage/lot5-cards";
 import { LineAdder } from "@/components/garage/line-adder";
 import { MediaUploader } from "@/components/garage/media-uploader";
 import { StatusDialog } from "@/components/garage/status-dialog";
+import { IntakeSignatureCard } from "@/components/garage/lot4-cards";
+import { QualityCheckCard } from "@/components/garage/quality-check-card";
+import { Button } from "@/components/ui/button";
 import { LiveRefresh } from "@/components/live-refresh";
 import { minutesToHHMM } from "@/lib/booking";
 import { displayPlate, fmt, formatDateTime, formatQty, formatTime, woNumber } from "@/lib/format";
@@ -26,10 +29,13 @@ import { getSettings } from "@/server/settings";
 import { getWorkOrder } from "@/server/work-orders";
 import { markAssignmentSeen } from "@/server/assignment-alerts";
 import { isFinal } from "@/server/workflow";
+import { latestSignature, documentIntact } from "@/server/signatures";
+import { prisma } from "@/lib/prisma";
+import { qualityChecklistData } from "@/server/quality";
 
 export const dynamic = "force-dynamic";
 
-type PageProps = { params: Promise<{ id: string }> };
+type PageProps = { params: Promise<{ id: string }>; searchParams: Promise<{ sign?: string }> };
 
 /**
  * PWA team app — one car on the phone, for the mechanic: status (next step + the V16 status dialog),
@@ -37,8 +43,8 @@ type PageProps = { params: Promise<{ id: string }> };
  * (the Lot 5 card) and photos. Same components and Server Actions as the order page and the mobile
  * workshop, so the same permissions apply (per move, per action, per user).
  */
-export default async function TeamOrderScreen({ params }: PageProps) {
-  const { id } = await params;
+export default async function TeamOrderScreen({ params, searchParams }: PageProps) {
+  const [{ id }, query] = await Promise.all([params, searchParams]);
   const [staff, wo, { t, lang }, settings] = await Promise.all([requirePageAccess("useWorkshop"), getWorkOrder(id), getI18n(), getSettings()]);
   if (!wo) notFound();
   // His own car opened: the « Nouveau véhicule pour vous » alert is done.
@@ -55,6 +61,8 @@ export default async function TeamOrderScreen({ params }: PageProps) {
     showInspection ? inspectionsFor(wo.id) : Promise.resolve([]),
     showInspection ? listTemplates(true) : Promise.resolve([]),
   ]);
+  const [signature, quality] = await Promise.all([latestSignature(prisma, wo.id, "INTAKE"), qualityChecklistData(wo.id)]);
+  const intakeIntact = signature ? await documentIntact(signature.id) : null;
   const a = t.app.team.order;
   const { next, alternatives } = workshopMoves(wo, staff, settings);
   const lines = wo.lines.filter((l) => !l.voidedAt);
@@ -98,29 +106,18 @@ export default async function TeamOrderScreen({ params }: PageProps) {
         )}
       </header>
 
-      {/* ── Status ── */}
-      <section aria-labelledby="o-status" className="space-y-3 rounded-[24px] border border-gp-line bg-gp-card p-5 shadow-gp">
-        <h2 id="o-status" className="font-semibold">
-          {a.status}
-        </h2>
-        {!next && alternatives.length === 0 && <p className="text-sm text-gp-muted">{a.noMove}</p>}
-        {next && (
-          <ActionButton action={workshopStatusAction.bind(null, wo.id, next, null)} className="h-14 w-full text-base" data-testid="order-next">
-            {fmt(t.workshop.moveTo, { status: t.status[next] })}
-          </ActionButton>
-        )}
-        {alternatives.length > 0 && (
-          <StatusDialog
-            key={`status-${wo.status}`}
-            action={workshopStatusFormAction.bind(null, wo.id)}
-            choices={alternatives.map((o) => ({ to: o.to, label: t.status[o.to], reason: o.reason, rework: wo.workflowLot5 && isReworkMove(wo.status, o.to) }))}
-            canOverride={false}
-            variant="outline"
-            triggerClassName="h-12 w-full text-base"
-            trigger={a.otherMoves}
-          />
-        )}
-      </section>
+      <IntakeSignatureCard
+        workOrderId={wo.id}
+        signature={signature}
+        intact={intakeIntact}
+        signerDefault={wo.customer.name}
+        canSign={can(staff, "signIntake")}
+        final={final}
+        t={t}
+        lang={lang}
+        compact
+        openByDefault={query.sign === "1"}
+      />
 
       {/* ── Time spent ── */}
       {canTime && (
@@ -198,6 +195,41 @@ export default async function TeamOrderScreen({ params }: PageProps) {
               canBillRework={can(staff, "manageComebacks")}
             />
           )
+        )}
+      </section>
+
+      <QualityCheckCard wo={wo} staff={staff} t={t} lang={lang} />
+
+      {/* ── Status ── */}
+      <section aria-labelledby="o-status" className="space-y-3 rounded-[24px] border border-gp-line bg-gp-card p-5 shadow-gp">
+        <h2 id="o-status" className="font-semibold">{a.status}</h2>
+        {!next && alternatives.length === 0 && <p className="text-sm text-gp-muted">{a.noMove}</p>}
+        {next === "READY" && !quality.approved ? (
+          <div className="space-y-2">
+            <Button disabled className="h-14 w-full text-base">{fmt(t.workshop.moveTo, { status: t.status.READY })}</Button>
+            <p className="text-center text-sm text-gp-muted">
+              {t.v16.lot5.quality.targeted.blockedReady}{" "}
+              <a href="#quality-card" className="font-medium underline underline-offset-2">{t.v16.lot5.quality.targeted.title}</a>
+            </p>
+          </div>
+        ) : next ? (
+          <ActionButton action={workshopStatusAction.bind(null, wo.id, next, null)} className="h-14 w-full text-base" data-testid="order-next">
+            {fmt(t.workshop.moveTo, { status: t.status[next] })}
+          </ActionButton>
+        ) : null}
+        {next !== "READY" && alternatives.some((option) => option.to === "READY") && !quality.approved && (
+          <p className="text-center text-sm text-gp-muted">{t.v16.lot5.quality.targeted.blockedReady} <a href="#quality-card" className="font-medium underline underline-offset-2">{t.v16.lot5.quality.targeted.title}</a></p>
+        )}
+        {alternatives.filter((option) => option.to !== "READY" || quality.approved).length > 0 && (
+          <StatusDialog
+            key={`status-${wo.status}`}
+            action={workshopStatusFormAction.bind(null, wo.id)}
+            choices={alternatives.filter((option) => option.to !== "READY" || quality.approved).map((o) => ({ to: o.to, label: t.status[o.to], reason: o.reason, rework: wo.workflowLot5 && isReworkMove(wo.status, o.to) }))}
+            canOverride={false}
+            variant="outline"
+            triggerClassName="h-12 w-full text-base"
+            trigger={a.otherMoves}
+          />
         )}
       </section>
 

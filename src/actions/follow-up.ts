@@ -9,7 +9,7 @@ import { PARTS_WAIT_DECISIONS } from "@/lib/delays";
 import { z } from "zod";
 import { recordPartsWaitDecision } from "@/server/delays";
 import { deliverQuoteNotice } from "@/server/quotes";
-import { formToObject, id, insuranceSchema, laborManualSchema, partNeedSchema, partNeedUpdateSchema, qualityCheckSchema, qualityExtraFromForm, reasonSchema } from "@/lib/validators";
+import { formToObject, id, insuranceSchema, laborManualSchema, partNeedSchema, partNeedUpdateSchema, qualityCheckSchema, qualityExtraFromForm, qualityLineChecksFromForm, reasonSchema } from "@/lib/validators";
 import { addPartNeed, updateInsurance, updatePartNeed } from "@/server/follow-up";
 import { addLaborEntry, laborSummary, startLabor, stopLabor, voidLaborEntry } from "@/server/labor";
 import { approveQualityCheck, saveQualityCheck } from "@/server/quality";
@@ -19,6 +19,7 @@ import { addLine } from "@/server/work-orders";
 
 const refresh = (workOrderId: string) => {
   revalidatePath(`/garage/work-orders/${workOrderId}`);
+  revalidatePath(`/garage/app/ordre/${workOrderId}`);
   revalidatePath("/garage/atelier");
   revalidatePath("/garage/suivi");
 };
@@ -108,7 +109,13 @@ export async function saveQualityCheckAction(workOrderId: string, form: FormData
   try {
     const actor = await requirePermission("fillQualityCheck");
     const v = qualityCheckSchema.parse(formToObject(form));
-    await saveQualityCheck(actor, id.parse(workOrderId), { ...v, roadTest: v.roadTest ?? null, roadTestKm: v.roadTestKm ?? null, extra: qualityExtraFromForm(form) });
+    await saveQualityCheck(actor, id.parse(workOrderId), {
+      ...v,
+      roadTest: v.roadTest ?? null,
+      roadTestKm: v.roadTestKm ?? null,
+      extra: qualityExtraFromForm(form),
+      lineChecks: qualityLineChecksFromForm(form),
+    });
     refresh(workOrderId);
     return { ok: true, data: null };
   } catch (error) {

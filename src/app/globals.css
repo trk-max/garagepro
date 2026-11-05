@@ -956,3 +956,13 @@ body:has(.gp-app) {
 .app-tabbar-space {
   padding-bottom: calc(5rem + env(safe-area-inset-bottom));
 }
+@media screen and (max-width: 1024px) {
+  .gp-app .gp-top-nav {
+    padding-top: calc(0.75rem + env(safe-area-inset-top));
+  }
+}
+@media screen and (min-width: 640px) and (max-width: 1024px) {
+  .gp-app .gp-top-nav {
+    padding-top: calc(1rem + env(safe-area-inset-top));
+  }
+}
