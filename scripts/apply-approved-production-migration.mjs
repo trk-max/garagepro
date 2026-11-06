@@ -27,14 +27,20 @@ if (status.status === 0) {
 }
 
 const output = `${status.stdout ?? ""}\n${status.stderr ?? ""}`;
-const pendingBlock = output.match(/Following migration(?:s)? have not yet been applied:\r?\n([\s\S]*?)(?:\r?\n\r?\n|$)/);
-const pending = pendingBlock?.[1]
-  .split(/\r?\n/)
-  .map((line) => line.trim())
-  .filter(Boolean);
+const lines = output.split(/\r?\n/);
+const pendingHeader = lines.findIndex((line) => /following migrations? have not yet been applied:/i.test(line));
+let pending = null;
+if (pendingHeader >= 0) {
+  const pendingLines = lines.slice(pendingHeader + 1);
+  const blankLine = pendingLines.findIndex((line) => !line.trim());
+  const block = blankLine < 0 ? pendingLines : pendingLines.slice(0, blankLine);
+  pending = block.map((line) => line.trim()).filter((line) => /^[A-Za-z0-9_-]+$/.test(line));
+}
 
 if (!pending || pending.length !== 1 || pending[0] !== migration) {
-  console.error(`Production migration refused: only ${migration} may be pending; no migration was applied.`);
+  const prismaCode = output.match(/\bP\d{4}\b/)?.[0];
+  const pendingSummary = pending?.length ? pending.join(", ") : `could not be determined${prismaCode ? ` (Prisma ${prismaCode})` : ""}`;
+  console.error(`Production migration refused: pending migrations are ${pendingSummary}; only ${migration} is approved. No migration was applied.`);
   process.exit(1);
 }
 
