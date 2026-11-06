@@ -589,14 +589,14 @@ describe.skipIf(!BASE)("garage hub ↔ online database", () => {
   it("A1: migration 34 links only unambiguous receipts and preserves ambiguous history", async () => {
     const pre = await freshDb(admin, `${HUB}_a1pre`, allMigrations.filter((m) => !m.startsWith("34_")));
     try {
-      await pre.query(`INSERT INTO "Supplier"(id, name) VALUES ('a1_supplier', 'A1 fournisseur')`);
-      await pre.query(`INSERT INTO "Part"(id, sku, name, "salePrice") VALUES ('a1_part', 'A1-SKU', 'Pièce A1', 1000)`);
-      await pre.query(`INSERT INTO "PurchaseOrder"(id, number, "supplierId", status) VALUES ('a1_po_unique', 'BC-A1-U', 'a1_supplier', 'APPROVED')`);
+      await pre.query(`INSERT INTO "Supplier"(id, name, "updatedAt") VALUES ('a1_supplier', 'A1 fournisseur', now())`);
+      await pre.query(`INSERT INTO "Part"(id, sku, name, "salePrice", "updatedAt") VALUES ('a1_part', 'A1-SKU', 'Pièce A1', 1000, now())`);
+      await pre.query(`INSERT INTO "PurchaseOrder"(id, number, "supplierId", status, "updatedAt") VALUES ('a1_po_unique', 'BC-A1-U', 'a1_supplier', 'APPROVED', now())`);
       await pre.query(`INSERT INTO "PurchaseOrderLine"(id, "purchaseOrderId", "partId", "quantityX100", "receivedX100", "unitCost") VALUES ('a1_pol_unique', 'a1_po_unique', 'a1_part', 500, 0, 1000)`);
       await pre.query(`INSERT INTO "GoodsReceipt"(id, number, "supplierId", "purchaseOrderId") VALUES ('a1_receipt_unique', 'BR-A1-U', 'a1_supplier', 'a1_po_unique')`);
       await pre.query(`INSERT INTO "GoodsReceiptLine"(id, "receiptId", "partId", "quantityX100", "unitCost") VALUES ('a1_grl_unique', 'a1_receipt_unique', 'a1_part', 75, 1000)`);
 
-      await pre.query(`INSERT INTO "PurchaseOrder"(id, number, "supplierId", status) VALUES ('a1_po_amb', 'BC-A1-A', 'a1_supplier', 'PARTIAL')`);
+      await pre.query(`INSERT INTO "PurchaseOrder"(id, number, "supplierId", status, "updatedAt") VALUES ('a1_po_amb', 'BC-A1-A', 'a1_supplier', 'PARTIAL', now())`);
       await pre.query(`INSERT INTO "PurchaseOrderLine"(id, "purchaseOrderId", "partId", "quantityX100", "receivedX100", "unitCost") VALUES
         ('a1_pol_amb1', 'a1_po_amb', 'a1_part', 300, 40, 1000),
         ('a1_pol_amb2', 'a1_po_amb', 'a1_part', 200, 0, 1000)`);
@@ -628,9 +628,9 @@ describe.skipIf(!BASE)("garage hub ↔ online database", () => {
       expect(Number((await one(db, `SELECT count(*) FROM "_sync_log"`)).count)).toBe(before);
     }
 
-    await cloud.query(`INSERT INTO "Supplier"(id, name) VALUES ('a1_supplier', 'A1 fournisseur')`);
-    await cloud.query(`INSERT INTO "Part"(id, sku, name, "salePrice", "stockX100", "reservedX100") VALUES ('a1_part', 'A1-SKU', 'Pièce A1', 1000, 500, 10)`);
-    await cloud.query(`INSERT INTO "PurchaseOrder"(id, number, "supplierId", status) VALUES ('a1_po', 'BC-A1', 'a1_supplier', 'APPROVED')`);
+    await cloud.query(`INSERT INTO "Supplier"(id, name, "updatedAt") VALUES ('a1_supplier', 'A1 fournisseur', now())`);
+    await cloud.query(`INSERT INTO "Part"(id, sku, name, "salePrice", "stockX100", "reservedX100", "updatedAt") VALUES ('a1_part', 'A1-SKU', 'Pièce A1', 1000, 500, 10, now())`);
+    await cloud.query(`INSERT INTO "PurchaseOrder"(id, number, "supplierId", status, "updatedAt") VALUES ('a1_po', 'BC-A1', 'a1_supplier', 'APPROVED', now())`);
     await cloud.query(`INSERT INTO "PurchaseOrderLine"(id, "purchaseOrderId", "partId", "quantityX100", "receivedX100", "unitCost") VALUES ('a1_pol', 'a1_po', 'a1_part', 500, 100, 1000)`);
     await cloud.query(`INSERT INTO "GoodsReceipt"(id, number, "supplierId", "purchaseOrderId") VALUES ('a1_receipt_base', 'BR-A1-BASE', 'a1_supplier', 'a1_po')`);
     await cloud.query(`INSERT INTO "GoodsReceiptLine"(id, "receiptId", "partId", "purchaseOrderLineId", "quantityX100", "unitCost") VALUES ('a1_grl_base', 'a1_receipt_base', 'a1_part', 'a1_pol', 100, 1000)`);
