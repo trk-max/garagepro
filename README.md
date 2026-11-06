@@ -7,6 +7,12 @@
 <p align="center">Version <b>7.7</b> — application PC / téléphone, fonctionne aussi <b>sans internet</b> (hub du garage)</p>
 <p align="center">Next.js 15 · TypeScript · Tailwind v4 · PostgreSQL (Supabase) + Prisma 6 · Auth.js v5 · Vercel</p>
 
+## Nouveautés — en-têtes de sécurité du navigateur
+
+- Les routes de l'application utilisent une CSP avec nonce par requête, la protection contre le MIME sniffing et une politique de référent stricte.
+- La caméra est permise uniquement sur les écrans qui l'utilisent ; HSTS n'est envoyé qu'en HTTPS. La CSP sandbox du document signé est conservée.
+- Détails : [docs/SECURITY-HEADERS.md](docs/SECURITY-HEADERS.md).
+
 ## Nouveautés — synchronisation fiable des totaux
 
 - Après chaque échange hors ligne, le hub recalcule stock, réservations, paiements client et fournisseur, ainsi que les quantités reçues, à partir de leurs lignes détaillées.
