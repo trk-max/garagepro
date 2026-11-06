@@ -1410,6 +1410,24 @@ model SyncState {
   @@map("_sync_state")
 }
 
+model SystemError {
+  id          String   @id
+  fingerprint String   @unique
+  source      String
+  place       String
+  message     String
+  userId      String?
+  requestId   String?
+  count       Int      @default(1)
+  firstSeenAt DateTime @default(now())
+  lastSeenAt  DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([lastSeenAt])
+  @@index([source, lastSeenAt])
+}
+
 // ── Équipe : journal, pointage, congés, attestations ─────────────────────────
 
 /// Journal d'audit : qui a fait quoi, quand, avant / après. Lignes non modifiables

@@ -84,6 +84,7 @@ export const v103Fr = {
       useShowroomMessages: "Messagerie acheteurs (ses annonces)",
       readAllShowroomMessages: "Lire toutes les conversations",
       manageSettings: "Paramètres et sauvegardes",
+      viewSystemHealth: "Voir la santé du système",
       viewAuditLog: "Journal des modifications",
       // V14 — carte des compétences.
       viewSkills: "Compétences : voir celles de toute l’équipe",

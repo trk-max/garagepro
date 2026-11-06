@@ -20,6 +20,12 @@
 - Les anciennes réceptions sont reliées automatiquement à une ligne de commande seulement si la pièce n’y apparaît qu’une fois. Les cas ambigus restent inchangés et sont signalés.
 - Après fusion, appliquer la migration additive avec `npm run db:cloud`. Guide : [docs/SYNCHRONISATION-HUB.md](docs/SYNCHRONISATION-HUB.md).
 
+## Nouveautés — surveillance du système
+
+- L’administrateur dispose d’une page Santé du système avec l’état du hub, des sauvegardes et les erreurs récentes.
+- Les erreurs sont dédupliquées, conservées 30 jours et enregistrées sans pile d’appel, requête SQL ni secret. Les rapports du navigateur sont limités en débit.
+- Migration additive : `35_system_errors`. Guide : [docs/SYSTEM-HEALTH.md](docs/SYSTEM-HEALTH.md).
+
 <p align="center">
   <img src="docs/media/01-accueil.jpg" alt="Site client : accueil" width="49%">
   <img src="docs/media/04-tableau-de-bord.jpg" alt="Espace équipe : tableau de bord" width="49%">

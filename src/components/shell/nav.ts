@@ -21,6 +21,7 @@ export type NavKey =
   | "clientInvoices" | "claims" | "warranties" | "parts" | "suppliers" | "purchaseOrders" | "receipts" | "supplierInvoices"
   | "timeClock" | "calendar" | "team" | "showroom" | "messages" | "contracts" | "reports" | "profitability" | "expenses"
   | "cash" | "audit" | "backups" | "settings" | "help"
+  | "systemHealth"
   // V14 — carte des compétences.
   | "skills" | "mySkills"
   // V15 — accueil (file d'attente)
@@ -103,6 +104,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { key: "cash", href: "/garage/tresorerie", icon: Landmark, permission: "readCashForecast" },
       { key: "audit", href: "/garage/journal", icon: History, permission: "viewAuditLog" },
       { key: "backups", href: "/garage/sauvegardes", icon: DatabaseBackup, permission: "manageSettings" },
+      { key: "systemHealth", href: "/garage/sante-systeme", icon: TriangleAlert, permission: "viewSystemHealth" },
       { key: "settings", href: "/garage/settings", icon: Settings, permission: "manageSettings" },
       // V10.4: the help guide, open to everyone (account menu).
       { key: "help", href: "/garage/aide", icon: CircleHelp },
@@ -114,13 +116,13 @@ const ALL = new Map(NAV_GROUPS.flatMap((g) => g.items).map((i) => [i.key, i]));
 
 /**
  * Top pill bar (short labels): overview, stock and the money pages. Left rail: the
- * garage's daily work. "More" lists every other page; the team, contracts, help and
- * settings pages and sign-out live only in the account menu (V10.4). Each page therefore appears in exactly one place.
+ * garage's daily work. "More" lists every other page; the team, contracts, help,
+ * health and settings pages and sign-out live only in the account menu. Each page therefore appears in exactly one place.
  */
 export const TOP_KEYS: NavKey[] = ["dashboard", "parts", "clientInvoices", "cash", "profitability", "reports"];
 export const RAIL_KEYS: NavKey[] = ["workOrders", "workshop", "appointments", "customers", "vehicles", "delays", "messages"];
 /** Pages reached from the account menu only (never in the bar, the rail or "More"), in menu order. */
-export const MENU_KEYS: NavKey[] = ["team", "contracts", "help", "settings"];
+export const MENU_KEYS: NavKey[] = ["team", "contracts", "help", "systemHealth", "settings"];
 const PLACED = new Set<NavKey>([...TOP_KEYS, ...RAIL_KEYS, ...MENU_KEYS]);
 /** True when a page belongs in the "More" panel (not already in the bar, the rail or the account menu). */
 export const inMore = (key: NavKey) => !PLACED.has(key);
@@ -143,6 +145,7 @@ export function navLabel(t: Dictionary, key: NavKey): string {
   if (key === "reception") return t.v15.nav;
   if (key === "teamApp") return t.app.team.nav;
   if (key === "receptionTicket") return t.staffUx.ticket.nav;
+  if (key === "systemHealth") return t.nav.systemHealth;
   if ((V7 as readonly string[]).includes(key)) return t.v7.nav[key as (typeof V7)[number]];
   return t.nav[key as Exclude<NavKey, (typeof V7)[number] | "contracts" | "showroom" | "messages" | "vehicles" | "help" | "agenda" | "skills" | "mySkills" | "reception" | "teamApp" | "receptionTicket">];
 }
@@ -157,4 +160,3 @@ export function topLabel(t: Dictionary, key: NavKey): string {
 export function groupLabel(t: Dictionary, title: GroupTitle): string {
   return title === "teamSpace" ? t.v7.team.title : title === "showroomSpace" ? t.showroom.nav.group : t.nav[title];
 }
-

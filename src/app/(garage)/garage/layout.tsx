@@ -10,6 +10,7 @@ import { getStaff } from "@/lib/session";
 import { countUpcomingToday } from "@/server/booking";
 import { getSettings } from "@/server/settings";
 import { getTodo } from "@/server/todo";
+import { getSystemHealthBadge } from "@/server/system-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -24,11 +25,12 @@ export default async function GarageLayout({ children }: { children: ReactNode }
 
   // Menu counters: small COUNT queries in parallel (no rows loaded). The "À traiter" counts
   // (bell) are filtered on the server by role + per-user access and shared with the /garage/a-traiter page.
-  const [{ t }, settings, appointmentsToday, todo] = await Promise.all([
+  const [{ t }, settings, appointmentsToday, todo, systemHealth] = await Promise.all([
     getI18n(),
     getSettings(),
     can(staff, "viewAppointments") ? countUpcomingToday().catch(() => 0) : 0,
     getTodo(staff),
+    can(staff, "viewSystemHealth") ? getSystemHealthBadge() : 0,
   ]);
 
   // Counters on the rail, in the "More" panel and in the account menu: today's remaining bookings,
@@ -42,6 +44,7 @@ export default async function GarageLayout({ children }: { children: ReactNode }
     team: c.leaves || undefined,
     delays: c.lateRepairs || undefined,
     backups: c.backup || undefined,
+    systemHealth: systemHealth || undefined,
     messages: c.unreadMessages || undefined,
     contracts: c.contractsExpiring || undefined,
   };

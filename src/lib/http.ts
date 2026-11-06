@@ -5,6 +5,7 @@ import { ZodError } from "zod";
 import { fmt } from "@/lib/format";
 import type { Dictionary } from "@/lib/i18n/fr";
 import { getI18n } from "@/lib/i18n/server";
+import { recordSystemError } from "@/server/system-errors";
 
 export type ErrorCode = keyof Dictionary["errors"];
 
@@ -43,7 +44,7 @@ export async function toActionError(error: unknown): Promise<{ ok: false; error:
   const { t } = await getI18n();
   const known = codeFor(error);
   if (!known) {
-    console.error(error);
+    await recordSystemError({ source: "server-action", place: "action", error });
     return { ok: false, error: t.errors.generic };
   }
   return { ok: false, error: fmt(t.errors[known.code], known.vars ?? {}) };
@@ -52,7 +53,7 @@ export async function toActionError(error: unknown): Promise<{ ok: false; error:
 export async function toErrorResponse(error: unknown): Promise<NextResponse> {
   const known = codeFor(error);
   if (!known) {
-    console.error(error);
+    await recordSystemError({ source: "api", place: "route", error });
     return NextResponse.json({ error: "internal_error" }, { status: 500 });
   }
   const details = error instanceof ZodError ? error.flatten() : undefined;

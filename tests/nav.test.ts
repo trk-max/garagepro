@@ -1,4 +1,4 @@
-/** V10.2 — every staff page sits in exactly one place: top bar, rail, "More" panel or account menu. */
+/** Every staff page sits in exactly one place: top bar, rail, "More" panel or account menu. */
 import { describe, expect, it } from "vitest";
 import { inMore, MENU_KEYS, NAV_GROUPS, pick, RAIL_KEYS, TOP_KEYS } from "@/components/shell/nav";
 import type { Role } from "@prisma/client";
@@ -14,7 +14,7 @@ describe("V10.2 navigation", () => {
     expect(new Set(placed).size).toBe(placed.length);
     expect([...placed].sort()).toEqual([...ALL].sort());
     for (const k of ["settings", "team", "contracts", "help"] as const) expect(more).not.toContain(k);
-    expect(MENU_KEYS).toEqual(["team", "contracts", "help", "settings"]);
+    expect(MENU_KEYS).toEqual(["team", "contracts", "help", "systemHealth", "settings"]);
   });
 
   it("finance on top, garage work on the left, vehicles next to customers", () => {
@@ -24,10 +24,10 @@ describe("V10.2 navigation", () => {
     expect(client.indexOf("vehicles")).toBe(client.indexOf("customers") + 1);
   });
 
-  it("V10.4 account menu: help for everyone, team / contracts / settings by role", () => {
+  it("account menu: system health only for admins; help, team and contracts follow their permissions", () => {
     const menu = (role: Role) => pick(role, MENU_KEYS).map((i) => i.key);
     for (const role of ROLES) expect(menu(role)).toContain("help");
-    expect(menu("ADMIN")).toEqual(["team", "contracts", "help", "settings"]);
+    expect(menu("ADMIN")).toEqual(["team", "contracts", "help", "systemHealth", "settings"]);
     expect(menu("MANAGER")).toEqual(["team", "contracts", "help"]);
     expect(menu("HR")).toEqual(["team", "contracts", "help"]);
     expect(menu("ACCOUNTANT")).toEqual(["contracts", "help"]);

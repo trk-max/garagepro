@@ -83,6 +83,7 @@ export const v103En: typeof v103Fr = {
       useShowroomMessages: "Buyer messages (own listings)",
       readAllShowroomMessages: "Read all conversations",
       manageSettings: "Settings and backups",
+      viewSystemHealth: "View system health",
       viewAuditLog: "Change log",
       // V14 — carte des compétences.
       viewSkills: "Skills: see the whole team’s",

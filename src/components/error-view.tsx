@@ -5,6 +5,7 @@ import { useEffect } from "react";
 import { AlertTriangle, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/lib/i18n/client";
+import { reportClientError } from "@/lib/client-error-report";
 
 /**
  * Shared body of the error boundaries. Shows a safe message only:
@@ -16,6 +17,7 @@ export function ErrorView({ error, reset, homeHref }: { error: Error & { digest?
 
   useEffect(() => {
     console.error("[ui] page error", error.digest ?? "", error.name);
+    reportClientError("route-boundary", error);
   }, [error]);
 
   return (

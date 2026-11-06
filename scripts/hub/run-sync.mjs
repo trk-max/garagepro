@@ -8,6 +8,7 @@
 import { connectCloud, connectLocal } from "./connect.mjs";
 import { syncMedia } from "./media-sync.mjs";
 import { getState, setState, syncOnce } from "./sync-engine.mjs";
+import { recordSystemError } from "../lib/system-errors.mjs";
 
 const INTERVAL = Math.max(10, Number(process.env.SYNC_INTERVAL_SECONDS ?? 30)) * 1000;
 const time = () => new Date().toLocaleTimeString("fr-FR");
@@ -21,19 +22,35 @@ export async function round() {
       cloud = await connectCloud();
     } catch (error) {
       await setState(local, "status", { ...previous, online: false, lastError: `Internet / Supabase injoignable : ${error.message}` });
+      await recordSystemError(local, "hub-sync", "cloud-connection", "Cloud database connection failed");
       console.log(`[${time()}] Hors ligne — le garage continue en local (${error.code ?? error.message}).`);
       return { online: false };
     }
     try {
       const report = await syncOnce(local, cloud);
       const media = await syncMedia(local);
-      await setState(local, "status", {
+      const state = {
         online: true,
         lastSyncAt: report.at,
         errors: report.errors.length,
         lastError: report.errors[0] ? `${report.errors[0].tbl} : ${report.errors[0].error}` : null,
         last: { ...report, errors: report.errors.slice(0, 20), media },
-      });
+      };
+      await setState(local, "status", state);
+      if (report.errors.length) {
+        await recordSystemError(local, "hub-sync", "row-sync", `${report.errors.length} row(s) failed to synchronize`);
+      }
+      const { rows: pendingRows } = await local.query(`SELECT count(*)::int AS count FROM "_sync_log"`);
+      try {
+        await setState(cloud, "hub-status", {
+          online: true,
+          lastSyncAt: report.at,
+          pending: pendingRows[0]?.count ?? 0,
+          errors: report.errors.length,
+        });
+      } catch {
+        await recordSystemError(local, "hub-sync", "heartbeat", "Could not update cloud hub heartbeat");
+      }
       const parts = [`envoyés ${report.pushed}`, `reçus ${report.pulled}`];
       if (report.conflicts) parts.push(`conflits ${report.conflicts} (le plus récent gagne)`);
       if (report.corrections.length) parts.push(`totaux recalculés ${report.corrections.length}`);
@@ -65,6 +82,16 @@ export async function loop() {
       await round();
     } catch (error) {
       console.error(`[${time()}] Erreur de synchronisation : ${error.message}`);
+      try {
+        const local = await connectLocal();
+        try {
+          await recordSystemError(local, "hub-sync", "sync-round", "Hub synchronization round failed");
+        } finally {
+          await local.end().catch(() => {});
+        }
+      } catch {
+        console.error("[monitoring] hub error could not be persisted");
+      }
     }
     await new Promise((r) => setTimeout(r, INTERVAL));
   }
@@ -76,7 +103,16 @@ if (process.argv[1]?.replace(/\\/g, "/").endsWith("scripts/hub/run-sync.mjs")) {
       .then((r) => process.exit(r.online ? 0 : 2))
       .catch((e) => {
         console.error(e.message);
-        process.exit(1);
+        connectLocal()
+          .then(async (local) => {
+            try {
+              await recordSystemError(local, "hub-sync", "sync-round", "Hub synchronization round failed");
+            } finally {
+              await local.end().catch(() => {});
+            }
+          })
+          .catch(() => console.error("[monitoring] hub error could not be persisted"))
+          .finally(() => process.exit(1));
       });
   } else {
     void loop();

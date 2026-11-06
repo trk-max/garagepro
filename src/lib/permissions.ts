@@ -111,6 +111,7 @@ const MATRIX = {
 
   // Administration
   manageSettings: ["ADMIN"],
+  viewSystemHealth: ["ADMIN"],
   viewReports: ["ADMIN"],
   /// Rentabilité (coûts, main-d'œuvre, marges) : données sensibles, administrateur seulement.
   viewProfit: ["ADMIN"],
@@ -243,7 +244,7 @@ export const PERMISSION_GROUPS = {
   showroom: ["viewShowroom", "createListing", "manageAllListings", "useShowroomMessages", "readAllShowroomMessages"],
   // V15 — accueil (file d'attente).
   reception: ["useReception", "viewReceptionReports", "configureReception", "manageReceptionDevices"],
-  admin: ["manageSettings", "viewAuditLog"],
+  admin: ["manageSettings", "viewAuditLog", "viewSystemHealth"],
 } as const satisfies Record<string, readonly Permission[]>;
 export type PermissionGroup = keyof typeof PERMISSION_GROUPS;
 

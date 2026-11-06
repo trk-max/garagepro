@@ -5,7 +5,7 @@ import { TRANSITIONS, customerSteps } from "@/server/workflow";
 
 describe("permission matrix (server-side source of truth)", () => {
   it("only the admin approves purchases, pays suppliers and changes settings", () => {
-    for (const p of ["approvePurchase", "paySupplier", "manageSettings"] as const) {
+    for (const p of ["approvePurchase", "paySupplier", "manageSettings", "viewSystemHealth"] as const) {
       expect(rolesFor(p), p).toEqual(["ADMIN"]);
     }
   });

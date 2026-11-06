@@ -7,6 +7,10 @@ import { assertCanNumberDocuments, isCloudWithHub, isHubLocal } from "@/server/h
 import { syncMedia } from "../scripts/hub/media-sync.mjs";
 // @ts-expect-error plain JS script without types
 import { isCloudUrl } from "../scripts/hub/connect.mjs";
+// @ts-expect-error plain JS script without types
+import { EXCLUDED } from "../scripts/hub/sync-engine.mjs";
+// @ts-expect-error plain JS script without types
+import { recordSystemError as recordScriptSystemError } from "../scripts/lib/system-errors.mjs";
 
 afterEach(() => vi.unstubAllEnvs());
 
@@ -35,6 +39,27 @@ describe("who may number invoices / purchase orders", () => {
 it("recognises a Supabase address (the garage PC must use a local one)", () => {
   expect(isCloudUrl("postgresql://u:p@aws-1-eu-central-1.pooler.supabase.com:5432/postgres")).toBe(true);
   expect(isCloudUrl("postgresql://postgres:p@localhost:5432/garagepro")).toBe(false);
+});
+
+it("includes system errors in hub synchronization", () => {
+  expect(EXCLUDED.has("SystemError")).toBe(false);
+  const migration = readFileSync(path.join(process.cwd(), "prisma/migrations/35_system_errors/migration.sql"), "utf8");
+  expect(migration).toContain('ON "SystemError"');
+  expect(migration).toContain('EXECUTE FUNCTION "_sync_log_change"(\'id\')');
+});
+
+it("deduplicates and prunes script-recorded system errors", async () => {
+  const calls: { sql: string; params: unknown[] }[] = [];
+  await recordScriptSystemError({
+    async query(sql: string, params: unknown[] = []) {
+      calls.push({ sql, params });
+      return { rows: [] };
+    },
+  }, "hub-sync", "row-sync", "1 row failed to synchronize");
+
+  expect(calls).toHaveLength(2);
+  expect(calls[0]!.sql).toContain("ON CONFLICT (fingerprint)");
+  expect(calls[1]!.sql).toContain('DELETE FROM "SystemError"');
 });
 
 describe("photos sync", () => {
