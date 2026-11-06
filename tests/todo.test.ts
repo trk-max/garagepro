@@ -19,7 +19,7 @@ describe("V10.4 à traiter — visibility", () => {
   it("approvals only for the roles allowed to decide", () => {
     expect(approvals("MECHANIC")).toEqual([]);
     expect(approvals("RECEPTION")).toEqual(["contractsToSign"]);
-    expect(approvals("ADMIN")).toEqual(["leaves", "purchaseOrders", "qualityChecks", "contractsToApprove", "contractsToSign", "warrantyDecisions", "skillReviews"]);
+    expect(approvals("ADMIN")).toEqual(["leaves", "purchaseOrders", "qualityChecks", "syncOverpayments", "contractsToApprove", "contractsToSign", "warrantyDecisions", "skillReviews"]);
     // The manager approves leaves, quality checks, contracts and warranty answers; purchase orders stay with the administrator (approvePurchase).
     // V14: the manager also decides re-evaluations of skills (manageSkills).
     expect(approvals("MANAGER")).toEqual(["leaves", "qualityChecks", "contractsToApprove", "contractsToSign", "warrantyDecisions", "skillReviews"]);
@@ -42,6 +42,9 @@ describe("V10.4 à traiter — visibility", () => {
     expect(todoKeysFor(mechanic)).toEqual(["newAssignments", "warrantyOpen", "leaves", "purchaseOrders"]);
     const admin = { role: "ADMIN" as Role, perms: { grant: [] as const, deny: ["manageSettings", "approvePurchase"] as const } };
     expect(todoKeysFor(admin)).not.toContain("backup");
+    expect(todoKeysFor(admin)).not.toContain("syncOverpayments");
+    const manager = { role: "MANAGER" as Role, perms: { grant: ["manageSettings"] as const, deny: [] as const } };
+    expect(todoKeysFor(manager)).not.toContain("syncOverpayments");
     expect(groupTodos(all, admin).approval.map((i) => i.key)).not.toContain("purchaseOrders");
     // Without overrides the user object behaves exactly like its role.
     expect(todoKeysFor({ role: "STOREKEEPER", perms: { grant: [], deny: [] } })).toEqual(todoKeysFor("STOREKEEPER"));

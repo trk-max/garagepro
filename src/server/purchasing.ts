@@ -248,7 +248,15 @@ export async function createReceipt(
     for (const l of lines) {
       const pl = poLines.find((p) => p.partId === l.partId);
       const unitCost = l.unitCost ?? pl?.unitCost ?? 0;
-      await tx.goodsReceiptLine.create({ data: { receiptId: receipt.id, partId: l.partId, quantityX100: l.quantityX100, unitCost } });
+      await tx.goodsReceiptLine.create({
+        data: {
+          receiptId: receipt.id,
+          partId: l.partId,
+          quantityX100: l.quantityX100,
+          unitCost,
+          ...(pl ? { purchaseOrderLineId: pl.id } : {}),
+        },
+      });
       const part = await tx.part.update({
         where: { id: l.partId },
         data: { stockX100: { increment: l.quantityX100 }, ...(unitCost > 0 ? { costPrice: unitCost } : {}), defaultSupplierId: supplierId },

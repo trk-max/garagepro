@@ -586,6 +586,114 @@ describe.skipIf(!BASE)("garage hub ↔ online database", () => {
     }
   }, 30_000);
 
+  it("A1: migration 34 links only unambiguous receipts and preserves ambiguous history", async () => {
+    const pre = await freshDb(admin, `${HUB}_a1pre`, allMigrations.filter((m) => !m.startsWith("34_")));
+    try {
+      await pre.query(`INSERT INTO "Supplier"(id, name) VALUES ('a1_supplier', 'A1 fournisseur')`);
+      await pre.query(`INSERT INTO "Part"(id, sku, name, "salePrice") VALUES ('a1_part', 'A1-SKU', 'Pièce A1', 1000)`);
+      await pre.query(`INSERT INTO "PurchaseOrder"(id, number, "supplierId", status) VALUES ('a1_po_unique', 'BC-A1-U', 'a1_supplier', 'APPROVED')`);
+      await pre.query(`INSERT INTO "PurchaseOrderLine"(id, "purchaseOrderId", "partId", "quantityX100", "receivedX100", "unitCost") VALUES ('a1_pol_unique', 'a1_po_unique', 'a1_part', 500, 0, 1000)`);
+      await pre.query(`INSERT INTO "GoodsReceipt"(id, number, "supplierId", "purchaseOrderId") VALUES ('a1_receipt_unique', 'BR-A1-U', 'a1_supplier', 'a1_po_unique')`);
+      await pre.query(`INSERT INTO "GoodsReceiptLine"(id, "receiptId", "partId", "quantityX100", "unitCost") VALUES ('a1_grl_unique', 'a1_receipt_unique', 'a1_part', 75, 1000)`);
+
+      await pre.query(`INSERT INTO "PurchaseOrder"(id, number, "supplierId", status) VALUES ('a1_po_amb', 'BC-A1-A', 'a1_supplier', 'PARTIAL')`);
+      await pre.query(`INSERT INTO "PurchaseOrderLine"(id, "purchaseOrderId", "partId", "quantityX100", "receivedX100", "unitCost") VALUES
+        ('a1_pol_amb1', 'a1_po_amb', 'a1_part', 300, 40, 1000),
+        ('a1_pol_amb2', 'a1_po_amb', 'a1_part', 200, 0, 1000)`);
+      await pre.query(`INSERT INTO "GoodsReceipt"(id, number, "supplierId", "purchaseOrderId") VALUES ('a1_receipt_amb', 'BR-A1-A', 'a1_supplier', 'a1_po_amb')`);
+      await pre.query(`INSERT INTO "GoodsReceiptLine"(id, "receiptId", "partId", "quantityX100", "unitCost") VALUES ('a1_grl_amb', 'a1_receipt_amb', 'a1_part', 40, 1000)`);
+
+      await pre.query(migrationSql("34_offline_sync_totals"));
+      expect(await one(pre, `SELECT "purchaseOrderLineId" FROM "GoodsReceiptLine" WHERE id='a1_grl_unique'`)).toEqual({ purchaseOrderLineId: "a1_pol_unique" });
+      expect(await one(pre, `SELECT "receivedX100" FROM "PurchaseOrderLine" WHERE id='a1_pol_unique'`)).toEqual({ receivedX100: 75 });
+      expect((await pre.query(`SELECT id, "receivedX100" FROM "PurchaseOrderLine" WHERE id LIKE 'a1_pol_amb%' ORDER BY id`)).rows).toEqual([
+        { id: "a1_pol_amb1", receivedX100: 40 },
+        { id: "a1_pol_amb2", receivedX100: 0 },
+      ]);
+      expect(await one(pre, `SELECT "purchaseOrderLineId" FROM "GoodsReceiptLine" WHERE id='a1_grl_amb'`)).toEqual({ purchaseOrderLineId: null });
+      const logCount = Number((await one(pre, `SELECT count(*) FROM "_sync_log"`)).count);
+      await pre.query(migrationSql("34_offline_sync_totals"));
+      expect(Number((await one(pre, `SELECT count(*) FROM "_sync_log"`)).count)).toBe(logCount);
+    } finally {
+      await pre.end();
+      await admin.query(`DROP DATABASE IF EXISTS ${HUB}_a1pre WITH (FORCE)`);
+    }
+  }, 30_000);
+
+  it("A1: reconciles stock, reservations, receipts and both payment ledgers after concurrent offline changes", async () => {
+    for (const db of [local, cloud]) {
+      const before = Number((await one(db, `SELECT count(*) FROM "_sync_log"`)).count);
+      await db.query(migrationSql("34_offline_sync_totals"));
+      await db.query(migrationSql("34_offline_sync_totals"));
+      expect(Number((await one(db, `SELECT count(*) FROM "_sync_log"`)).count)).toBe(before);
+    }
+
+    await cloud.query(`INSERT INTO "Supplier"(id, name) VALUES ('a1_supplier', 'A1 fournisseur')`);
+    await cloud.query(`INSERT INTO "Part"(id, sku, name, "salePrice", "stockX100", "reservedX100") VALUES ('a1_part', 'A1-SKU', 'Pièce A1', 1000, 500, 10)`);
+    await cloud.query(`INSERT INTO "PurchaseOrder"(id, number, "supplierId", status) VALUES ('a1_po', 'BC-A1', 'a1_supplier', 'APPROVED')`);
+    await cloud.query(`INSERT INTO "PurchaseOrderLine"(id, "purchaseOrderId", "partId", "quantityX100", "receivedX100", "unitCost") VALUES ('a1_pol', 'a1_po', 'a1_part', 500, 100, 1000)`);
+    await cloud.query(`INSERT INTO "GoodsReceipt"(id, number, "supplierId", "purchaseOrderId") VALUES ('a1_receipt_base', 'BR-A1-BASE', 'a1_supplier', 'a1_po')`);
+    await cloud.query(`INSERT INTO "GoodsReceiptLine"(id, "receiptId", "partId", "purchaseOrderLineId", "quantityX100", "unitCost") VALUES ('a1_grl_base', 'a1_receipt_base', 'a1_part', 'a1_pol', 100, 1000)`);
+    await cloud.query(`INSERT INTO "StockMovement"(id, "partId", "deltaX100", reason, "receiptId") VALUES
+      ('a1_move_base', 'a1_part', 100, 'GOODS_RECEIPT', 'a1_receipt_base'),
+      ('a1_move_adjust', 'a1_part', 400, 'ADJUSTMENT', NULL)`);
+    await cloud.query(`INSERT INTO "StockReservation"(id, "partId", "workOrderId", "quantityX100", status) VALUES ('a1_res_base', 'a1_part', 'w1', 10, 'ACTIVE')`);
+    await addCustomer(cloud, "a1_customer", "Client A1");
+    await addVehicle(cloud, "a1_vehicle", "100TU0101", "a1_customer");
+    await addWorkOrder(cloud, "a1_workorder", "a1_customer", "a1_vehicle");
+    await cloud.query(`INSERT INTO "Invoice"(id, number, "workOrderId", "customerId", "totalHt", "totalTax", "stampDuty", "totalTtc", snapshot) VALUES ('a1_invoice', 'F-A1-0001', 'a1_workorder', 'a1_customer', 100000, 0, 0, 100000, '{}')`);
+    await cloud.query(`INSERT INTO "SupplierInvoice"(id, number, "supplierId", "issuedAt", "totalHt", "totalTax", "totalTtc") VALUES ('a1_supplier_invoice', 'A1-FS-0001', 'a1_supplier', now(), 100000, 0, 100000)`);
+
+    expect((await syncOnce(local, cloud)).errors).toEqual([]);
+
+    await local.query(`INSERT INTO "StockMovement"(id, "partId", "deltaX100", reason, "workOrderId") VALUES ('a1_move_local_out', 'a1_part', -100, 'WORK_ORDER', 'w1')`);
+    await local.query(`INSERT INTO "StockReservation"(id, "partId", "workOrderId", "quantityX100", status) VALUES ('a1_res_local', 'a1_part', 'w1', 20, 'ACTIVE')`);
+    await local.query(`INSERT INTO "GoodsReceipt"(id, number, "supplierId", "purchaseOrderId") VALUES ('a1_receipt_local', 'BR-A1-LOCAL', 'a1_supplier', 'a1_po')`);
+    await local.query(`INSERT INTO "GoodsReceiptLine"(id, "receiptId", "partId", "purchaseOrderLineId", "quantityX100", "unitCost") VALUES ('a1_grl_local', 'a1_receipt_local', 'a1_part', 'a1_pol', 100, 1000)`);
+    await local.query(`INSERT INTO "StockMovement"(id, "partId", "deltaX100", reason, "receiptId") VALUES ('a1_move_local_in', 'a1_part', 100, 'GOODS_RECEIPT', 'a1_receipt_local')`);
+    await local.query(`UPDATE "Part" SET "stockX100" = 500, "reservedX100" = 30 WHERE id='a1_part'`);
+    await local.query(`UPDATE "PurchaseOrderLine" SET "receivedX100" = 200 WHERE id='a1_pol'`);
+    await local.query(`INSERT INTO "Payment"(id, "invoiceId", amount, method) VALUES ('a1_payment_local', 'a1_invoice', 70000, 'CASH')`);
+    await local.query(`UPDATE "Invoice" SET "paidAmount" = 70000, status = 'PARTIAL' WHERE id='a1_invoice'`);
+    await local.query(`INSERT INTO "SupplierPayment"(id, "supplierInvoiceId", amount, method) VALUES ('a1_supplier_payment_local', 'a1_supplier_invoice', 40000, 'CASH')`);
+    await local.query(`UPDATE "SupplierInvoice" SET "paidAmount" = 40000, status = 'PARTIAL' WHERE id='a1_supplier_invoice'`);
+
+    await cloud.query(`INSERT INTO "StockMovement"(id, "partId", "deltaX100", reason, "workOrderId") VALUES ('a1_move_cloud_out', 'a1_part', -200, 'WORK_ORDER', 'w1')`);
+    await cloud.query(`INSERT INTO "StockReservation"(id, "partId", "workOrderId", "quantityX100", status) VALUES ('a1_res_cloud', 'a1_part', 'w1', 30, 'ACTIVE')`);
+    await cloud.query(`INSERT INTO "GoodsReceipt"(id, number, "supplierId", "purchaseOrderId") VALUES ('a1_receipt_cloud', 'BR-A1-CLOUD', 'a1_supplier', 'a1_po')`);
+    await cloud.query(`INSERT INTO "GoodsReceiptLine"(id, "receiptId", "partId", "purchaseOrderLineId", "quantityX100", "unitCost") VALUES ('a1_grl_cloud', 'a1_receipt_cloud', 'a1_part', 'a1_pol', 150, 1000)`);
+    await cloud.query(`INSERT INTO "StockMovement"(id, "partId", "deltaX100", reason, "receiptId") VALUES ('a1_move_cloud_in', 'a1_part', 150, 'GOODS_RECEIPT', 'a1_receipt_cloud')`);
+    await cloud.query(`UPDATE "Part" SET "stockX100" = 450, "reservedX100" = 40 WHERE id='a1_part'`);
+    await cloud.query(`UPDATE "PurchaseOrderLine" SET "receivedX100" = 250 WHERE id='a1_pol'`);
+    await cloud.query(`INSERT INTO "Payment"(id, "invoiceId", amount, method) VALUES ('a1_payment_cloud', 'a1_invoice', 60000, 'CASH')`);
+    await cloud.query(`UPDATE "Invoice" SET "paidAmount" = 60000, status = 'PARTIAL' WHERE id='a1_invoice'`);
+    await cloud.query(`INSERT INTO "SupplierPayment"(id, "supplierInvoiceId", amount, method) VALUES ('a1_supplier_payment_cloud', 'a1_supplier_invoice', 50000, 'CASH')`);
+    await cloud.query(`UPDATE "SupplierInvoice" SET "paidAmount" = 50000, status = 'PARTIAL' WHERE id='a1_supplier_invoice'`);
+
+    const report = await syncOnce(local, cloud);
+    expect(report.errors).toEqual([]);
+    expect(report.unresolved).toEqual([]);
+    expect(report.overpayments).toEqual([{
+      table: "Invoice",
+      id: "a1_invoice",
+      number: "F-A1-0001",
+      sides: ["garage", "online"],
+      amounts: { garage: 30000, online: 30000 },
+      overpaidAmount: 30000,
+    }]);
+    expect(report.corrections.some((c: { table: string; id: string }) => c.table === "Part" && c.id === "a1_part")).toBe(true);
+
+    for (const db of [local, cloud]) {
+      expect(await one(db, `SELECT "stockX100", "reservedX100" FROM "Part" WHERE id='a1_part'`)).toEqual({ stockX100: 450, reservedX100: 60 });
+      expect(await one(db, `SELECT "paidAmount", status FROM "Invoice" WHERE id='a1_invoice'`)).toEqual({ paidAmount: 130000, status: "PAID" });
+      expect(await one(db, `SELECT "paidAmount", status FROM "SupplierInvoice" WHERE id='a1_supplier_invoice'`)).toEqual({ paidAmount: 90000, status: "PARTIAL" });
+      expect(await one(db, `SELECT "receivedX100" FROM "PurchaseOrderLine" WHERE id='a1_pol'`)).toEqual({ receivedX100: 350 });
+      expect(Number((await one(db, `SELECT count(*) FROM "AuditLog" WHERE action='hub.reconcile'`)).count)).toBeGreaterThan(0);
+    }
+    const again = await syncOnce(local, cloud);
+    expect([again.pushed, again.pulled, again.corrections.length]).toEqual([0, 0, 0]);
+  }, 30_000);
+
   it("a database without a hub logs nothing", async () => {
     const plain = await freshDb(admin, `${HUB}_plain`, allMigrations);
     try {

@@ -1141,6 +1141,7 @@ model PurchaseOrderLine {
 
   purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
   part          Part          @relation(fields: [partId], references: [id], onDelete: Restrict)
+  receiptLines   GoodsReceiptLine[]
 
   @@index([purchaseOrderId])
 }
@@ -1172,13 +1173,16 @@ model GoodsReceiptLine {
   id           String @id @default(cuid())
   receiptId    String
   partId       String
+  purchaseOrderLineId String?
   quantityX100 Int
   unitCost     Int
 
-  receipt GoodsReceipt @relation(fields: [receiptId], references: [id], onDelete: Cascade)
-  part    Part         @relation(fields: [partId], references: [id], onDelete: Restrict)
+  receipt           GoodsReceipt     @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  part              Part             @relation(fields: [partId], references: [id], onDelete: Restrict)
+  purchaseOrderLine PurchaseOrderLine? @relation(fields: [purchaseOrderLineId], references: [id], onDelete: SetNull)
 
   @@index([receiptId])
+  @@index([purchaseOrderLineId])
 }
 
 /// Facture reçue d'un fournisseur (suivi des dettes).

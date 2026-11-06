@@ -36,6 +36,7 @@ export const TODO_ICONS: Record<TodoKey, LucideIcon> = {
   leaves: CalendarCheck,
   purchaseOrders: ShoppingCart,
   qualityChecks: ClipboardCheck,
+  syncOverpayments: HandCoins,
   contractsToApprove: BadgeCheck,
   contractsToSign: FileSignature,
   warrantyDecisions: ShieldCheck,

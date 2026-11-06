@@ -36,9 +36,19 @@ export async function round() {
       });
       const parts = [`envoyés ${report.pushed}`, `reçus ${report.pulled}`];
       if (report.conflicts) parts.push(`conflits ${report.conflicts} (le plus récent gagne)`);
+      if (report.corrections.length) parts.push(`totaux recalculés ${report.corrections.length}`);
+      if (report.unresolved.length) parts.push(`réceptions ambiguës ${report.unresolved.length}`);
+      if (report.overpayments.length) parts.push(`surpaiements à traiter ${report.overpayments.length}`);
       if (!media.skipped && (media.uploaded || media.downloaded)) parts.push(`photos ↑${media.uploaded} ↓${media.downloaded}`);
       if (report.errors.length) parts.push(`À VÉRIFIER ${report.errors.length} : ${report.errors[0].tbl} — ${report.errors[0].error}`);
       console.log(`[${time()}] Synchronisé — ${parts.join(" · ")}`);
+      for (const item of report.overpayments) {
+        const amounts = Object.entries(item.amounts).map(([side, amount]) => `${side} ${amount}`).join(", ");
+        console.warn(`[${time()}] Surpaiement ${item.table} ${item.number} (${amounts}) millimes — visible dans « À traiter » (admin).`);
+      }
+      for (const item of report.unresolved) {
+        console.warn(`[${time()}] Réception non attribuable ${item.id} (${item.sides.join("/")}) : vérifier ${item.table} dans le bon de commande.`);
+      }
       return { online: true, report };
     } finally {
       await cloud.end().catch(() => {});

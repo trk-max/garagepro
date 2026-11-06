@@ -172,6 +172,40 @@ async function rowsFor(key: TodoKey, who: PermSubject, now: Date, take: number):
       const rows = await prisma.purchaseOrder.findMany({ where: { status: "PENDING_APPROVAL" }, select: { id: true, number: true, createdAt: true, supplier: { select: { name: true } } }, orderBy: { createdAt: "asc" }, take });
       return rows.map((p) => ({ id: p.id, title: p.number, sub: p.supplier.name, href: `/garage/purchase-orders/${p.id}`, at: p.createdAt }));
     }
+    case "syncOverpayments": {
+      const [invoices, supplierInvoices] = await Promise.all([
+        prisma.invoice.findMany({
+          where: { status: { not: "CREDITED" }, paidAmount: { gt: prisma.invoice.fields.totalTtc } },
+          select: { id: true, number: true, issuedAt: true, totalTtc: true, paidAmount: true, customer: { select: { name: true } } },
+          orderBy: { issuedAt: "asc" },
+          take,
+        }),
+        prisma.supplierInvoice.findMany({
+          where: { paidAmount: { gt: prisma.supplierInvoice.fields.totalTtc } },
+          select: { id: true, number: true, issuedAt: true, totalTtc: true, paidAmount: true, supplier: { select: { name: true } } },
+          orderBy: { issuedAt: "asc" },
+          take,
+        }),
+      ]);
+      return [
+        ...invoices.map((i) => ({
+          id: `invoice:${i.id}`,
+          title: i.number,
+          sub: i.customer.name,
+          href: `/garage/invoices/${i.id}`,
+          at: i.issuedAt,
+          figure: { kind: "money" as const, amount: i.paidAmount - i.totalTtc },
+        })),
+        ...supplierInvoices.map((i) => ({
+          id: `supplier:${i.id}`,
+          title: i.number,
+          sub: i.supplier.name,
+          href: `/garage/supplier-invoices/${i.id}`,
+          at: i.issuedAt,
+          figure: { kind: "money" as const, amount: i.paidAmount - i.totalTtc },
+        })),
+      ].sort((a, b) => (a.at?.getTime() ?? 0) - (b.at?.getTime() ?? 0)).slice(0, take);
+    }
     case "contractDrafts":
     case "contractsToApprove":
     case "contractsToSign": {

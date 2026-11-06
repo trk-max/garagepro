@@ -62,6 +62,7 @@ export const todoEn: typeof todoFr = {
     leaves: "Leave requests to approve",
     purchaseOrders: "Purchase orders to approve",
     qualityChecks: "Quality checks to approve",
+    syncOverpayments: "Invoice overpayments to review after synchronisation",
     contractsToApprove: "Contracts to approve",
     contractsToSign: "Approved contracts not yet signed",
     warrantyDecisions: "Warranty claims: answer to record",

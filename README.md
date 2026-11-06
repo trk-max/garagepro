@@ -7,6 +7,13 @@
 <p align="center">Version <b>7.7</b> — application PC / téléphone, fonctionne aussi <b>sans internet</b> (hub du garage)</p>
 <p align="center">Next.js 15 · TypeScript · Tailwind v4 · PostgreSQL (Supabase) + Prisma 6 · Auth.js v5 · Vercel</p>
 
+## Nouveautés — synchronisation fiable des totaux
+
+- Après chaque échange hors ligne, le hub recalcule stock, réservations, paiements client et fournisseur, ainsi que les quantités reçues, à partir de leurs lignes détaillées.
+- Les corrections sont auditées et ajoutées au rapport du hub. Un surpaiement issu de paiements enregistrés hors ligne des deux côtés apparaît dans « À traiter » pour l’administrateur.
+- Les anciennes réceptions sont reliées automatiquement à une ligne de commande seulement si la pièce n’y apparaît qu’une fois. Les cas ambigus restent inchangés et sont signalés.
+- Après fusion, appliquer la migration additive avec `npm run db:cloud`. Guide : [docs/SYNCHRONISATION-HUB.md](docs/SYNCHRONISATION-HUB.md).
+
 <p align="center">
   <img src="docs/media/01-accueil.jpg" alt="Site client : accueil" width="49%">
   <img src="docs/media/04-tableau-de-bord.jpg" alt="Espace équipe : tableau de bord" width="49%">

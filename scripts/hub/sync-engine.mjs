@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 /**
  * GaragePro — synchronisation between the garage PC's LOCAL database (the hub,
  * used by the team on the garage Wi-Fi, with or without internet) and the
@@ -189,6 +191,229 @@ async function relog(db, ops) {
   for (const o of ops) await db.query(`INSERT INTO "_sync_log" (tbl, row_id, op) VALUES ($1, $2, $3)`, [o.tbl, o.id, o.op]);
 }
 
+// Totals backed by child rows. Rows without a reliable child relationship are
+// intentionally excluded rather than guessed during reconciliation.
+const CHILD_PARENTS = {
+  StockMovement: { target: "parts", parentColumn: "partId" },
+  StockReservation: { target: "parts", parentColumn: "partId" },
+  Payment: { target: "invoices", parentColumn: "invoiceId" },
+  SupplierPayment: { target: "supplierInvoices", parentColumn: "supplierInvoiceId" },
+};
+
+function emptyTargets() {
+  return {
+    parts: new Set(),
+    invoices: new Set(),
+    supplierInvoices: new Set(),
+    purchaseOrderLines: new Set(),
+  };
+}
+
+function addDirectTargets(targets, changes) {
+  const direct = {
+    Part: "parts",
+    Invoice: "invoices",
+    SupplierInvoice: "supplierInvoices",
+    PurchaseOrderLine: "purchaseOrderLines",
+  };
+  for (const change of changes) {
+    const target = direct[change.tbl];
+    if (target) targets[target].add(String(change.id));
+  }
+}
+
+async function addChildTargets(db, schema, changes, targets) {
+  const byTable = new Map();
+  for (const change of changes) {
+    if (!byTable.has(change.tbl)) byTable.set(change.tbl, []);
+    byTable.get(change.tbl).push(String(change.id));
+  }
+
+  for (const [tbl, relation] of Object.entries(CHILD_PARENTS)) {
+    const ids = byTable.get(tbl);
+    if (!ids?.length || !schema.pk.has(tbl)) continue;
+    const { rows } = await db.query(
+      `SELECT ${q(relation.parentColumn)}::text AS parent_id FROM ${q(tbl)} WHERE ${q(schema.pk.get(tbl))}::text = ANY($1::text[])`,
+      [ids],
+    );
+    for (const row of rows) if (row.parent_id) targets[relation.target].add(String(row.parent_id));
+  }
+
+  const receiptIds = byTable.get("GoodsReceiptLine");
+  if (!receiptIds?.length || !schema.pk.has("GoodsReceiptLine")) return;
+  const { rows } = await db.query(
+    `SELECT DISTINCT pol.id::text AS line_id
+     FROM "GoodsReceiptLine" gl
+     JOIN "GoodsReceipt" r ON r.id = gl."receiptId"
+     LEFT JOIN "PurchaseOrderLine" pol
+       ON pol.id = gl."purchaseOrderLineId"
+       OR (gl."purchaseOrderLineId" IS NULL AND pol."purchaseOrderId" = r."purchaseOrderId" AND pol."partId" = gl."partId")
+     WHERE gl.${q(schema.pk.get("GoodsReceiptLine"))}::text = ANY($1::text[])`,
+    [receiptIds],
+  );
+  for (const row of rows) if (row.line_id) targets.purchaseOrderLines.add(String(row.line_id));
+}
+
+async function collectTargets(local, cloud, schema, changes) {
+  const targets = emptyTargets();
+  addDirectTargets(targets, changes);
+  await Promise.all([
+    addChildTargets(local, schema, changes, targets),
+    addChildTargets(cloud, schema, changes, targets),
+  ]);
+  return Object.fromEntries(Object.entries(targets).map(([key, ids]) => [key, [...ids].sort()]));
+}
+
+async function writeReconciliationAudit(db, entity, entityId, before, after) {
+  await db.query(
+    `INSERT INTO "AuditLog" (id, "actorName", action, entity, "entityId", "before", "after")
+     VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb)`,
+    [randomUUID(), "Synchronisation GaragePro", "hub.reconcile", entity, entityId, JSON.stringify(before), JSON.stringify(after)],
+  );
+}
+
+async function reconcileDatabase(db, targets, side) {
+  const corrections = [];
+  const unresolved = [];
+  await db.query("BEGIN");
+  try {
+    await db.query("SET LOCAL garagepro.sync = 'on'");
+
+    for (const id of targets.parts) {
+      const current = (await db.query(`SELECT id, "stockX100", "reservedX100" FROM "Part" WHERE id = $1 FOR UPDATE`, [id])).rows[0];
+      if (!current) continue;
+      const totals = (await db.query(
+        `SELECT
+           COALESCE((SELECT SUM("deltaX100") FROM "StockMovement" WHERE "partId" = $1), 0)::integer AS "stockX100",
+           COALESCE((SELECT SUM("quantityX100") FROM "StockReservation" WHERE "partId" = $1 AND status = 'ACTIVE'), 0)::integer AS "reservedX100"`,
+        [id],
+      )).rows[0];
+      const before = { stockX100: Number(current.stockX100), reservedX100: Number(current.reservedX100) };
+      const after = { stockX100: Number(totals.stockX100), reservedX100: Number(totals.reservedX100) };
+      if (before.stockX100 === after.stockX100 && before.reservedX100 === after.reservedX100) continue;
+      await db.query(`UPDATE "Part" SET "stockX100" = $2, "reservedX100" = $3 WHERE id = $1`, [id, after.stockX100, after.reservedX100]);
+      await writeReconciliationAudit(db, "Part", id, before, after);
+      corrections.push({ side, table: "Part", id, before, after });
+    }
+
+    for (const id of targets.invoices) {
+      const current = (await db.query(`SELECT id, status, "totalTtc", "paidAmount" FROM "Invoice" WHERE id = $1 FOR UPDATE`, [id])).rows[0];
+      if (!current) continue;
+      const paid = (await db.query(`SELECT COALESCE(SUM(amount), 0)::integer AS amount FROM "Payment" WHERE "invoiceId" = $1`, [id])).rows[0].amount;
+      const paidAmount = Number(paid);
+      const status = current.status === "CREDITED"
+        ? "CREDITED"
+        : paidAmount >= Number(current.totalTtc)
+          ? "PAID"
+          : paidAmount > 0
+            ? "PARTIAL"
+            : "ISSUED";
+      const before = { paidAmount: Number(current.paidAmount), status: current.status };
+      const after = { paidAmount, status };
+      if (before.paidAmount === after.paidAmount && before.status === after.status) continue;
+      await db.query(`UPDATE "Invoice" SET "paidAmount" = $2, status = $3 WHERE id = $1`, [id, paidAmount, status]);
+      await writeReconciliationAudit(db, "Invoice", id, before, after);
+      corrections.push({ side, table: "Invoice", id, before, after });
+    }
+
+    for (const id of targets.supplierInvoices) {
+      const current = (await db.query(`SELECT id, status, "totalTtc", "paidAmount" FROM "SupplierInvoice" WHERE id = $1 FOR UPDATE`, [id])).rows[0];
+      if (!current) continue;
+      const paid = (await db.query(`SELECT COALESCE(SUM(amount), 0)::integer AS amount FROM "SupplierPayment" WHERE "supplierInvoiceId" = $1`, [id])).rows[0].amount;
+      const paidAmount = Number(paid);
+      const status = paidAmount >= Number(current.totalTtc) ? "PAID" : paidAmount > 0 ? "PARTIAL" : "UNPAID";
+      const before = { paidAmount: Number(current.paidAmount), status: current.status };
+      const after = { paidAmount, status };
+      if (before.paidAmount === after.paidAmount && before.status === after.status) continue;
+      await db.query(`UPDATE "SupplierInvoice" SET "paidAmount" = $2, status = $3 WHERE id = $1`, [id, paidAmount, status]);
+      await writeReconciliationAudit(db, "SupplierInvoice", id, before, after);
+      corrections.push({ side, table: "SupplierInvoice", id, before, after });
+    }
+
+    for (const id of targets.purchaseOrderLines) {
+      const current = (await db.query(
+        `SELECT id, "purchaseOrderId", "partId", "receivedX100" FROM "PurchaseOrderLine" WHERE id = $1 FOR UPDATE`,
+        [id],
+      )).rows[0];
+      if (!current) continue;
+      const ambiguous = (await db.query(
+        `SELECT EXISTS (
+           SELECT 1 FROM "GoodsReceiptLine" gl
+           JOIN "GoodsReceipt" r ON r.id = gl."receiptId"
+           WHERE r."purchaseOrderId" = $1 AND gl."partId" = $2 AND gl."purchaseOrderLineId" IS NULL
+         ) AS ambiguous`,
+        [current.purchaseOrderId, current.partId],
+      )).rows[0].ambiguous;
+      if (ambiguous) {
+        unresolved.push({ side, table: "PurchaseOrderLine", id, reason: "unlinkedReceiptLine" });
+        continue;
+      }
+      const received = (await db.query(
+        `SELECT COALESCE(SUM("quantityX100"), 0)::integer AS amount FROM "GoodsReceiptLine" WHERE "purchaseOrderLineId" = $1`,
+        [id],
+      )).rows[0].amount;
+      const before = Number(current.receivedX100);
+      const after = Number(received);
+      if (before === after) continue;
+      await db.query(`UPDATE "PurchaseOrderLine" SET "receivedX100" = $2 WHERE id = $1`, [id, after]);
+      await writeReconciliationAudit(db, "PurchaseOrderLine", id, { receivedX100: before }, { receivedX100: after });
+      corrections.push({ side, table: "PurchaseOrderLine", id, before: { receivedX100: before }, after: { receivedX100: after } });
+    }
+
+    await db.query("COMMIT");
+  } catch (error) {
+    await db.query("ROLLBACK").catch(() => {});
+    throw error;
+  }
+  return { corrections, unresolved };
+}
+
+async function findOverpayments(db, targets, side) {
+  const overpayments = [];
+  if (targets.invoices.length) {
+    const { rows } = await db.query(
+      `SELECT id, number, ("paidAmount" - "totalTtc")::integer AS "overpaidAmount"
+       FROM "Invoice" WHERE id = ANY($1::text[]) AND status <> 'CREDITED' AND "paidAmount" > "totalTtc"`,
+      [targets.invoices],
+    );
+    for (const row of rows) overpayments.push({ side, table: "Invoice", ...row, overpaidAmount: Number(row.overpaidAmount) });
+  }
+  if (targets.supplierInvoices.length) {
+    const { rows } = await db.query(
+      `SELECT id, number, ("paidAmount" - "totalTtc")::integer AS "overpaidAmount"
+       FROM "SupplierInvoice" WHERE id = ANY($1::text[]) AND "paidAmount" > "totalTtc"`,
+      [targets.supplierInvoices],
+    );
+    for (const row of rows) overpayments.push({ side, table: "SupplierInvoice", ...row, overpaidAmount: Number(row.overpaidAmount) });
+  }
+  return overpayments;
+}
+
+function mergeByRecord(items) {
+  const records = new Map();
+  for (const item of items) {
+    const key = `${item.table}\u0000${item.id}`;
+    const record = records.get(key) ?? {
+      table: item.table,
+      id: item.id,
+      ...(item.number ? { number: item.number } : {}),
+      ...(item.reason ? { reason: item.reason } : {}),
+      sides: [],
+      amounts: {},
+    };
+    if (!record.sides.includes(item.side)) record.sides.push(item.side);
+    if (item.overpaidAmount !== undefined) record.amounts[item.side] = item.overpaidAmount;
+    records.set(key, record);
+  }
+  return [...records.values()].map((record) => ({
+    ...record,
+    sides: record.sides.sort(),
+    ...(Object.keys(record.amounts).length
+      ? { overpaidAmount: Math.max(...Object.values(record.amounts)) }
+      : {}),
+  }));
+}
+
 // ── One round ─────────────────────────────────────────────────────────────────
 
 /**
@@ -216,6 +441,7 @@ export async function syncOnce(local, cloud, { now = () => new Date() } = {}) {
     push.push(c);
   }
   const pull = [...cloudByKey.values()];
+  const targets = await collectTargets(local, cloud, schema, [...fromLocal.changes, ...fromCloud.changes]);
 
   // Current version of each changed row (a row gone since then becomes a deletion).
   const [localRows, cloudRows] = await Promise.all([fetchRows(local, schema, push), fetchRows(cloud, schema, pull)]);
@@ -231,6 +457,15 @@ export async function syncOnce(local, cloud, { now = () => new Date() } = {}) {
   const pullOps = toOps(pull, cloudRows);
   const pushFailed = await applyOps(cloud, schema, pushOps);
   const pullFailed = await applyOps(local, schema, pullOps);
+  const [garageTotals, onlineTotals] = await Promise.all([
+    reconcileDatabase(local, targets, "garage"),
+    reconcileDatabase(cloud, targets, "online"),
+  ]);
+  const overpayments = mergeByRecord([
+    ...(await findOverpayments(local, targets, "garage")),
+    ...(await findOverpayments(cloud, targets, "online")),
+  ]);
+  const unresolved = mergeByRecord([...garageTotals.unresolved, ...onlineTotals.unresolved]);
 
   // Done with these log lines; the failures are queued again (limited retries).
   await ack(local, fromLocal.ids);
@@ -254,6 +489,9 @@ export async function syncOnce(local, cloud, { now = () => new Date() } = {}) {
     pushed: pushOps.length - pushFailed.length,
     pulled: pullOps.length - pullFailed.length,
     conflicts: conflicts.length,
+    corrections: [...garageTotals.corrections, ...onlineTotals.corrections],
+    unresolved,
+    overpayments,
     errors: [...pushFailed.map((f) => ({ side: "online", tbl: f.tbl, id: f.id, error: f.error })), ...pullFailed.map((f) => ({ side: "garage", tbl: f.tbl, id: f.id, error: f.error }))],
   };
   return report;

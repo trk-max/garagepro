@@ -21,7 +21,7 @@ export const TODO_KEYS = [
   // V15 — accueil
   "receptionWaiting",
   // B. To approve (manager / administrator / HR)
-  "leaves", "purchaseOrders", "qualityChecks", "contractsToApprove", "contractsToSign", "warrantyDecisions",
+  "leaves", "purchaseOrders", "qualityChecks", "syncOverpayments", "contractsToApprove", "contractsToSign", "warrantyDecisions",
   // V14 — réévaluations demandées / objectifs atteints
   "skillReviews",
 ] as const;
@@ -40,6 +40,10 @@ export const isTodoKey = (k: string): k is TodoKey => (TODO_KEYS as readonly str
 
 const followUp = (r: PermSubject) => can(r, "manageRepairFollowUp");
 const contracts = (access: "view" | "manage" | "approve") => (r: PermSubject) => can(r, "viewContracts") && contractCategoriesFor(r, access).length > 0;
+const adminSettings = (r: PermSubject) => {
+  if (!r) return false;
+  return (typeof r === "string" ? r : r.role) === "ADMIN" && can(r, "manageSettings");
+};
 
 /** Quote sent and no answer for this many days → "incomplete". */
 export const QUOTE_WAIT_DAYS = 3;
@@ -80,6 +84,7 @@ export const TODO_DEFS: Record<TodoKey, Def> = {
   leaves: { group: "approval", href: "/garage/equipe", visible: (r) => can(r, "manageTeam") },
   purchaseOrders: { group: "approval", href: "/garage/purchase-orders?status=PENDING_APPROVAL", visible: (r) => can(r, "approvePurchase") },
   qualityChecks: { group: "approval", href: "/garage/work-orders?status=QUALITY_CONTROL", visible: (r) => can(r, "approveQualityCheck") },
+  syncOverpayments: { group: "approval", href: "/garage/invoices", visible: adminSettings },
   contractsToApprove: { group: "approval", href: "/garage/contrats?s=VALIDATION", visible: contracts("approve") },
   contractsToSign: { group: "approval", href: "/garage/contrats?s=PENDING_SIGNATURE", visible: contracts("manage") },
   warrantyDecisions: { group: "approval", href: "/garage/garanties?f=claims", visible: (r) => can(r, "viewWarrantyMoney") },

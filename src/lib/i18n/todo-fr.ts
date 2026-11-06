@@ -61,6 +61,7 @@ export const todoFr = {
     leaves: "Demandes de congé à valider",
     purchaseOrders: "Bons de commande à approuver",
     qualityChecks: "Contrôles qualité à valider",
+    syncOverpayments: "Surpaiements de factures à vérifier après synchronisation",
     contractsToApprove: "Contrats à approuver",
     contractsToSign: "Contrats approuvés, pas encore signés",
     warrantyDecisions: "Réclamations garantie : réponse à enregistrer",

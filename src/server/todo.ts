@@ -116,6 +116,10 @@ function counter(key: TodoKey, actor: TodoActor, now: Date): Promise<number> {
     case "leaves": return prisma.leaveRequest.count({ where: { status: "PENDING" } });
     case "purchaseOrders": return prisma.purchaseOrder.count({ where: { status: "PENDING_APPROVAL" } });
     case "qualityChecks": return prisma.qualityCheck.count({ where: TODO_WHERE.qualityChecks });
+    case "syncOverpayments": return Promise.all([
+      prisma.invoice.count({ where: { status: { not: "CREDITED" }, paidAmount: { gt: prisma.invoice.fields.totalTtc } } }),
+      prisma.supplierInvoice.count({ where: { paidAmount: { gt: prisma.supplierInvoice.fields.totalTtc } } }),
+    ]).then(([invoices, supplierInvoices]) => invoices + supplierInvoices);
     case "warrantyDecisions": return prisma.warrantyClaim.count({ where: { status: "SUBMITTED" } });
     // V14 — compétences
     case "skillCertificates": case "skillWarnings": case "skillReviews": return import("@/server/skills").then((m) => m.countSkillTodo(key, now));

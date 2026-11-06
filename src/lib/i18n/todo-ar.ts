@@ -62,6 +62,7 @@ export const todoAr: typeof todoFr = {
     leaves: "طلبات عطل للمصادقة",
     purchaseOrders: "أوامر شراء للموافقة",
     qualityChecks: "مراقبات جودة للمصادقة",
+    syncOverpayments: "مبالغ زائدة على الفواتير للمراجعة بعد المزامنة",
     contractsToApprove: "عقود للموافقة",
     contractsToSign: "عقود موافق عليها لم تُوقَّع بعد",
     warrantyDecisions: "مطالبات ضمان: رد يجب تسجيله",
